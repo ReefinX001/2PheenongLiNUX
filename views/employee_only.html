@@ -1,0 +1,2711 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ข้อมูลเงินเดือนเเละโบนัส - พนักงาน</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            'prompt': ['Prompt', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- ตรวจสอบการล็อกอิน: หากไม่มี authToken ให้แสดงข้อความแจ้งเตือน -->
+  <script>
+    // ตรวจสอบ authToken แต่ไม่ redirect ทันที
+    function checkInitialAuth() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.warn('No auth token found - user may need to login');
+        // แสดงข้อความแจ้งเตือนแทนการ redirect ทันที
+        return false;
+      }
+      return true;
+    }
+
+    // เรียกใช้การตรวจสอบเมื่อหน้าโหลดเสร็จ - ปิดการตรวจสอบ auth
+    window.addEventListener('load', function() {
+      console.log('Employee page loaded - auth check disabled');
+      // หาก token ไม่มี ให้แสดงข้อความแจ้งเตือนแทนการ redirect
+      if (!checkInitialAuth()) {
+        console.warn('No auth token - continuing without redirect');
+        // ไม่ redirect ให้ใช้งานได้ต่อ
+      }
+    });
+  </script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+  <style>
+    .wallet-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bonus-card {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .withdraw-card {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .pulse-animation {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .notification-badge {
+      animation: bounce 1s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 53%, 80%, 100% { transform: translateY(0); }
+      40%, 43% { transform: translateY(-10px); }
+      70% { transform: translateY(-5px); }
+      90% { transform: translateY(-2px); }
+    }
+
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+
+<body class="font-prompt bg-gray-50">
+  <!-- Navigation -->
+  <nav class="bg-white shadow-lg border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <a href="/dashboard" class="flex items-center space-x-2">
+            <i class="bi bi-arrow-left text-gray-600 text-xl"></i>
+            <span class="text-gray-600">กลับหน้าหลัก</span>
+          </a>
+        </div>
+        <div class="flex items-center space-x-4">
+          <!-- Employee Profile Section -->
+          <div class="flex items-center space-x-3">
+            <div class="relative">
+              <img id="employeePhoto" src="/uploads/employees/default-avatar.png?v=2" alt="Employee Photo"
+                   class="w-10 h-10 rounded-full object-cover border-2 border-gray-300"
+                   onerror="this.src='/uploads/employees/default-avatar.png?v=2'">
+              <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
+                   id="onlineStatus" title="ออนไลน์"></div>
+            </div>
+            <div class="hidden md:block">
+              <div id="employeeName" class="text-gray-700 font-medium">กำลังโหลด...</div>
+              <div id="employeePosition" class="text-sm text-gray-500">ตำแหน่ง</div>
+            </div>
+          </div>
+          <!-- Notification Bell -->
+          <div class="relative">
+            <button id="notificationBtn" class="p-2 text-gray-600 hover:text-gray-800 relative">
+              <i class="bi bi-bell text-xl"></i>
+              <span id="notificationBadge" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center notification-badge hidden">0</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center space-x-4 mb-4">
+        <img id="headerEmployeePhoto" src="/uploads/employees/default-avatar.png?v=2" alt="Employee Photo"
+             class="w-16 h-16 rounded-full object-cover border-4 border-blue-200"
+             onerror="this.src='/uploads/employees/default-avatar.png?v=2'">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">ระบบโบนัสสะสม</h1>
+          <div class="flex items-center space-x-4 mt-1">
+            <p class="text-gray-600">สำหรับ: <span id="headerEmployeeName" class="font-semibold">กำลังโหลด...</span></p>
+            <span class="text-sm text-gray-500">|</span>
+            <p class="text-gray-600">รหัสพนักงาน: <span id="headerEmployeeId" class="font-mono">-</span></p>
+            <span class="text-sm text-gray-500">|</span>
+            <p class="text-gray-600">สาขา: <span id="headerBranchName" class="font-medium">-</span></p>
+          </div>
+        </div>
+      </div>
+      <p class="text-gray-600">เงินเดือนปัจจุบัน และติดตามยอดสะสม</p>
+    </div>
+
+    <!-- Income Summary Cards -->
+    <div class="space-y-6 mb-8">
+      <!-- แถวบน: เงินเดือน, OT, Incentive, เงินได้สุทธิ -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- เงินเดือน -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+          <div class="flex items-center justify-between mb-3">
+            <i class="bi bi-cash-stack text-2xl text-blue-600"></i>
+            <span class="text-sm text-gray-600 font-medium">เงินเดือน</span>
+          </div>
+          <div class="mb-2">
+            <h3 id="baseSalary" class="text-2xl font-bold text-gray-900">฿0.00</h3>
+          </div>
+          <p class="text-xs text-gray-500">เงินเดือนประจำ</p>
+        </div>
+
+        <!-- OT -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+          <div class="flex items-center justify-between mb-3">
+            <i class="bi bi-clock text-2xl text-green-600"></i>
+            <span class="text-sm text-gray-600 font-medium">OT</span>
+          </div>
+          <div class="mb-2">
+            <h3 id="overtimeAmount" class="text-2xl font-bold text-gray-900">฿0.00</h3>
+          </div>
+          <p class="text-xs text-gray-500">ค่าล่วงเวลา</p>
+        </div>
+
+        <!-- Incentive -->
+        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+          <div class="flex items-center justify-between mb-3">
+            <i class="bi bi-trophy text-2xl text-purple-600"></i>
+            <span class="text-sm text-gray-600 font-medium">Incentive</span>
+          </div>
+          <div class="mb-2">
+            <h3 id="incentiveAmount" class="text-2xl font-bold text-gray-900">฿0.00</h3>
+          </div>
+          <p class="text-xs text-gray-500">เงินจูงใจ</p>
+        </div>
+
+        <!-- เงินได้สุทธิ (เด่น) -->
+        <div class="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-xl p-6 text-white transform hover:scale-105 transition-transform duration-200">
+          <div class="flex items-center justify-between mb-3">
+            <i class="bi bi-wallet2 text-3xl text-white"></i>
+            <span class="text-sm text-white font-medium opacity-90">เงินได้สุทธิ</span>
+          </div>
+          <div class="mb-2">
+            <h3 id="netIncome" class="text-3xl font-bold text-white pulse-animation">฿0.00</h3>
+          </div>
+          <p class="text-xs text-white opacity-80">รวมทั้งหมด</p>
+        </div>
+      </div>
+
+      <!-- เส้นแบ่งกลาง -->
+      <div class="border-t border-gray-200 my-6"></div>
+
+      <!-- แถวล่าง: รายได้สะสม, โบนัสสะสม -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- รายได้สะสม -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white relative overflow-hidden">
+          <div class="glass-effect absolute inset-0 rounded-xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <i class="bi bi-graph-up-arrow text-3xl"></i>
+              <span class="text-base opacity-90 font-medium">รายได้สะสม</span>
+            </div>
+            <div class="mb-3">
+              <h2 id="totalIncome" class="text-3xl font-bold">฿0.00</h2>
+            </div>
+            <p class="text-xs opacity-90">อัพเดทล่าสุด: <span id="lastUpdate">-</span></p>
+            <div class="text-xs opacity-90 space-y-1 mb-2">
+              <div>อายุงาน: <span id="workExperience" class="font-semibold">0 ปี 0 เดือน</span></div>
+              <div>ทำงานมาแล้ว: <span id="totalWorkDays" class="font-semibold">0 วัน</span></div>
+            </div>
+            <div class="mt-3 flex items-center space-x-4 text-xs">
+              <span class="opacity-80">ปีนี้: <span id="thisYearIncome" class="font-semibold">฿0.00</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- โบนัสสะสม -->
+        <div id="bonusCard" class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white relative overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-xl">
+          <div class="glass-effect absolute inset-0 rounded-xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <i class="bi bi-star-fill text-3xl"></i>
+              <div class="text-right">
+                <div class="text-base opacity-90 font-medium">โบนัสสะสม</div>
+                <div class="text-xs opacity-75">(เงินออม)</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <h2 id="totalBonus" class="text-3xl font-bold pulse-animation">฿0.00</h2>
+            </div>
+            <p class="text-xs opacity-90">เพิ่มขึ้น: <span id="bonusIncrease" class="font-semibold">+฿0.00</span></p>
+            <div class="mt-3 flex items-center space-x-4 text-xs">
+              <span class="opacity-80">ปีนี้: <span id="thisYearBonus" class="font-semibold">฿0.00</span></span>
+            </div>
+            <!-- Click indicator -->
+            <div class="absolute top-2 right-2">
+              <i class="bi bi-arrow-right-circle text-white opacity-75 text-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Debug Panel (แสดงเฉพาะใน Development) -->
+  <div id="debugPanel" class="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg max-w-md hidden z-40">
+    <div class="flex items-center justify-between mb-2">
+      <h4 class="font-semibold text-sm">Debug Information</h4>
+      <button onclick="toggleDebugPanel()" class="text-gray-400 hover:text-white">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <div class="text-xs space-y-1">
+      <div>API: <span id="debugAPIStatus" class="text-yellow-400">Testing...</span></div>
+      <div>Employee Data: <span id="debugEmployeeStatus" class="text-yellow-400">Loading...</span></div>
+      <div>Image URL: <span id="debugImageStatus" class="text-yellow-400">Checking...</span></div>
+      <div>Environment: <span id="debugEnvironment" class="text-blue-400"></span></div>
+    </div>
+    <button onclick="testImageLoad()" class="mt-2 bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs">
+      Test Image Load
+    </button>
+  </div>
+
+  <!-- Debug Toggle Button -->
+  <button id="debugToggle" onclick="toggleDebugPanel()" 
+          class="fixed bottom-4 left-4 bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full shadow-lg z-40">
+    <i class="bi bi-bug"></i>
+  </button>
+
+  <!-- Notification Modal -->
+  <div id="notificationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen px-4">
+      <div class="bg-white rounded-xl max-w-md w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">การแจ้งเตือน</h3>
+          <button id="closeNotificationModal" class="text-gray-500 hover:text-gray-700">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div id="notificationContent" class="space-y-3">
+          <!-- Notifications will be loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Transaction Detail Modal -->
+  <div id="transactionDetailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen px-4">
+      <div class="bg-white rounded-xl max-w-2xl w-full p-6 max-h-screen overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-semibold text-gray-900">รายละเอียดธุรกรรม</h3>
+          <button id="closeTransactionDetailModal" class="text-gray-500 hover:text-gray-700">
+            <i class="bi bi-x-lg text-xl"></i>
+          </button>
+        </div>
+
+        <!-- Transaction Header -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-3">
+              <div id="detailTransactionIcon" class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <i class="bi bi-cash-coin text-blue-600 text-xl"></i>
+              </div>
+              <div>
+                <h4 id="detailTransactionType" class="text-lg font-semibold text-gray-900">โบนัสผลงาน</h4>
+                <p id="detailTransactionRef" class="text-sm text-gray-600">รหัสอ้างอิง: TXN-2024-001</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <div id="detailTransactionAmount" class="text-2xl font-bold text-green-600">+฿2,000</div>
+              <div id="detailTransactionStatus" class="text-sm text-green-600 font-medium">สำเร็จ</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transaction Details -->
+        <div class="space-y-6">
+          <!-- Basic Information -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h5 class="font-semibold text-gray-900 mb-3">ข้อมูลพื้นฐาน</h5>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm text-gray-600">วันที่ทำรายการ</label>
+                <div id="detailTransactionDate" class="font-medium text-gray-900">25 พฤศจิกายน 2024</div>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">เวลาทำรายการ</label>
+                <div id="detailTransactionTime" class="font-medium text-gray-900">14:30:25</div>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">หมวดหมู่</label>
+                <div id="detailTransactionCategory" class="font-medium text-gray-900">โบนัสผลงาน</div>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">ประเภท</label>
+                <div id="detailTransactionSubtype" class="font-medium text-gray-900">เบิกจ่าย</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Amount Breakdown -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h5 class="font-semibold text-gray-900 mb-3">รายละเอียดยอดเงิน</h5>
+            <div class="space-y-3">
+              <div class="flex justify-between">
+                <span class="text-gray-600">จำนวนเงินหลัก</span>
+                <span id="detailBasicAmount" class="font-medium text-gray-900">฿2,000.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">โบนัสพิเศษ</span>
+                <span id="detailBonusAmount" class="font-medium text-gray-900">฿0.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">หักภาษี</span>
+                <span id="detailTaxAmount" class="font-medium text-red-600">-฿0.00</span>
+              </div>
+              <hr class="border-gray-300">
+              <div class="flex justify-between font-semibold">
+                <span class="text-gray-900">ยอดรวมสุทธิ</span>
+                <span id="detailNetAmount" class="text-green-600">฿2,000.00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reason and Description -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h5 class="font-semibold text-gray-900 mb-3">เหตุผล/โอกาส</h5>
+            <div class="space-y-3">
+              <div>
+                <label class="text-sm text-gray-600">เนื่องในโอกาส</label>
+                <div id="detailOccasion" class="font-medium text-gray-900">ผลงานเดือนพฤศจิกายน ขายได้เกินเป้า 120%</div>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">รายละเอียดเพิ่มเติม</label>
+                <div id="detailDescription" class="text-gray-700">โบนัสผลงานประจำเดือนจากการบรรลุเป้าหมายการขาย เกินเป้า 20% ตามนโยบายบริษัท</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Verification Info -->
+          <div class="bg-green-50 rounded-lg p-4">
+            <h5 class="font-semibold text-gray-900 mb-3">ข้อมูลการยืนยัน</h5>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm text-gray-600">ผู้ลงข้อมูล</label>
+                <div class="flex items-center space-x-2">
+                  <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <i class="bi bi-person text-gray-600"></i>
+                  </div>
+                  <div>
+                    <div id="detailDataEntry" class="font-medium text-gray-900">คุณสมชาย ใจดี</div>
+                    <div class="text-sm text-gray-500">ผู้จัดการฝ่ายขาย</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">ผู้อนุมัติ</label>
+                <div class="flex items-center space-x-2">
+                  <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <i class="bi bi-person-check text-gray-600"></i>
+                  </div>
+                  <div>
+                    <div id="detailApprover" class="font-medium text-gray-900">คุณประยุทธ์ ศรีสมบัติ</div>
+                    <div class="text-sm text-gray-500">ผู้อำนวยการฝ่าย HR</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">วันที่ลงข้อมูล</label>
+                <div id="detailEntryDate" class="font-medium text-gray-900">25 พฤศจิกายน 2024 - 14:25</div>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">วันที่อนุมัติ</label>
+                <div id="detailApprovalDate" class="font-medium text-gray-900">25 พฤศจิกายน 2024 - 14:30</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Supporting Documents -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h5 class="font-semibold text-gray-900 mb-3">เอกสารประกอบ</h5>
+            <div id="detailDocuments" class="space-y-2">
+              <div class="flex items-center space-x-3 p-2 border border-gray-200 rounded">
+                <i class="bi bi-file-earmark-text text-blue-600"></i>
+                <div class="flex-1">
+                  <div class="font-medium text-gray-900">รายงานยอดขายเดือนพฤศจิกายน</div>
+                  <div class="text-sm text-gray-500">PDF - 256 KB</div>
+                </div>
+                <button class="text-blue-600 hover:text-blue-800">
+                  <i class="bi bi-download"></i>
+                </button>
+              </div>
+              <div class="flex items-center space-x-3 p-2 border border-gray-200 rounded">
+                <i class="bi bi-file-earmark-spreadsheet text-green-600"></i>
+                <div class="flex-1">
+                  <div class="font-medium text-gray-900">คำนวณโบนัสผลงาน</div>
+                  <div class="text-sm text-gray-500">Excel - 84 KB</div>
+                </div>
+                <button class="text-blue-600 hover:text-blue-800">
+                  <i class="bi bi-download"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- System Logs -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h5 class="font-semibold text-gray-900 mb-3">ประวัติระบบ</h5>
+            <div id="detailSystemLogs" class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-600">สร้างรายการ</span>
+                <span class="text-gray-900">25/11/2024 14:25 โดย สมชาย ใจดี</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">ส่งอนุมัติ</span>
+                <span class="text-gray-900">25/11/2024 14:26 โดย สมชาย ใจดี</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">อนุมัติแล้ว</span>
+                <span class="text-gray-900">25/11/2024 14:30 โดย ประยุทธ์ ศรีสมบัติ</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">อัพเดทยอดโบนัส</span>
+                <span class="text-gray-900">25/11/2024 14:30 โดย ระบบ</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-3 mt-6">
+          <button class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+            <i class="bi bi-printer mr-2"></i>
+            พิมพ์ใบเสร็จ
+          </button>
+          <button class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors font-medium">
+            <i class="bi bi-download mr-2"></i>
+            ดาวน์โหลด PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API Configuration - Detect environment and use appropriate API URL
+    let API_BASE_URL = 'http://localhost:3000';
+    
+    // Check if we're running on production domain
+    if (window.location.hostname === 'www.2pheenong.com' || window.location.hostname === '2pheenong.com') {
+      API_BASE_URL = 'https://www.2pheenong.com';
+      console.log('Production environment detected');
+    } else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      // For other domains, use the current origin
+      API_BASE_URL = window.location.origin;
+      console.log('Using current origin as API base:', API_BASE_URL);
+    }
+    
+    console.log('API_BASE_URL set to:', API_BASE_URL);
+    console.log('Current hostname:', window.location.hostname);
+    console.log('Current origin:', window.location.origin);
+
+    // Global HR Data Storage
+    let hrData = {
+      employee: null,
+      salaries: [],
+      attendance: [],
+      leaves: [],
+      announcements: [],
+      commission: [],
+      bonuses: [], // Add bonuses array
+      totalBonus: 0,
+      thisYearBonus: 0,
+      totalSalary: 0,
+      attendanceRate: 0
+    };
+
+    // Authentication helpers
+    function getAuthHeaders() {
+      const token = localStorage.getItem('authToken');
+      return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    function handleAuthError(response) {
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        console.warn('Auth cleared - staying on page for debugging');
+        // window.location.href = '/login'; // ปิดการ redirect
+        return true;
+      }
+      return false;
+    }
+
+    // Get current user information from localStorage
+    function getCurrentUser() {
+      return {
+        userId: localStorage.getItem('userId'),
+        token: localStorage.getItem('authToken'),
+        role: localStorage.getItem('userRole'),
+        name: localStorage.getItem('userName'),
+        branchId: localStorage.getItem('branchId'),
+        employeeId: localStorage.getItem('employeeId')
+      };
+    }
+
+    // Check if user is authenticated (แก้ไขให้ยืดหยุ่นมากขึ้น)
+    function checkAuthentication() {
+      const user = getCurrentUser();
+
+      // ตรวจสอบ token ก่อน (สำคัญที่สุด)
+      if (!user.token) {
+        console.warn('No token found - continuing without authentication');
+        // ไม่แสดง error modal แล้ว ให้ใช้งานได้ต่อ
+        // showAuthenticationError(); // ปิดการแสดง error
+        return true; // ให้ผ่านได้แม้ไม่มี token
+      }
+
+      // ตรวจสอบความถูกต้องของ token
+      try {
+        // ลองแยก token เพื่อตรวจสอบ format พื้นฐาน
+        const tokenParts = user.token.split('.');
+        if (tokenParts.length !== 3) {
+          console.warn('Invalid token format detected');
+          showAuthenticationError();
+          return false;
+        }
+      } catch (error) {
+        console.warn('Token validation error:', error);
+        showAuthenticationError();
+        return false;
+      }
+
+      // ถ้าไม่มี userId ก็ยังใช้งานได้ แต่แสดงคำเตือน
+      if (!user.userId) {
+        console.warn('No userId found, but token exists - continuing with limited functionality');
+        // ไม่ redirect ออก แต่แจ้งเตือนใน console
+        return true; // ยังคงให้ผ่านได้
+      }
+
+      return true;
+    }
+
+    // ฟังก์ชันแสดงข้อผิดพลาดการเข้าสู่ระบบ
+    function showAuthenticationError() {
+      const errorMessage = `
+        <div class="fixed inset-0 bg-red-50 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg shadow-lg p-8 max-w-lg mx-4">
+            <div class="text-center">
+              <i class="bi bi-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">ไม่สามารถเข้าสู่ระบบได้</h3>
+              <p class="text-gray-600 mb-4">กรุณาเข้าสู่ระบบใหม่เพื่อใช้งาน</p>
+
+              <!-- แสดงข้อมูล debug -->
+              <div class="bg-gray-100 p-4 rounded-lg mb-4 text-left text-sm">
+                <h4 class="font-semibold mb-2">ข้อมูล Debug:</h4>
+                <div id="authDebugInfo">กำลังตรวจสอบ...</div>
+              </div>
+
+              <div class="space-y-3">
+                <button onclick="window.location.href='/login'" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
+                  ไปหน้า Login
+                </button>
+                <button onclick="location.reload()" class="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700">
+                  ลองใหม่
+                </button>
+                <button onclick="window.open('/debug-auth.html', '_blank')" class="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700">
+                  🔍 Debug Authentication
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // แสดงข้อความผิดพลาดแทนที่จะ redirect ทันที
+      document.body.insertAdjacentHTML('beforeend', errorMessage);
+
+      // แสดงข้อมูล debug
+      setTimeout(() => {
+        const debugElement = document.getElementById('authDebugInfo');
+        if (debugElement) {
+          const authData = {
+            authToken: localStorage.getItem('authToken') ? 'มี' : 'ไม่มี',
+            userId: localStorage.getItem('userId') || 'ไม่มี',
+            userName: localStorage.getItem('userName') || 'ไม่มี',
+            userRole: localStorage.getItem('userRole') || 'ไม่มี',
+            employeeId: localStorage.getItem('employeeId') || 'ไม่มี',
+            branchId: localStorage.getItem('branchId') || 'ไม่มี',
+            totalItems: localStorage.length
+          };
+
+          let debugHtml = '';
+          Object.keys(authData).forEach(key => {
+            debugHtml += `<div><strong>${key}:</strong> ${authData[key]}</div>`;
+          });
+
+          debugElement.innerHTML = debugHtml;
+        }
+      }, 100);
+    }
+
+    // HR Data Fetching Functions
+    async function fetchEmployeeData() {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser.userId) {
+          console.warn('No userId found, will try to get employee data from token');
+        }
+
+        // Try multiple endpoints to get employee data including profile pictures
+        const endpoints = [
+          `/api/hr/employees/user/${currentUser.userId}`,
+          `/api/hr/employees/profile`,
+          `/api/employees/user/${currentUser.userId}`,
+          `/api/employees/profile`,
+          `/api/employees/${currentUser.userId}`,
+          `/api/hr/employees/${currentUser.userId || 'current'}`,
+          `/api/users/${currentUser.userId}`,
+          `/api/users/profile`,
+          `/api/auth/profile`,
+          `/api/profile`
+        ];
+
+        for (const endpoint of endpoints) {
+          try {
+            // Skip endpoints that require userId if we don't have it
+            if (endpoint.includes('/undefined') || (endpoint.includes('/user/') && !currentUser.userId)) {
+              console.log(`Skipping ${endpoint} - no userId available`);
+              continue;
+            }
+
+            console.log(`Trying endpoint: ${endpoint}`);
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+              headers: getAuthHeaders()
+            });
+
+            if (handleAuthError(response)) return null;
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log(`Response from ${endpoint}:`, result);
+
+              let employeeData = null;
+
+              // Handle different response formats
+              if (result.success && result.data) {
+                employeeData = result.data;
+              } else if (result.employee) {
+                employeeData = result.employee;
+              } else if (result.data && result.data.employee) {
+                employeeData = result.data.employee;
+              } else if (result.user) {
+                employeeData = result.user;
+              } else if (result.data && result.data.user) {
+                employeeData = result.data.user;
+              } else if (result && typeof result === 'object' && (result.name || result.first_name)) {
+                employeeData = result;
+              }
+
+              if (employeeData) {
+                console.log('Employee data found:', employeeData);
+
+                // Store additional employee info in localStorage
+                if (employeeData.employeeId || employeeData.employee_id || employeeData.id) {
+                  localStorage.setItem('employeeId', employeeData.employeeId || employeeData.employee_id || employeeData.id);
+                }
+                if (employeeData.branchId || employeeData.branch_id) {
+                  localStorage.setItem('branchId', employeeData.branchId || employeeData.branch_id);
+                }
+
+                // Process and normalize employee data for consistent access
+                const normalizedData = normalizeEmployeeData(employeeData);
+                return normalizedData;
+              }
+            }
+          } catch (endpointError) {
+            console.warn(`Error with endpoint ${endpoint}:`, endpointError);
+            continue; // Try next endpoint
+          }
+        }
+
+        console.warn('No valid employee data found from any endpoint');
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+      return null;
+    }
+
+    // Normalize employee data to handle different field names and formats
+    function normalizeEmployeeData(rawData) {
+      const normalized = {
+        id: rawData.id || rawData.userId || rawData.user_id || rawData.employeeId || rawData.employee_id,
+        employeeId: rawData.employeeId || rawData.employee_id || rawData.emp_code || rawData.id,
+        name: rawData.name || rawData.full_name || (rawData.first_name && rawData.last_name ? `${rawData.first_name} ${rawData.last_name}` : null) || rawData.display_name,
+        firstName: rawData.firstName || rawData.first_name,
+        lastName: rawData.lastName || rawData.last_name,
+        position: rawData.position || rawData.job_title || rawData.role,
+        department: rawData.department || rawData.dept,
+        branchId: rawData.branchId || rawData.branch_id,
+        branchName: rawData.branchName || rawData.branch_name || rawData.branch,
+        email: rawData.email || rawData.email_address,
+        phone: rawData.phone || rawData.phone_number || rawData.tel,
+        startDate: rawData.startDate || rawData.start_date || rawData.hireDate || rawData.hire_date || rawData.joinDate || rawData.join_date,
+    
+        // Handle multiple possible image field names
+        imageUrl: getEmployeeImageUrl(rawData),
+    
+        // Additional fields
+        salary: rawData.salary || rawData.base_salary,
+        status: rawData.status || rawData.employee_status,
+        gender: rawData.gender,
+        birthDate: rawData.birthDate || rawData.birth_date || rawData.dob
+      };
+
+      console.log('Normalized employee data:', normalized);
+      return normalized;
+    }
+
+    // Extract image URL from various possible field names
+    function getEmployeeImageUrl(employeeData) {
+      const imageFields = [
+        'imageUrl', 'image_url', 'image',
+        'photoUrl', 'photo_url', 'photo',
+        'avatar', 'avatar_url',
+        'profileImage', 'profile_image', 'profile_image_url',
+        'profilePicture', 'profile_picture',
+        'picture', 'picture_url',
+        'thumbnail', 'thumbnail_url'
+      ];
+
+      let imageUrl = null;
+
+      // Try each possible field
+      for (const field of imageFields) {
+        if (employeeData[field] && employeeData[field].trim() !== '') {
+          imageUrl = employeeData[field];
+          console.log(`Found image URL in field '${field}':`, imageUrl);
+          break;
+        }
+      }
+
+      // If we found an image URL, process it
+      if (imageUrl) {
+        // Handle relative URLs
+        if (imageUrl.startsWith('/')) {
+          imageUrl = `${API_BASE_URL}${imageUrl}`;
+        }
+        // Handle URLs that don't start with http
+        else if (!imageUrl.startsWith('http')) {
+          imageUrl = `${API_BASE_URL}/${imageUrl}`;
+        }
+
+        // Add timestamp to prevent caching issues
+        const separator = imageUrl.includes('?') ? '&' : '?';
+        imageUrl = `${imageUrl}${separator}v=${Date.now()}`;
+      }
+
+      console.log('Final processed image URL:', imageUrl);
+      return imageUrl;
+    }
+
+    async function fetchSalaryData() {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser.userId) return [];
+
+        const response = await fetch(`${API_BASE_URL}/api/hr/salaries?userId=${currentUser.userId}&employeeId=${currentUser.employeeId || ''}`, {
+          headers: getAuthHeaders()
+        });
+
+        if (handleAuthError(response)) return [];
+
+        if (response.ok) {
+          const result = await response.json();
+          return result.success ? result.data.filter(salary =>
+            salary.userId === currentUser.userId || salary.employeeId === currentUser.employeeId
+          ) : [];
+        }
+      } catch (error) {
+        console.error('Error fetching salary data:', error);
+      }
+      return [];
+    }
+
+    async function fetchAttendanceData() {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser.userId) return [];
+
+        const response = await fetch(`${API_BASE_URL}/api/hr/attendance?userId=${currentUser.userId}&employeeId=${currentUser.employeeId || ''}`, {
+          headers: getAuthHeaders()
+        });
+
+        if (handleAuthError(response)) return [];
+
+        if (response.ok) {
+          const result = await response.json();
+          return result.success ? result.data.filter(attendance =>
+            attendance.userId === currentUser.userId || attendance.employeeId === currentUser.employeeId
+          ) : [];
+        }
+      } catch (error) {
+        console.error('Error fetching attendance data:', error);
+      }
+      return [];
+    }
+
+    async function fetchLeaveData() {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser.userId) return [];
+
+        const response = await fetch(`${API_BASE_URL}/api/hr/leaves?userId=${currentUser.userId}&employeeId=${currentUser.employeeId || ''}`, {
+          headers: getAuthHeaders()
+        });
+
+        if (handleAuthError(response)) return [];
+
+        if (response.ok) {
+          const result = await response.json();
+          return result.success ? result.data.filter(leave =>
+            leave.userId === currentUser.userId || leave.employeeId === currentUser.employeeId
+          ) : [];
+        }
+      } catch (error) {
+        console.error('Error fetching leave data:', error);
+      }
+      return [];
+    }
+
+    async function fetchAnnouncementData() {
+      try {
+        const currentUser = getCurrentUser();
+
+        // Announcements are usually for all employees, but can be filtered by branch
+        const response = await fetch(`${API_BASE_URL}/api/hr/announcements?branchId=${currentUser.branchId || ''}`, {
+          headers: getAuthHeaders()
+        });
+
+        if (handleAuthError(response)) return [];
+
+        if (response.ok) {
+          const result = await response.json();
+          return result.success ? result.data : [];
+        }
+      } catch (error) {
+        console.error('Error fetching announcement data:', error);
+      }
+      return [];
+    }
+
+    async function fetchCommissionData() {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser.userId) return [];
+
+        const response = await fetch(`${API_BASE_URL}/api/hr/commission/history?userId=${currentUser.userId}&employeeId=${currentUser.employeeId || ''}`, {
+          headers: getAuthHeaders()
+        });
+
+        if (handleAuthError(response)) return [];
+
+        if (response.ok) {
+          const result = await response.json();
+          return result.success ? result.data.filter(commission =>
+            commission.userId === currentUser.userId || commission.employeeId === currentUser.employeeId
+          ) : [];
+        }
+      } catch (error) {
+        console.error('Error fetching commission data:', error);
+      }
+      return [];
+    }
+
+    // Add function to fetch bonus data
+    async function fetchBonusData() {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser.userId) {
+          console.warn('No user ID available for loading bonus data');
+          return [];
+        }
+
+        console.log('Fetching personal bonus data for user:', currentUser.userId);
+
+        // Use the same endpoint as payroll.html and Bonusdetail.html for consistency
+        const response = await fetch(`${API_BASE_URL}/api/hr/bonus?userId=${currentUser.userId}`, {
+          headers: getAuthHeaders()
+        });
+
+        if (handleAuthError(response)) return [];
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Personal bonus data response:', result);
+
+          // Handle response format same as other files
+          let bonusData = result.data || result || [];
+
+          if (Array.isArray(bonusData)) {
+            console.log(`Found ${bonusData.length} personal bonuses for user ${currentUser.userId}`);
+            return bonusData;
+          } else {
+            console.warn('Bonus data is not an array:', bonusData);
+            return [];
+          }
+        } else {
+          console.warn('Failed to load bonus data:', response.status, response.statusText);
+          return [];
+        }
+      } catch (error) {
+        console.error('Error fetching bonus data:', error);
+        return [];
+      }
+    }
+
+    // Calculate totals from HR data
+    function calculateHRTotals() {
+      // Calculate total bonus from both commission and bonus data
+      const commissionTotal = hrData.commission.reduce((total, comm) => total + (comm.amount || 0), 0);
+      const bonusTotal = hrData.bonuses.reduce((total, bonus) => total + (bonus.amount || 0), 0);
+      hrData.totalBonus = commissionTotal + bonusTotal;
+
+      // Calculate this year bonus from both sources
+      const currentYear = new Date().getFullYear();
+      const thisYearCommission = hrData.commission
+        .filter(comm => new Date(comm.date || comm.createdAt).getFullYear() === currentYear)
+        .reduce((total, comm) => total + (comm.amount || 0), 0);
+
+      const thisYearBonus = hrData.bonuses
+        .filter(bonus => new Date(bonus.date || bonus.createdAt).getFullYear() === currentYear)
+        .reduce((total, bonus) => total + (bonus.amount || 0), 0);
+
+      hrData.thisYearBonus = thisYearCommission + thisYearBonus;
+
+      // Calculate total salary
+      hrData.totalSalary = hrData.salaries.reduce((total, salary) => total + (salary.amount || 0), 0);
+
+      // Calculate attendance rate
+      const totalDays = hrData.attendance.length;
+      const presentDays = hrData.attendance.filter(att => att.status === 'present').length;
+      hrData.attendanceRate = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
+    }
+
+    // Function to update employee photo with proper fallback and real API support
+    function updateEmployeePhoto(photoUrl) {
+      const defaultPhoto = '/uploads/employees/default-avatar.png?v=' + Date.now();
+
+      // List of photo elements to update
+      const photoElements = [
+        { id: 'employeePhoto', fallback: 'nav' },
+        { id: 'headerEmployeePhoto', fallback: 'header' }
+      ];
+
+      photoElements.forEach(element => {
+        const imgElement = document.getElementById(element.id);
+        if (imgElement) {
+          // If we have a photo URL from employee data, try to use it
+          if (photoUrl && photoUrl.trim() !== '') {
+            console.log(`Setting ${element.fallback} photo to:`, photoUrl);
+    
+            // Create a new image to test if URL is valid
+            const testImg = new Image();
+            testImg.crossOrigin = 'anonymous'; // Handle CORS if needed
+    
+            testImg.onload = function() {
+              console.log(`${element.fallback} photo loaded successfully:`, photoUrl);
+              imgElement.src = photoUrl;
+              imgElement.style.display = 'block';
+    
+              // Remove any previous error placeholders
+              const errorPlaceholder = imgElement.nextElementSibling;
+              if (errorPlaceholder && errorPlaceholder.textContent === '👤') {
+                errorPlaceholder.remove();
+              }
+            };
+    
+            testImg.onerror = function() {
+              console.warn(`Failed to load ${element.fallback} photo from:`, photoUrl);
+    
+              // Try alternative image paths
+              const alternatives = [
+                photoUrl.replace(/^https?:\/\/[^\/]+/, API_BASE_URL),
+                `${API_BASE_URL}/uploads/employees/${photoUrl.split('/').pop()}`,
+                `${API_BASE_URL}/uploads/users/${photoUrl.split('/').pop()}`,
+                `${API_BASE_URL}/images/employees/${photoUrl.split('/').pop()}`,
+                defaultPhoto
+              ];
+    
+              tryAlternativeImages(imgElement, alternatives, element.fallback, 0);
+            };
+    
+            // Start testing the image
+            testImg.src = photoUrl;
+    
+          } else {
+            // No photo URL provided, use default
+            console.log(`No photo URL for employee, using default for ${element.fallback}`);
+            setImageWithFallback(imgElement, defaultPhoto, element.fallback);
+          }
+        }
+      });
+    }
+
+    // Try alternative image URLs if the primary one fails
+    function tryAlternativeImages(imgElement, alternatives, fallbackType, index) {
+      if (index >= alternatives.length) {
+        // All alternatives failed, show placeholder
+        console.warn(`All image alternatives failed for ${fallbackType}, showing placeholder`);
+        showImagePlaceholder(imgElement);
+        return;
+      }
+    
+      const currentUrl = alternatives[index];
+      console.log(`Trying alternative ${index + 1} for ${fallbackType}:`, currentUrl);
+    
+      const testImg = new Image();
+      testImg.crossOrigin = 'anonymous';
+    
+      testImg.onload = function() {
+        console.log(`Alternative image ${index + 1} loaded successfully for ${fallbackType}:`, currentUrl);
+        imgElement.src = currentUrl;
+        imgElement.style.display = 'block';
+      };
+    
+      testImg.onerror = function() {
+        console.warn(`Alternative image ${index + 1} failed for ${fallbackType}:`, currentUrl);
+        // Try next alternative
+        tryAlternativeImages(imgElement, alternatives, fallbackType, index + 1);
+      };
+    
+      testImg.src = currentUrl;
+    }
+
+    // Set image with fallback handling
+    function setImageWithFallback(imgElement, imageUrl, fallbackType) {
+      const testImg = new Image();
+      testImg.crossOrigin = 'anonymous';
+    
+      testImg.onload = function() {
+        console.log(`${fallbackType} default photo loaded successfully`);
+        imgElement.src = imageUrl;
+        imgElement.style.display = 'block';
+      };
+    
+      testImg.onerror = function() {
+        console.warn(`Default photo failed for ${fallbackType}, showing placeholder`);
+        showImagePlaceholder(imgElement);
+      };
+    
+      testImg.src = imageUrl;
+    }
+
+    // Show placeholder when all image options fail
+    function showImagePlaceholder(imgElement) {
+      imgElement.style.display = 'none';
+    
+      // Remove existing placeholder if any
+      const existingPlaceholder = imgElement.nextElementSibling;
+      if (existingPlaceholder && existingPlaceholder.textContent === '👤') {
+        existingPlaceholder.remove();
+      }
+    
+      // Create new placeholder
+      const placeholder = document.createElement('div');
+      placeholder.className = imgElement.className;
+      placeholder.style.cssText = `
+        background: #e5e7eb; 
+        color: #9ca3af; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-size: 24px;
+        border-radius: 50%;
+      `;
+      placeholder.textContent = '👤';
+      placeholder.title = 'ไม่สามารถโหลดรูปโปรไฟล์ได้';
+    
+      imgElement.parentNode.insertBefore(placeholder, imgElement.nextSibling);
+    }
+
+    // Calculate work experience and savings based on employee data
+    function calculateWorkExperienceAndSavings(employee) {
+      const now = new Date();
+      let startDate = new Date();
+      let totalSavings = 0;
+      let monthlySavings = 0;
+      let workExperienceText = '0 ปี 0 เดือน';
+
+      if (employee && employee.startDate) {
+        startDate = new Date(employee.startDate);
+      } else if (employee && employee.hireDate) {
+        startDate = new Date(employee.hireDate);
+      } else if (employee && employee.joinDate) {
+        startDate = new Date(employee.joinDate);
+      } else {
+        // ถ้าไม่มีข้อมูลวันเริ่มงาน ใช้วันแรกของเงินเดือนที่มีในระบบ
+        const firstSalary = hrData.salaries.sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt))[0];
+        if (firstSalary) {
+          startDate = new Date(firstSalary.date || firstSalary.createdAt);
+        }
+      }
+
+      // คำนวณอายุงานแบบละเอียด
+      const diffTime = Math.abs(now - startDate);
+      const totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const totalMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30.44)); // เฉลี่ย 30.44 วันต่อเดือน
+
+      // คำนวณปี, เดือน, วัน ที่แม่นยำ
+      const years = Math.floor(totalDays / 365);
+      const remainingDaysAfterYears = totalDays % 365;
+      const months = Math.floor(remainingDaysAfterYears / 30);
+      const days = remainingDaysAfterYears % 30;
+
+      // สร้างข้อความแสดงอายุงานแบบละเอียด
+      let workExperienceParts = [];
+      if (years > 0) workExperienceParts.push(`${years} ปี`);
+      if (months > 0) workExperienceParts.push(`${months} เดือน`);
+      if (days > 0 || workExperienceParts.length === 0) workExperienceParts.push(`${days} วัน`);
+
+      workExperienceText = workExperienceParts.join(' ');
+
+      // คำนวณเงินออมตามอายุงาน
+      // สูตร: เงินออมต่อเดือน = เงินเดือนฐาน × 0.05 (5%) + โบนัสอายุงาน
+      const baseSalary = hrData.salaries.length > 0 ?
+        hrData.salaries.reduce((total, salary) => total + (salary.baseSalary || salary.amount || 0), 0) / hrData.salaries.length : 0;
+
+      // เงินออมพื้นฐาน 5% ของเงินเดือน
+      const baseSavingsRate = 0.05;
+
+      // โบนัสตามอายุงาน: เพิ่ม 0.5% ทุกปี (สูงสุด 10%)
+      const experienceBonus = Math.min(years * 0.005, 0.10);
+
+      // อัตราเงินออมรวม
+      const totalSavingsRate = baseSavingsRate + experienceBonus;
+
+      // เงินออมต่อเดือน
+      monthlySavings = Math.floor(baseSalary * totalSavingsRate);
+
+      // เงินออมสะสมรวม (คำนวณจากทุกเดือนที่ทำงาน)
+      totalSavings = monthlySavings * totalMonths;
+
+      // เพิ่มดอกเบี้ยเงินออม 2% ต่อปี (แบบง่าย)
+      const interestRate = 0.02 / 12; // 2% ต่อปี แบ่งเป็นรายเดือน
+      if (totalMonths > 0) {
+        // คำนวณดอกเบี้ยทบต้น
+        const monthlyInterest = totalSavings * interestRate * (totalMonths / 12);
+        totalSavings += monthlyInterest;
+      }
+
+      return {
+        totalSavings: Math.floor(totalSavings),
+        monthlySavings: monthlySavings,
+        workExperienceText: workExperienceText,
+        totalDays: totalDays,
+        years: years,
+        months: months,
+        days: days,
+        totalMonths: totalMonths,
+        savingsRate: (totalSavingsRate * 100).toFixed(1),
+        startDate: startDate.toLocaleDateString('th-TH'),
+        workingDaysText: `${totalDays.toLocaleString()} วัน`
+      };
+    }
+
+    // Test API connection and debug employee data
+    async function testAPIConnection() {
+      console.log('=== Testing API Connection ===');
+      console.log('API Base URL:', API_BASE_URL);
+    
+      try {
+        // Test basic connectivity
+        const response = await fetch(`${API_BASE_URL}/api/health`, {
+          method: 'GET',
+          headers: getAuthHeaders()
+        });
+    
+        if (response.ok) {
+          const result = await response.json();
+          console.log('API Health Check Success:', result);
+        } else {
+          console.warn('API Health Check Failed:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('API Connection Error:', error);
+      }
+    
+      // Test employee endpoint specifically
+      try {
+        const currentUser = getCurrentUser();
+        const testEndpoint = `/api/employees/profile`;
+        console.log('Testing employee endpoint:', testEndpoint);
+    
+        const response = await fetch(`${API_BASE_URL}${testEndpoint}`, {
+          headers: getAuthHeaders()
+        });
+    
+        console.log('Employee endpoint response status:', response.status);
+    
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Employee endpoint response:', result);
+    
+          // Look for image data specifically
+          if (result && typeof result === 'object') {
+            console.log('Searching for image fields in response...');
+            const imageFields = ['imageUrl', 'image_url', 'photo', 'avatar', 'profile_image'];
+            imageFields.forEach(field => {
+              if (result[field]) {
+                console.log(`Found image field '${field}':`, result[field]);
+              }
+            });
+          }
+        } else {
+          console.warn('Employee endpoint failed:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('Employee endpoint error:', error);
+      }
+    }
+
+    // Load all HR data
+    async function loadAllHRData() {
+      try {
+        console.log('Loading HR data...');
+
+        // Test API connection first
+        await testAPIConnection();
+
+        // Fetch all data in parallel
+        const [employee, salaries, attendance, leaves, announcements, commission, bonuses] = await Promise.all([
+          fetchEmployeeData(),
+          fetchSalaryData(),
+          fetchAttendanceData(),
+          fetchLeaveData(),
+          fetchAnnouncementData(),
+          fetchCommissionData(),
+          fetchBonusData() // Add bonus data fetching
+        ]);
+
+        // Store in global hrData object
+        hrData.employee = employee;
+        hrData.salaries = salaries;
+        hrData.attendance = attendance;
+        hrData.leaves = leaves;
+        hrData.announcements = announcements;
+        hrData.commission = commission;
+        hrData.bonuses = bonuses; // Store bonus data
+
+        // Calculate totals
+        calculateHRTotals();
+
+        console.log('HR Data loaded:', hrData);
+    
+        // Debug employee image specifically
+        if (hrData.employee && hrData.employee.imageUrl) {
+          console.log('Employee image URL found:', hrData.employee.imageUrl);
+    
+          // Test if image URL is accessible
+          const imgTest = new Image();
+          imgTest.onload = () => console.log('Employee image is accessible');
+          imgTest.onerror = () => console.warn('Employee image is not accessible');
+          imgTest.src = hrData.employee.imageUrl;
+        } else {
+          console.log('No employee image URL found');
+        }
+    
+        return true;
+      } catch (error) {
+        console.error('Error loading HR data:', error);
+        return false;
+      }
+    }
+
+    // Debug function สำหรับตรวจสอบ localStorage
+    function debugAuthenticationStatus() {
+      console.log('=== Debug Authentication Status ===');
+      console.log('localStorage contents:');
+      console.log('- authToken:', localStorage.getItem('authToken') ? 'EXISTS (length: ' + localStorage.getItem('authToken').length + ')' : 'MISSING');
+      console.log('- userId:', localStorage.getItem('userId'));
+      console.log('- userRole:', localStorage.getItem('userRole'));
+      console.log('- userName:', localStorage.getItem('userName'));
+      console.log('- employeeId:', localStorage.getItem('employeeId'));
+      console.log('- branchId:', localStorage.getItem('branchId'));
+      console.log('- sessionId:', localStorage.getItem('sessionId'));
+      console.log('- allowedPages:', localStorage.getItem('allowedPages'));
+      console.log('- Total localStorage items:', localStorage.length);
+
+      // แสดงทุก item ใน localStorage
+      console.log('All localStorage items:');
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const value = localStorage.getItem(key);
+        console.log(`  ${key}: ${value ? value.substring(0, 100) + (value.length > 100 ? '...' : '') : 'null'}`);
+      }
+
+      const currentUser = getCurrentUser();
+      console.log('getCurrentUser() result:', currentUser);
+
+      // ทดสอบ token validation
+      if (currentUser.token) {
+        try {
+          const tokenParts = currentUser.token.split('.');
+          console.log('Token parts count:', tokenParts.length);
+          if (tokenParts.length === 3) {
+            console.log('Token appears to be valid JWT format');
+            try {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              console.log('Token payload:', payload);
+              if (payload.exp) {
+                const expDate = new Date(payload.exp * 1000);
+                const now = new Date();
+                console.log('Token expires:', expDate.toLocaleString('th-TH'));
+                console.log('Token is expired:', expDate <= now);
+              }
+            } catch (e) {
+              console.warn('Cannot decode token payload:', e.message);
+            }
+          } else {
+            console.warn('Token is not in JWT format');
+          }
+        } catch (e) {
+          console.warn('Token validation error:', e.message);
+        }
+      }
+
+      console.log('==================================');
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', async function() {
+      try {
+        // Debug authentication status
+        debugAuthenticationStatus();
+
+        // Check authentication first with graceful handling
+        const isAuthenticated = checkAuthentication();
+
+        if (!isAuthenticated) {
+          console.warn('Authentication failed, but allowing page to continue with limited functionality');
+          // Don't return immediately - allow page to show with limited features
+        }
+
+        // Show current user name from localStorage immediately
+        const currentUser = getCurrentUser();
+        console.log('Current user loaded:', currentUser);
+
+        // Update UI elements if they exist
+        const employeeNameElement = document.getElementById('employeeName');
+        if (employeeNameElement) {
+          employeeNameElement.textContent = currentUser.name || 'ผู้ใช้งาน';
+        }
+
+        // Always setup basic event listeners
+        setupEventListeners();
+
+        // Initialize debug panel if in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          setTimeout(updateDebugInfo, 1000);
+        }
+
+        if (isAuthenticated && currentUser.token) {
+          // Load all HR data if authenticated
+          console.log('Loading HR data for authenticated user...');
+          const dataLoaded = await loadAllHRData();
+
+          if (dataLoaded) {
+            // Initialize page with HR data
+            initializeEmployeeData();
+
+            // *** เรียกฟังก์ชันใหม่เพื่อโหลดข้อมูลเงินเดือนจริง ***
+            await initializeFallbackMode();
+
+            initializeChart();
+            loadTransactions();
+            checkForNewNotifications();
+    
+            // Update debug info after data is loaded
+            setTimeout(updateDebugInfo, 2000);
+          } else {
+            // Fallback: ยังคงให้ใช้งานได้แม้โหลดข้อมูล HR ไม่สำเร็จ
+            console.warn('HR data loading failed, using fallback mode');
+            initializeFallbackMode();
+          }
+        } else {
+          // If not authenticated, use fallback mode
+          console.log('Using fallback mode due to authentication issues');
+          initializeFallbackMode();
+        }
+
+      } catch (error) {
+        console.error('Error during page initialization:', error);
+        // Even if there's an error, show fallback mode
+        initializeFallbackMode();
+        setupEventListeners();
+    
+        // Update debug info even in error case
+        setTimeout(updateDebugInfo, 1000);
+      }
+    });
+
+    // ฟังก์ชันสำหรับโหลดข้อมูลแบบ fallback
+    async function initializeFallbackMode() {
+      console.log('🔄 initializeFallbackMode called!');
+      const currentUser = getCurrentUser();
+
+      // แสดงข้อมูลพื้นฐานจาก localStorage
+      document.getElementById('employeeName').textContent = currentUser.name || 'พนักงาน';
+      if (document.getElementById('headerEmployeeName')) {
+        document.getElementById('headerEmployeeName').textContent = currentUser.name || 'พนักงาน';
+      }
+      if (document.getElementById('employeePosition')) {
+        document.getElementById('employeePosition').textContent = currentUser.role || 'ตำแหน่ง';
+      }
+      if (document.getElementById('headerEmployeeId')) {
+        document.getElementById('headerEmployeeId').textContent = currentUser.userId || '-';
+      }
+
+      // Update photo in fallback mode
+      updateEmployeePhoto(null);
+
+      // แสดงข้อมูลเงินเดือนและโบนัสจากข้อมูลที่มีใน hrData (หากมี) หรือดึงจาก API ใหม่
+      let baseSalary = 0;
+      let overtimeAmount = 0;
+      let incentiveAmount = 0;
+      let positionAllowance = 0;
+
+      // Load real salary data from API endpoints
+      async function loadRealSalaryData() {
+        try {
+          const currentUser = getCurrentUser();
+          console.log('🔍 Loading real salary data for user:', currentUser);
+
+          // เริ่มต้นด้วยค่า default
+          baseSalary = 0;
+          overtimeAmount = 0;
+          incentiveAmount = 0;
+          positionAllowance = 0;
+
+          // ตรวจสอบข้อมูล user
+          if (!currentUser.userId && !currentUser.employeeId && !currentUser.name) {
+            console.log('⚠️ No user identification data found - cannot fetch personal salary data');
+            console.log('Current user data:', currentUser);
+            // ไม่ต้องทำอะไรต่อ หากไม่มีข้อมูล user
+            updateSalaryDisplay();
+            return;
+          }
+
+          // 1. ดึงข้อมูลเงินเดือนพื้นฐานจาก basic-employees
+          try {
+            console.log('📡 Fetching from /api/basic-employees...');
+            const headers = currentUser.token ? getAuthHeaders() : { 'Content-Type': 'application/json' };
+            const employeeResponse = await fetch(`${API_BASE_URL}/api/basic-employees`, {
+              headers: headers
+            });
+
+            if (employeeResponse.ok) {
+              const employeeResult = await employeeResponse.json();
+              console.log('✅ Basic employees API response:', employeeResult);
+
+              if (employeeResult.success && employeeResult.data?.length > 0) {
+                // หาพนักงานที่ตรงกับ user ปัจจุบัน หรือใช้พนักงานคนแรกหากไม่มี user data
+                let currentEmployee = null;
+
+                if (currentUser.userId || currentUser.employeeId || currentUser.name) {
+                  currentEmployee = employeeResult.data.find(emp => {
+                    const matches = emp.employeeId === currentUser.userId ||
+                                  emp.employeeId === currentUser.employeeId ||
+                                  emp.name === currentUser.name ||
+                                  emp._id === currentUser.userId ||
+                                  emp.code === currentUser.userId ||
+                                  emp.code === currentUser.employeeId;
+
+                    if (matches) {
+                      console.log('👤 Found matching employee:', {
+                        name: emp.name,
+                        baseSalary: emp.baseSalary,
+                        position: emp.position
+                      });
+                    }
+                    return matches;
+                  });
+                }
+
+                // หากไม่พบพนักงานที่ตรงกัน ไม่แสดงข้อมูล
+                if (!currentEmployee) {
+                  console.log('⚠️ No matching employee found in database');
+                }
+
+                if (currentEmployee && currentEmployee.baseSalary) {
+                  baseSalary = currentEmployee.baseSalary;
+                  console.log('💰 Base salary from API:', baseSalary);
+
+                  // อัปเดตข้อมูลพนักงานใน hrData
+                  hrData.employee = {
+                    ...hrData.employee,
+                    baseSalary: baseSalary,
+                    name: currentEmployee.name,
+                    position: currentEmployee.position,
+                    department: currentEmployee.department,
+                    startDate: currentEmployee.startDate
+                  };
+
+                  // เก็บ employee ID ไว้สำหรับการค้นหา monthly payroll
+                  currentUser.matchedEmployeeId = currentEmployee._id;
+                } else {
+                  console.log('⚠️ No employee data available');
+                }
+              } else {
+                console.log('⚠️ No employee data available');
+              }
+            } else {
+              console.log('❌ Basic employees API returned:', employeeResponse.status);
+            }
+          } catch (error) {
+            console.log('❌ Error fetching basic employees:', error.message);
+          }
+
+          // 2. ดึงข้อมูลเงินเดือนรายเดือนจาก monthly-payrolls
+          try {
+            const currentMonth = new Date().getMonth() + 1;
+            const currentYear = new Date().getFullYear();
+
+            console.log(`📡 Fetching monthly payroll for ${currentMonth}/${currentYear}...`);
+            const headers2 = currentUser.token ? getAuthHeaders() : { 'Content-Type': 'application/json' };
+            const monthlyResponse = await fetch(`${API_BASE_URL}/api/monthly-payrolls?month=${currentMonth}&year=${currentYear}`, {
+              headers: headers2
+            });
+
+            if (monthlyResponse.ok) {
+              const monthlyResult = await monthlyResponse.json();
+              console.log('✅ Monthly payroll API response:', monthlyResult);
+
+              if (monthlyResult.success && monthlyResult.data?.length > 0) {
+                // หาข้อมูลเงินเดือนรายเดือนของพนักงานปัจจุบัน
+                let currentMonthlyData = null;
+
+                // ลองค้นหาด้วย user ID หรือ employee ID ที่มี
+                if (currentUser.userId || currentUser.employeeId || currentUser.matchedEmployeeId) {
+                  currentMonthlyData = monthlyResult.data.find(payroll => {
+                    const matches = payroll.employeeId === currentUser.userId ||
+                                  payroll.employeeId === currentUser.employeeId ||
+                                  payroll.employeeId === currentUser.matchedEmployeeId ||
+                                  payroll.userEmployeeId === currentUser.userId ||
+                                  payroll.userEmployeeId === currentUser.employeeId;
+
+                    if (matches) {
+                      console.log('📋 Found matching monthly payroll:', {
+                        employeeId: payroll.employeeId,
+                        baseSalary: payroll.baseSalary,
+                        positionAllowance: payroll.positionAllowance,
+                        overtime: payroll.overtime || payroll.otTotal,
+                        commission: payroll.commission,
+                        note: 'Commission จะแสดงใน Incentive'
+                      });
+                    }
+                    return matches;
+                  });
+                }
+
+                // หากไม่พบ ไม่แสดงข้อมูล monthly payroll
+                if (!currentMonthlyData) {
+                  console.log('⚠️ No matching monthly payroll found for current user');
+                }
+
+                if (currentMonthlyData) {
+                  // อัปเดตข้อมูลเงินเดือนรายเดือน
+                  if (currentMonthlyData.baseSalary && currentMonthlyData.baseSalary > 0) {
+                    baseSalary = currentMonthlyData.baseSalary; // ใช้เงินเดือนจาก monthly payroll หากมี
+                  }
+                  positionAllowance = currentMonthlyData.positionAllowance || 0;
+                  overtimeAmount = currentMonthlyData.otTotal || currentMonthlyData.overtime || 0;
+                  incentiveAmount = currentMonthlyData.commission || 0; // ค่าคอมมิชชั่น
+
+                  console.log('💼 Updated salary from monthly payroll:', {
+                    baseSalary,
+                    positionAllowance,
+                    overtimeAmount: `฿${overtimeAmount} (OT)`,
+                    incentiveAmount: `฿${incentiveAmount} (Commission)`,
+                    commission: currentMonthlyData.commission
+                  });
+                } else {
+                  console.log('⚠️ No matching monthly payroll data found');
+                }
+              } else {
+                console.log('⚠️ No monthly payroll data available');
+              }
+            } else {
+              console.log('❌ Monthly payroll API returned:', monthlyResponse.status);
+            }
+          } catch (error) {
+            console.log('❌ Error fetching monthly payroll:', error.message);
+          }
+
+          // 3. สรุปผลลัพธ์
+          const netIncome = baseSalary + positionAllowance + overtimeAmount + incentiveAmount;
+
+          console.log('📊 Final salary calculation:', {
+            baseSalary: `฿${baseSalary.toLocaleString()} (เงินเดือนพื้นฐาน)`,
+            positionAllowance: `฿${positionAllowance.toLocaleString()} (ค่าตำแหน่ง)`,
+            overtimeAmount: `฿${overtimeAmount.toLocaleString()} (OT)`,
+            incentiveAmount: `฿${incentiveAmount.toLocaleString()} (Commission/ค่าคอม)`,
+            netIncome: `฿${netIncome.toLocaleString()} (รวมทั้งหมด)`
+          });
+
+          // อัปเดต UI
+          updateSalaryDisplay();
+
+        } catch (error) {
+          console.error('❌ Error loading real salary data:', error);
+
+          // Fallback: ใช้ข้อมูลจาก hrData หากมี
+          if (hrData.salaries?.length > 0) {
+            baseSalary = hrData.salaries.reduce((total, salary) => total + (salary.baseSalary || salary.amount || 0), 0);
+            overtimeAmount = hrData.salaries.reduce((total, salary) => total + (salary.overtime || 0), 0);
+            console.log('🔄 Using fallback salary data from hrData');
+          }
+
+          if (hrData.commission?.length > 0) {
+            incentiveAmount = hrData.commission.reduce((total, comm) => total + (comm.amount || 0), 0);
+          }
+
+          // อัปเดต UI แม้ใช้ข้อมูล fallback
+          updateSalaryDisplay();
+        }
+      }
+
+      // ฟังก์ชันอัปเดตการแสดงผลเงินเดือน
+      function updateSalaryDisplay() {
+        const { regularSalary, netIncome } = calculateDisplayValues();
+        const totalAccumulatedIncome = calculateTotalAccumulatedIncome();
+        const thisYearIncome = calculateThisYearIncome();
+
+        // อัปเดตการแสดงผลในส่วน salary cards
+        const baseSalaryEl = document.getElementById('baseSalary');
+        const overtimeAmountEl = document.getElementById('overtimeAmount');
+        const incentiveAmountEl = document.getElementById('incentiveAmount');
+        const netIncomeEl = document.getElementById('netIncome');
+
+        if (baseSalaryEl) baseSalaryEl.textContent = `฿${regularSalary.toLocaleString()}.00`;
+        if (overtimeAmountEl) overtimeAmountEl.textContent = `฿${overtimeAmount.toLocaleString()}.00`;
+        if (incentiveAmountEl) incentiveAmountEl.textContent = `฿${incentiveAmount.toLocaleString()}.00`;
+        if (netIncomeEl) netIncomeEl.textContent = `฿${netIncome.toLocaleString()}.00`;
+
+        // อัปเดตรายได้สะสม
+        const totalIncomeEl = document.getElementById('totalIncome');
+        const thisYearIncomeEl = document.getElementById('thisYearIncome');
+
+        if (totalIncomeEl) totalIncomeEl.textContent = `฿${totalAccumulatedIncome.toLocaleString()}.00`;
+        if (thisYearIncomeEl) thisYearIncomeEl.textContent = `฿${thisYearIncome.toLocaleString()}.00`;
+
+        // อัปเดตข้อมูลโบนัสด้วย
+        const totalBonusEl = document.getElementById('totalBonus');
+        const thisYearBonusEl = document.getElementById('thisYearBonus');
+
+        if (totalBonusEl) totalBonusEl.textContent = `฿${(hrData.totalBonus || 0).toLocaleString()}.00`;
+        if (thisYearBonusEl) thisYearBonusEl.textContent = `฿${(hrData.thisYearBonus || 0).toLocaleString()}.00`;
+
+        console.log('UI updated with salary and bonus data:', {
+          regularSalary,
+          overtimeAmount,
+          incentiveAmount,
+          netIncome,
+          totalAccumulatedIncome,
+          thisYearIncome,
+          totalBonus: hrData.totalBonus || 0,
+          thisYearBonus: hrData.thisYearBonus || 0
+        });
+      }
+
+      // ลองดึงข้อมูลจาก API ตามโครงสร้างของ payroll.html
+      await loadRealSalaryData();
+
+      // แสดงข้อมูลทันทีแม้ว่า API จะล้มเหลว
+      setTimeout(() => {
+        console.log('🔄 Force updating salary display after timeout');
+        updateSalaryDisplay();
+      }, 1000);
+
+      function calculateDisplayValues() {
+        const regularSalary = baseSalary + positionAllowance; // เงินเดือนประจำ = เงินเดือนพื้นฐาน + ค่าตำแหน่ง
+        const netIncome = regularSalary + overtimeAmount + incentiveAmount;
+        return { regularSalary, netIncome };
+      }
+
+      // คำนวณรายได้สะสมทั้งหมด
+      function calculateTotalAccumulatedIncome() {
+        // รายได้สะสม = เงินเดือนพื้นฐาน × จำนวนเดือนที่ทำงาน + โบนัสสะสม + OT สะสม
+        const currentEmployee = hrData.employee;
+        if (!currentEmployee || !currentEmployee.startDate) {
+          return baseSalary; // ถ้าไม่มีข้อมูลวันเริ่มงาน ใช้เงินเดือนเดือนปัจจุบัน
+        }
+
+        const startDate = new Date(currentEmployee.startDate);
+        const now = new Date();
+        const monthsWorked = Math.floor((now - startDate) / (1000 * 60 * 60 * 24 * 30.44)); // จำนวนเดือนที่ทำงาน
+
+        // รายได้พื้นฐานสะสม
+        const accumulatedBaseSalary = baseSalary * Math.max(monthsWorked, 1);
+
+        // รายได้จากโบนัสและ commission สะสม
+        const totalBonus = hrData.totalBonus || 0;
+
+        // รวมรายได้สะสม
+        const totalAccumulated = accumulatedBaseSalary + totalBonus;
+
+        console.log('Accumulated income calculation:', {
+          monthsWorked,
+          baseSalary,
+          accumulatedBaseSalary,
+          totalBonus,
+          totalAccumulated
+        });
+
+        return totalAccumulated;
+      }
+
+      // คำนวณรายได้ปีนี้
+      function calculateThisYearIncome() {
+        const currentYear = new Date().getFullYear();
+        const startOfYear = new Date(currentYear, 0, 1);
+        const now = new Date();
+
+        // จำนวนเดือนในปีนี้ที่ทำงานแล้ว
+        const monthsThisYear = Math.min(now.getMonth() + 1, 12);
+
+        // เงินเดือนปีนี้ (สมมติว่าเงินเดือนเท่าเดิม)
+        const salaryThisYear = baseSalary * monthsThisYear;
+
+        // โบนัสปีนี้
+        const bonusThisYear = hrData.thisYearBonus || 0;
+
+        const totalThisYear = salaryThisYear + bonusThisYear;
+
+        console.log('This year income calculation:', {
+          monthsThisYear,
+          baseSalary,
+          salaryThisYear,
+          bonusThisYear,
+          totalThisYear
+        });
+
+        return totalThisYear;
+      }
+
+      // อัปเดตข้อมูลเพิ่มเติม
+      const bonusIncreaseEl = document.getElementById('bonusIncrease');
+      const lastUpdateEl = document.getElementById('lastUpdate');
+
+      const bonusIncrease = (hrData.thisYearBonus || 0) * 0.1;
+      if (bonusIncreaseEl) bonusIncreaseEl.textContent = `+฿${bonusIncrease.toLocaleString()}.00`;
+      if (lastUpdateEl) lastUpdateEl.textContent = new Date().toLocaleDateString('th-TH');
+
+      console.log('Fallback mode initialized with real API data integration');
+
+      // แสดงข้อมูลอายุงานและวันทำงาน (คำนวณจากข้อมูลจริง หากมี)
+      const workExperienceData = calculateWorkExperienceAndSavings(hrData.employee);
+      document.getElementById('workExperience').textContent = workExperienceData.workExperienceText;
+      document.getElementById('totalWorkDays').textContent = workExperienceData.workingDaysText;
+
+      if (document.getElementById('withdrawAmount')) {
+        document.getElementById('withdrawAmount').textContent = `฿${(hrData.withdrawableAmount || 0).toLocaleString()}.00`;
+      }
+
+      // แสดงข้อความแจ้งว่าข้อมูลอาจไม่ครบถ้วน แต่ยังแสดงข้อมูลที่มี
+      const transactionList = document.getElementById('transactionList');
+      if (transactionList) {
+        if (hrData.commission && hrData.commission.length > 0) {
+          loadTransactions(); // ใช้ข้อมูลจริงหากมี
+        } else {
+          transactionList.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+              <i class="bi bi-info-circle text-4xl mb-2"></i>
+              <p>ไม่พบประวัติการทำธุรกรรม</p>
+              <p class="text-sm opacity-75">ข้อมูลอาจจะอัพเดทภายหลัง</p>
+            </div>
+          `;
+        }
+      }
+
+    }
+
+    // Display additional HR dashboard information
+    function displayHRDashboard() {
+      // Add new sections to show comprehensive HR data
+      addHRSections();
+    }
+
+    function addHRSections() {
+      // This function will add new sections to display all HR data
+
+      // Add HR Summary Cards
+      const hrSummaryHTML = `
+        <!-- HR Summary Section -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+          <!-- Salary Summary -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <i class="bi bi-cash-stack text-3xl text-green-600"></i>
+              <span class="text-sm text-gray-600">เงินเดือนรวม</span>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900">฿${hrData.totalSalary.toLocaleString()}</h3>
+            <p class="text-sm text-gray-500">จากข้อมูล ${hrData.salaries.length} รายการ</p>
+          </div>
+
+          <!-- Attendance Rate -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <i class="bi bi-calendar-check text-3xl text-blue-600"></i>
+              <span class="text-sm text-gray-600">อัตราการมาทำงาน</span>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900">${hrData.attendanceRate.toFixed(1)}%</h3>
+            <p class="text-sm text-gray-500">${hrData.attendance.length} วันทำงาน</p>
+          </div>
+
+          <!-- Leave Balance -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <i class="bi bi-calendar-x text-3xl text-orange-600"></i>
+              <span class="text-sm text-gray-600">วันลา</span>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900">${hrData.leaves.length}</h3>
+            <p class="text-sm text-gray-500">รายการลา</p>
+          </div>
+
+          <!-- Announcements -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <i class="bi bi-megaphone text-3xl text-purple-600"></i>
+              <span class="text-sm text-gray-600">ประกาศ</span>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900">${hrData.announcements.length}</h3>
+            <p class="text-sm text-gray-500">ประกาศใหม่</p>
+          </div>
+        </div>
+
+        <!-- HR Details Sections -->
+        <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Recent Attendance -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-semibold text-gray-900 mb-6">การลงเวลาล่าสุด</h3>
+            <div id="attendanceList" class="space-y-3">
+              ${generateAttendanceHTML()}
+            </div>
+          </div>
+
+          <!-- HR Announcements -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-semibold text-gray-900 mb-6">ประกาศจากฝ่าย HR</h3>
+            <div id="announcementList" class="space-y-3">
+              ${generateAnnouncementsHTML()}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Insert before the closing div of main content
+      const targetElement = document.querySelector('.max-w-7xl.mx-auto');
+      if (targetElement) {
+        // Insert at the end of main content
+        targetElement.insertAdjacentHTML('beforeend', hrSummaryHTML);
+        console.log('HR summary section added successfully');
+      } else {
+        console.warn('Could not find main content section to insert HR summary');
+      }
+    }
+
+    function generateAttendanceHTML() {
+      if (hrData.attendance.length === 0) {
+        return '<div class="text-center text-gray-500 py-4">ไม่พบข้อมูลการลงเวลา</div>';
+      }
+
+      return hrData.attendance.slice(0, 5).map(att => {
+        const date = new Date(att.date || att.createdAt);
+        const status = att.status === 'present' ? 'มาทำงาน' : att.status === 'absent' ? 'ขาดงาน' : 'ลา';
+        const statusColor = att.status === 'present' ? 'text-green-600' : 'text-red-600';
+
+        return `
+          <div class="flex justify-between items-center p-3 border border-gray-200 rounded-lg">
+            <div>
+              <div class="font-medium">${date.toLocaleDateString('th-TH')}</div>
+              <div class="text-sm text-gray-500">${att.checkIn ? 'เข้า: ' + att.checkIn : ''} ${att.checkOut ? 'ออก: ' + att.checkOut : ''}</div>
+            </div>
+            <span class="font-medium ${statusColor}">${status}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function generateAnnouncementsHTML() {
+      if (hrData.announcements.length === 0) {
+        return '<div class="text-center text-gray-500 py-4">ไม่มีประกาศใหม่</div>';
+      }
+
+      return hrData.announcements.slice(0, 3).map(ann => {
+        const date = new Date(ann.date || ann.createdAt);
+
+        return `
+          <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <div class="font-medium text-gray-900 mb-1">${ann.title || 'ประกาศ'}</div>
+            <div class="text-sm text-gray-600 mb-2">${ann.content || ann.message || 'รายละเอียดประกาศ'}</div>
+            <div class="text-xs text-gray-500">${date.toLocaleDateString('th-TH')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function initializeEmployeeData() {
+      // Get current user info
+      const currentUser = getCurrentUser();
+
+      // Display employee information from HR data (now normalized)
+      const employeeName = hrData.employee ? hrData.employee.name : (currentUser.name || 'ไม่พบข้อมูลพนักงาน');
+      const employeePosition = hrData.employee ? hrData.employee.position : 'ตำแหน่ง';
+      const employeeId = hrData.employee ? hrData.employee.employeeId : (currentUser.employeeId || '-');
+      const branchName = hrData.employee ? hrData.employee.branchName : '-';
+
+      // Get employee photo from normalized data
+      let employeePhoto = null;
+      if (hrData.employee && hrData.employee.imageUrl) {
+        employeePhoto = hrData.employee.imageUrl;
+        console.log('Employee photo found:', employeePhoto);
+        console.log('Employee data:', hrData.employee);
+      } else {
+        console.log('No employee photo found in normalized data');
+      }
+
+      // Update navigation bar
+      const employeeNameEl = document.getElementById('employeeName');
+      if (employeeNameEl) {
+        employeeNameEl.textContent = employeeName;
+      }
+    
+      const employeePositionEl = document.getElementById('employeePosition');
+      if (employeePositionEl) {
+        employeePositionEl.textContent = employeePosition;
+      }
+
+      // Update header section
+      const headerEmployeeNameEl = document.getElementById('headerEmployeeName');
+      if (headerEmployeeNameEl) {
+        headerEmployeeNameEl.textContent = employeeName;
+      }
+    
+      const headerEmployeeIdEl = document.getElementById('headerEmployeeId');
+      if (headerEmployeeIdEl) {
+        headerEmployeeIdEl.textContent = employeeId;
+      }
+    
+      const headerBranchNameEl = document.getElementById('headerBranchName');
+      if (headerBranchNameEl) {
+        headerBranchNameEl.textContent = branchName;
+      }
+
+      // Update profile photos with improved handling
+      console.log('Calling updateEmployeePhoto with:', employeePhoto);
+      updateEmployeePhoto(employeePhoto);
+
+      // Note: Salary data is now handled by loadRealSalaryData() and updateSalaryDisplay() functions
+
+      // Calculate and display work experience data
+      const workExperienceData = calculateWorkExperienceAndSavings(hrData.employee);
+      document.getElementById('workExperience').textContent = workExperienceData.workExperienceText;
+      document.getElementById('totalWorkDays').textContent = workExperienceData.workingDaysText;
+
+      // Display bonus information
+      document.getElementById('totalBonus').textContent = `฿${hrData.totalBonus.toLocaleString()}.00`;
+      document.getElementById('thisYearBonus').textContent = `฿${hrData.thisYearBonus.toLocaleString()}.00`;
+
+      // Calculate bonus increase based on actual growth from previous year
+      const previousYear = new Date().getFullYear() - 1;
+      const previousYearBonus = hrData.commission
+        .filter(comm => new Date(comm.date || comm.createdAt).getFullYear() === previousYear)
+        .reduce((total, comm) => total + (comm.amount || 0), 0) +
+        hrData.bonuses
+        .filter(bonus => new Date(bonus.date || bonus.createdAt).getFullYear() === previousYear)
+        .reduce((total, bonus) => total + (bonus.amount || 0), 0);
+    
+      const bonusIncrease = previousYearBonus > 0 ? hrData.thisYearBonus - previousYearBonus : 0;
+      document.getElementById('bonusIncrease').textContent = `${bonusIncrease >= 0 ? '+' : ''}฿${bonusIncrease.toLocaleString()}.00`;
+
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('th-TH');
+
+      // Withdrawal elements are optional - check if they exist before updating
+      const withdrawalElements = ['lastWithdrawal', 'lastWithdrawalAmount', 'nextWithdrawal', 'nextAvailable', 'withdrawBtn'];
+      const withdrawalElementsExist = withdrawalElements.every(id => document.getElementById(id));
+
+      if (withdrawalElementsExist) {
+        // Find last withdrawal from commission data
+        const withdrawals = hrData.commission.filter(comm => comm.type === 'withdrawal');
+        let lastWithdrawal = null;
+        let lastWithdrawalAmount = 0;
+
+        if (withdrawals.length > 0) {
+          const sortedWithdrawals = withdrawals.sort((a, b) => new Date(b.date) - new Date(a.date));
+          lastWithdrawal = new Date(sortedWithdrawals[0].date);
+          lastWithdrawalAmount = sortedWithdrawals[0].amount;
+        }
+
+        // Set withdrawal status
+        if (lastWithdrawal) {
+          const nextYear = new Date(lastWithdrawal.getFullYear() + 1, 0, 1);
+          document.getElementById('lastWithdrawal').textContent = lastWithdrawal.toLocaleDateString('th-TH');
+          document.getElementById('lastWithdrawalAmount').textContent = `฿${lastWithdrawalAmount.toLocaleString()}.00`;
+          document.getElementById('nextWithdrawal').textContent = nextYear.toLocaleDateString('th-TH');
+
+          const now = new Date();
+          if (now >= nextYear) {
+            document.getElementById('nextAvailable').textContent = 'พร้อมเบิก';
+            document.getElementById('nextAvailable').className = 'font-medium text-green-600';
+            document.getElementById('withdrawBtn').disabled = false;
+          } else {
+            document.getElementById('nextAvailable').textContent = 'รอถึงวันที่กำหนด';
+            document.getElementById('nextAvailable').className = 'font-medium text-red-600';
+            document.getElementById('withdrawBtn').disabled = true;
+            document.getElementById('withdrawBtn').className += ' opacity-50 cursor-not-allowed';
+          }
+        } else {
+          document.getElementById('lastWithdrawal').textContent = 'ยังไม่เคยเบิก';
+          document.getElementById('lastWithdrawalAmount').textContent = '฿0.00';
+          document.getElementById('nextWithdrawal').textContent = 'พร้อมเบิก';
+          document.getElementById('nextAvailable').textContent = 'พร้อมเบิก';
+          document.getElementById('nextAvailable').className = 'font-medium text-green-600';
+          document.getElementById('withdrawBtn').disabled = false;
+        }
+      } else {
+        console.log('Withdrawal elements not found in DOM, skipping withdrawal status update');
+      }
+    }
+
+    function initializeChart() {
+      const chartElement = document.getElementById('bonusChart');
+      if (!chartElement) {
+        console.warn('Chart element not found, skipping chart initialization');
+        return;
+      }
+      const ctx = chartElement.getContext('2d');
+
+      // Generate chart data from HR commission data
+      const chartData = generateChartData();
+
+      const data = {
+        labels: chartData.labels,
+        datasets: [{
+          label: 'โบนัสสะสม (บาท)',
+          data: chartData.data,
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4
+        }]
+      };
+
+      new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '฿' + value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function generateChartData() {
+      // Generate last 6 months of data from HR commission
+      const months = [];
+      const data = [];
+      const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+      // Get current date
+      const now = new Date();
+      let cumulativeTotal = 0;
+
+      // Generate data for last 6 months
+      for (let i = 5; i >= 0; i--) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthLabel = monthNames[targetDate.getMonth()];
+
+        // Calculate cumulative bonus up to this month from both commission and bonus data
+        const monthlyCommission = hrData.commission
+          .filter(comm => {
+            const commDate = new Date(comm.date || comm.createdAt);
+            return commDate.getFullYear() === targetDate.getFullYear() &&
+                   commDate.getMonth() === targetDate.getMonth();
+          })
+          .reduce((sum, comm) => sum + (comm.amount || 0), 0);
+
+        const monthlyBonusData = hrData.bonuses
+          .filter(bonus => {
+            const bonusDate = new Date(bonus.date || bonus.createdAt);
+            return bonusDate.getFullYear() === targetDate.getFullYear() &&
+                   bonusDate.getMonth() === targetDate.getMonth();
+          })
+          .reduce((sum, bonus) => sum + (bonus.amount || 0), 0);
+
+        const monthlyBonus = monthlyCommission + monthlyBonusData;
+
+        cumulativeTotal += monthlyBonus;
+
+        months.push(monthLabel);
+        data.push(cumulativeTotal);
+      }
+
+      // ถ้าไม่มีข้อมูล ให้ return ข้อมูลว่าง
+      if (data.every(val => val === 0)) {
+        return {
+          labels: months,
+          data: data
+        };
+      }
+
+      return { labels: months, data: data };
+    }
+
+    function loadTransactions() {
+      const transactionList = document.getElementById('transactionList');
+      if (!transactionList) {
+        console.warn('Transaction list element not found, skipping transaction loading');
+        return;
+      }
+      transactionList.innerHTML = '';
+
+      // Use HR commission data for transactions
+      const recentTransactions = hrData.commission.slice(0, 5); // Show latest 5 transactions
+
+      if (recentTransactions.length === 0) {
+        transactionList.innerHTML = '<div class="text-center text-gray-500 py-4">ไม่พบประวัติการทำธุรกรรม</div>';
+        return;
+      }
+
+      recentTransactions.forEach((transaction, index) => {
+        const transactionElement = document.createElement('div');
+        transactionElement.className = 'flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer';
+
+        const typeColors = {
+          performance: 'text-blue-600 bg-blue-100',
+          attendance: 'text-green-600 bg-green-100',
+          sales: 'text-purple-600 bg-purple-100'
+        };
+
+        const typeIcons = {
+          performance: 'bi-trophy',
+          attendance: 'bi-clock',
+          sales: 'bi-graph-up'
+        };
+
+        const transactionType = transaction.type || 'commission';
+        const typeColor = typeColors[transactionType] || 'text-blue-600 bg-blue-100';
+        const typeIcon = typeIcons[transactionType] || 'bi-cash-coin';
+        const description = transaction.description || transaction.note || 'รายการโบนัส';
+        const amount = transaction.amount || 0;
+        const date = transaction.date || transaction.createdAt || new Date();
+
+        transactionElement.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full ${typeColor} flex items-center justify-center">
+              <i class="bi ${typeIcon}"></i>
+            </div>
+            <div>
+              <div class="font-medium text-gray-900">${description}</div>
+              <div class="text-sm text-gray-500">${new Date(date).toLocaleDateString('th-TH')}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-bold text-green-600">+฿${amount.toLocaleString()}</div>
+            <div class="text-xs text-gray-500">คลิกดูรายละเอียด</div>
+          </div>
+        `;
+
+        // Add click handler to show transaction details
+        transactionElement.addEventListener('click', () => {
+          showTransactionDetail(transaction, index);
+        });
+
+        transactionList.appendChild(transactionElement);
+      });
+    }
+
+    function setupEventListeners() {
+      // Notification modal
+      document.getElementById('notificationBtn').addEventListener('click', showNotifications);
+      document.getElementById('closeNotificationModal').addEventListener('click', hideNotifications);
+
+      // Transaction detail modal
+      document.getElementById('closeTransactionDetailModal').addEventListener('click', hideTransactionDetail);
+
+      // Bonus card click event
+      const bonusCard = document.getElementById('bonusCard');
+      if (bonusCard) {
+        bonusCard.addEventListener('click', function() {
+          // Navigate to Bonusdetail.html
+          window.location.href = 'Bonusdetail';
+        });
+      }
+    }
+
+    function checkForNewNotifications() {
+      // Check for actual notifications from HR data
+      const notifications = generateHRNotifications();
+
+      if (notifications.length > 0) {
+        showNotificationBadge(notifications.length);
+      }
+
+      // Periodically check for new notifications
+      setInterval(() => {
+        const newNotifications = generateHRNotifications();
+        if (newNotifications.length > notifications.length) {
+          showNotificationBadge(newNotifications.length);
+        }
+      }, 30000); // Check every 30 seconds
+    }
+
+    function showNotificationBadge(count) {
+      const badge = document.getElementById('notificationBadge');
+      badge.textContent = count;
+      badge.classList.remove('hidden');
+    }
+
+    function showNotifications() {
+      const modal = document.getElementById('notificationModal');
+      const content = document.getElementById('notificationContent');
+
+      // Generate notifications from HR data
+      const notifications = generateHRNotifications();
+
+      content.innerHTML = '';
+      if (notifications.length === 0) {
+        content.innerHTML = '<div class="text-center text-gray-500 py-4">ไม่มีการแจ้งเตือนใหม่</div>';
+      } else {
+        notifications.forEach(notif => {
+          const notifElement = document.createElement('div');
+          notifElement.className = 'p-3 border border-gray-200 rounded-lg';
+          notifElement.innerHTML = `
+            <div class="flex items-start space-x-3">
+              <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <i class="bi ${getNotificationIcon(notif.type)} text-blue-600"></i>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-900">${notif.title}</div>
+                <div class="text-sm text-gray-600 mt-1">${notif.message}</div>
+                <div class="text-xs text-gray-500 mt-2">${notif.time}</div>
+              </div>
+            </div>
+          `;
+          content.appendChild(notifElement);
+        });
+      }
+
+      modal.classList.remove('hidden');
+      document.getElementById('notificationBadge').classList.add('hidden');
+    }
+
+    function generateHRNotifications() {
+      const notifications = [];
+      const now = new Date();
+
+      // Check for recent commission/bonus
+      const recentCommissions = hrData.commission.filter(comm => {
+        const commDate = new Date(comm.date || comm.createdAt);
+        const daysDiff = (now - commDate) / (1000 * 60 * 60 * 24);
+        return daysDiff <= 7; // Last 7 days
+      });
+
+      const recentBonuses = hrData.bonuses.filter(bonus => {
+        const bonusDate = new Date(bonus.date || bonus.createdAt);
+        const daysDiff = (now - bonusDate) / (1000 * 60 * 60 * 24);
+        return daysDiff <= 7; // Last 7 days
+      });
+
+      // Add commission notifications
+      recentCommissions.forEach(comm => {
+        const daysDiff = Math.floor((now - new Date(comm.date || comm.createdAt)) / (1000 * 60 * 60 * 24));
+        notifications.push({
+          title: 'ค่าคอมมิชชั่นใหม่เข้าระบบ',
+          message: `คุณได้รับ${comm.description || 'ค่าคอมมิชชั่น'} จำนวน ฿${(comm.amount || 0).toLocaleString()}`,
+          time: daysDiff === 0 ? 'วันนี้' : `${daysDiff} วันที่แล้ว`,
+          type: 'bonus'
+        });
+      });
+
+      // Add bonus notifications
+      recentBonuses.forEach(bonus => {
+        const daysDiff = Math.floor((now - new Date(bonus.date || bonus.createdAt)) / (1000 * 60 * 60 * 24));
+        notifications.push({
+          title: 'โบนัสใหม่เข้าระบบ',
+          message: `คุณได้รับ${bonus.description || 'โบนัส'} จำนวน ฿${(bonus.amount || 0).toLocaleString()}`,
+          time: daysDiff === 0 ? 'วันนี้' : `${daysDiff} วันที่แล้ว`,
+          type: 'bonus'
+        });
+      });
+
+      // Check for HR announcements
+      const recentAnnouncements = hrData.announcements.filter(ann => {
+        const annDate = new Date(ann.date || ann.createdAt);
+        const daysDiff = (now - annDate) / (1000 * 60 * 60 * 24);
+        return daysDiff <= 3; // Last 3 days
+      });
+
+      recentAnnouncements.forEach(ann => {
+        const daysDiff = Math.floor((now - new Date(ann.date || ann.createdAt)) / (1000 * 60 * 60 * 24));
+        notifications.push({
+          title: 'ประกาศใหม่จากฝ่าย HR',
+          message: ann.title || ann.content || 'มีประกาศใหม่',
+          time: daysDiff === 0 ? 'วันนี้' : `${daysDiff} วันที่แล้ว`,
+          type: 'announcement'
+        });
+      });
+
+      // Check for leave status
+      const pendingLeaves = hrData.leaves.filter(leave => leave.status === 'pending');
+      if (pendingLeaves.length > 0) {
+        notifications.push({
+          title: 'คำขอลารออนุมัติ',
+          message: `คุณมีคำขอลา ${pendingLeaves.length} รายการที่รออนุมัติ`,
+          time: 'อัพเดทล่าสุด',
+          type: 'leave'
+        });
+      }
+
+      // Sort by most recent
+      return notifications.slice(0, 5);
+    }
+
+    function getNotificationIcon(type) {
+      switch (type) {
+        case 'bonus': return 'bi-cash-coin';
+        case 'announcement': return 'bi-megaphone';
+        case 'leave': return 'bi-calendar-x';
+        case 'withdraw': return 'bi-bank';
+        default: return 'bi-bell';
+      }
+    }
+
+    function hideNotifications() {
+      document.getElementById('notificationModal').classList.add('hidden');
+    }
+
+
+    function updateChart() {
+      const chartPeriodElement = document.getElementById('chartPeriod');
+      if (!chartPeriodElement) {
+        console.warn('Chart period selector not found');
+        return;
+      }
+
+      const period = chartPeriodElement.value;
+      console.log('Updating chart for period:', period);
+
+      // Regenerate chart based on selected period
+      const chartData = generateChartDataForPeriod(period);
+
+      // Update existing chart
+      const chart = Chart.getChart('bonusChart');
+      if (chart) {
+        chart.data.labels = chartData.labels;
+        chart.data.datasets[0].data = chartData.data;
+        chart.update();
+      }
+    }
+
+    function generateChartDataForPeriod(period) {
+      const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+      const now = new Date();
+      let months = [];
+      let data = [];
+      let monthsToShow;
+
+      switch (period) {
+        case '6months':
+          monthsToShow = 6;
+          break;
+        case 'year':
+          monthsToShow = 12;
+          break;
+        case 'all':
+          monthsToShow = 24; // 2 years
+          break;
+        default:
+          monthsToShow = 6;
+      }
+
+      let cumulativeTotal = 0;
+
+      for (let i = monthsToShow - 1; i >= 0; i--) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthLabel = monthNames[targetDate.getMonth()];
+
+        const monthlyCommission = hrData.commission
+          .filter(comm => {
+            const commDate = new Date(comm.date || comm.createdAt);
+            return commDate.getFullYear() === targetDate.getFullYear() &&
+                   commDate.getMonth() === targetDate.getMonth();
+          })
+          .reduce((sum, comm) => sum + (comm.amount || 0), 0);
+
+        const monthlyBonusData = hrData.bonuses
+          .filter(bonus => {
+            const bonusDate = new Date(bonus.date || bonus.createdAt);
+            return bonusDate.getFullYear() === targetDate.getFullYear() &&
+                   bonusDate.getMonth() === targetDate.getMonth();
+          })
+          .reduce((sum, bonus) => sum + (bonus.amount || 0), 0);
+
+        const monthlyBonus = monthlyCommission + monthlyBonusData;
+
+        cumulativeTotal += monthlyBonus;
+        months.push(monthLabel);
+        data.push(cumulativeTotal);
+      }
+
+      return { labels: months, data: data };
+    }
+
+    function viewAllTransactions() {
+      // Navigate to full transaction history page
+      window.location.href = '/employee/transactions';
+    }
+
+    // Transaction Detail Functions
+    function showTransactionDetail(transaction, index) {
+      // Generate mock data based on transaction
+      const typeLabels = {
+        performance: 'โบนัสผลงาน',
+        attendance: 'โบนัสเข้างาน',
+        sales: 'โบนัสยอดขาย',
+        commission: 'ค่าคอมมิชชั่น'
+      };
+
+      const occasions = {
+        performance: 'ผลงานเดือนพฤศจิกายน ขายได้เกินเป้า 120%',
+        attendance: 'เข้าทำงานครบ 100% เดือนพฤศจิกายน',
+        sales: 'ยอดขายรวมสูงสุดของทีม เดือนพฤศจิกายน',
+        commission: 'ค่าคอมมิชชั่นจากยอดขาย เดือนพฤศจิกายน'
+      };
+
+      const descriptions = {
+        performance: 'โบนัสผลงานประจำเดือนจากการบรรลุเป้าหมายการขาย เกินเป้า 20% ตามนโยบายบริษัท',
+        attendance: 'โบนัสสำหรับการเข้าทำงานครบทุกวันในเดือน ตามนโยบายการจูงใจพนักงาน',
+        sales: 'โบนัสพิเศษสำหรับพนักงานที่ทำยอดขายสูงสุดในทีม ประจำเดือน',
+        commission: 'ค่าคอมมิชชั่นจากการขาย คำนวณจากเปอร์เซ็นต์ยอดขาย ตามสัญญาจ้าง'
+      };
+
+      const transactionType = transaction.type || 'commission';
+      const amount = transaction.amount || 0;
+      const date = new Date(transaction.date || transaction.createdAt || new Date());
+
+      // Update modal content
+      document.getElementById('detailTransactionType').textContent = typeLabels[transactionType] || 'รายการโบนัส';
+      document.getElementById('detailTransactionRef').textContent = `รหัสอ้างอิง: TXN-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`;
+      document.getElementById('detailTransactionAmount').textContent = `+฿${amount.toLocaleString()}`;
+      document.getElementById('detailTransactionStatus').textContent = 'สำเร็จ';
+
+      // Basic information
+      document.getElementById('detailTransactionDate').textContent = date.toLocaleDateString('th-TH');
+      document.getElementById('detailTransactionTime').textContent = date.toLocaleTimeString('th-TH');
+      document.getElementById('detailTransactionCategory').textContent = typeLabels[transactionType] || 'โบนัส';
+      document.getElementById('detailTransactionSubtype').textContent = 'เบิกจ่าย';
+
+      // Amount breakdown
+      const basicAmount = Math.floor(amount * 0.9);
+      const bonusAmount = Math.floor(amount * 0.1);
+      const taxAmount = 0;
+
+      document.getElementById('detailBasicAmount').textContent = `฿${basicAmount.toLocaleString()}.00`;
+      document.getElementById('detailBonusAmount').textContent = `฿${bonusAmount.toLocaleString()}.00`;
+      document.getElementById('detailTaxAmount').textContent = `-฿${taxAmount.toLocaleString()}.00`;
+      document.getElementById('detailNetAmount').textContent = `฿${amount.toLocaleString()}.00`;
+
+      // Reason and description
+      document.getElementById('detailOccasion').textContent = occasions[transactionType] || 'โอกาสพิเศษประจำเดือน';
+      document.getElementById('detailDescription').textContent = descriptions[transactionType] || transaction.description || transaction.note || 'รายละเอียดการจ่ายโบนัส';
+
+      // Verification info - ใช้ข้อมูลจากระบบ HR หรือข้อมูลจาก transaction
+      const dataEntryPerson = transaction.entryBy || transaction.createdBy || hrData.employee?.name || 'ระบบ';
+      const approver = transaction.approvedBy || hrData.employee?.supervisor || 'ผู้จัดการ';
+
+      document.getElementById('detailDataEntry').textContent = dataEntryPerson;
+      document.getElementById('detailApprover').textContent = approver;
+
+      const entryDate = new Date(date.getTime() - 5 * 60 * 1000); // 5 minutes before
+      const approvalDate = date;
+
+      document.getElementById('detailEntryDate').textContent = entryDate.toLocaleDateString('th-TH') + ' - ' + entryDate.toLocaleTimeString('th-TH');
+      document.getElementById('detailApprovalDate').textContent = approvalDate.toLocaleDateString('th-TH') + ' - ' + approvalDate.toLocaleTimeString('th-TH');
+
+      // Update system logs
+      const systemLogsHTML = `
+        <div class="flex justify-between">
+          <span class="text-gray-600">สร้างรายการ</span>
+          <span class="text-gray-900">${entryDate.toLocaleDateString('th-TH')} ${entryDate.toLocaleTimeString('th-TH')} โดย ${dataEntryPerson.replace('คุณ', '')}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">ส่งอนุมัติ</span>
+          <span class="text-gray-900">${entryDate.toLocaleDateString('th-TH')} ${new Date(entryDate.getTime() + 60000).toLocaleTimeString('th-TH')} โดย ${dataEntryPerson.replace('คุณ', '')}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">อนุมัติแล้ว</span>
+          <span class="text-gray-900">${approvalDate.toLocaleDateString('th-TH')} ${approvalDate.toLocaleTimeString('th-TH')} โดย ${approver.replace('คุณ', '')}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">อัพเดทยอดโบนัส</span>
+          <span class="text-gray-900">${approvalDate.toLocaleDateString('th-TH')} ${approvalDate.toLocaleTimeString('th-TH')} โดย ระบบ</span>
+        </div>
+      `;
+      document.getElementById('detailSystemLogs').innerHTML = systemLogsHTML;
+
+      // Show modal
+      document.getElementById('transactionDetailModal').classList.remove('hidden');
+    }
+
+    function hideTransactionDetail() {
+      document.getElementById('transactionDetailModal').classList.add('hidden');
+    }
+
+    // Real-time updates simulation
+    setInterval(() => {
+      // Simulate real-time bonus updates
+      const currentBonus = parseInt(document.getElementById('totalBonus').textContent.replace(/[฿,]/g, ''));
+      if (Math.random() > 0.95) { // 5% chance of bonus update
+        const newAmount = Math.floor(Math.random() * 1000) + 500;
+        const newTotal = currentBonus + newAmount;
+        document.getElementById('totalBonus').textContent = `฿${newTotal.toLocaleString()}.00`;
+
+        // Show notification
+        showNotificationBadge(1);
+      }
+    }, 30000); // Check every 30 seconds
+
+    // ========== DEBUG FUNCTIONS ==========
+    
+    // Toggle debug panel visibility
+    function toggleDebugPanel() {
+      const panel = document.getElementById('debugPanel');
+      const toggle = document.getElementById('debugToggle');
+    
+      if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggle.innerHTML = '<i class="bi bi-bug-fill"></i>';
+        updateDebugInfo();
+      } else {
+        panel.classList.add('hidden');
+        toggle.innerHTML = '<i class="bi bi-bug"></i>';
+      }
+    }
+
+    // Update debug information
+    function updateDebugInfo() {
+      // Environment info
+      const environment = window.location.hostname === 'localhost' ? 'Development' :
+                         window.location.hostname.includes('2pheenong') ? 'Production' : 'Other';
+      document.getElementById('debugEnvironment').textContent = environment;
+
+      // API Status
+      fetch(`${API_BASE_URL}/api/health`)
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('debugAPIStatus').textContent = 'Connected ✓';
+            document.getElementById('debugAPIStatus').className = 'text-green-400';
+          } else {
+            document.getElementById('debugAPIStatus').textContent = 'Error ' + response.status;
+            document.getElementById('debugAPIStatus').className = 'text-red-400';
+          }
+        })
+        .catch(error => {
+          document.getElementById('debugAPIStatus').textContent = 'Failed ✗';
+          document.getElementById('debugAPIStatus').className = 'text-red-400';
+        });
+
+      // Employee Data Status
+      if (hrData.employee) {
+        document.getElementById('debugEmployeeStatus').textContent = 'Loaded ✓';
+        document.getElementById('debugEmployeeStatus').className = 'text-green-400';
+      } else {
+        document.getElementById('debugEmployeeStatus').textContent = 'No Data ✗';
+        document.getElementById('debugEmployeeStatus').className = 'text-red-400';
+      }
+
+      // Image Status
+      if (hrData.employee && hrData.employee.imageUrl) {
+        document.getElementById('debugImageStatus').textContent = 'Found ✓';
+        document.getElementById('debugImageStatus').className = 'text-green-400';
+      } else {
+        document.getElementById('debugImageStatus').textContent = 'Not Found ✗';
+        document.getElementById('debugImageStatus').className = 'text-red-400';
+      }
+    }
+
+    // Test image loading manually
+    function testImageLoad() {
+      if (hrData.employee && hrData.employee.imageUrl) {
+        console.log('Testing image URL:', hrData.employee.imageUrl);
+    
+        const testImg = new Image();
+        testImg.onload = function() {
+          console.log('✓ Image loaded successfully');
+          alert('✓ Image loaded successfully: ' + hrData.employee.imageUrl);
+        };
+        testImg.onerror = function() {
+          console.log('✗ Image failed to load');
+          alert('✗ Image failed to load: ' + hrData.employee.imageUrl);
+        };
+        testImg.src = hrData.employee.imageUrl;
+      } else {
+        alert('No image URL found in employee data');
+      }
+    }
+
+    // Show debug panel on development environment
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // Auto-show debug panel in development after 2 seconds
+      setTimeout(() => {
+        document.getElementById('debugToggle').style.display = 'block';
+      }, 2000);
+    }
+  </script>
+</body>
+</html>

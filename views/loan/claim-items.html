@@ -1,0 +1,2353 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>เครดิตผ่าน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Day.js with Thai locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  <script>dayjs.locale('th');</script>
+
+  <!-- Chart.js for charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Socket.io (ไฟล์โลคัล หรือ CDN ก็ได้) -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+
+  <!-- Utility Functions -->
+  <script>
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      if (typeof Swal !== 'undefined') {
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info', title: message });
+      }
+    }
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+    function formatCurrency(amount) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount || 0); }
+    function formatDate(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY'); }
+    function formatDateTime(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY HH:mm'); }
+    window.showToast = showToast; window.showLoading = showLoading; window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate; window.formatDateTime = formatDateTime;
+  </script>
+
+  <!-- Socket.io already loaded via CDN above -->
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    /* Animation for pulse effect */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .animate-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    /* Animation for slide in from left */
+    @keyframes slideInLeft {
+      from {
+        transform: translateX(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    .slide-in-left {
+      animation: slideInLeft 0.3s ease-out;
+    }
+    
+    /* Animation for hover scale */
+    .hover-scale {
+      transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem; /* ลดความกว้างเมื่อยุบ */
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+        /* Custom modern scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(241, 241, 241, 0.2);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(136, 136, 136, 0.5);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(85, 85, 85, 0.7);
+    }
+
+    .Logo {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    /* Glass effect */
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
+    }
+    
+    /* Dark mode glass effect */
+    .dark .glass-effect {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    /* Card hover effect */
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Status indicator */
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    
+    /* Customer card selected state */
+    .customer-card.selected {
+      border-left: 4px solid #3b82f6;
+    }
+    .dark .customer-card.selected {
+      border-left: 4px solid #60a5fa;
+    }
+
+    /* Toast notification styles */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .toast {
+      background-color: white;
+      color: #333;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      transform: translateX(120%);
+      transition: transform 0.3s ease;
+      max-width: 300px;
+    }
+    
+    .toast.show {
+      transform: translateX(0);
+    }
+    
+    .toast.success {
+      border-left: 4px solid #10B981;
+    }
+    
+    .toast.error {
+      border-left: 4px solid #EF4444;
+    }
+    
+    .toast.info {
+      border-left: 4px solid #3B82F6;
+    }
+    
+    .dark .toast {
+      background-color: #1F2937;
+      color: #F9FAFB;
+    }
+    
+    /* Theme transition effect */
+    .theme-transition {
+      transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+    }
+    
+    /* Keyboard shortcuts info */
+    .key-shortcut {
+      display: inline-block;
+      background-color: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: monospace;
+      font-size: 0.85em;
+      color: #374151;
+    }
+    
+    .dark .key-shortcut {
+      background-color: #374151;
+      border-color: #4B5563;
+      color: #E5E7EB;
+    }
+
+    /* เพิ่มเอฟเฟกต์โมเดิร์นเวลากดปุ่ม */
+    .btn {
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-primary {
+      background-image: linear-gradient(to right, #3b82f6, #2563eb);
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2), 0 2px 4px -1px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-primary:hover {
+      background-image: linear-gradient(to right, #2563eb, #1d4ed8);
+      box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25), 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+    }
+
+    /* ทำให้กรอบอินพุตสวยขึ้น */
+    .input, .select, .textarea {
+      transition: all 0.2s ease;
+      border-width: 1.5px;
+    }
+
+    .input:focus, .select:focus, .textarea:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      border-color: #3b82f6;
+    }
+
+    /* เพิ่มความสวยงามให้กับตาราง */
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table th {
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ปรับแต่ง Card ให้มีความโมเดิร์น */
+    .card-hover {
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    }
+    
+    .card-hover:hover {
+      box-shadow: 0 14px 28px rgba(0,0,0,0.15), 0 10px 10px rgba(0,0,0,0.12);
+    }
+
+    /* ปรับแต่ง Tabs ให้ดูดีขึ้น */
+    .tab-btn {
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn:after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background-color: transparent;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn.active:after {
+      background-color: #3b82f6;
+    }
+
+    /* เพิ่มเอฟเฟกต์รูปภาพโปรไฟล์ */
+    .profile-image-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+
+    .profile-image-container img {
+      transition: transform 0.3s ease;
+    }
+
+    .profile-image-container:hover img {
+      transform: scale(1.05);
+    }
+
+    /* ใบเสร็จที่สวยงาม */
+    #receiptContainer {
+      background-color: white;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .dark #receiptContainer {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Stock status styles */
+    .stock-ready {
+      background-color: #10B981;
+      animation: pulse 2s infinite;
+    }
+
+    .stock-deducted {
+      background-color: #6B7280;
+    }
+
+    /* Badge pulse effect */
+    @keyframes badgePulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+      }
+    }
+
+    .badge-pulse {
+      animation: badgePulse 2s infinite;
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+
+
+</head>
+
+<body class="bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 theme-transition">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button
+    id="btnToggleMenu"
+    title="Toggle Menu"
+    aria-label="Toggle Menu"
+    class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition"
+  >
+    <i class="bi bi-chevron-left"></i>
+  </button>
+  <div id="menuOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
+
+  <!-- Layout หลัก: Sidebar - Main Content -->
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="transform translate-x-0 w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="loan_dashboard" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png" alt="Logo" class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <nav class="flex-1 p-4 overflow-y-auto">
+        <ul class="space-y-1">
+          <li><a href="loan_dashboard" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-house-door text-xl text-blue-500"></i><span class="ml-3">หน้าแรก</span>
+          </a></li>
+          <li><a href="repayment" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-wallet2 text-xl text-green-500"></i><span class="ml-3">ผ่อนชำระ</span>
+          </a></li>
+          <li><a href="installment_history" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-clock-history text-xl text-amber-500"></i><span class="ml-3">ประวัติการผ่อน</span>
+          </a></li>
+          <li><a href="customer" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-people text-xl text-purple-500"></i><span class="ml-3">จัดการลูกค้า</span>
+          </a></li>
+
+          <!-- เพิ่มเมนูตัดสต๊อก -->
+          <li class="my-px">
+            <a href="stock_deduction"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300">
+              <span class="flex items-center justify-center text-lg text-emerald-500 dark:text-emerald-400">
+                <i class="bi bi-box-seam text-xl"></i>
+              </span>
+              <span class="ml-3">ตัดสต๊อก</span>
+              <span class="ml-auto" id="stockPendingBadge">
+                <span class="badge badge-error badge-sm badge-pulse">24</span>
+              </span>
+            </a>
+          </li>
+
+          <!-- เมนู: ลูกหนี้ -->
+          <li class="my-px">
+            <a href="debtors"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-receipt text-xl"></i>
+              </span>
+              <span class="ml-3">ลูกหนี้</span>
+              <span class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                <i class="bi bi-chevron-right text-sm"></i>
+              </span>
+            </a>
+          </li>
+
+            <!-- เมนู: เงินมัดจำ (ใหม่) -->
+      <li class="my-px">
+        <a href="deposits"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300">
+          <span class="flex items-center justify-center text-lg text-amber-500 dark:text-amber-400">
+            <i class="bi bi-piggy-bank text-xl"></i>
+          </span>
+          <span class="ml-3">เงินมัดจำ</span>
+          <span class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <i class="bi bi-chevron-right text-sm"></i>
+          </span>
+        </a>
+      </li>
+         
+          <!-- เมนู: เกณฑ์หนี้สูญ -->
+          <li class="my-px">
+            <a href="bad_debt_criteria"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-cyan-500 dark:text-cyan-400">
+                <i class="bi bi-clipboard2-check text-xl"></i>
+              </span>
+              <span class="ml-3">เกณฑ์หนี้สูญ</span>
+            </a>
+          </li>
+          <!-- เมนู: ต้นทุนและค่าใช้จ่าย -->
+          <li class="my-px">
+            <a href="costs_expenses"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-teal-500 dark:text-teal-400">
+                <i class="bi bi-calculator text-xl"></i>
+              </span>
+              <span class="ml-3">ต้นทุนและค่าใช้จ่าย</span>
+            </a>
+          </li>
+          <li class="mt-6"><button id="btnToggleDark" class="flex items-center w-full px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-moon text-xl text-indigo-500"></i><span class="ml-3" id="darkModeLabel">Dark Mode</span>
+          </button></li>
+          <li><button id="btnLogout" class="flex items-center w-full px-4 h-12 rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-box-arrow-right text-xl"></i><span class="ml-3">ออกจากระบบ</span>
+          </button></li>
+          <li class="mt-auto"><div id="profile" class="flex items-center px-4 h-12 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <!-- Fix the image source to use our placeholder image function instead of hardcoded path -->
+            <img id="employeePhoto" class="w-10 h-10 rounded-full mr-3" src="" alt="Emp"/><span id="employeeName">Loading...</span>
+          </div></li>
+        </ul>
+      </nav>
+    </aside>
+    <!-- Main Content -->
+    <main class="flex-1 p-4 md:p-6 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-all duration-300">
+      <!-- Header Bar with Title and Actions -->
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 animate-fadeIn">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100">
+            ระบบผ่อนไปใช้ไป และผ่อนหมดรับของ
+          </h1>
+          <p class="text-gray-500 dark:text-gray-400 mt-1">
+            จัดการรายการลูกค้าที่ผ่อนสินค้าและจะได้รับสินค้าเมื่อชำระครบ
+          </p>
+        </div>
+        
+        <div class="mt-4 md:mt-0 flex gap-2">
+          <button id="btnAddInstallment" class="btn btn-primary gap-1">
+            <i class="bi bi-plus-circle"></i>
+            <span>เพิ่มสัญญาใหม่</span>
+          </button>
+          <button id="btnExportData" class="btn btn-outline btn-success gap-1">
+            <i class="bi bi-file-earmark-excel"></i>
+            <span>ส่งออก Excel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="mb-6">
+        <div class="tabs tabs-boxed bg-white dark:bg-gray-800 p-1">
+          <a id="tab-all" class="tab tab-active">ทั้งหมด</a>
+          <a id="tab-pay-as-you-go" class="tab">ผ่อนไปใช้ไป</a>
+          <a id="tab-pay-in-full" class="tab">ผ่อนหมดรับของ</a>
+          <a id="tab-completed" class="tab">ชำระครบแล้ว</a>
+        </div>
+      </div>
+      
+      <!-- Search and Filter Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 animate-fadeIn">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">ค้นหา</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="searchInput" placeholder="ค้นหาชื่อลูกค้า, เลขสัญญา..." 
+                     class="input input-bordered w-full pl-10" />
+              <i class="bi bi-search absolute top-3 left-3 text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">สถานะการชำระเงิน</span>
+            </label>
+            <select id="paymentStatusFilter" class="select select-bordered w-full">
+              <option value="">ทั้งหมด</option>
+              <option value="up-to-date">ชำระตามกำหนด</option>
+              <option value="late">ค้างชำระ</option>
+              <option value="completed">ชำระครบแล้ว</option>
+              <option value="pending-stock">รอตัดสต๊อก</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">ช่วงวันที่</span>
+            </label>
+            <div class="flex gap-2">
+              <input type="text" id="dateFrom" class="input input-bordered w-1/2" placeholder="จากวันที่" />
+              <input type="text" id="dateTo" class="input input-bordered w-1/2" placeholder="ถึงวันที่" />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stats Cards Section -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn">
+          <div class="stat-figure text-primary">
+            <i class="bi bi-people-fill text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">ลูกค้าทั้งหมด</div>
+          <div class="stat-value text-primary">125</div>
+          <div class="stat-desc">เพิ่มขึ้น 14% จากเดือนที่แล้ว</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.1s">
+          <div class="stat-figure text-success">
+            <i class="bi bi-cash-stack text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">ยอดรับชำระเดือนนี้</div>
+          <div class="stat-value text-success">฿248,500</div>
+          <div class="stat-desc">เพิ่มขึ้น 7% จากเดือนที่แล้ว</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.2s">
+          <div class="stat-figure text-warning">
+            <i class="bi bi-clock-history text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">ค้างชำระ</div>
+          <div class="stat-value text-warning">12</div>
+          <div class="stat-desc">ลูกค้าที่มีการค้างชำระ</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.3s">
+          <div class="stat-figure text-emerald-500">
+            <i class="bi bi-box-seam text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">รอตัดสต๊อก</div>
+          <div class="stat-value text-emerald-500">24</div>
+          <div class="stat-desc">ผ่อนหมดรับของที่ชำระครบ</div>
+        </div>
+      </div>
+
+      <!-- Customers List Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden animate-fadeIn">
+        <div class="overflow-x-auto">
+          <table class="table w-full table-compact">
+            <thead>
+              <tr class="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                <th class="py-3">#</th>
+                <th class="py-3">เลขสัญญา</th>
+                <th class="py-3">ชื่อลูกค้า</th>
+                <th class="py-3">รายละเอียดสินค้า</th>
+                <th class="py-3">ชำระแล้ว/ทั้งหมด</th>
+                <th class="py-3">ยอดรวม</th>
+                <th class="py-3">ประเภท</th>
+                <th class="py-3">สถานะ</th>
+                <th class="py-3">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="customerTableBody">
+              <!-- Row 1: สัญญาผ่อนไปใช้ไป -->
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
+                <td class="py-3">1</td>
+                <td class="py-3">INST256806001</td>
+                <td class="py-3">
+                  <div class="flex items-center space-x-3">
+                    <div class="avatar placeholder">
+                      <div class="bg-blue-100 text-blue-600 w-10 h-10 rounded-full">
+                        <span>นภ</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="font-medium">นภัสวรรณ มงคล</div>
+                      <div class="text-sm text-gray-500 dark:text-gray-400">โทร: 096-187-7322</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">
+                  <div class="font-medium">iPhone 15 Pro Max</div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">256GB สีทอง</div>
+                </td>
+                <td class="py-3">
+                  <div class="flex items-center">
+                    <span class="font-medium">3/12</span>
+                    <div class="ml-2 w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div class="bg-blue-500 h-full" style="width:25%"></div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">฿48,900</td>
+                <td class="py-3">
+                  <span class="badge badge-info badge-sm">ผ่อนไปใช้ไป</span>
+                </td>
+                <td class="py-3">
+                  <span class="badge badge-success badge-sm">ชำระตามกำหนด</span>
+                </td>
+                <td class="py-3">
+                  <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-sm btn-ghost hover:bg-gray-200 dark:hover:bg-gray-700">
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </label>
+                    <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm p-2 shadow-lg bg-white dark:bg-gray-800 rounded-box w-52">
+                      <li><a class="text-blue-600 dark:text-blue-400" onclick="openDetailsModal('INST256806001')"><i class="bi bi-info-circle"></i> ดูรายละเอียด</a></li>
+                      <li><a class="text-green-600 dark:text-green-400" onclick="openPaymentModal('INST256806001')"><i class="bi bi-cash"></i> บันทึกการชำระ</a></li>
+                      <li><a class="text-amber-600 dark:text-amber-400"><i class="bi bi-pencil"></i> แก้ไขสัญญา</a></li>
+                      <li><a class="text-red-600 dark:text-red-400"><i class="bi bi-trash"></i> ลบสัญญา</a></li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              
+              <!-- Row 2: สัญญาผ่อนหมดรับของ (ชำระครบแล้ว รอตัดสต๊อก) -->
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/20">
+                <td class="py-3">2</td>
+                <td class="py-3">INST256806002</td>
+                <td class="py-3">
+                  <div class="flex items-center space-x-3">
+                    <div class="avatar placeholder">
+                      <div class="bg-green-100 text-green-600 w-10 h-10 rounded-full">
+                        <span>สท</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="font-medium">สมชาย ทองดี</div>
+                      <div class="text-sm text-gray-500 dark:text-gray-400">โทร: 081-222-3344</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">
+                  <div class="font-medium">MacBook Pro M3</div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">16" 1TB Space Black</div>
+                </td>
+                <td class="py-3">
+                  <div class="flex items-center">
+                    <span class="font-medium">10/10</span>
+                    <div class="ml-2 w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div class="bg-green-500 h-full" style="width:100%"></div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">฿75,900</td>
+                <td class="py-3">
+                  <span class="badge badge-warning badge-sm">ผ่อนหมดรับของ</span>
+                </td>
+                <td class="py-3">
+                  <span class="badge badge-success badge-sm stock-ready badge-pulse">รอตัดสต๊อก</span>
+                </td>
+                <td class="py-3">
+                  <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-sm btn-ghost hover:bg-gray-200 dark:hover:bg-gray-700">
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </label>
+                    <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm p-2 shadow-lg bg-white dark:bg-gray-800 rounded-box w-52">
+                      <li><a class="text-blue-600 dark:text-blue-400" onclick="openDetailsModal('INST256806002')"><i class="bi bi-info-circle"></i> ดูรายละเอียด</a></li>
+                      <li><a class="text-emerald-600 dark:text-emerald-400" onclick="handleStockDeduction('INST256806002')"><i class="bi bi-box-arrow-down"></i> ตัดสต๊อก</a></li>
+                      <li><a class="text-amber-600 dark:text-amber-400"><i class="bi bi-pencil"></i> แก้ไขสัญญา</a></li>
+                      <li><a class="text-red-600 dark:text-red-400"><i class="bi bi-trash"></i> ลบสัญญา</a></li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              
+              <!-- Row 3: สัญญาผ่อนหมดรับของ (ค้างชำระ) -->
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
+                <td class="py-3">3</td>
+                <td class="py-3">INST256805011</td>
+                <td class="py-3">
+                  <div class="flex items-center space-x-3">
+                    <div class="avatar placeholder">
+                      <div class="bg-red-100 text-red-600 w-10 h-10 rounded-full">
+                        <span>วน</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="font-medium">วสันต์ นาคแสง</div>
+                      <div class="text-sm text-gray-500 dark:text-gray-400">โทร: 062-889-7745</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">
+                  <div class="font-medium">Samsung S24 Ultra</div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">512GB Titanium Gray</div>
+                </td>
+                <td class="py-3">
+                  <div class="flex items-center">
+                    <span class="font-medium">2/12</span>
+                    <div class="ml-2 w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div class="bg-red-500 h-full" style="width:16%"></div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">฿45,900</td>
+                <td class="py-3">
+                  <span class="badge badge-warning badge-sm">ผ่อนหมดรับของ</span>
+                </td>
+                <td class="py-3">
+                  <span class="badge badge-error badge-sm">ค้างชำระ 30 วัน</span>
+                </td>
+                <td class="py-3">
+                  <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-sm btn-ghost hover:bg-gray-200 dark:hover:bg-gray-700">
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </label>
+                    <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm p-2 shadow-lg bg-white dark:bg-gray-800 rounded-box w-52">
+                      <li><a class="text-blue-600 dark:text-blue-400" onclick="openDetailsModal('INST256805011')"><i class="bi bi-info-circle"></i> ดูรายละเอียด</a></li>
+                      <li><a class="text-green-600 dark:text-green-400" onclick="openPaymentModal('INST256805011')"><i class="bi bi-cash"></i> บันทึกการชำระ</a></li>
+                      <li><a class="text-orange-600 dark:text-orange-400"><i class="bi bi-telephone"></i> บันทึกการติดตาม</a></li>
+                      <li><a class="text-amber-600 dark:text-amber-400"><i class="bi bi-pencil"></i> แก้ไขสัญญา</a></li>
+                      <li><a class="text-red-600 dark:text-red-400"><i class="bi bi-trash"></i> ลบสัญญา</a></li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              
+              <!-- Row 4: สัญญาผ่อนหมดรับของ (ตัดสต๊อกแล้ว) -->
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20">
+                <td class="py-3">4</td>
+                <td class="py-3">INST256801023</td>
+                <td class="py-3">
+                  <div class="flex items-center space-x-3">
+                    <div class="avatar placeholder">
+                      <div class="bg-purple-100 text-purple-600 w-10 h-10 rounded-full">
+                        <span>นส</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="font-medium">นุชนาถ สิงห์ทอง</div>
+                      <div class="text-sm text-gray-500 dark:text-gray-400">โทร: 098-765-4321</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">
+                  <div class="font-medium">iPad Pro 12.9"</div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">256GB WiFi Silver</div>
+                </td>
+                <td class="py-3">
+                  <div class="flex items-center">
+                    <span class="font-medium">6/6</span>
+                    <div class="ml-2 w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div class="bg-green-500 h-full" style="width:100%"></div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3">฿39,900</td>
+                <td class="py-3">
+                  <span class="badge badge-warning badge-sm">ผ่อนหมดรับของ</span>
+                </td>
+                <td class="py-3">
+                  <span class="badge badge-ghost badge-sm">ตัดสต๊อกแล้ว</span>
+                  <div class="text-xs text-gray-500 mt-1">15/06/2568</div>
+                </td>
+                <td class="py-3">
+                  <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-sm btn-ghost hover:bg-gray-200 dark:hover:bg-gray-700">
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </label>
+                    <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm p-2 shadow-lg bg-white dark:bg-gray-800 rounded-box w-52">
+                      <li><a class="text-blue-600 dark:text-blue-400" onclick="openDetailsModal('INST256801023')"><i class="bi bi-info-circle"></i> ดูรายละเอียด</a></li>
+                      <li><a class="text-green-600 dark:text-green-400"><i class="bi bi-printer"></i> พิมพ์ใบส่งมอบ</a></li>
+                      <li><a class="text-yellow-600 dark:text-yellow-400"><i class="bi bi-star"></i> เพิ่มรีวิวลูกค้า</a></li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="p-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-700">
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            แสดง 1-4 จาก 28 รายการ
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-outline">«</button>
+            <button class="btn btn-sm btn-active">1</button>
+            <button class="btn btn-sm btn-outline">2</button>
+            <button class="btn btn-sm btn-outline">3</button>
+            <button class="btn btn-sm btn-outline">»</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- ADD NEW INSTALLMENT MODAL -->
+  <div id="addInstallmentModal" class="modal">
+    <div class="modal-box w-11/12 max-w-5xl">
+      <h3 class="font-bold text-xl mb-4">เพิ่มสัญญาผ่อนชำระใหม่</h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" onclick="closeAddModal()">✕</button>
+      
+      <form id="installmentForm" class="space-y-4">
+        <!-- Form Tabs -->
+        <div class="tabs tabs-boxed">
+          <a class="tab tab-active" data-tab="customer">1. ข้อมูลลูกค้า</a>
+          <a class="tab" data-tab="product">2. สินค้า</a>
+          <a class="tab" data-tab="payment">3. เงื่อนไขการชำระ</a>
+          <a class="tab" data-tab="summary">4. สรุปสัญญา</a>
+        </div>
+        
+        <!-- Customer Data Tab -->
+        <div class="tab-content" id="customer-tab">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label">ค้นหาลูกค้าเดิม</label>
+              <div class="input-group">
+                <input type="text" placeholder="ค้นหาด้วยชื่อ หรือเบอร์โทร..." class="input input-bordered w-full" />
+                <button class="btn btn-primary"><i class="bi bi-search"></i></button>
+              </div>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ประเภทการผ่อน</label>
+              <select class="select select-bordered w-full">
+                <option disabled selected>เลือกประเภท</option>
+                <option value="pay-as-you-go">ผ่อนไปใช้ไป (รับสินค้าทันที)</option>
+                <option value="pay-in-full">ผ่อนหมดรับของ (ผ่อนครบจึงรับสินค้า)</option>
+              </select>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ชื่อ-นามสกุล</label>
+              <input type="text" placeholder="ชื่อ-นามสกุลลูกค้า" class="input input-bordered w-full" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">เบอร์โทรศัพท์</label>
+              <input type="text" placeholder="เบอร์โทรศัพท์" class="input input-bordered w-full" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">เลขบัตรประชาชน</label>
+              <input type="text" placeholder="เลขบัตรประชาชน 13 หลัก" class="input input-bordered w-full" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ที่อยู่</label>
+              <textarea class="textarea textarea-bordered w-full" placeholder="ที่อยู่ปัจจุบัน"></textarea>
+            </div>
+          </div>
+          
+          <div class="mt-4 flex justify-end">
+            <button type="button" class="btn btn-primary" onclick="nextTab('product')">ถัดไป</button>
+          </div>
+        </div>
+        
+        <!-- Products Tab -->
+        <div class="tab-content hidden" id="product-tab">
+          <div class="overflow-x-auto mb-4">
+            <table class="table w-full">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>สินค้า</th>
+                  <th>รุ่น/รายละเอียด</th>
+                  <th>จำนวน</th>
+                  <th>ราคาต่อหน่วย</th>
+                  <th>ราคารวม</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="productTableBody">
+                <tr>
+                  <td>1</td>
+                  <td>
+                    <select class="select select-bordered w-full">
+                      <option disabled selected>เลือกสินค้า</option>
+                      <option>iPhone 15 Pro Max</option>
+                      <option>MacBook Pro M3</option>
+                      <option>iPad Pro</option>
+                      <option>Samsung S24 Ultra</option>
+                    </select>
+                  </td>
+                  <td><input type="text" class="input input-bordered w-full" placeholder="รายละเอียด" /></td>
+                  <td><input type="number" class="input input-bordered w-full" value="1" min="1" /></td>
+                  <td><input type="number" class="input input-bordered w-full" placeholder="ราคา" /></td>
+                  <td><span class="font-medium">0.00</span></td>
+                  <td><button type="button" class="btn btn-sm btn-square btn-error"><i class="bi bi-trash"></i></button></td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="7" class="text-right">
+                    <button type="button" class="btn btn-sm btn-outline btn-primary"><i class="bi bi-plus"></i> เพิ่มสินค้า</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="5" class="text-right font-medium">รวมทั้งสิ้น:</td>
+                  <td class="font-medium">0.00</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          
+          <div class="flex justify-between">
+            <button type="button" class="btn btn-outline" onclick="prevTab('customer')">ย้อนกลับ</button>
+            <button type="button" class="btn btn-primary" onclick="nextTab('payment')">ถัดไป</button>
+          </div>
+        </div>
+        
+        <!-- Payment Terms Tab -->
+        <div class="tab-content hidden" id="payment-tab">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label">ยอดรวมทั้งสิ้น</label>
+              <input type="text" class="input input-bordered w-full" readonly value="0.00" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">เงินดาวน์</label>
+              <input type="number" class="input input-bordered w-full" placeholder="เงินดาวน์ (ถ้ามี)" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">จำนวนงวด</label>
+              <input type="number" class="input input-bordered w-full" min="1" value="12" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ยอดผ่อนต่องวด</label>
+              <input type="text" class="input input-bordered w-full" readonly value="0.00" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">วันที่เริ่มต้นสัญญา</label>
+              <input type="text" id="startDate" class="input input-bordered w-full datepicker" placeholder="เลือกวันที่" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">อัตราดอกเบี้ย (% ต่อปี)</label>
+              <input type="number" class="input input-bordered w-full" placeholder="ดอกเบี้ย" value="0" />
+            </div>
+          </div>
+          
+          <div class="mt-4 flex justify-between">
+            <button type="button" class="btn btn-outline" onclick="prevTab('product')">ย้อนกลับ</button>
+            <button type="button" class="btn btn-primary" onclick="nextTab('summary')">ถัดไป</button>
+          </div>
+        </div>
+        
+        <!-- Summary Tab -->
+        <div class="tab-content hidden" id="summary-tab">
+          <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+            <h3 class="text-lg font-medium mb-4">สรุปรายละเอียดสัญญา</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p class="font-medium">ข้อมูลลูกค้า</p>
+                <p>ชื่อ-นามสกุล: <span id="summary-name">-</span></p>
+                <p>เบอร์โทร: <span id="summary-phone">-</span></p>
+                <p>เลขบัตร ปชช.: <span id="summary-id-card">-</span></p>
+              </div>
+              
+              <div>
+                <p class="font-medium">รายละเอียดการผ่อน</p>
+                <p>ประเภท: <span id="summary-type">-</span></p>
+                <p>จำนวนงวด: <span id="summary-term">-</span> งวด</p>
+                <p>ยอดผ่อนต่องวด: <span id="summary-monthly">-</span> บาท</p>
+              </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div>
+              <p class="font-medium">รายการสินค้า</p>
+              <ul class="list-disc list-inside ml-4" id="summary-products">
+                <li>- รายการสินค้าจะแสดงที่นี่ -</li>
+              </ul>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p>ยอดรวมทั้งสิ้น: <span id="summary-total" class="font-medium">-</span> บาท</p>
+                <p>เงินดาวน์: <span id="summary-down-payment" class="font-medium">-</span> บาท</p>
+                <p>ยอดรวมที่ต้องผ่อนชำระ: <span id="summary-finance-amount" class="font-medium">-</span> บาท</p>
+              </div>
+              
+              <div>
+                <p>วันที่เริ่มสัญญา: <span id="summary-start-date" class="font-medium">-</span></p>
+                <p>วันที่สิ้นสุดสัญญา: <span id="summary-end-date" class="font-medium">-</span></p>
+                <p>เลขที่สัญญา: <span id="summary-contract-no" class="font-medium text-blue-600">INST256806XXX</span></p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-4 flex justify-between">
+            <button type="button" class="btn btn-outline" onclick="prevTab('payment')">ย้อนกลับ</button>
+            <div>
+              <button type="button" class="btn btn-outline btn-success mr-2">พิมพ์สัญญา</button>
+              <button type="submit" class="btn btn-primary">บันทึกสัญญา</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- PAYMENT RECORD MODAL -->
+  <div id="paymentModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">บันทึกการชำระเงิน</h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" onclick="closePaymentModal()">✕</button>
+      
+      <form id="paymentForm" class="mt-4 space-y-4">
+        <div class="form-control">
+          <label class="label">เลขที่สัญญา</label>
+          <input type="text" id="contractNo" class="input input-bordered" readonly />
+        </div>
+        
+        <div class="form-control">
+          <label class="label">ชื่อลูกค้า</label>
+          <input type="text" id="customerName" class="input input-bordered" readonly />
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label">งวดที่</label>
+            <input type="number" id="installmentNumber" class="input input-bordered" min="1" />
+          </div>
+          
+          <div class="form-control">
+            <label class="label">วันที่รับชำระ</label>
+            <input type="text" id="paymentDate" class="input input-bordered datepicker" />
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label">ยอดชำระต่องวด</label>
+            <input type="number" id="installmentAmount" class="input input-bordered" readonly />
+          </div>
+          
+          <div class="form-control">
+            <label class="label">ยอดจ่ายจริง</label>
+            <input type="number" id="actualPayment" class="input input-bordered" />
+          </div>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">ช่องทางการชำระ</label>
+          <select id="paymentMethod" class="select select-bordered w-full" onchange="togglePaymentMethod()">
+            <option value="cash">เงินสด</option>
+            <option value="transfer">โอนเงิน</option>
+            <option value="mixed">ผสม (เงินสด + โอน)</option>
+            <option value="credit_card">บัตรเครดิต</option>
+          </select>
+        </div>
+        
+        <!-- การชำระแบบผสม -->
+        <div id="mixedPaymentSection" class="hidden form-control">
+          <label class="label">รายละเอียดการชำระแบบผสม</label>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="label">เงินสด (บาท)</label>
+              <input type="number" id="cashAmount" class="input input-bordered" placeholder="0.00" onchange="calculateMixedTotal()" />
+            </div>
+            <div>
+              <label class="label">โอนเงิน (บาท)</label>
+              <input type="number" id="transferAmount" class="input input-bordered" placeholder="0.00" onchange="calculateMixedTotal()" />
+            </div>
+          </div>
+          <div class="mt-2 text-sm">
+            รวมทั้งสิ้น: <span id="mixedTotal" class="font-medium">0.00</span> บาท
+          </div>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">หมายเหตุ</label>
+          <textarea id="paymentNote" class="textarea textarea-bordered" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+        </div>
+        
+        <div class="flex justify-end space-x-2 mt-6">
+          <button type="button" class="btn btn-outline" onclick="closePaymentModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึกการชำระ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- VIEW DETAILS MODAL -->
+  <div id="detailsModal" class="modal">
+    <div class="modal-box w-11/12 max-w-5xl">
+      <h3 class="font-bold text-xl mb-2">รายละเอียดสัญญา <span id="details-contract-no" class="text-blue-600">INST256806001</span></h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" onclick="closeDetailsModal()">✕</button>
+      
+      <!-- Customer and Contract Details -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-person-circle mr-2 text-blue-500"></i> ข้อมูลลูกค้า
+          </h4>
+          <div class="space-y-2">
+            <p><span class="font-medium">ชื่อ-นามสกุล:</span> <span id="detail-customer-name">นภัสวรรณ มงคล</span></p>
+            <p><span class="font-medium">เบอร์โทร:</span> <span id="detail-customer-phone">096-187-7322</span></p>
+            <p><span class="font-medium">เลขบัตร ปชช.:</span> <span id="detail-customer-id">1-1234-56789-00-1</span></p>
+            <p><span class="font-medium">ที่อยู่:</span> <span id="detail-customer-address">123/45 ถ.สุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพฯ 10110</span></p>
+          </div>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-file-earmark-text mr-2 text-green-500"></i> ข้อมูลสัญญา
+          </h4>
+          <div class="space-y-2">
+            <p><span class="font-medium">ประเภทสัญญา:</span> <span id="detail-contract-type" class="badge badge-info">ผ่อนไปใช้ไป</span></p>
+            <p><span class="font-medium">วันที่เริ่มสัญญา:</span> <span id="detail-start-date">01/06/2568</span></p>
+            <p><span class="font-medium">วันที่สิ้นสุด:</span> <span id="detail-end-date">01/06/2569</span></p>
+            <p><span class="font-medium">สถานะการชำระ:</span> <span id="detail-payment-status" class="badge badge-success">ชำระตามกำหนด</span></p>
+            <p id="stock-status-row" class="hidden"><span class="font-medium">สถานะสต๊อก:</span> <span id="detail-stock-status" class="badge badge-ghost">-</span></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Product and Payment Details -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-box-seam mr-2 text-purple-500"></i> รายละเอียดสินค้า
+          </h4>
+          <div class="overflow-x-auto">
+            <table class="table table-compact w-full">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>รายการ</th>
+                  <th>รายละเอียด</th>
+                  <th class="text-right">ราคา</th>
+                </tr>
+              </thead>
+              <tbody id="detail-products">
+                <tr>
+                  <td>1</td>
+                  <td>iPhone 15 Pro Max</td>
+                  <td>256GB สีทอง</td>
+                  <td class="text-right">48,900</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="text-right font-medium">รวมทั้งสิ้น</td>
+                  <td class="text-right font-medium" id="detail-total">48,900</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-cash-coin mr-2 text-amber-500"></i> รายละเอียดการชำระ
+          </h4>
+          <div class="space-y-2">
+            <p><span class="font-medium">ยอดรวม:</span> <span id="detail-total-amount">48,900</span> บาท</p>
+            <p><span class="font-medium">เงินดาวน์:</span> <span id="detail-down-payment">4,900</span> บาท</p>
+            <p><span class="font-medium">ยอดที่ต้องผ่อน:</span> <span id="detail-finance-amount">44,000</span> บาท</p>
+            <p><span class="font-medium">จำนวนงวด:</span> <span id="detail-installments">12</span> งวด</p>
+            <p><span class="font-medium">ยอดผ่อนต่องวด:</span> <span id="detail-monthly">3,667</span> บาท</p>
+            <p><span class="font-medium">ชำระแล้ว:</span> <span id="detail-paid">3</span> งวด (<span id="detail-paid-amount">11,000</span> บาท)</p>
+            <p><span class="font-medium">คงเหลือ:</span> <span id="detail-remaining">9</span> งวด (<span id="detail-remaining-amount">33,000</span> บาท)</p>
+            
+            <div class="w-full h-2 mt-2 bg-gray-200 rounded-full overflow-hidden">
+              <div id="detail-progress-bar" class="bg-blue-500 h-full" style="width:25%"></div>
+            </div>
+            <p class="text-sm text-gray-500">ความคืบหน้าการชำระ: <span id="detail-progress-percent">25</span>%</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Payment History -->
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6">
+        <h4 class="font-medium text-lg mb-4 flex items-center">
+          <i class="bi bi-clock-history mr-2 text-indigo-500"></i> ประวัติการชำระ
+        </h4>
+        <div class="overflow-x-auto">
+          <table class="table table-compact w-full">
+            <thead>
+              <tr>
+                <th>งวดที่</th>
+                <th>วันที่ครบกำหนด</th>
+                <th>วันที่ชำระ</th>
+                <th>ยอดชำระ</th>
+                <th>วิธีการชำระ</th>
+                <th>สถานะ</th>
+                <th>หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="detail-payment-history">
+              <tr>
+                <td>1</td>
+                <td>01/07/2568</td>
+                <td>30/06/2568</td>
+                <td>3,667</td>
+                <td>เงินสด</td>
+                <td><span class="badge badge-success badge-sm">ชำระแล้ว</span></td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>01/08/2568</td>
+                <td>01/08/2568</td>
+                <td>3,667</td>
+                <td>โอนเงิน</td>
+                <td><span class="badge badge-success badge-sm">ชำระแล้ว</span></td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>01/09/2568</td>
+                <td>05/09/2568</td>
+                <td>3,666</td>
+                <td>QR Code</td>
+                <td><span class="badge badge-warning badge-sm">ชำระล่าช้า</span></td>
+                <td>ชำระล่าช้า 4 วัน</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>01/10/2568</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td><span class="badge badge-info badge-sm">รอชำระ</span></td>
+                <td>-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap justify-end gap-2">
+        <button class="btn btn-outline btn-success gap-1">
+          <i class="bi bi-printer"></i> พิมพ์สัญญา
+        </button>
+        <button id="btnPaymentFromDetail" class="btn btn-primary gap-1">
+          <i class="bi bi-cash-coin"></i> บันทึกการชำระ
+        </button>
+        <button id="btnStockDeductFromDetail" class="btn btn-success gap-1 hidden">
+          <i class="bi bi-box-arrow-down"></i> ตัดสต๊อก
+        </button>
+        <button class="btn btn-warning gap-1">
+          <i class="bi bi-pencil"></i> แก้ไขสัญญา
+        </button>
+        <button class="btn btn-outline btn-error gap-1">
+          <i class="bi bi-trash"></i> ลบสัญญา
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STOCK DEDUCTION MODAL -->
+  <div id="stockDeductionModal" class="modal">
+    <div class="modal-box max-w-2xl">
+      <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+        <i class="bi bi-box-seam text-emerald-500"></i>
+        ตรวจสอบและตัดสต๊อก
+      </h3>
+      
+      <!-- Customer Summary -->
+      <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="avatar placeholder">
+            <div class="bg-blue-100 text-blue-600 rounded-full w-12">
+              <span id="stock-customer-avatar">นภ</span>
+            </div>
+          </div>
+          <div>
+            <p class="font-semibold" id="stock-customer-name">นภัสวรรณ มงคล</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">เลขสัญญา: <span id="stock-contract-no">INST256806001</span> | โทร: <span id="stock-customer-phone">096-187-7322</span></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stock Check List -->
+      <div class="space-y-3 mb-6">
+        <h4 class="font-medium text-gray-700 dark:text-gray-300">รายการสินค้าและสต๊อก</h4>
+        
+        <div id="stock-check-items">
+          <!-- จะถูก populate ด้วย JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Branch Stock Summary -->
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
+        <h4 class="font-medium mb-3">สรุปสต๊อกสาขา <span id="stock-branch-name">ปัตตานี</span></h4>
+        <div id="stock-summary">
+          <!-- จะถูก populate ด้วย JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Confirmation -->
+      <div class="alert alert-info mb-6">
+        <i class="bi bi-info-circle"></i>
+        <span>ยืนยันการตัดสต๊อกและส่งมอบสินค้าให้ลูกค้า</span>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeStockModal()">ยกเลิก</button>
+        <button id="btnConfirmStockDeduction" class="btn btn-success" onclick="confirmStockDeduction()">
+          <i class="bi bi-check-circle"></i> ยืนยันตัดสต๊อก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let currentContractId = null;
+    let pendingStockCount = 24; // จำนวนที่รอตัดสต๊อก
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      showLoading(true); /* was: const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...',
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default'
+      }); */
+    
+      try {
+        // Show loading initially
+        showLoading(true);
+    
+        // Check authentication
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          window.location.href = '/login';
+          return;
+        }
+
+        // Loading state management
+        showLoading(false);
+
+        // Theme Toggle
+        const btnToggleDark = document.getElementById('btnToggleDark');
+        const darkModeLabel = document.getElementById('darkModeLabel');
+    
+        if (btnToggleDark) {
+          btnToggleDark.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.documentElement.classList.toggle('dark');
+            document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+            darkModeLabel.textContent = isDark ? 'Dark Mode' : 'Light Mode';
+          });
+        }
+    
+        // Mobile Menu Toggle
+        const btnToggleMenu = document.getElementById('btnToggleMenu');
+        const sidebar = document.getElementById('sidebar');
+        const menuOverlay = document.getElementById('menuOverlay');
+    
+        // Add mobile menu toggle functionality if all elements exist
+        if (btnToggleMenu && sidebar && menuOverlay) {
+          btnToggleMenu.addEventListener('click', () => {
+            const isOpen = sidebar.classList.contains('translate-x-0');
+    
+            if (isOpen) {
+              sidebar.classList.replace('translate-x-0', '-translate-x-full');
+              btnToggleMenu.innerHTML = '<i class="bi bi-chevron-right"></i>';
+              menuOverlay.classList.add('hidden');
+            } else {
+              sidebar.classList.replace('-translate-x-full', 'translate-x-0');
+              btnToggleMenu.innerHTML = '<i class="bi bi-chevron-left"></i>';
+              menuOverlay.classList.remove('hidden');
+            }
+          });
+    
+          menuOverlay.addEventListener('click', () => {
+            sidebar.classList.replace('translate-x-0', '-translate-x-full');
+            btnToggleMenu.innerHTML = '<i class="bi bi-chevron-right"></i>';
+            menuOverlay.classList.add('hidden');
+          });
+        }
+    
+        // Tab Navigation
+        const tabLinks = document.querySelectorAll('.tabs .tab');
+        if (tabLinks && tabLinks.length > 0) {
+          tabLinks.forEach(tab => {
+            tab.addEventListener('click', () => {
+              // Remove active class from all tabs
+              tabLinks.forEach(t => t.classList.remove('tab-active'));
+    
+              // Add active class to clicked tab
+              tab.classList.add('tab-active');
+    
+              // Show corresponding table
+              if (typeof filterTable === 'function') {
+                filterTable(tab.id);
+              }
+            });
+          });
+        }
+    
+        // Add New Installment
+        const btnAddInstallment = document.getElementById('btnAddInstallment');
+        const addInstallmentModal = document.getElementById('addInstallmentModal');
+    
+        if (btnAddInstallment && addInstallmentModal) {
+          btnAddInstallment.addEventListener('click', () => {
+            addInstallmentModal.classList.add('modal-open');
+          });
+        }
+    
+        // Initialize Flatpickr
+        if (typeof flatpickr !== 'undefined') {
+          flatpickr('.datepicker', {
+            dateFormat: 'd/m/Y',
+            locale: 'th',
+          });
+        }
+    
+        // Socket.io connection
+        try {
+          // Check if Socket.io is available
+          if (typeof io !== 'undefined') {
+            const socket = io();
+    
+            socket.on('connect', () => {
+              console.log('Connected to Socket.IO server');
+            });
+    
+            // Listen for payment completed events
+            socket.on('payment-completed', (data) => {
+              console.log('Payment completed:', data);
+              if (data.type === 'PAYOFF') {
+                updatePendingStockCount(pendingStockCount + 1);
+                showNotification(`สัญญา ${data.contractId} ชำระครบแล้ว - รอตัดสต๊อก`, 'success');
+                // Refresh table if needed
+                if (typeof refreshTable === 'function') {
+                  refreshTable();
+                }
+              }
+            });
+    
+            // Listen for stock deducted events
+            socket.on('stock-deducted', (data) => {
+              console.log('Stock deducted:', data);
+              updatePendingStockCount(pendingStockCount - 1);
+              showNotification(`ตัดสต๊อกสัญญา ${data.contractId} เรียบร้อยแล้ว`, 'info');
+              // Refresh table if needed
+              if (typeof refreshTable === 'function') {
+                refreshTable();
+              }
+            });
+    
+          } else {
+            console.warn('Socket.io is not available');
+          }
+        } catch (error) {
+          console.error('Error initializing Socket.io:', error);
+        }
+    
+        // Load employee profile
+        loadEmployeeProfile();
+    
+        // Load pending stock contracts
+        loadPendingStockContracts();
+    
+        // Initialize pending stock count
+        updatePendingStockCount(pendingStockCount);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+      } finally {
+        // Hide loading
+        showLoading(false);
+      }
+    });
+    
+    // Load contracts pending stock deduction
+    async function loadPendingStockContracts() {
+      try {
+        showLoading(true);
+        const token = localStorage.getItem('authToken');
+        const headers = {
+          'Authorization': 'Bearer ' + token
+        };
+    
+        const response = await fetch('/api/loan/claim-items/list', { headers });
+    
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            pendingStockCount = data.data.length;
+            updatePendingStockCount(pendingStockCount);
+            displayContractsTable(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading pending stock contracts:', error);
+      } finally {
+        showLoading(false);
+      }
+    }
+    
+    // Display contracts in table
+    function displayContractsTable(contracts) {
+      const tbody = document.querySelector('#pending-content tbody');
+      if (!tbody) return;
+    
+      tbody.innerHTML = '';
+    
+      contracts.forEach((contract, index) => {
+        const row = `
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+              ${index + 1}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+              ${contract.contractNo || contract.contractId}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-semibold">
+                  ${contract.customerName ? contract.customerName.substring(0, 2) : 'N/A'}
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">${contract.customerName}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">${contract.phone}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+              ${contract.products ? contract.products.map(p => p.name).join(', ') : 'N/A'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+              ${new Date(contract.paymentCompleteDate || contract.lastPaymentDate).toLocaleDateString('th-TH')}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="badge badge-success badge-sm stock-ready badge-pulse">รอตัดสต๊อก</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <button onclick="handleStockDeduction('${contract.contractNo || contract.contractId}')" class="btn btn-primary btn-sm">
+                <i class="bi bi-box-seam"></i> ตัดสต๊อก
+              </button>
+              <button onclick="openDetailsModal('${contract.contractNo || contract.contractId}')" class="btn btn-ghost btn-sm">
+                <i class="bi bi-info-circle"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+    
+        tbody.innerHTML += row;
+      });
+    }
+    
+    // Tab Navigation in Form
+    function nextTab(tabId) {
+      if (!tabId) return;
+    
+      // Hide all tab contents
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+      });
+    
+      // Show selected tab content
+      const selectedTab = document.getElementById(`${tabId}-tab`);
+      if (selectedTab) {
+        selectedTab.classList.remove('hidden');
+      }
+    
+      // Update tab navigation state
+      document.querySelectorAll('.tabs .tab').forEach(tab => {
+        tab.classList.remove('tab-active');
+        if (tab.getAttribute('data-tab') === tabId) {
+          tab.classList.add('tab-active');
+        }
+      });
+    }
+    
+    function prevTab(tabId) {
+      nextTab(tabId);
+    }
+    
+    // Modal Functions
+    function closeAddModal() {
+      const modal = document.getElementById('addInstallmentModal');
+      if (modal) modal.classList.remove('modal-open');
+    }
+    
+    function openPaymentModal(contractId) {
+      currentContractId = contractId;
+      const modal = document.getElementById('paymentModal');
+      if (modal) {
+        // Load contract data
+        loadContractDataForPayment(contractId);
+        modal.classList.add('modal-open');
+      }
+    }
+    
+    function closePaymentModal() {
+      const modal = document.getElementById('paymentModal');
+      if (modal) modal.classList.remove('modal-open');
+    }
+    
+    function openDetailsModal(contractId) {
+      currentContractId = contractId;
+      const modal = document.getElementById('detailsModal');
+      if (modal) {
+        loadContractDetails(contractId);
+        modal.classList.add('modal-open');
+      }
+    }
+    
+    function closeDetailsModal() {
+      const modal = document.getElementById('detailsModal');
+      if (modal) modal.classList.remove('modal-open');
+    }
+    
+    function closeStockModal() {
+      const modal = document.getElementById('stockDeductionModal');
+      if (modal) modal.classList.remove('modal-open');
+    }
+    
+    // Table filtering
+    function filterTable(tabId) {
+      // Implement table filtering based on tab ID
+      console.log('Filtering table by:', tabId);
+    }
+    
+    // Show notification
+    function showNotification(message, type = 'info') {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'แจ้งเตือน',
+          text: message,
+          icon: type,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        });
+      } else {
+        // Fallback to alert if SweetAlert2 is not available
+        alert(message);
+      }
+    }
+    
+    // Load employee profile
+    async function loadEmployeeProfile() {
+      try {
+        showLoading(true);
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+    
+        const res = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+    
+        const data = await res.json();
+        if (data.success && data.data) {
+          document.getElementById('employeeName').textContent = data.data.name || 'Loading...';
+          document.getElementById('employeePhoto').src = data.data.photo || '/images/default-avatar.png';
+        }
+      } catch (error) {
+        console.error('Error loading employee profile:', error);
+      } finally {
+        showLoading(false);
+      }
+    }
+    
+    // Stock deduction functions
+    async function handleStockDeduction(contractId) {
+      try {
+        // Load contract data
+        const contractData = await fetchContractDetails(contractId);
+    
+        // Check if eligible for stock deduction
+        if (contractData.type !== 'PAYOFF') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'ไม่สามารถตัดสต๊อกได้',
+            text: 'ตัดสต๊อกได้เฉพาะสัญญาผ่อนหมดรับของเท่านั้น'
+          });
+          return;
+        }
+    
+        if (contractData.paymentProgress < 100) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'ไม่สามารถตัดสต๊อกได้',
+            text: 'ลูกค้ายังชำระไม่ครบ'
+          });
+          return;
+        }
+    
+        if (contractData.stockStatus === 'DEDUCTED') {
+          Swal.fire({
+            icon: 'info',
+            title: 'ตัดสต๊อกแล้ว',
+            text: 'สัญญานี้ได้ทำการตัดสต๊อกไปแล้ว'
+          });
+          return;
+        }
+    
+        // Show stock check modal
+        await showStockCheckModal(contractData);
+    
+      } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: error.message
+        });
+      }
+    }
+    
+    async function fetchContractDetails(contractId) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const headers = {
+          'Authorization': 'Bearer ' + token
+        };
+    
+        // Use the correct claim-items API endpoint
+        const response = await fetch(`/api/loan/installment/contract/${contractId}`, { headers });
+    
+        if (!response.ok) {
+          throw new Error('Failed to fetch contract details');
+        }
+    
+        const data = await response.json();
+    
+        if (data.success && data.data && data.data.length > 0) {
+          // Transform API data to match expected format
+          const contract = data.data.find(item => item.contractNo === contractId);
+    
+          if (contract) {
+          return {
+            contractId: contract.contractNo || contractId,
+            type: contract.installmentType || 'PAYOFF',
+            customerName: contract.customerName || contract.name,
+            customerPhone: contract.phone,
+            customerAvatar: contract.customerName ? contract.customerName.substring(0, 2) : 'N/A',
+            branchCode: contract.branchCode || '00001',
+            branchName: contract.branchName || 'สาขาหลัก',
+              paymentProgress: contract.paymentProgress || 0,
+              stockStatus: contract.stockStatus || 'PENDING',
+            items: contract.items || contract.products || []
+          };
+          }
+        }
+    
+        return null;
+      } catch (error) {
+        console.error('Error fetching contract details:', error);
+    
+        // Return empty instead of mock data
+        return null;
+      }
+    }
+    
+    function calculatePaymentProgress(contract) {
+      if (!contract.totalAmount || !contract.paidAmount) return 0;
+      return Math.min(100, Math.round((Math.max(0, contract.paidAmount || 0) / Math.max(1, contract.totalAmount || 1)) * 100));
+    }
+    
+    function determineStockStatus(contract) {
+      if (contract.stockDeducted) return 'DEDUCTED';
+      if (contract.paidAmount >= contract.totalAmount) return 'PENDING';
+      return 'NOT_READY';
+    }
+    
+    async function showStockCheckModal(contractData) {
+      currentContractId = contractData.contractId;
+    
+      // Update modal with contract data
+      document.getElementById('stock-customer-avatar').textContent = contractData.customerAvatar;
+      document.getElementById('stock-customer-name').textContent = contractData.customerName;
+      document.getElementById('stock-contract-no').textContent = contractData.contractId;
+      document.getElementById('stock-customer-phone').textContent = contractData.customerPhone;
+      document.getElementById('stock-branch-name').textContent = contractData.branchName;
+    
+      // Check stock for each item
+      const stockCheckItemsHtml = await generateStockCheckItems(contractData.items, contractData.branchCode);
+      document.getElementById('stock-check-items').innerHTML = stockCheckItemsHtml;
+    
+      // Generate stock summary
+      const stockSummaryHtml = await generateStockSummary(contractData.items, contractData.branchCode);
+      document.getElementById('stock-summary').innerHTML = stockSummaryHtml;
+    
+      // Check if all items have sufficient stock
+      const canDeductAll = await checkAllItemsHaveStock(contractData.items, contractData.branchCode);
+      const btnConfirm = document.getElementById('btnConfirmStockDeduction');
+      btnConfirm.disabled = !canDeductAll;
+    
+      // Show modal
+      const modal = document.getElementById('stockDeductionModal');
+      modal.classList.add('modal-open');
+    }
+    
+    async function generateStockCheckItems(items, branchCode) {
+      let html = '';
+    
+      for (const item of items) {
+        const stock = await checkStockAvailability(item.productId, branchCode);
+        const hasStock = stock && stock.stock_value >= item.quantity;
+    
+        html += `
+          <div class="border rounded-lg p-4 ${hasStock ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <img src="https://via.placeholder.com/50" alt="Product" class="w-12 h-12 rounded" />
+                <div>
+                  <p class="font-medium">${item.productName}</p>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">${item.description} | จำนวน: ${item.quantity} เครื่อง</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="${hasStock ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} font-bold">
+                  <i class="bi ${hasStock ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i> ${hasStock ? 'มีสต๊อก' : 'สต๊อกไม่พอ'}
+                </p>
+                <p class="text-sm">คงเหลือ: ${stock?.stock_value || 0} เครื่อง</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    
+      return html;
+    }
+    
+    async function generateStockSummary(items, branchCode) {
+      let html = '<div class="grid grid-cols-2 gap-4 text-sm">';
+    
+      for (const item of items) {
+        const stock = await checkStockAvailability(item.productId, branchCode);
+        const before = stock?.stock_value || 0;
+        const after = Math.max(0, before - Math.max(0, item.quantity || 0));
+    
+        html += `
+          <div>
+            <p class="text-gray-600 dark:text-gray-400">${item.productName} ก่อนตัด:</p>
+            <p class="font-bold text-lg">${before} เครื่อง</p>
+          </div>
+          <div>
+            <p class="text-gray-600 dark:text-gray-400">${item.productName} หลังตัด:</p>
+            <p class="font-bold text-lg text-blue-600 dark:text-blue-400">${after} เครื่อง</p>
+          </div>
+        `;
+      }
+    
+      html += '</div>';
+      return html;
+    }
+    
+    async function checkStockAvailability(productId, branchCode) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const headers = {
+          'Authorization': 'Bearer ' + token
+        };
+    
+        const response = await fetch(`/api/branch-stock/check-boxset`, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            productId: productId,
+            branchCode: branchCode,
+            quantity: 1
+          })
+        });
+    
+        if (!response.ok) {
+          throw new Error('Failed to check stock');
+        }
+    
+        const data = await response.json();
+    
+        if (data.success && data.data) {
+          return {
+            stock_value: data.data.available || 0
+          };
+        }
+    
+        return { stock_value: 0 };
+      } catch (error) {
+        console.error('Error checking stock:', error);
+        // Return zero stock when API fails
+        return { stock_value: 0 };
+      }
+    }
+    
+    async function checkAllItemsHaveStock(items, branchCode) {
+      for (const item of items) {
+        const stock = await checkStockAvailability(item.productId, branchCode);
+        if (!stock || stock.stock_value < item.quantity) {
+          return false;
+        }
+      }
+      return true;
+    }
+    
+    async function confirmStockDeduction() {
+      // Show loading
+      Swal.fire({
+        title: 'กำลังตัดสต๊อก...',
+        html: `
+          <div class="flex flex-col items-center gap-4">
+            <div class="radial-progress text-success" style="--value:0; --size:8rem;" id="progress">0%</div>
+            <p class="text-gray-600">กำลังดำเนินการตัดสต๊อกและบันทึกข้อมูล</p>
+          </div>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          // Animate progress
+          let progress = 0;
+          const progressEl = document.getElementById('progress');
+          const interval = setInterval(() => {
+            progress += 10;
+            progressEl.style.setProperty('--value', progress);
+            progressEl.textContent = progress + '%';
+    
+            if (progress >= 100) {
+              clearInterval(interval);
+              setTimeout(async () => {
+                // Perform actual stock deduction
+                try {
+                  await performStockDeduction(currentContractId);
+    
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'ตัดสต๊อกสำเร็จ!',
+                    html: `
+                      <div class="text-center">
+                        <p class="mb-4">ตัดสต๊อกและบันทึกการส่งมอบสินค้าเรียบร้อยแล้ว</p>
+                        <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                          <p class="text-sm text-gray-600 dark:text-gray-400">เลขที่การส่งมอบ</p>
+                          <p class="font-bold text-lg text-green-600 dark:text-green-400">DLV-2025-0617-001</p>
+                        </div>
+                      </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'พิมพ์ใบส่งมอบ',
+                    cancelButtonText: 'ปิด',
+                    confirmButtonColor: '#10B981'
+                  }).then((result) => {
+                    if (result.isConfirmed) {
+                      window.print();
+                    }
+                    closeStockModal();
+                    // Update UI
+                    updatePendingStockCount(pendingStockCount - 1);
+                    // Refresh table
+                    location.reload();
+                  });
+                } catch (error) {
+                  Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: error.message
+                  });
+                }
+              }, 500);
+            }
+          }, 100);
+        }
+      });
+    }
+    
+    async function performStockDeduction(contractId) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const headers = {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        };
+    
+        // Get contract details first
+        const contractData = await fetchContractDetails(contractId);
+        if (!contractData) {
+          throw new Error('Contract not found');
+        }
+    
+        // Perform stock deduction for each item
+        for (const item of contractData.items) {
+          const response = await fetch('/api/branch-stock/deduct-boxset', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+              contractId: contractId,
+              productId: item.productId,
+              quantity: item.quantity,
+              branchCode: contractData.branchCode,
+              reason: 'ส่งมอบสินค้าให้ลูกค้า',
+              reference: `DELIVERY-${contractId}`
+            })
+          });
+    
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to deduct stock');
+          }
+        }
+    
+        // Update contract status
+        const updateResponse = await fetch(`/api/loan/branch-stock/deduct-boxset`, {
+          method: 'PUT',
+          headers: headers,
+          body: JSON.stringify({
+            stockStatus: 'DEDUCTED',
+            deliveryDate: new Date().toISOString()
+          })
+        });
+    
+        if (!updateResponse.ok) {
+          throw new Error('Failed to update contract status');
+        }
+    
+        // Emit socket event
+        if (typeof socket !== 'undefined' && socket) {
+          socket.emit('stock-deducted', {
+            contractId: contractId,
+            timestamp: new Date()
+          });
+        }
+    
+        return true;
+      } catch (error) {
+        console.error('Error performing stock deduction:', error);
+        throw error;
+      }
+    }
+    
+    function updatePendingStockCount(count) {
+      pendingStockCount = count;
+      const badge = document.getElementById('stockPendingBadge');
+      if (badge) {
+        badge.innerHTML = count > 0
+          ? `<span class="badge badge-error badge-sm badge-pulse">${count}</span>`
+          : '';
+      }
+    }
+    
+    async function loadContractDetails(contractId) {
+      // Load contract details from API
+      const contractData = await fetchContractDetails(contractId);
+    
+      if (!contractData) return;
+    
+      // Update modal with contract details
+      document.getElementById('details-contract-no').textContent = contractId;
+      document.getElementById('detail-customer-name').textContent = contractData.customerName;
+      document.getElementById('detail-customer-phone').textContent = contractData.customerPhone;
+    
+      // Show/hide stock deduction button based on contract type and status
+      const btnStockDeduct = document.getElementById('btnStockDeductFromDetail');
+      const stockStatusRow = document.getElementById('stock-status-row');
+    
+      if (contractData.type === 'PAYOFF') {
+        stockStatusRow.classList.remove('hidden');
+    
+        if (contractData.paymentProgress === 100 && contractData.stockStatus !== 'DEDUCTED') {
+          btnStockDeduct.classList.remove('hidden');
+          btnStockDeduct.onclick = () => handleStockDeduction(contractId);
+          document.getElementById('detail-stock-status').innerHTML = '<span class="badge badge-success badge-sm stock-ready badge-pulse">รอตัดสต๊อก</span>';
+        } else if (contractData.stockStatus === 'DEDUCTED') {
+          btnStockDeduct.classList.add('hidden');
+          document.getElementById('detail-stock-status').innerHTML = '<span class="badge badge-ghost badge-sm">ตัดสต๊อกแล้ว</span>';
+        } else {
+          btnStockDeduct.classList.add('hidden');
+          document.getElementById('detail-stock-status').innerHTML = '<span class="badge badge-warning badge-sm">รอชำระครบ</span>';
+        }
+      } else {
+        stockStatusRow.classList.add('hidden');
+        btnStockDeduct.classList.add('hidden');
+      }
+    
+      // Set payment button onclick
+      document.getElementById('btnPaymentFromDetail').onclick = () => {
+        closeDetailsModal();
+        openPaymentModal(contractId);
+      };
+    }
+    
+    async function loadContractDataForPayment(contractId) {
+      try {
+        const contractData = await fetchContractDetails(contractId);
+    
+        if (contractData) {
+          document.getElementById('contractNo').value = contractData.contractId;
+          document.getElementById('customerName').value = contractData.customerName;
+    
+          // Get payment details from API
+          const token = localStorage.getItem('authToken');
+          const headers = {
+            'Authorization': 'Bearer ' + token
+          };
+    
+          const response = await fetch(`/api/loan/installment/contract/${contractId}`, { headers });
+    
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              document.getElementById('installmentAmount').value = Math.max(0, data.data.monthlyPayment || 0);
+            }
+          }
+        } else {
+          // Clear form when no data available
+          document.getElementById('contractNo').value = contractId;
+          document.getElementById('customerName').value = '';
+          document.getElementById('installmentAmount').value = 0;
+        }
+      } catch (error) {
+        console.error('Error loading contract data:', error);
+        // Clear form when error occurs
+        document.getElementById('contractNo').value = contractId;
+        document.getElementById('customerName').value = '';
+        document.getElementById('installmentAmount').value = '';
+      }
+    }
+    
+    // Logout function
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    });
+    // ฟังก์ชันสำหรับการชำระแบบผสม
+    function togglePaymentMethod() {
+      const paymentMethod = document.getElementById('paymentMethod').value;
+      const mixedSection = document.getElementById('mixedPaymentSection');
+    
+      if (paymentMethod === 'mixed') {
+        mixedSection.classList.remove('hidden');
+      } else {
+        mixedSection.classList.add('hidden');
+        // รีเซ็ตค่า
+        document.getElementById('cashAmount').value = '';
+        document.getElementById('transferAmount').value = '';
+        document.getElementById('mixedTotal').textContent = '0.00';
+      }
+    }
+    
+    function calculateMixedTotal() {
+      const cashAmount = Math.max(0, parseFloat(document.getElementById('cashAmount').value) || 0);
+      const transferAmount = Math.max(0, parseFloat(document.getElementById('transferAmount').value) || 0);
+      const total = Math.max(0, cashAmount + transferAmount);
+    
+      document.getElementById('mixedTotal').textContent = total.toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+
+  </script>
+</body>
+</html>

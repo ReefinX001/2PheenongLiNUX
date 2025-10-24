@@ -1,0 +1,2832 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <title>บริการ</title>
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+    <script src="../js/activity-tracker.js"></script>
+    <script src="/js/branch-navigation.js"></script>
+    <script src="/views/pattani/sidebar/sidebar.js"></script>
+    <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+
+    <!-- (2) กำหนดค่า Tailwind และ DaisyUI -->
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Prompt', 'sans-serif'],
+            },
+          },
+        },
+        daisyui: {
+          themes: ['light', 'dark', 'corporate'],
+        },
+      };
+    </script>
+
+    <!-- DaisyUI -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+
+    <!-- Firebase Realtime Database Enhanced -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+      import { getDatabase, ref, onValue, set, push, serverTimestamp, onDisconnect, remove } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCv4EBbKN8Kr4IMRqszJGBWTSoMihtYLo",
+        authDomain: "pheenongacc.firebaseapp.com",
+        databaseURL: "https://pheenongacc-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "pheenongacc",
+        storageBucket: "pheenongacc.appspot.com",
+        messagingSenderId: "158417807357",
+        appId: "1:158417807357:web:4a9c78f7aea793dc7d64494",
+        measurementId: "G-F7DPQ7XG9K"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      
+      // Current session data
+      const currentSession = {
+        branchCode: window.BRANCH_CODE || new URLSearchParams(window.location.search).get('branch') || 'SERVICES',
+        sessionId: 'SERVICES_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        staffId: localStorage.getItem('userId'),
+        staffName: localStorage.getItem('userName'),
+        timestamp: Date.now()
+      };
+
+      // Firebase References
+      const servicesRef = ref(db, `services/${currentSession.branchCode}`);
+      const sessionRef = ref(db, `services/${currentSession.branchCode}/sessions/${currentSession.sessionId}`);
+      const customersRef = ref(db, `services/${currentSession.branchCode}/customers`);
+      const notificationsRef = ref(db, `services/${currentSession.branchCode}/notifications`);
+      const onlineUsersRef = ref(db, `services/${currentSession.branchCode}/onlineUsers`);
+
+      // Connection status tracking
+      let isFirebaseConnected = false;
+
+      // Monitor Firebase connection
+      const connectedRef = ref(db, '.info/connected');
+      onValue(connectedRef, (snapshot) => {
+        isFirebaseConnected = snapshot.val() === true;
+        window.isFirebaseConnected = isFirebaseConnected;
+        console.log('Firebase connection status:', isFirebaseConnected ? 'Connected' : 'Disconnected');
+        
+        if (isFirebaseConnected) {
+          registerSession();
+          setupOnDisconnect();
+          console.log('Firebase connected successfully');
+        } else {
+          console.warn('Firebase connection lost');
+        }
+        
+        // Update connection status display
+        updateConnectionStatus();
+      });
+
+      // Register session
+      async function registerSession() {
+        try {
+          await set(sessionRef, {
+            ...currentSession,
+            status: 'online',
+            lastActivity: serverTimestamp(),
+            userAgent: navigator.userAgent,
+            connectedAt: serverTimestamp(),
+            service: 'services'
+          });
+          
+          // Add to online users
+          await set(ref(db, `services/${currentSession.branchCode}/onlineUsers/${currentSession.sessionId}`), {
+            staffId: currentSession.staffId,
+            staffName: currentSession.staffName,
+            sessionId: currentSession.sessionId,
+            connectedAt: serverTimestamp(),
+            service: 'services'
+          });
+          
+          console.log('Session registered to Firebase');
+        } catch (error) {
+          console.error('Failed to register session:', error);
+        }
+      }
+
+      // Setup disconnect handlers
+      function setupOnDisconnect() {
+        onDisconnect(sessionRef).set({
+          ...currentSession,
+          status: 'offline',
+          lastActivity: serverTimestamp(),
+          disconnectedAt: serverTimestamp()
+        });
+        
+        onDisconnect(ref(db, `services/${currentSession.branchCode}/onlineUsers/${currentSession.sessionId}`)).remove();
+      }
+
+      // Listen for service updates
+      onValue(servicesRef, (snapshot) => {
+        const services = snapshot.val();
+        if (services && services.updates) {
+          console.log('Service updates received from Firebase:', services.updates);
+          
+          // Refresh service data if needed
+          if (typeof refreshServiceData === 'function') {
+            refreshServiceData();
+          }
+        }
+      });
+
+      // Listen for customer updates
+      onValue(customersRef, (snapshot) => {
+        const customers = snapshot.val();
+        if (customers) {
+          console.log('Customer data updated from Firebase');
+          
+          // Update local customer cache
+          if (window.customerCache) {
+            window.customerCache = customers;
+          }
+        }
+      });
+
+      // Listen for notifications
+      onValue(notificationsRef, (snapshot) => {
+        const notifications = snapshot.val();
+        if (notifications) {
+          Object.entries(notifications).forEach(([key, notification]) => {
+            if (notification.timestamp > (Date.now() - 60000)) { // Recent notifications (1 minute)
+              console.log('New notification:', notification.message);
+            }
+          });
+        }
+      });
+
+      // Listen for online users
+      onValue(onlineUsersRef, (snapshot) => {
+        const users = snapshot.val() || {};
+        const onlineCount = Object.keys(users).length;
+        console.log(`Online users in ${currentSession.branchCode}:`, onlineCount);
+        
+        // Update online user count display if element exists
+        const onlineCountEl = document.getElementById('onlineUserCount');
+        if (onlineCountEl) {
+          onlineCountEl.textContent = onlineCount;
+        }
+      });
+
+      // Make Firebase available globally
+      window.firebaseApp = app;
+      window.firebaseDB = db;
+      window.firebaseRef = ref;
+      window.firebaseSet = set;
+      window.firebasePush = push;
+      window.firebaseOnValue = onValue;
+      window.firebaseServerTimestamp = serverTimestamp;
+      window.firebaseEnabled = true;
+      window.currentFirebaseSession = currentSession;
+
+      // Function to update connection status
+      function updateConnectionStatus() {
+        const statusEl = document.getElementById('connectionStatus');
+        if (statusEl) {
+          if (isFirebaseConnected) {
+            statusEl.className = 'connection-status online text-xs font-medium';
+            statusEl.textContent = 'เชื่อมต่อแล้ว';
+          } else {
+            statusEl.className = 'connection-status offline text-xs font-medium';
+            statusEl.textContent = 'ไม่ได้เชื่อมต่อ';
+          }
+        }
+      }
+
+      window.updateConnectionStatus = updateConnectionStatus;
+      
+      console.log('Firebase Realtime Database initialized for Services module');
+    </script>
+
+    <!-- Socket.IO -->
+    <script src="/socket.io.min.js"></script>
+
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    />
+
+  <!-- Google Fonts: Prompt -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+    <style>
+      :root {
+        --primary-color: #0d6efd;
+        --primary-hover: #138af2;
+        --bg-color: #ffffff;
+        --text-color: #333333;
+        --border-color: #e0e0e0;
+        --transition-speed: 0.3s;
+      }
+      .dark {
+        --primary-color: #ff8800;
+        --primary-hover: #ffa733;
+        --bg-color: #2a2a2a;
+        --text-color: #ffffff;
+        --border-color: #555555;
+      }
+           .bubble h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+      }
+      #btnToggleMenu {
+        /* ปุ่มลอย Toggle Sidebar (สไตล์เสริมตามต้องการ) */
+      }
+      .bubble {
+        width: 110px;
+        height: 130px;
+        border-radius: 0.75rem;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: transform var(--transition-speed);
+        background-color: var(--primary-color);
+        position: relative;
+      }
+      .bubble:hover {
+        transform: scale(1.05);
+        background-color: var(--primary-hover);
+      }
+      .bubble h6 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: normal; /* อนุญาตให้ตัดบรรทัด */
+    word-wrap: break-word; /* ตัดคำเมื่อยาวเกิน */
+    margin: 0;
+}
+      .stock-count {
+        position: absolute;
+        bottom: 0.5rem;
+        font-size: 0.75rem;
+      }
+      .card {
+        background-color: var(--bg-color) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
+      }
+      .lightOnly {
+        display: block;
+      }
+      .darkOnly {
+        display: none;
+      }
+      .dark .lightOnly {
+        display: none !important;
+      }
+      .dark .darkOnly {
+        display: block !important;
+      }
+      .dark .dark-bg {
+        background-color: var(--bg-color);
+      }
+      .dark .dark-text {
+        color: var(--primary-color);
+      }
+      /* ===== Flip Card ===== */
+      .flip-card {
+        perspective: 1000px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 0.75rem;
+        width: 200px;
+        height: 420px;
+      }
+      .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.4s ease-in-out;
+        transform-style: preserve-3d;
+      }
+      .flip-card.flipped .flip-card-inner {
+        transform: rotateY(180deg);
+      }
+      .flip-card-front,
+      .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        padding: 0.5rem;
+      }
+      .flip-card-back {
+        transform: rotateY(180deg);
+        background-color: var(--bg-color);
+      }
+      .product-price-big {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--primary-color);
+      }
+      .product-img {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        border-radius: 0.25rem;
+      }
+      .product-name {
+  position: absolute;
+  top: 48%;
+  left: 0.5rem; /* หรือจะใช้ left: 50%; transform: translateX(-50%) ก็ได้ */
+  font-weight: 800;
+}
+#sidebar ul li a {
+  color: #333333 !important; /* เปลี่ยนเป็นสีที่ต้องการ */
+}
+
+h6 {
+    white-space: normal; /* อนุญาตให้ตัดบรรทัด */
+    word-wrap: break-word; /* ตัดคำเมื่อยาวเกิน */
+    overflow: visible; /* แสดงข้อความทั้งหมด */
+}
+    #sidebar ul li a.active span,
+    #sidebar ul li a.active i {
+      color: #fff !important;
+    }
+
+    /* Loading overlay */
+        [data-theme="dark"]     .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    </style>
+  
+  </style>
+
+  <script>
+    // New Lottie Loading State with State Management (same as addNewProduct_pattani.html)
+    let loadingCount = 0; // Track loading state to prevent multiple overlays
+    let lottieAnimation = null;
+
+    // Initialize Lottie animation
+    function initLottieLoading() {
+      const container = document.getElementById('lottieContainer');
+      if (!container || lottieAnimation) return;
+
+      try {
+        lottieAnimation = lottie.loadAnimation({
+          container: container,
+          renderer: 'svg',
+          loop: true,
+          autoplay: false,
+          path: '/Loading/Loading.json'
+        });
+      } catch (error) {
+        console.warn('Lottie animation failed to load, using fallback:', error);
+        container.innerHTML = '<div class="loading loading-lg"></div>';
+      }
+    }
+
+    // Show/Hide loading with state management
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+
+      if (show) {
+        loadingCount++;
+        if (loadingCount === 1) { // Only show when first request
+          loader.style.display = 'flex';
+          loader.classList.remove('animate__fadeOut');
+          loader.classList.add('animate__fadeIn');
+
+          if (lottieAnimation) {
+            lottieAnimation.play();
+          }
+        }
+      } else {
+        loadingCount = Math.max(0, loadingCount - 1);
+        if (loadingCount === 0) { // Only hide when all requests complete
+          loader.classList.remove('animate__fadeIn');
+          loader.classList.add('animate__fadeOut');
+
+          setTimeout(() => {
+            if (loadingCount === 0) {
+              loader.style.display = 'none';
+              if (lottieAnimation) {
+                lottieAnimation.stop();
+              }
+            }
+          }, 500);
+        }
+      }
+    }
+
+    // Safe functions for backward compatibility
+    function safeShowLoading(show, message) {
+      showLoading(show);
+    }
+
+    function safeHideLoading() {
+      showLoading(false);
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      initLottieLoading();
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+      }
+    });
+  </script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Loading Overlay CSS (Updated from addNewProduct_pattani.html) -->
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* Loading spinner for fallback */
+    .loading {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    .loading-lg {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+  <body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+        </div>
+
+    <!-- Sidebar Container -->
+    <div id="sidebarContainer"></div>
+
+    <div class="flex min-h-screen">
+      <!-- Main Content -->
+      <div
+        id="mainContent"
+        class="flex-1 flex flex-col ml-64 transition-all duration-300 ease-in-out"
+      >
+        <header class="p-4 bg-white dark:bg-gray-800"
+                         border-b border-gray-200 dark:border-gray-700
+"
+                         flex items-center justify-between"
+                         id="mainHeader">
+          <div>
+            <h1 class="text-lg font-semibold" id="pageTitle">บริการหลังการขาย</h1>
+            <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+              กำลังโหลดสาขา...
+            </p>
+          </div>
+          
+          <!-- Real-time Connection Status -->
+          <div class="flex items-center space-x-2">
+            <!-- Firebase Status -->
+            <div class="flex items-center space-x-1" id="firebaseStatus">
+              <div class="w-2 h-2 rounded-full bg-gray-400" id="firebaseIndicator"></div>
+              <span class="text-xs text-gray-500" id="firebaseLabel">Firebase</span>
+            </div>
+            
+            <!-- Socket.IO Status -->
+            <div class="flex items-center space-x-1" id="socketStatus">
+              <div class="w-2 h-2 rounded-full bg-gray-400" id="socketIndicator"></div>
+              <span class="text-xs text-gray-500" id="socketLabel">Socket.IO</span>
+            </div>
+            
+            <!-- Real-time Activity Badge -->
+            <div class="hidden" id="realtimeActivity">
+              <span class="badge badge-xs badge-info animate-pulse">🔄 Live</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 p-6 bg-gray-50 dark:bg-gray-900 transition-all duration-300">
+          <!-- Page Header -->
+          <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">บริการประกันฟิล์มกันรอย</h1>
+            <p class="text-gray-600 dark:text-gray-300 mt-1">จัดการบริการประกันและบริการหลังการขายสำหรับลูกค้า</p>
+          </div>
+
+          <!-- Service Tabs Navigation -->
+          <div class="tabs tabs-boxed bg-gray-100 dark:bg-gray-800 mb-6">
+            <a class="tab tab-active" id="tabFilm" onclick="switchServiceTab('film')">บริการประกันฟิล์ม</a>
+            <a class="tab" id="tabDevice" onclick="switchServiceTab('device')">บริการประกันเครื่อง</a>
+          </div>
+
+          <!-- Service Cards Container -->
+          <div id="serviceCardsContainer">
+            <!-- Film Service Cards -->
+            <div id="filmServiceCards" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <h2 class="text-2xl font-bold text-gray-800 dark:text-white col-span-full mb-2">บริการประกันฟิล์มกันรอย</h2>
+              
+              <!-- Phone Film Warranty Card -->
+              <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center mb-4">
+                  <i class="bi bi-phone text-3xl text-blue-500 mr-3"></i>
+                  <h2 class="text-xl font-bold text-gray-800 dark:text-white">ประกันฟิล์มโทรศัพท์</h2>
+                </div>
+                <div class="space-y-2 mb-4">
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ระยะเวลารับประกัน 1 ปี</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> เปลี่ยนฟิล์มได้สูงสุด 10 ครั้ง</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> บริการทุกๆสาขา</p>
+                  <p class="flex items-center"><i class="bi bi-info-circle text-blue-500 mr-2"></i> <span class="font-semibold">หมายเหตุ:</span> ครอบคลุมกรณีฟิล์มแตก ฟิล์มร้าว หรือมีรอยขีดข่วน</p>
+                </div>
+                <button class="btn btn-primary w-full" onclick="openServiceForm('phone-film')">บันทึกการใช้บริการ</button>
+              </div>
+              
+              <!-- iPad Film Warranty Card -->
+              <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center mb-4">
+                  <i class="bi bi-tablet text-3xl text-orange-500 mr-3"></i>
+                  <h2 class="text-xl font-bold text-gray-800 dark:text-white">ประกันฟิล์มไอแพด</h2>
+                </div>
+                <div class="space-y-2 mb-4">
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ระยะเวลารับประกัน 1 ปี</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> เปลี่ยนฟิล์มได้สูงสุด 3 ครั้ง</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> บริการทุกๆสาขา</p>
+                  <p class="flex items-center"><i class="bi bi-info-circle text-blue-500 mr-2"></i> <span class="font-semibold">หมายเหตุ:</span> ครอบคลุมกรณีฟิล์มแตก ฟิล์มร้าว หรือมีรอยขีดข่วน</p>
+                </div>
+                <button class="btn btn-primary w-full" onclick="openServiceForm('ipad-film')">บันทึกการใช้บริการ</button>
+              </div>
+            </div>
+
+            <!-- Device Service Cards - Hidden by default -->
+            <div id="deviceServiceCards" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 hidden">
+              <h2 class="text-2xl font-bold text-gray-800 dark:text-white col-span-full mb-2">บริการประกันเครื่อง</h2>
+              
+              <!-- Phone Device Warranty Card -->
+              <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center mb-4">
+                  <i class="bi bi-phone-fill text-3xl text-purple-500 mr-3"></i>
+                  <h2 class="text-xl font-bold text-gray-800 dark:text-white">ประกันเครื่องโทรศัพท์</h2>
+                </div>
+                <div class="space-y-2 mb-4">
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ระยะเวลารับประกัน 1 ปี</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ครอบคลุมอุบัติเหตุและความเสียหายจากน้ำ</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ซ่อมฟรี 1 ครั้งต่อปี</p>
+                  <p class="flex items-center"><i class="bi bi-info-circle text-blue-500 mr-2"></i> <span class="font-semibold">หมายเหตุ:</span> ไม่ครอบคลุมความเสียหายจากการดัดแปลงเครื่อง</p>
+                </div>
+                <button class="btn btn-secondary w-full" onclick="openServiceForm('phone-warranty')">บันทึกการใช้บริการ</button>
+              </div>
+              
+              <!-- iPad Device Warranty Card -->
+              <div class="card bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center mb-4">
+                  <i class="bi bi-tablet-fill text-3xl text-pink-500 mr-3"></i>
+                  <h2 class="text-xl font-bold text-gray-800 dark:text-white">ประกันเครื่องไอแพด</h2>
+                </div>
+                <div class="space-y-2 mb-4">
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ระยะเวลารับประกัน 1 ปี</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ครอบคลุมอุบัติเหตุและความเสียหายจากน้ำ</p>
+                  <p class="flex items-center"><i class="bi bi-check-circle text-green-500 mr-2"></i> ซ่อมฟรี 1 ครั้งต่อปี</p>
+                  <p class="flex items-center"><i class="bi bi-info-circle text-blue-500 mr-2"></i> <span class="font-semibold">หมายเหตุ:</span> ไม่ครอบคลุมความเสียหายจากการดัดแปลงเครื่อง</p>
+                </div>
+                <button class="btn btn-secondary w-full" onclick="openServiceForm('ipad-warranty')">บันทึกการใช้บริการ</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Service Form Modal -->
+          <div id="serviceFormModal" class="modal">
+            <div class="modal-box w-full max-w-2xl">
+              <h3 class="font-bold text-lg mb-4" id="serviceFormTitle">บันทึกการให้บริการ</h3>
+              <form id="serviceForm" class="space-y-4">
+                <input type="hidden" id="deviceType" name="deviceType" value="">
+                <input type="hidden" id="serviceType" name="serviceType" value="">
+                
+                <!-- ประเภทการบริการ -->
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text font-semibold">ประเภทการบริการ</span>
+                  </label>
+                  <div class="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg" id="serviceTypeDisplay">
+                    บริการประกันฟิล์มโทรศัพท์
+                  </div>
+                </div>
+                
+                <!-- ส่วนค้นหาลูกค้า -->
+                <div class="form-control mb-2">
+                  <label class="label">
+                    <span class="label-text font-semibold">ค้นหาข้อมูลลูกค้า</span>
+                  </label>
+                  <div class="flex flex-col md:flex-row gap-2">
+                    <div class="flex-grow">
+                      <input type="text" id="customerSearch" class="input input-bordered w-full" placeholder="ชื่อลูกค้า หรือ เลขบัตรประชาชน">
+                    </div>
+                    <button type="button" class="btn btn-primary whitespace-nowrap" onclick="searchCustomer()">
+                      <i class="bi bi-search mr-1"></i> ค้นหา
+                    </button>
+                  </div>
+                  <div id="searchResults" class="mt-2 hidden">
+                    <select id="customerSelect" class="select select-bordered w-full">
+                      <option value="" disabled selected>เลือกลูกค้า</option>
+                      <!-- ผลลัพธ์การค้นหาจะถูกเพิ่มที่นี่ด้วย JavaScript -->
+                    </select>
+                  </div>
+                </div>
+
+                <div class="divider">ข้อมูลลูกค้า</div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">ชื่อลูกค้า</span>
+                  </label>
+                  <input type="text" id="customerName" name="customerName" placeholder="ชื่อ-นามสกุล" class="input input-bordered w-full" required>
+                </div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">เบอร์โทรศัพท์</span>
+                  </label>
+                  <input type="tel" id="customerPhone" name="customerPhone" placeholder="0xx-xxx-xxxx" class="input input-bordered w-full" pattern="[0-9]{10}" maxlength="10" required>
+                </div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">เลขบัตรประชาชน</span>
+                  </label>
+                  <input type="text" id="customerID" name="customerID" placeholder="x-xxxx-xxxxx-xx-x" class="input input-bordered w-full" pattern="[0-9]{13}" maxlength="13">
+                </div>
+
+                <div class="divider">ข้อมูลการบริการ</div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="form-control">
+                    <label class="label">
+                      <span class="label-text">วันที่ซื้อประกัน</span>
+                    </label>
+                    <input type="date" id="warrantyDate" name="warrantyDate" class="input input-bordered w-full" required>
+                  </div>
+                  
+                  <div class="form-control">
+                    <label class="label">
+                      <span class="label-text">วันที่เข้ารับบริการ</span>
+                    </label>
+                    <input type="date" id="serviceDate" name="serviceDate" class="input input-bordered w-full" required>
+                  </div>
+                </div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">รุ่นอุปกรณ์</span>
+                  </label>
+                  <select id="deviceModel" name="deviceModel" class="select select-bordered w-full" required>
+   <option value="" disabled selected>เลือกรุ่นอุปกรณ์</option>
+ </select>
+                </div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">สาเหตุที่เข้ารับบริการ</span>
+                  </label>
+                  <select id="serviceReason" name="serviceReason" class="select select-bordered w-full" required>
+                    <option value="" disabled selected>เลือกสาเหตุที่เข้ารับบริการ</option>
+                    <!-- สาเหตุสำหรับฟิล์ม -->
+                    <optgroup label="สำหรับบริการฟิล์ม" id="filmReasonGroup">
+                      <option value="ฟิล์มแตก">ฟิล์มแตก</option>
+                      <option value="ฟิล์มร้าว">ฟิล์มร้าว</option>
+                      <option value="รอยขีดข่วน">รอยขีดข่วน</option>
+                      <option value="ฟองอากาศ">ฟองอากาศ</option>
+                    </optgroup>
+                    <!-- สาเหตุสำหรับประกันเครื่อง -->
+                    <optgroup label="สำหรับบริการประกันเครื่อง" id="warrantyReasonGroup">
+                      <option value="หน้าจอแตก">หน้าจอแตก</option>
+                      <option value="แบตเตอรี่เสื่อม">แบตเตอรี่เสื่อม</option>
+                      <option value="โดนน้ำ">โดนน้ำ</option>
+                      <option value="เปิดไม่ติด">เปิดไม่ติด</option>
+                      <option value="เสียงไม่ดัง">เสียงไม่ดัง</option>
+                    </optgroup>
+                    <option value="other">อื่นๆ</option>
+                  </select>
+                </div>
+
+                <div id="otherReasonContainer" class="form-control hidden">
+                  <label class="label">
+                    <span class="label-text">สาเหตุอื่นๆ (โปรดระบุ)</span>
+                  </label>
+                  <input type="text" id="otherReason" name="otherReason" class="input input-bordered w-full">
+                </div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">สาขาที่ให้บริการ</span>
+                  </label>
+                  <select id="branchLocation" name="branchLocation" class="select select-bordered w-full" required disabled>
+                    <!-- จะถูกเติมข้อมูลโดย JavaScript -->
+                  </select>
+                </div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">พนักงานผู้ให้บริการ</span>
+                  </label>
+                  <select id="serviceStaff" name="serviceStaff" class="select select-bordered w-full" disabled>
+                    <option>Loading...</option>
+                  </select>
+                </div>
+                
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text">หมายเหตุเพิ่มเติม</span>
+                  </label>
+                  <textarea id="serviceNotes" name="serviceNotes" class="textarea textarea-bordered w-full" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"></textarea>
+                </div>
+                
+                <div class="modal-action">
+                  <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+                  <button type="button" class="btn btn-outline" onclick="closeServiceForm()">ยกเลิก</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <!-- Service History Section -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-bold text-gray-800 dark:text-white">ประวัติการให้บริการ</h2>
+              
+              <div class="flex gap-2">
+                <div class="form-control max-w-xs">
+                  <div class="input-group">
+                    <input type="text" id="searchInput" placeholder="ค้นหา..." class="input input-bordered w-full max-w-xs" />
+                    <button class="btn btn-square">
+                      <i class="bi bi-search"></i>
+                    </button>
+                  </div>
+                </div>
+                
+                <select id="filterDevice" class="select select-bordered">
+                  <option value="all">อุปกรณ์ทั้งหมด</option>
+                  <option value="phone">โทรศัพท์</option>
+                  <option value="ipad">ไอแพด</option>
+                </select>
+
+                <select id="filterServiceType" class="select select-bordered">
+                  <option value="all">บริการทั้งหมด</option>
+                  <option value="film">ประกันฟิล์ม</option>
+                  <option value="warranty">ประกันเครื่อง</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="table w-full table-zebra">
+                <thead>
+                  <tr>
+                    <th>วันที่รับบริการ</th>
+                    <th>วันที่ซื้อประกัน</th>
+                    <th>ชื่อลูกค้า</th>
+                    <th>อุปกรณ์</th>
+                    <th>รุ่น</th>
+                    <th>สาขา</th>
+                    <th>พนักงาน</th>
+                    <th>ครั้งที่</th>
+                    <th>สถานะประกัน</th>
+                    <th>จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="serviceHistoryTable">
+                  <!-- ข้อมูลจะถูกเติมโดย JavaScript -->
+                  <tr>
+                    <td colspan="10" class="text-center py-4">ไม่พบข้อมูลการให้บริการ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Customer Detail Modal -->
+          <div id="customerDetailModal" class="modal">
+            <div class="modal-box w-full max-w-3xl">
+              <h3 class="font-bold text-lg mb-4" id="customerDetailTitle">รายละเอียดการใช้บริการ</h3>
+              <div id="customerDetailContent" class="space-y-4">
+                <!-- ข้อมูลจะถูกเติมโดย JavaScript -->
+              </div>
+              <div class="modal-action">
+                <button class="btn btn-primary" onclick="closeCustomerDetail()">ปิด</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- JavaScript for Service functionality -->
+    <script>
+      // API Configuration
+      const API_ROOT = '/api';
+      
+      // Get branch code from localStorage
+      // อ่าน branch_code จาก URL parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      let BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch');
+
+        if (!BRANCH_CODE) {
+          console.warn("Branch code not specified, defaulting to 'PATTANI'");
+          BRANCH_CODE = 'PATTANI';
+        }
+        window.currentBranchCode = BRANCH_CODE;
+        console.log(`[services] Using branch code: ${BRANCH_CODE}`);
+      
+        // อัพเดท localStorage และ title
+        if (urlParams.has('branch')) {
+          localStorage.setItem('activeBranch', BRANCH_CODE);
+        }
+      
+        if (urlParams.has('name')) {
+          document.title = `บริการ - ${decodeURIComponent(urlParams.get('name'))}`;
+        }
+
+      // ===== FIREBASE & SOCKET.IO INTEGRATION =====
+      
+      // Firebase และ Socket.IO Manager
+      class RealtimeDataManager {
+        constructor() {
+          this.socket = null;
+          this.firebaseListeners = new Map();
+          this.isConnected = false;
+          this.reconnectAttempts = 0;
+          this.maxReconnectAttempts = 5;
+        }
+
+        // เริ่มต้น Socket.IO และ Firebase
+        async initialize() {
+          try {
+            console.log('🔌 Initializing real-time connections...');
+      
+            // เริ่มต้น Socket.IO
+            await this.initializeSocket();
+      
+            // เริ่มต้น Firebase listeners
+            await this.initializeFirebaseListeners();
+      
+            console.log('✅ Real-time connections initialized successfully');
+      
+          } catch (error) {
+            console.error('❌ Failed to initialize real-time connections:', error);
+          }
+        }
+
+        // เริ่มต้น Socket.IO
+        async initializeSocket() {
+          return new Promise((resolve, reject) => {
+            try {
+              this.socket = io({
+                transports: ['websocket', 'polling'],
+                timeout: 20000,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                maxHttpBufferSize: 1e8,
+                pingTimeout: 60000,
+                pingInterval: 25000
+              });
+
+              // Socket.IO Event Handlers
+              this.socket.on('connect', () => {
+                console.log('🔌 Socket.IO connected:', this.socket.id);
+                this.isConnected = true;
+                this.reconnectAttempts = 0;
+      
+                // Update UI status
+                this.onSocketConnected();
+      
+                // Join branch room for real-time updates
+                this.socket.emit('join-branch', {
+                  branchCode: BRANCH_CODE,
+                  page: 'services',
+                  timestamp: new Date().toISOString()
+                });
+      
+                resolve();
+              });
+
+              this.socket.on('disconnect', (reason) => {
+                console.warn('🔌 Socket.IO disconnected:', reason);
+                this.isConnected = false;
+      
+                // Update UI status
+                this.onSocketDisconnected();
+      
+                if (reason === 'io server disconnect') {
+                  // Server disconnected, try to reconnect
+                  this.handleReconnection();
+                }
+              });
+
+              this.socket.on('connect_error', (error) => {
+                console.error('🔌 Socket.IO connection error:', error);
+                this.handleReconnection();
+              });
+
+              // Custom service events
+              this.socket.on('service-updated', (data) => {
+                console.log('📋 Service updated:', data);
+                this.handleServiceUpdate(data);
+              });
+
+              this.socket.on('customer-updated', (data) => {
+                console.log('👤 Customer updated:', data);
+                this.handleCustomerUpdate(data);
+              });
+
+              this.socket.on('branch-status', (data) => {
+                console.log('🏢 Branch status:', data);
+                this.handleBranchStatus(data);
+              });
+
+              // Error handling
+              this.socket.on('error', (error) => {
+                console.error('🔌 Socket.IO error:', error);
+              });
+
+              // Timeout fallback
+              setTimeout(() => {
+                if (!this.isConnected) {
+                  console.warn('⚠️ Socket.IO connection timeout');
+                  resolve(); // Don't reject, continue with Firebase only
+                }
+              }, 8000);
+
+            } catch (error) {
+              console.error('❌ Socket.IO initialization error:', error);
+              resolve(); // Don't reject, continue without Socket.IO
+            }
+          });
+        }
+
+        // เริ่มต้น Firebase Realtime Database listeners
+        async initializeFirebaseListeners() {
+          try {
+            if (!window.firebaseDB) {
+              console.warn('⚠️ Firebase not available, skipping Firebase listeners');
+              return;
+            }
+
+            console.log('🔥 Setting up Firebase listeners...');
+
+            // Update Firebase status to connected
+            this.onFirebaseConnected();
+
+            // Listen to service history changes
+            const serviceHistoryRef = window.firebaseRef(window.firebaseDB, `branches/${BRANCH_CODE}/services`);
+            const serviceHistoryListener = window.firebaseOnValue(serviceHistoryRef, (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                console.log('🔥 Firebase service history updated:', Object.keys(data).length, 'records');
+                this.handleFirebaseServiceUpdate(data);
+                this.updateRealtimeActivity(true); // Show real-time activity
+              }
+            }, (error) => {
+              console.error('🔥 Firebase service history error:', error);
+              this.onFirebaseDisconnected();
+            });
+
+            this.firebaseListeners.set('serviceHistory', {
+              ref: serviceHistoryRef,
+              listener: serviceHistoryListener
+            });
+
+            // Listen to customer data changes
+            const customerRef = window.firebaseRef(window.firebaseDB, `customers`);
+            const customerListener = window.firebaseOnValue(customerRef, (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                console.log('🔥 Firebase customer data updated:', Object.keys(data).length, 'customers');
+                this.handleFirebaseCustomerUpdate(data);
+              }
+            });
+
+            this.firebaseListeners.set('customers', {
+              ref: customerRef,
+              listener: customerListener
+            });
+
+            // Listen to branch activity
+            const branchActivityRef = window.firebaseRef(window.firebaseDB, `branches/${BRANCH_CODE}/activity`);
+            const branchActivityListener = window.firebaseOnValue(branchActivityRef, (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                console.log('🔥 Firebase branch activity updated:', data);
+                this.handleFirebaseBranchActivity(data);
+              }
+            });
+
+            this.firebaseListeners.set('branchActivity', {
+              ref: branchActivityRef,
+              listener: branchActivityListener
+            });
+
+            console.log('✅ Firebase listeners setup complete');
+
+          } catch (error) {
+            console.error('❌ Firebase listeners setup error:', error);
+            this.onFirebaseDisconnected();
+          }
+        }
+
+        // จัดการการ reconnect
+        handleReconnection() {
+          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+      
+            console.log(`🔄 Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
+      
+            setTimeout(() => {
+              if (!this.isConnected) {
+                this.socket.connect();
+              }
+            }, delay);
+          } else {
+            console.error('❌ Max reconnection attempts reached');
+            showNotification('การเชื่อมต่อ Real-time หลุด กรุณา Refresh หน้า', 'warning');
+          }
+        }
+
+        // === SOCKET.IO EVENT HANDLERS ===
+
+        handleServiceUpdate(data) {
+          if (data.branchCode === BRANCH_CODE) {
+            // อัพเดท service history แบบ real-time
+            this.syncServiceToFirebase(data);
+            loadServiceHistory(); // รีโหลดข้อมูลใน UI
+      
+            // แสดง notification
+            showNotification(`บริการใหม่: ${data.customerName} - ${data.deviceModel}`, 'success');
+          }
+        }
+
+        handleCustomerUpdate(data) {
+          console.log('👤 Customer data updated:', data);
+          // สามารถใช้อัพเดท customer search results แบบ real-time
+        }
+
+        handleBranchStatus(data) {
+          if (data.branchCode === BRANCH_CODE) {
+            // อัพเดทสถานะสาขาแบบ real-time
+            this.updateBranchStatusIndicator(data);
+          }
+        }
+
+        // === FIREBASE EVENT HANDLERS ===
+
+        handleFirebaseServiceUpdate(data) {
+          // แปลงข้อมูล Firebase format เป็น array
+          const servicesArray = Object.keys(data).map(key => ({
+            id: key,
+            ...data[key]
+          }));
+      
+          // อัพเดท global serviceHistory
+          serviceHistory = servicesArray.filter(s => s.branchCode === BRANCH_CODE);
+      
+          // รีเรนเดอร์ตาราง
+          renderServiceHistory();
+        }
+
+        handleFirebaseCustomerUpdate(data) {
+          console.log('🔥 Customer data from Firebase:', data);
+          // สามารถใช้สำหรับ cache customer data
+        }
+
+        handleFirebaseBranchActivity(data) {
+          console.log('🔥 Branch activity from Firebase:', data);
+          this.updateActivityIndicator(data);
+        }
+
+        // === DATA SYNC TO FIREBASE ===
+
+        async syncServiceToFirebase(serviceData) {
+          try {
+            if (!window.firebaseDB) return;
+
+            const serviceRef = window.firebaseRef(
+              window.firebaseDB,
+              `branches/${BRANCH_CODE}/services/${serviceData.id || Date.now()}`
+            );
+
+            const firebaseData = {
+              ...serviceData,
+              timestamp: window.firebaseServerTimestamp(),
+              lastUpdated: new Date().toISOString(),
+              branchCode: BRANCH_CODE
+            };
+
+            await window.firebaseSet(serviceRef, firebaseData);
+            console.log('✅ Service synced to Firebase');
+
+          } catch (error) {
+            console.error('❌ Firebase sync error:', error);
+          }
+        }
+
+        async syncCustomerToFirebase(customerData) {
+          try {
+            if (!window.firebaseDB) return;
+
+            const customerRef = window.firebaseRef(
+              window.firebaseDB,
+              `customers/${customerData.id}`
+            );
+
+            const firebaseData = {
+              ...customerData,
+              lastUpdated: new Date().toISOString(),
+              lastSeenBranch: BRANCH_CODE
+            };
+
+            await window.firebaseSet(customerRef, firebaseData);
+            console.log('✅ Customer synced to Firebase');
+
+          } catch (error) {
+            console.error('❌ Customer Firebase sync error:', error);
+          }
+        }
+
+        // === UI UPDATE HELPERS ===
+
+        updateBranchStatusIndicator(status) {
+          // สร้าง status indicator ถ้ายังไม่มี
+          let indicator = document.getElementById('branchStatusIndicator');
+          if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'branchStatusIndicator';
+            indicator.className = 'fixed bottom-4 right-4 p-2 rounded-full shadow-lg z-50';
+            document.body.appendChild(indicator);
+          }
+
+          // อัพเดทสถานะ
+          if (status.online && status.activeUsers > 0) {
+            indicator.className = 'fixed bottom-4 right-4 p-2 rounded-full shadow-lg z-50 bg-green-500 text-white text-xs';
+            indicator.innerHTML = `🟢 ออนไลน์ (${status.activeUsers})`;
+          } else {
+            indicator.className = 'fixed bottom-4 right-4 p-2 rounded-full shadow-lg z-50 bg-gray-500 text-white text-xs';
+            indicator.innerHTML = '⚫ ออฟไลน์';
+          }
+        }
+
+        updateActivityIndicator(activity) {
+          // แสดง activity indicator ใน header
+          const header = document.getElementById('mainHeader');
+          let activityBadge = document.getElementById('activityBadge');
+      
+          if (!activityBadge) {
+            activityBadge = document.createElement('div');
+            activityBadge.id = 'activityBadge';
+            activityBadge.className = 'badge badge-sm ml-2';
+            header.querySelector('h1').appendChild(activityBadge);
+          }
+
+          if (activity.recentServices > 0) {
+            activityBadge.className = 'badge badge-sm ml-2 badge-success';
+            activityBadge.textContent = `${activity.recentServices} บริการวันนี้`;
+          } else {
+            activityBadge.className = 'badge badge-sm ml-2 badge-ghost';
+            activityBadge.textContent = 'ไม่มีกิจกรรม';
+          }
+        }
+
+        // === CONNECTION STATUS INDICATORS ===
+
+        updateFirebaseStatus(connected) {
+          const indicator = document.getElementById('firebaseIndicator');
+          const label = document.getElementById('firebaseLabel');
+      
+          if (connected) {
+            indicator.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
+            label.className = 'text-xs text-green-600';
+            label.textContent = 'Firebase ✓';
+          } else {
+            indicator.className = 'w-2 h-2 rounded-full bg-red-500';
+            label.className = 'text-xs text-red-600';
+            label.textContent = 'Firebase ✗';
+          }
+        }
+
+        updateSocketStatus(connected) {
+          const indicator = document.getElementById('socketIndicator');
+          const label = document.getElementById('socketLabel');
+      
+          if (connected) {
+            indicator.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
+            label.className = 'text-xs text-green-600';
+            label.textContent = 'Socket.IO ✓';
+          } else {
+            indicator.className = 'w-2 h-2 rounded-full bg-red-500';
+            label.className = 'text-xs text-red-600';
+            label.textContent = 'Socket.IO ✗';
+          }
+        }
+
+        updateRealtimeActivity(active) {
+          const activity = document.getElementById('realtimeActivity');
+      
+          if (active) {
+            activity.classList.remove('hidden');
+            setTimeout(() => {
+              activity.classList.add('hidden');
+            }, 3000); // Hide after 3 seconds
+          }
+        }
+
+        // เรียกใช้เมื่อมีการเชื่อมต่อ
+        onFirebaseConnected() {
+          this.updateFirebaseStatus(true);
+          console.log('🔥 Firebase connection established');
+        }
+
+        onFirebaseDisconnected() {
+          this.updateFirebaseStatus(false);
+          console.warn('🔥 Firebase connection lost');
+        }
+
+        onSocketConnected() {
+          this.updateSocketStatus(true);
+          this.updateRealtimeActivity(true);
+          console.log('🔌 Socket.IO connection established');
+        }
+
+        onSocketDisconnected() {
+          this.updateSocketStatus(false);
+          console.warn('🔌 Socket.IO connection lost');
+        }
+
+        // === CLEANUP ===
+
+        cleanup() {
+          // ปิด Socket.IO connection
+          if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+          }
+
+          // ปิด Firebase listeners
+          this.firebaseListeners.forEach((listener, key) => {
+            window.firebaseOff(listener.ref, 'value', listener.listener);
+          });
+          this.firebaseListeners.clear();
+
+          console.log('🧹 Real-time connections cleaned up');
+        }
+
+        // === PUBLIC METHODS ===
+
+        // ส่งข้อมูลผ่าน Socket.IO
+        emitServiceUpdate(serviceData) {
+          if (this.socket && this.isConnected) {
+            this.socket.emit('service-update', {
+              ...serviceData,
+              branchCode: BRANCH_CODE,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+
+        // บันทึกข้อมูลลง Firebase
+        async saveToFirebase(path, data) {
+          try {
+            if (!window.firebaseDB) return false;
+
+            const ref = window.firebaseRef(window.firebaseDB, path);
+            await window.firebaseSet(ref, {
+              ...data,
+              timestamp: window.firebaseServerTimestamp(),
+              branchCode: BRANCH_CODE
+            });
+
+            return true;
+          } catch (error) {
+            console.error('❌ Firebase save error:', error);
+            return false;
+          }
+        }
+
+        // ดึงข้อมูลจาก Firebase
+        async getFromFirebase(path) {
+          try {
+            if (!window.firebaseDB) return null;
+
+            const ref = window.firebaseRef(window.firebaseDB, path);
+            const snapshot = await new Promise((resolve) => {
+              window.firebaseOnValue(ref, resolve, { onlyOnce: true });
+            });
+
+            return snapshot.val();
+          } catch (error) {
+            console.error('❌ Firebase get error:', error);
+            return null;
+          }
+        }
+      }
+
+      // สร้าง instance ของ RealtimeDataManager
+      const realtimeManager = new RealtimeDataManager();
+
+      // ให้สามารถเข้าถึงได้จาก global scope
+      window.realtimeManager = realtimeManager;
+
+      /*
+      🔌 SOCKET.IO SERVER-SIDE CONFIGURATION:
+      
+      ในไฟล์ server.js หรือ app.js ให้เพิ่มโค้ดนี้:
+      
+      const io = require('socket.io')(server, {
+        cors: {
+          origin: "*",
+          methods: ["GET", "POST"]
+        }
+      });
+      
+      io.on('connection', (socket) => {
+        console.log('Client connected:', socket.id);
+      
+        // Join branch room
+        socket.on('join-branch', (data) => {
+          socket.join(`branch-${data.branchCode}`);
+          console.log(`Socket ${socket.id} joined branch-${data.branchCode}`);
+      
+          // Send branch status
+          socket.emit('branch-status', {
+            branchCode: data.branchCode,
+            online: true,
+            activeUsers: io.sockets.adapter.rooms.get(`branch-${data.branchCode}`)?.size || 0
+          });
+        });
+      
+        // Handle service updates
+        socket.on('service-update', (data) => {
+          // Broadcast to all clients in the same branch
+          socket.to(`branch-${data.branchCode}`).emit('service-updated', data);
+      
+          // Also save to database if needed
+          // saveServiceToDatabase(data);
+        });
+      
+        socket.on('disconnect', () => {
+          console.log('Client disconnected:', socket.id);
+        });
+      });
+      */
+      
+      // ✅ ลบ Mock data ออกและใช้ข้อมูลจริงจาก API
+      let serviceHistory = []; // เริ่มต้นเป็น array ว่าง
+      
+      // ✅ ลบ Mock customer data ออก - ใช้ API แทน
+      // const customerData = [...] ← ลบออก
+
+      // DOM Elements
+      const serviceFormModal = document.getElementById('serviceFormModal');
+      const serviceFormTitle = document.getElementById('serviceFormTitle');
+      const deviceTypeInput = document.getElementById('deviceType');
+      const serviceStaffSelect = document.getElementById('serviceStaff');
+      const serviceForm = document.getElementById('serviceForm');
+      const serviceHistoryTable = document.getElementById('serviceHistoryTable');
+      const searchInput = document.getElementById('searchInput');
+      const filterDevice = document.getElementById('filterDevice');
+      const customerDetailModal = document.getElementById('customerDetailModal');
+      const customerDetailTitle = document.getElementById('customerDetailTitle');
+      const customerDetailContent = document.getElementById('customerDetailContent');
+      const customerSearch = document.getElementById('customerSearch');
+      const searchResults = document.getElementById('searchResults');
+      const customerSelect = document.getElementById('customerSelect');
+      const customerIDInput = document.getElementById('customerID');
+      const serviceReason = document.getElementById('serviceReason');
+      const otherReasonContainer = document.getElementById('otherReasonContainer');
+
+      // DOM Elements ตัวใหม่
+      const tabFilm = document.getElementById('tabFilm');
+      const tabDevice = document.getElementById('tabDevice');
+      const filmServiceCards = document.getElementById('filmServiceCards');
+      const deviceServiceCards = document.getElementById('deviceServiceCards');
+      const filterServiceType = document.getElementById('filterServiceType');
+      
+      // สร้าง State Manager แทนการใช้ global variables
+      const AppState = {
+        currentEmployeeName: null,
+        selectedPurchase: null,
+        currentServiceTab: 'film',
+        branchCode: BRANCH_CODE || localStorage.getItem('branchCode') || 'PATTANI',
+      
+        // Methods สำหรับจัดการ state
+        setEmployee(name) {
+          this.currentEmployeeName = name;
+        },
+      
+        setSelectedPurchase(purchaseId, purchaseType) {
+          this.selectedPurchase = { purchaseId, purchaseType };
+        },
+      
+        clearSelectedPurchase() {
+          this.selectedPurchase = null;
+        },
+      
+        setServiceTab(tab) {
+          this.currentServiceTab = tab;
+        },
+      
+        reset() {
+          this.selectedPurchase = null;
+        }
+      };
+      
+      // สร้าง API Client ที่มี error handling ที่ดีกว่า
+      const ApiClient = {
+        baseURL: '',
+      
+        async request(url, options = {}) {
+          const token = localStorage.getItem('authToken');
+      
+          if (!token) {
+            window.location.href = '/login';
+            throw new Error('No authentication token');
+          }
+      
+          const defaultOptions = {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          };
+      
+          const finalOptions = {
+            ...defaultOptions,
+            ...options,
+            headers: {
+              ...defaultOptions.headers,
+              ...options.headers
+            }
+          };
+      
+          try {
+            const response = await fetch(url, finalOptions);
+      
+            // Handle 404 specifically for API endpoints that might not exist yet
+            if (response.status === 404) {
+              throw new Error(`API endpoint not found: ${url}`);
+            }
+      
+            // Handle authentication errors
+            if (response.status === 401 || response.status === 403) {
+              alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
+              window.location.href = '/login';
+              return;
+            }
+      
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+              // Log the actual response for debugging
+              const responseText = await response.text();
+              console.warn('Non-JSON response received:', {
+                url,
+                status: response.status,
+                contentType,
+                responseText: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : '')
+              });
+      
+              throw new Error(`Server returned non-JSON response (${response.status}): ${contentType || 'unknown content-type'}`);
+            }
+      
+            const data = await response.json();
+      
+            if (!response.ok) {
+              throw new Error(data.error || data.message || `HTTP Error ${response.status}`);
+            }
+      
+            return data;
+      
+          } catch (error) {
+            if (error instanceof TypeError && error.message === 'Failed to fetch') {
+              throw new Error('ไม่สามารถเชื่อมต่อกับ Server ได้ กรุณาตรวจสอบการเชื่อมต่ออินเตอร์เน็ต');
+            }
+            throw error;
+          }
+        },
+      
+        get(url) {
+          return this.request(url);
+        },
+      
+        post(url, data) {
+          return this.request(url, {
+            method: 'POST',
+            body: JSON.stringify(data)
+          });
+        }
+      };
+      
+      // Helper function สำหรับแสดง notification
+      function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotif = document.querySelector('.notification-toast');
+        if (existingNotif) {
+          existingNotif.remove();
+        }
+      
+        const notif = document.createElement('div');
+        notif.className = `notification-toast fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 
+                           ${type === 'error' ? 'bg-red-500' :
+                             type === 'warning' ? 'bg-yellow-500' :
+                             type === 'success' ? 'bg-green-500' : 'bg-blue-500'} 
+                           text-white animate-fade-in`;
+      
+        notif.innerHTML = `
+          <div class="flex items-center">
+            <i class="bi bi-${type === 'error' ? 'x-circle' :
+                              type === 'warning' ? 'exclamation-triangle' :
+                              type === 'success' ? 'check-circle' : 'info-circle'} mr-2"></i>
+            <span>${message}</span>
+          </div>
+        `;
+      
+        document.body.appendChild(notif);
+      
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+          notif.classList.add('animate-fade-out');
+          setTimeout(() => notif.remove(), 300);
+        }, 5000);
+      }
+
+      // Add animation styles
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+          from { opacity: 1; transform: translateY(0); }
+          to { opacity: 0; transform: translateY(-20px); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-fade-out { animation: fadeOut 0.3s ease-out; }
+      `;
+      document.head.appendChild(style);
+      
+      // แก้ไข switchServiceTab ให้ใช้ AppState
+      function switchServiceTab(tab) {
+        const tabFilm = document.getElementById('tabFilm');
+        const tabDevice = document.getElementById('tabDevice');
+        const filmServiceCards = document.getElementById('filmServiceCards');
+        const deviceServiceCards = document.getElementById('deviceServiceCards');
+      
+        if (tab === 'film') {
+          tabFilm.classList.add('tab-active');
+          tabDevice.classList.remove('tab-active');
+          filmServiceCards.classList.remove('hidden');
+          deviceServiceCards.classList.add('hidden');
+        } else if (tab === 'device') {
+          tabDevice.classList.add('tab-active');
+          tabFilm.classList.remove('tab-active');
+          deviceServiceCards.classList.remove('hidden');
+          filmServiceCards.classList.add('hidden');
+        }
+      
+        AppState.setServiceTab(tab);
+      }
+
+      // ตรวจสอบ token validity
+async function checkTokenValidity() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return false;
+  try {
+    const res = await fetch('/api/users/me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    return res.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Load branch information
+async function loadBranchInfo() {
+  try {
+    const result = await ApiClient.get('/api/branch');
+
+    if (!result.success || !result.data) {
+      throw new Error('ไม่สามารถโหลดข้อมูลสาขาได้');
+    }
+
+    const branch = result.data.find(b => b.branch_code === AppState.branchCode);
+
+    if (!branch) {
+      throw new Error(`ไม่พบข้อมูลสาขา ${AppState.branchCode}`);
+    }
+
+    // Update UI
+    document.getElementById('branchInfo').textContent =
+      `${branch.name} — ${branch.address}`;
+
+    const branchSelect = document.getElementById('branchLocation');
+    branchSelect.innerHTML = `<option value="${branch.branch_code}" selected>${branch.name}</option>`;
+    branchSelect.disabled = true;
+
+  } catch (error) {
+    console.error('Load branch info error:', error);
+    document.getElementById('branchInfo').textContent = 'ไม่สามารถโหลดข้อมูลสาขา';
+    showNotification(error.message, 'error');
+  }
+}
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', async function() {
+  try {
+    console.log('🚀 Services page initializing...');
+
+    // Show loading using new Lottie loading system
+    showLoading(true);
+
+    try {
+      // ✅ โหลดข้อมูลพนักงานก่อน
+      console.log('📋 Loading employee profile...');
+      await loadEmployeeProfile();
+
+      // ✅ ตรวจสอบ token และโหลดข้อมูลสาขา
+      console.log('🔐 Checking authentication...');
+      const valid = await checkTokenValidity();
+    if (!valid) {
+      alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
+      window.location.href = '/login';
+      return;
+    }
+
+    console.log('🏢 Loading branch information...');
+    await loadBranchInfo();
+
+    // ✅ เริ่มต้น Real-time connections (Firebase + Socket.IO)
+    console.log('🔌 Initializing real-time connections...');
+    // Note: New loading system doesn't support message updates
+    await realtimeManager.initialize();
+
+    // ✅ โหลดประวัติการให้บริการจริงจาก API
+    console.log('📋 Loading service history...');
+    // Note: New loading system doesn't support message updates
+    await loadServiceHistory();
+
+    // ✅ ผูกอีเวนต์เฉพาะฟอร์มและการค้นหา
+    console.log('🔧 Setting up form handlers...');
+    const serviceForm = document.getElementById('serviceForm');
+    if (serviceForm) {
+      serviceForm.addEventListener('submit', handleServiceFormSubmit);
+    }
+
+    // ผูกอีเวนต์การค้นหาและกรอง
+    const searchInput = document.getElementById('searchInput');
+    const filterDevice = document.getElementById('filterDevice');
+    const filterServiceType = document.getElementById('filterServiceType');
+    const customerSelect = document.getElementById('customerSelect');
+
+    if (searchInput) searchInput.addEventListener('input', filterServiceHistory);
+    if (filterDevice) filterDevice.addEventListener('change', filterServiceHistory);
+    if (filterServiceType) filterServiceType.addEventListener('change', filterServiceHistory);
+    if (customerSelect) customerSelect.addEventListener('change', fillCustomerData);
+
+    // ตั้งค่า tab เริ่มต้น
+    switchServiceTab('film');
+
+    // ✅ ตั้งค่า cleanup เมื่อปิดหน้า
+    window.addEventListener('beforeunload', () => {
+      realtimeManager.cleanup();
+    });
+
+    console.log('✅ Services page initialized successfully!');
+    } catch (error) {
+      console.error('Initialization error:', error);
+    } finally {
+      // Hide loading using new Lottie loading system
+      showLoading(false);
+    }
+  } catch (err) {
+    console.error('Outer initialization failed:', err);
+  }
+});
+
+      // Load employee information
+      async function loadEmployeeProfile() {
+        try {
+          const token = localStorage.getItem('authToken');
+          if (!token) return;
+          const res = await fetch('/api/users/me', {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            }
+          });
+          const js = await res.json();
+          if (!res.ok || !js.success) throw new Error(js.error||js.message||res.status);
+          const u = js.data;
+          document.getElementById('employeeName').textContent = u.name || '(ไม่พบชื่อ)';
+          let img = u.imageUrl || u.photoUrl || u.image || '';
+          if (img && !/^https?:\/\//.test(img)) {
+            img = img.startsWith('/') ? img : '/uploads/' + img;
+          }
+          document.getElementById('employeePhoto').src = img || '/static/images/avatar-default.png';
+
+          // เก็บชื่อพนักงานใน AppState
+          AppState.setEmployee(u.name || 'Unknown Staff');
+
+          // แสดงชื่อผู้ให้บริการใน dropdown และล็อกไม่ให้แก้ไข
+          const sel = document.getElementById('serviceStaff');
+          sel.innerHTML = `<option value="${u.name}">${u.name}</option>`;
+          sel.disabled = true;
+        } catch (err) {
+          console.error('Load Employee Profile Error:', err);
+        }
+      }
+
+      // Open service form modal
+      function openServiceForm(type) {
+        deviceTypeInput.value = type;
+        const serviceType = type.includes('-film') ? 'film' : 'warranty';
+        document.getElementById('serviceType').value = serviceType;
+      
+        // ตั้งค่าชื่อฟอร์มตามประเภทอุปกรณ์และบริการ
+        let formTitle = '';
+        let serviceTypeText = '';
+      
+        if (type === 'phone-film') {
+          formTitle = 'บันทึกการให้บริการเปลี่ยนฟิล์มโทรศัพท์';
+          serviceTypeText = 'บริการประกันฟิล์มโทรศัพท์';
+        } else if (type === 'ipad-film') {
+          formTitle = 'บันทึกการให้บริการเปลี่ยนฟิล์มไอแพด';
+          serviceTypeText = 'บริการประกันฟิล์มไอแพด';
+        } else if (type === 'phone-warranty') {
+          formTitle = 'บันทึกการใช้บริการประกันเครื่องโทรศัพท์';
+          serviceTypeText = 'บริการประกันเครื่องโทรศัพท์';
+        } else if (type === 'ipad-warranty') {
+          formTitle = 'บันทึกการใช้บริการประกันเครื่องไอแพด';
+          serviceTypeText = 'บริการประกันเครื่องไอแพด';
+        }
+      
+        serviceFormTitle.textContent = formTitle;
+        document.getElementById('serviceTypeDisplay').textContent = serviceTypeText;
+      
+        // แสดง/ซ่อนตัวเลือกสาเหตุตามประเภทบริการ
+        document.getElementById('filmReasonGroup').style.display = serviceType === 'film' ? 'block' : 'none';
+        document.getElementById('warrantyReasonGroup').style.display = serviceType === 'warranty' ? 'block' : 'none';
+      
+        // Set today's date as default
+        document.getElementById('serviceDate').valueAsDate = new Date();
+      
+        // Set current employee as default staff
+        if (window.currentEmployeeName) {
+          document.getElementById('serviceStaff').value = window.currentEmployeeName;
+        }
+        // Show the modal
+        serviceFormModal.classList.add('modal-open');
+      }
+
+      // Close service form modal
+      function closeServiceForm() {
+        const modal = document.getElementById('serviceFormModal');
+        modal.classList.remove('modal-open');
+      
+        // Clear form และ state
+        clearForm();
+        AppState.clearSelectedPurchase();
+      
+        // Remove any temporary event listeners
+        const form = document.getElementById('serviceForm');
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+      
+        // Re-attach the submit handler
+        newForm.addEventListener('submit', handleServiceFormSubmit);
+      }
+      
+      // เพิ่มฟังก์ชัน clearForm ที่ขาดหาย
+      function clearForm() {
+        document.getElementById('serviceForm').reset();
+        document.getElementById('searchResults').classList.add('hidden');
+        document.getElementById('otherReasonContainer').classList.add('hidden');
+        document.querySelector('.eligible-purchases-container')?.remove();
+        window.selectedPurchase = null;
+      }
+
+      // Search customer in database
+      async function searchCustomer() {
+        const searchTerm = document.getElementById('customerSearch').value.trim();
+      
+        if (!searchTerm) {
+          showNotification('กรุณาระบุชื่อลูกค้าหรือเลขบัตรประชาชน', 'warning');
+          return;
+        }
+      
+        // Show loading state
+        const searchBtn = document.querySelector('button[onclick="searchCustomer()"]');
+        const originalText = searchBtn.innerHTML;
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<i class="bi bi-hourglass-split animate-spin mr-1"></i> กำลังค้นหา...';
+      
+        try {
+          const params = new URLSearchParams();
+      
+          // Determine search type
+          if (/^\d{13}$/.test(searchTerm)) {
+            params.set('idCard', searchTerm);
+          } else if (/^0\d{8,9}$/.test(searchTerm)) {
+            params.set('phone', searchTerm);
+          } else {
+            params.set('customerName', searchTerm);
+          }
+      
+          const result = await ApiClient.get(`/api/services/eligibility?${params}`);
+      
+          if (!result.success) {
+            throw new Error(result.error || 'Search failed');
+          }
+      
+          displayCustomerResults(result.data);
+      
+        } catch (error) {
+          console.error('Search error:', error);
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            searchTerm: searchTerm,
+            apiUrl: `/api/services/eligibility?${params}`
+          });
+          showNotification(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
+        } finally {
+          searchBtn.disabled = false;
+          searchBtn.innerHTML = originalText;
+        }
+      }
+
+      // แสดงผลลัพธ์การค้นหา
+      function displayCustomerResults(customers) {
+        const sel = document.getElementById('customerSelect');
+        const wrapper = document.getElementById('searchResults');
+        while (sel.options.length > 1) sel.remove(1);
+        if (!customers.length) {
+          showNotification('ไม่พบข้อมูลลูกค้า', 'warning');
+          wrapper.classList.add('hidden');
+          return;
+        }
+        customers.forEach(cust => {
+          const opt = document.createElement('option');
+          opt.value = cust.customer.id;
+          opt.text = `${cust.customer.name} - ${cust.customer.phone}`;
+          opt.dataset.customerData = JSON.stringify(cust);
+          sel.append(opt);
+        });
+        wrapper.classList.remove('hidden');
+        showNotification(`พบข้อมูลลูกค้า ${customers.length} รายการ`, 'success');
+      }
+
+      // เมื่อเลือกลูกค้า ให้เติมข้อมูล และแสดงสิทธิ์การใช้บริการ
+      async function fillCustomerData() {
+        const sel = document.getElementById('customerSelect');
+        const opt = sel.selectedOptions[0];
+        if (!opt?.dataset.customerData) return;
+      
+        const { customer, purchases } = JSON.parse(opt.dataset.customerData);
+        document.getElementById('customerName').value = customer.name;
+        document.getElementById('customerPhone').value = customer.phone;
+        document.getElementById('customerID').value = customer.taxId || '';
+      
+        // เคลียร์ข้อมูลเดิม
+        document.getElementById('warrantyDate').value = '';
+        document.getElementById('deviceModel').innerHTML = '<option value="" disabled selected>กรุณาเลือกการซื้อก่อน</option>';
+      
+        // ✅ Sync customer data to Firebase for real-time availability
+        try {
+          const customerData = {
+            id: customer.id,
+            ...customer,
+            lastAccessed: new Date().toISOString(),
+            accessedBy: AppState.currentEmployeeName,
+            accessedFromBranch: BRANCH_CODE,
+            purchases: purchases.map(p => ({
+              id: p.purchaseId,
+              type: p.purchaseType,
+              date: p.purchaseDate,
+              warrantyEnd: p.warrantyEndDate,
+              items: p.items,
+              serviceUsage: p.serviceUsageCount
+            }))
+          };
+
+          await realtimeManager.syncCustomerToFirebase(customerData);
+      
+          // Emit customer selection event
+          realtimeManager.emitServiceUpdate({
+            type: 'customer_selected',
+            customerName: customer.name,
+            customerPhone: customer.phone,
+            branchCode: BRANCH_CODE,
+            staffName: AppState.currentEmployeeName,
+            timestamp: new Date().toISOString()
+          });
+
+          console.log('✅ Customer data synced to real-time systems');
+        } catch (error) {
+          console.error('❌ Customer sync error:', error);
+        }
+      
+        // แสดงสิทธิ์การใช้บริการ
+        displayEligiblePurchases(purchases);
+      }
+
+
+
+      // สร้าง UI แสดงรายการซื้อที่ยังมีสิทธิ์ใช้บริการ
+      function displayEligiblePurchases(purchases) {
+        const form = document.querySelector('#serviceForm');
+        document.querySelector('.eligible-purchases-container')?.remove();
+        const cont = document.createElement('div');
+        cont.className = 'eligible-purchases-container mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg';
+        cont.innerHTML = '<h4 class="font-semibold mb-2 text-blue-800 dark:text-blue-200">การซื้อที่มีสิทธิ์ใช้บริการ:</h4>';
+        if (!purchases.length) {
+          cont.innerHTML += '<p class="text-gray-500">ไม่พบการซื้อที่มีสิทธิ์</p>';
+        } else {
+          purchases.forEach((p, index) => {
+            const div = document.createElement('div');
+            div.className = 'mb-4 border-l-4 border-blue-500 pl-3 bg-white dark:bg-gray-600 rounded p-3';
+            const status = new Date(p.warrantyEndDate) > new Date() ? 'ยังไม่หมดอายุ' : 'หมดอายุแล้ว';
+            const cls = new Date(p.warrantyEndDate) > new Date() ? 'text-green-600' : 'text-red-600';
+      
+            // สร้างรายการสินค้าที่ซื้อ
+            const itemsList = p.items.map(item => {
+              const deviceType = getDeviceTypeFromName(item.name || item.description || '');
+              const deviceIcon = deviceType === 'ipad' ? '📱' : '📱';
+              return `<span class="text-sm bg-gray-200 dark:bg-gray-500 px-2 py-1 rounded mr-1 mb-1 inline-block">${deviceIcon} ${item.name || item.description}</span>`;
+            }).join('');
+      
+            // สร้างข้อมูลสิทธิ์การใช้บริการ
+            const serviceRights = Object.entries(p.serviceUsageCount || {}).map(([serviceType, count]) => {
+              const max = getMaxUsageForService(serviceType);
+              const remaining = max - count;
+              const statusColor = remaining > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+              return `<span class="text-xs ${statusColor} px-2 py-1 rounded mr-1">${getServiceTypeName(serviceType)}: ${count}/${max} (เหลือ ${remaining})</span>`;
+            }).join('');
+      
+            div.innerHTML = `
+              <div class="flex justify-between items-start">
+                <div class="flex-1">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+                    <div>
+                      <p class="text-sm font-semibold text-blue-600">ประเภทการซื้อ</p>
+                      <p class="text-lg">${p.purchaseType === 'cash' ? '💰 ซื้อสด' : '📅 ซื้อผ่อน'}</p>
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-blue-600">วันที่ซื้อประกัน</p>
+                      <p class="text-lg">${new Date(p.purchaseDate).toLocaleDateString('th-TH')}</p>
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-blue-600">สถานะประกัน</p>
+                      <p class="text-lg ${cls}">${new Date(p.warrantyEndDate).toLocaleDateString('th-TH')}</p>
+                      <p class="text-sm ${cls}">(${status})</p>
+                    </div>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">สินค้าที่ซื้อ:</p>
+                    <div class="flex flex-wrap gap-1">${itemsList}</div>
+                  </div>
+                  
+                  ${serviceRights ? `
+                    <div class="mb-3">
+                      <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">สิทธิ์การใช้บริการ:</p>
+                      <div class="flex flex-wrap gap-1">${serviceRights}</div>
+                    </div>
+                  ` : ''}
+                </div>
+                
+                <div class="ml-4">
+                  <button class="btn btn-sm btn-primary" onclick="selectPurchaseForService('${p.purchaseId}','${p.purchaseType}', ${index})">
+                    เลือกใช้บริการ
+                  </button>
+                </div>
+              </div>
+            `;
+            cont.append(div);
+          });
+        }
+        form.append(cont);
+      }
+
+      // เก็บการซื้อที่เลือกและเติมข้อมูลประกัน
+      function selectPurchaseForService(purchaseId, purchaseType, purchaseIndex) {
+        AppState.setSelectedPurchase(purchaseId, purchaseType);
+      
+        // ดึงข้อมูลการซื้อที่เลือก
+        const customerSelect = document.getElementById('customerSelect');
+        const selectedCustomerOption = customerSelect.selectedOptions[0];
+        if (selectedCustomerOption?.dataset.customerData) {
+          const { purchases } = JSON.parse(selectedCustomerOption.dataset.customerData);
+          const selectedPurchase = purchases[purchaseIndex];
+      
+          if (selectedPurchase) {
+            // เติมวันที่ซื้อประกันจากข้อมูลการซื้อจริง
+            const warrantyStartDate = new Date(selectedPurchase.purchaseDate);
+            const warrantyDateInput = document.getElementById('warrantyDate');
+            warrantyDateInput.value = warrantyStartDate.toISOString().split('T')[0];
+      
+            // เติมรุ่นอุปกรณ์จากการซื้อที่เลือก
+            populateDeviceModelsFromPurchase(selectedPurchase);
+          }
+        }
+      
+        const submitBtn = document.querySelector('#serviceForm button[type="submit"]');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'บันทึกการใช้บริการ';
+      
+        // Highlight selected purchase
+        document.querySelectorAll('.eligible-purchases-container button').forEach(btn => {
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-primary');
+          btn.textContent = 'เลือกใช้บริการ';
+        });
+      
+        event.target.classList.remove('btn-primary');
+        event.target.classList.add('btn-success');
+        event.target.textContent = '✓ เลือกแล้ว';
+      }
+      
+      // ฟังก์ชันเติมรุ่นอุปกรณ์จากการซื้อที่เลือก
+      function populateDeviceModelsFromPurchase(purchase) {
+        const deviceSelect = document.getElementById('deviceModel');
+        deviceSelect.innerHTML = '<option value="" disabled selected>เลือกรุ่นอุปกรณ์</option>';
+      
+        if (purchase.items && purchase.items.length > 0) {
+          purchase.items.forEach(item => {
+            if (item.name || item.description) {
+              const itemName = item.name || item.description;
+              const deviceType = getDeviceTypeFromName(itemName);
+              const deviceIcon = deviceType === 'ipad' ? '📱' : '📱';
+      
+              const option = document.createElement('option');
+              option.value = itemName;
+              option.textContent = `${deviceIcon} ${itemName} (${deviceType === 'phone' ? 'โทรศัพท์' : 'ไอแพด'})`;
+              option.dataset.deviceType = deviceType;
+              option.dataset.imei = item.imei || '';
+              option.dataset.purchaseId = purchase.purchaseId;
+              option.dataset.purchaseType = purchase.purchaseType;
+              deviceSelect.appendChild(option);
+            }
+          });
+        }
+      
+        if (deviceSelect.options.length === 1) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'ไม่พบข้อมูลอุปกรณ์ในการซื้อนี้';
+          option.disabled = true;
+          deviceSelect.appendChild(option);
+        }
+      }
+      
+      // ฟังก์ชันช่วยแยกประเภทอุปกรณ์จากชื่อสินค้า
+      function getDeviceTypeFromName(itemName) {
+        const name = itemName.toLowerCase();
+        if (name.includes('ipad') || name.includes('tablet')) {
+          return 'ipad';
+        }
+        return 'phone'; // default เป็นโทรศัพท์
+      }
+
+      // แทนที่ handler เดิมด้วยการ POST ข้อมูลไป API
+      async function handleServiceFormSubmit(e) {
+        e.preventDefault();
+      
+        if (!AppState.selectedPurchase) {
+          showNotification('กรุณาเลือกการซื้อที่ต้องการใช้บริการ', 'warning');
+          return;
+        }
+      
+        // Validate form data
+        const formData = new FormData(e.target);
+        const requiredFields = ['customerName', 'customerPhone', 'deviceModel', 'serviceReason', 'serviceDate'];
+      
+        for (const field of requiredFields) {
+          if (!formData.get(field)) {
+            const fieldNames = {
+              'customerName': 'ชื่อลูกค้า',
+              'customerPhone': 'เบอร์โทรศัพท์',
+              'deviceModel': 'รุ่นอุปกรณ์',
+              'serviceReason': 'สาเหตุที่เข้ารับบริการ',
+              'serviceDate': 'วันที่เข้ารับบริการ'
+            };
+            showNotification(`กรุณากรอก${fieldNames[field]}`, 'warning');
+            return;
+          }
+        }
+      
+        // ตรวจสอบ serviceReason เพิ่มเติม
+        const serviceReason = formData.get('serviceReason');
+        if (serviceReason === 'other') {
+          const otherReason = formData.get('otherReason');
+          if (!otherReason || otherReason.trim() === '') {
+            showNotification('กรุณาระบุสาเหตุอื่นๆ', 'warning');
+            return;
+          }
+        }
+      
+        // ตรวจสอบประเภทอุปกรณ์จาก dropdown ที่เลือก
+        const deviceModelSelect = document.getElementById('deviceModel');
+        const selectedOption = deviceModelSelect.selectedOptions[0];
+        let deviceType = formData.get('deviceType'); // จาก hidden field
+      
+        // ถ้ามี dataset จาก option ให้ใช้แทน
+        if (selectedOption && selectedOption.dataset.deviceType) {
+          deviceType = selectedOption.dataset.deviceType;
+        }
+      
+        // ถ้ายังไม่มี deviceType ให้เดาจากชื่อรุ่น
+        if (!deviceType) {
+          const deviceModel = formData.get('deviceModel').toLowerCase();
+          if (deviceModel.includes('ipad') || deviceModel.includes('tablet')) {
+            deviceType = 'ipad';
+          } else {
+            deviceType = 'phone';
+          }
+        }
+      
+        // สร้าง serviceType ที่ถูกต้องตาม enum ใน ServiceHistory model
+        const correctServiceType = `${deviceType}-${formData.get('serviceType')}`;
+      
+        const payload = {
+          purchaseId: AppState.selectedPurchase.purchaseId,
+          purchaseType: AppState.selectedPurchase.purchaseType,
+          customerId: document.getElementById('customerSelect').value,
+          deviceType: deviceType,
+          deviceModel: formData.get('deviceModel'),
+          deviceImei: selectedOption?.dataset.imei || '',
+          serviceType: correctServiceType, // ใช้ format ที่ถูกต้อง เช่น 'phone-film', 'ipad-warranty'
+          serviceReason: formData.get('serviceReason') === 'other' ?
+                        formData.get('otherReason') : formData.get('serviceReason'),
+          serviceDate: formData.get('serviceDate') || new Date().toISOString().split('T')[0], // เพิ่มวันที่เข้ารับบริการ พร้อม fallback
+          branchCode: AppState.branchCode,
+          staffName: formData.get('serviceStaff') || AppState.currentEmployeeName || 'Unknown Staff',
+          notes: formData.get('serviceNotes') || ''
+        };
+      
+        console.log('🔧 Service submission payload:', payload);
+        console.log('📝 Form data debug:', {
+          deviceType: deviceType,
+          originalServiceType: formData.get('serviceType'),
+          correctedServiceType: correctServiceType,
+          staffName: formData.get('serviceStaff'),
+          appStateEmployee: AppState.currentEmployeeName,
+          serviceReason: formData.get('serviceReason'),
+          serviceDate: formData.get('serviceDate'),
+          payloadServiceDate: payload.serviceDate,
+          selectedPurchase: AppState.selectedPurchase
+        });
+
+        // Debug log สำหรับ serviceDate
+        console.log('📅 Service Date Debug:', {
+          formDataServiceDate: formData.get('serviceDate'),
+          payloadServiceDate: payload.serviceDate,
+          inputElementValue: document.getElementById('serviceDate')?.value,
+          inputElementDate: document.getElementById('serviceDate')?.valueAsDate,
+          currentDate: new Date().toISOString().split('T')[0]
+        });
+      
+        try {
+          const submitBtn = e.target.querySelector('button[type="submit"]');
+          const originalText = submitBtn.textContent;
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'กำลังบันทึก...';
+      
+          const response = await ApiClient.post('/api/services/usage', payload);
+      
+          // ✅ Real-time data sync หลังจากบันทึกสำเร็จ
+          if (response && response.success) {
+            const serviceData = {
+              id: response.data?.id || Date.now(),
+              ...payload,
+              customerName: formData.get('customerName'),
+              customerPhone: formData.get('customerPhone'),
+              customerID: formData.get('customerID'),
+              serviceDate: payload.serviceDate, // ใช้จาก payload ที่มี fallback แล้ว
+              warrantyDate: formData.get('warrantyDate'),
+              createdAt: new Date().toISOString(),
+              status: 'completed'
+            };
+
+            // 🔥 Sync to Firebase
+            console.log('🔥 Syncing service data to Firebase...');
+            await realtimeManager.syncServiceToFirebase(serviceData);
+
+            // 🔌 Emit to Socket.IO for real-time updates
+            console.log('🔌 Broadcasting service update via Socket.IO...');
+            realtimeManager.emitServiceUpdate(serviceData);
+
+            // 📊 Update branch activity
+            const activityData = {
+              type: 'service_completed',
+              deviceType: serviceData.deviceType,
+              serviceType: serviceData.serviceType,
+              timestamp: new Date().toISOString(),
+              staffName: serviceData.staffName,
+              customerName: serviceData.customerName
+            };
+
+            await realtimeManager.saveToFirebase(
+              `branches/${BRANCH_CODE}/activity/${Date.now()}`,
+              activityData
+            );
+
+            console.log('✅ Real-time sync completed successfully');
+          }
+      
+          showNotification('บันทึกการใช้บริการเรียบร้อยแล้ว', 'success');
+          closeServiceForm();
+          await loadServiceHistory();
+      
+        } catch (error) {
+          console.error('Submit error:', error);
+          showNotification(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
+        } finally {
+          const submitBtn = e.target.querySelector('button[type="submit"]');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'บันทึกข้อมูล';
+          }
+        }
+      }
+
+      // Helper สำหรับสิทธิ์สูงสุด
+      function getMaxUsageForService(serviceType) {
+        const maxUsageMap = {
+          'phone-film': 10,
+          'ipad-film': 3,
+          'phone-warranty': 1,
+          'ipad-warranty': 1
+        };
+        return maxUsageMap[serviceType] || 1;
+      }
+      
+      // Helper function สำหรับแปลชื่อประเภทบริการ
+      function getServiceTypeName(serviceType) {
+        const serviceNames = {
+          'phone-film': 'ฟิล์มโทรศัพท์',
+          'ipad-film': 'ฟิล์มไอแพด',
+          'phone-warranty': 'ประกันเครื่องโทรศัพท์',
+          'ipad-warranty': 'ประกันเครื่องไอแพด'
+        };
+        return serviceNames[serviceType] || serviceType || 'ไม่ระบุ';
+      }
+      // Helper ดึง branch code ปัจจุบัน
+      function getCurrentBranchCode() {
+        return localStorage.getItem('branchCode')||'00000';
+      }
+      
+      // เมื่อเปลี่ยนตัวเลือกลูกค้า ให้ fill ข้อมูล
+      document.getElementById('customerSelect').addEventListener('change', fillCustomerData);
+
+      // แก้ไข populateStaffDropdown ที่ไม่สมบูรณ์
+      async function populateStaffDropdown() {
+        const serviceStaffSelect = document.getElementById('serviceStaff');
+      
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await fetch('/api/users/me', {
+            headers: {
+              'Authorization': 'Bearer ' + token
+            }
+          });
+      
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              serviceStaffSelect.innerHTML = `<option value="${data.data.name}" selected>${data.data.name}</option>`;
+              serviceStaffSelect.disabled = true;
+            }
+          }
+        } catch (error) {
+          console.error('Error loading staff:', error);
+          serviceStaffSelect.innerHTML = '<option value="">ไม่สามารถโหลดข้อมูลพนักงาน</option>';
+        }
+      }
+
+      // เพิ่มฟังก์ชันแสดงประวัติการให้บริการ
+      function renderServiceHistory(filteredData) {
+        const data = filteredData || serviceHistory;
+        const tbody = document.getElementById('serviceHistoryTable');
+      
+        if (!data.length) {
+          tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4">ไม่พบข้อมูลการให้บริการ</td></tr>';
+          return;
+        }
+      
+        // เรียงลำดับตามวันที่ล่าสุดและจำกัด 10 รายการ
+        const sortedData = data
+          .sort((a, b) => new Date(b.serviceDate || b.purchaseDate || b.createdAt) - new Date(a.serviceDate || a.purchaseDate || a.createdAt))
+          .slice(0, 10);
+      
+        tbody.innerHTML = sortedData.map(s => {
+          // แก้ไขการแสดงวันที่ - เพิ่มตัวเลือกเพิ่มเติม
+          const serviceDate = s.serviceDate || s.date || s.createdAt;
+          const purchaseDate = s.warrantyStartDate || s.warrantyDate || s.purchaseDate || s.createdAt;
+
+          // Debug log เพื่อดู structure ของข้อมูล
+          console.log('Service data structure:', {
+            serviceDate: s.serviceDate,
+            date: s.date,
+            createdAt: s.createdAt,
+            keys: Object.keys(s)
+          });
+      
+          // แก้ไขการแสดงชื่อลูกค้า
+          const customerName = s.customerInfo?.name || s.customerName || s.customer?.name || 'ไม่ระบุ';
+      
+          // แก้ไขการแสดงประเภทอุปกรณ์
+          let deviceType = 'โทรศัพท์'; // default
+          if (s.device?.type === 'ipad' || s.deviceType === 'ipad' ||
+              (s.serviceType && s.serviceType.includes('ipad'))) {
+            deviceType = 'ไอแพด';
+          }
+      
+          // แก้ไขการแสดงรุ่นอุปกรณ์
+          let deviceModel = s.device?.model || s.deviceModel || 'ไม่ระบุ';
+          if (s.items && s.items.length > 0) {
+            deviceModel = s.items[0].name || deviceModel;
+          }
+      
+          // แก้ไขการแสดงสาขา
+          const branchName = getBranchName(s.branchCode || s.branch_code || s.branch) || 'ไม่ระบุ';
+      
+          // แก้ไขการแสดงพนักงาน
+          const staffName = s.staffName || s.staff || s.staffInfo?.name || 'พนักงานขาย';
+      
+          // คำนวณการใช้บริการ
+          const usageCount = s.usageCount || s.serviceCount || 0;
+          const maxUsage = deviceType === 'ไอแพด' ? 3 : 10;
+          const usageBadgeClass = usageCount > (maxUsage * 0.8) ? 'bg-warning' : 'bg-info';
+      
+          return `
+            <tr>
+              <td>${serviceDate ? formatThaiDate(serviceDate) : 'ไม่ระบุ'}</td>
+              <td>${purchaseDate ? formatThaiDate(purchaseDate) : 'ไม่ระบุ'}</td>
+              <td>${customerName}</td>
+              <td>${deviceType}</td>
+              <td>${deviceModel}</td>
+              <td>${branchName}</td>
+              <td>${staffName}</td>
+              <td>
+                <span class="badge ${usageBadgeClass}">
+                  ${usageCount}/${maxUsage}
+                </span>
+              </td>
+              <td>${
+                isWarrantyValid(s.warrantyEndDate || purchaseDate)
+                  ? '<span class="badge bg-success">อยู่ในประกัน</span>'
+                  : '<span class="badge bg-danger">หมดประกัน</span>'
+              }</td>
+              <td>
+                <button class="btn btn-sm btn-primary btn-circle" onclick="showCustomerDetail('${s._id || s.id}')">
+                  <i class="bi bi-info-circle"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      
+        // แสดงข้อความถ้ามีข้อมูลเกิน 10 รายการ
+        if (data.length > 10) {
+          tbody.innerHTML += `
+            <tr>
+              <td colspan="10" class="text-center text-info py-2">
+                <i class="bi bi-info-circle"></i> แสดง 10 รายการล่าสุด จากทั้งหมด ${data.length} รายการ
+                <button class="btn btn-sm btn-link" onclick="showAllServiceHistory()">ดูทั้งหมด</button>
+              </td>
+            </tr>
+          `;
+        }
+      }
+      
+      // ฟังก์ชันแสดงประวัติทั้งหมด
+      function showAllServiceHistory() {
+        // TODO: เปิด modal หรือหน้าใหม่แสดงประวัติทั้งหมดพร้อม pagination
+        showNotification('ฟีเจอร์นี้จะพัฒนาในขั้นตอนต่อไป', 'info');
+      }
+
+      // ฟังก์ชันกรองและแสดงผล service history
+      function filterServiceHistory() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const deviceFilter = document.getElementById('filterDevice').value;
+        const serviceTypeFilter = document.getElementById('filterServiceType').value;
+      
+        let filtered = serviceHistory;
+      
+        if (searchTerm) {
+          filtered = filtered.filter(s =>
+            (s.customerInfo?.name || s.customerName || '').toLowerCase().includes(searchTerm) ||
+            (s.device?.model || s.deviceModel || '').toLowerCase().includes(searchTerm) ||
+            (s.staffName || s.staff || '').toLowerCase().includes(searchTerm)
+          );
+        }
+      
+        if (deviceFilter !== 'all') {
+          filtered = filtered.filter(s =>
+            (s.device?.type || s.deviceType) === deviceFilter
+          );
+        }
+      
+        if (serviceTypeFilter !== 'all') {
+          filtered = filtered.filter(s => {
+            const serviceType = s.serviceType || '';
+            return serviceType.includes(serviceTypeFilter);
+          });
+        }
+      
+        renderServiceHistory(filtered);
+      }
+
+      // โหลดประวัติการให้บริการจาก API
+      async function loadServiceHistory() {
+        try {
+          console.log('🔄 Loading service history for branch:', AppState.branchCode);
+      
+          // ลองเรียก API ก่อน
+          const result = await ApiClient.get(`/api/services/history?branchCode=${AppState.branchCode}`);
+      
+          if (result && result.success && result.data) {
+            serviceHistory = result.data;
+            console.log('📋 Loaded service history:', serviceHistory.length, 'records');
+          } else {
+            console.warn('No service history data returned, using empty array');
+            serviceHistory = [];
+          }
+      
+          renderServiceHistory();
+      
+        } catch (error) {
+          console.error('Load service history error:', error);
+      
+          // ถ้า API ยังไม่พร้อม ให้ใช้ empty array และไม่แสดง error
+          if (error.message.includes('Server returned non-JSON response') ||
+              error.message.includes('Failed to fetch') ||
+              error.message.includes('404') ||
+              error.message.includes('API endpoint not found')) {
+            console.warn('🚧 Service history API not available, using empty data');
+            serviceHistory = [];
+            renderServiceHistory();
+          } else {
+            // แสดง error เฉพาะกรณีที่เป็น error อื่นๆ
+            showNotification('ไม่สามารถโหลดประวัติการให้บริการได้', 'warning');
+            serviceHistory = [];
+            renderServiceHistory();
+          }
+        }
+      }
+
+      // แปลงรหัสสาขาเป็นชื่อ
+      function getBranchName(branchCode) {
+        const map = {
+          pattani: 'ปัตตานี',
+          hatyai:  'หาดใหญ่',
+          yala:    'ยะลา'
+        };
+        return map[branchCode] || branchCode;
+      }
+
+      // ฟังก์ชันแปลงวันที่เป็นรูปแบบไทย
+      function formatThaiDate(dateString) {
+        console.log('📅 formatThaiDate input:', dateString);
+
+        if (!dateString) {
+          console.log('❌ No date string provided');
+          return 'ไม่ระบุ';
+        }
+
+        try {
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) {
+            console.log('❌ Invalid date format:', dateString);
+            return 'ไม่ระบุ';
+          }
+      
+          const thaiMonths = [
+            'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+            'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+          ];
+      
+          const day = date.getDate();
+          const month = thaiMonths[date.getMonth()];
+          const year = date.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
+      
+          return `${day} ${month} ${year}`;
+        } catch (error) {
+          console.error('Error formatting Thai date:', error);
+          return 'ไม่ระบุ';
+        }
+      }
+
+      // ตรวจสอบประกันยังไม่หมดอายุ
+      function isWarrantyValid(warrantyDate) {
+        const start = new Date(warrantyDate);
+        const end = new Date(start);
+        end.setFullYear(end.getFullYear() + 1);
+        return new Date() <= end;
+      }
+
+      // Show customer detail modal
+      function showCustomerDetail(serviceId) {
+        // ค้นหาจาก serviceHistory ที่โหลดจาก API
+        const service = serviceHistory.find(s => (s._id || s.id) === serviceId);
+        if (!service) {
+          showNotification('ไม่พบข้อมูลการใช้บริการ', 'error');
+          return;
+        }
+      
+        // ใช้ข้อมูลจริงจาก API response
+        const customerName = service.customerInfo?.name || service.customerName || 'ไม่ระบุ';
+        const customerPhone = service.customerInfo?.phone || service.customerPhone || 'ไม่ระบุ';
+        const deviceType = service.device?.type || service.deviceType || 'ไม่ระบุ';
+        const deviceModel = service.device?.model || service.deviceModel || 'ไม่ระบุ';
+        const serviceDate = service.serviceDate || service.date;
+        const warrantyDate = service.warrantyStartDate || service.warrantyDate;
+        const branchCode = service.branchCode || service.branch;
+        const staffName = service.staffName || service.staff || 'ไม่ระบุ';
+        const usageCount = service.usageCount || service.serviceCount || 0;
+        const maxUsage = (deviceType === 'phone') ? 10 : 3;
+        const notes = service.notes || 'ไม่มี';
+      
+        customerDetailTitle.textContent = `รายละเอียดการใช้บริการ - ${customerName}`;
+        customerDetailContent.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 class="font-semibold mb-2 text-blue-600">ข้อมูลลูกค้า</h4>
+              <p><strong>ชื่อ:</strong> ${customerName}</p>
+              <p><strong>เบอร์โทร:</strong> ${customerPhone}</p>
+            </div>
+            <div>
+              <h4 class="font-semibold mb-2 text-green-600">ข้อมูลอุปกรณ์</h4>
+              <p><strong>ประเภท:</strong> ${deviceType === 'phone' ? 'โทรศัพท์' : 'ไอแพด'}</p>
+              <p><strong>รุ่น:</strong> ${deviceModel}</p>
+              ${service.device?.imei ? `<p><strong>IMEI:</strong> ${service.device.imei}</p>` : ''}
+            </div>
+            <div>
+              <h4 class="font-semibold mb-2 text-purple-600">ข้อมูลประกัน</h4>
+              <p><strong>วันที่ซื้อประกัน:</strong> ${warrantyDate ? new Date(warrantyDate).toLocaleDateString('th-TH') : 'ไม่ระบุ'}</p>
+              <p><strong>สถานะ:</strong> ${
+                isWarrantyValid(service.warrantyEndDate || warrantyDate)
+                                  ? '<span class="text-green-600 font-semibold">อยู่ในประกัน</span>'
+                : '<span class="text-red-600 font-semibold">หมดประกัน</span>'
+              }</p>
+              ${service.warrantyEndDate ? `<p><strong>ประกันหมดอายุ:</strong> ${new Date(service.warrantyEndDate).toLocaleDateString('th-TH')}</p>` : ''}
+            </div>
+            <div>
+              <h4 class="font-semibold mb-2 text-orange-600">ข้อมูลการบริการ</h4>
+              <p><strong>วันที่เข้ารับบริการ:</strong> ${serviceDate ? new Date(serviceDate).toLocaleDateString('th-TH') : 'ไม่ระบุ'}</p>
+              <p><strong>ประเภทบริการ:</strong> ${getServiceTypeName(service.serviceType)}</p>
+              <p><strong>สาเหตุ:</strong> ${service.serviceReason || 'ไม่ระบุ'}</p>
+              <p><strong>ครั้งที่:</strong> <span class="badge ${usageCount > maxUsage * 0.8 ? 'badge-warning' : 'badge-info'}">${usageCount}/${maxUsage}</span></p>
+            </div>
+            <div class="col-span-full">
+              <h4 class="font-semibold mb-2 text-gray-600">รายละเอียดเพิ่มเติม</h4>
+              <p><strong>สาขา:</strong> ${getBranchName(branchCode)}</p>
+              <p><strong>พนักงาน:</strong> ${staffName}</p>
+              <p><strong>หมายเหตุ:</strong> ${notes}</p>
+            </div>
+          </div>
+        `;
+        customerDetailModal.classList.add('modal-open');
+      }
+
+      // Helper function สำหรับแปลชื่อประเภทบริการ
+      function getServiceTypeName(serviceType) {
+        const serviceNames = {
+          'phone-film': 'ประกันฟิล์มโทรศัพท์',
+          'ipad-film': 'ประกันฟิล์มไอแพด',
+          'phone-warranty': 'ประกันเครื่องโทรศัพท์',
+          'ipad-warranty': 'ประกันเครื่องไอแพด'
+        };
+        return serviceNames[serviceType] || serviceType || 'ไม่ระบุ';
+      }
+
+      // Close customer detail modal
+      function closeCustomerDetail() {
+        customerDetailModal.classList.remove('modal-open');
+      }
+
+      // Add event listener for service reason dropdown
+      serviceReason.addEventListener('change', function() {
+        if (this.value === 'other') {
+          otherReasonContainer.classList.remove('hidden');
+          document.getElementById('otherReason').required = true;
+        } else {
+          otherReasonContainer.classList.add('hidden');
+          document.getElementById('otherReason').required = false;
+        }
+      });
+      
+      // เพิ่มฟังก์ชัน loadBranchInfo
+      async function loadBranchInfo() {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const branchCode = urlParams.get('branch') || localStorage.getItem('branchCode') || '00000';
+          const token = localStorage.getItem('authToken') || '';
+      
+          // เรียก /api/branch เพื่อดึง list สาขา
+          const res = await fetch(`/api/branch`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const js = await res.json();
+          if (res.ok && js.success) {
+            // หา record ที่ตรงกับ branch_code
+            const branch = js.data.find(b => b.branch_code === branchCode);
+            if (branch) {
+              document.getElementById('branchInfo').textContent =
+                `${branch.name} — ${branch.address}`;
+              // อัพเดท title ของหน้าด้วยชื่อสาขาจริง
+              document.title = `บริการหลังการขาย - ${branch.name}`;
+              document.getElementById('pageTitle').textContent = `บริการหลังการขาย - ${branch.name}`;
+      
+              // อัพเดท dropdown สาขาที่ให้บริการ
+              const branchSelect = document.getElementById('branchLocation');
+              if (branchSelect) {
+                branchSelect.innerHTML = `<option value="${branch.branch_code}" selected>${branch.name}</option>`;
+                branchSelect.disabled = true;
+              }
+      
+              return;
+            }
+          }
+          throw new Error('ไม่พบข้อมูลสาขา');
+        } catch (err) {
+          console.warn('loadBranchInfo error:', err);
+          document.getElementById('branchInfo').textContent =
+            'สาขา: (ไม่พบข้อมูล)';
+        }
+      }
+      
+      // Helper function checkTokenValidity
+      async function checkTokenValidity() {
+        try {
+          const token = localStorage.getItem('authToken');
+          if (!token) return false;
+      
+          const res = await fetch('/api/users/me', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+      
+          return res.ok;
+        } catch (error) {
+          console.error('Token validation error:', error);
+          return false;
+        }
+      }
+      
+      // Loading state function
+      
+      // Switch Service Tab
+      function switchServiceTab(tab) {
+        AppState.setServiceTab(tab);
+      
+        // Update tab buttons
+        document.getElementById('tabFilm').classList.toggle('tab-active', tab === 'film');
+        document.getElementById('tabDevice').classList.toggle('tab-active', tab === 'device');
+      
+        // Show/hide cards
+        document.getElementById('filmServiceCards').classList.toggle('hidden', tab !== 'film');
+        document.getElementById('deviceServiceCards').classList.toggle('hidden', tab !== 'device');
+      }
+      
+      // Show notification
+      function showNotification(message, type = 'info') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+      
+        // เฉพาะ error ที่ร้ายแรงเท่านั้นที่จะแสดง alert
+        if (type === 'error') {
+          alert('❌ ' + message);
+        } else if (type === 'success') {
+          // สำหรับ success ให้แสดง toast แทน alert
+          showToast(message, 'success');
+        } else {
+          // สำหรับ warning และ info ให้ log เฉยๆ
+          console.warn(`⚠️ ${message}`);
+        }
+      }
+      
+      // Simple toast notification function
+      function showToast(message, type = 'info') {
+        // Remove existing toast
+        const existingToast = document.querySelector('.toast-notification');
+        if (existingToast) {
+          existingToast.remove();
+        }
+      
+        const toast = document.createElement('div');
+        toast.className = `toast-notification fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300`;
+      
+        // Set colors based on type
+        if (type === 'success') {
+          toast.className += ' bg-green-500 text-white';
+        } else if (type === 'error') {
+          toast.className += ' bg-red-500 text-white';
+        } else if (type === 'warning') {
+          toast.className += ' bg-yellow-500 text-black';
+        } else {
+          toast.className += ' bg-blue-500 text-white';
+        }
+      
+        toast.innerHTML = `
+          <div class="flex items-center">
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-3 text-sm opacity-70 hover:opacity-100">✕</button>
+          </div>
+        `;
+      
+        document.body.appendChild(toast);
+      
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+    </script>
+  </body>
+</html>
+
+

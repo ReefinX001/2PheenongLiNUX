@@ -1,0 +1,1756 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ใบเสร็จรับเงิน/ใบกำกับภาษี (ใบรับเงินมัดจำ)</title>
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+
+    <script src="../js/activity-tracker.js"></script>
+    <script src="/js/branch-navigation.js"></script>
+    <!-- Notification System JavaScript -->
+    <script src="/js/notification-system.js"></script>
+    <script src="/views/pattani/sidebar/sidebar.js"></script>
+    <!-- โหลด Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Prompt', 'sans-serif'],
+            },
+          },
+        },
+        daisyui: {
+          themes: ['light', 'dark', 'corporate'],
+        },
+      };
+    </script>
+    <!-- โหลด DaisyUI -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+      rel="stylesheet"
+    />
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    />
+  <!-- Google Fonts: Prompt -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+    <!-- Lottie Animation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Notification System CSS -->
+  <link rel="stylesheet" href="/css/notification-system.css" />
+    <style>
+      .loading-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(12px);
+      }
+      body {
+        font-family: "Prompt", sans-serif;
+        background-color: #f3f4f6; /* Tailwind's bg-gray-100 */
+      }
+      .page-link {
+        cursor: pointer;
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+      .bubble h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+      }
+      .page-link.active {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+      }
+      .page-link:hover {
+        background-color: #e2e2e2;
+        transform: translateY(-1px);
+      }
+      .loading {
+        position: relative;
+      }
+      .loading::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        margin: auto;
+        border: 2px solid transparent;
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 1s ease infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Loading overlay */
+      [data-theme="dark"] #loadingOverlay .loading-spinner {
+        width: 3rem;
+        height: 3rem;
+        border: 0.25rem solid #e5e7eb;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      /* Deposit Receipt Specific Styles */
+      .deposit-receipt-card {
+        border-left: 4px solid #10b981;
+        transition: all 0.3s ease;
+      }
+      
+      .deposit-receipt-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+
+      .deposit-badge {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .amount-highlight {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
+      }
+    </style>
+  
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 10001;
+      pointer-events: auto;
+    }
+
+    .loading-overlay.loading-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-overlay.loading-hiding {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loading-content {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      min-width: 250px;
+      max-width: 90vw;
+    }
+
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e0e0e0;
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: loading-spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-message {
+      color: #333333;
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+
+    .loading-progress {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .loading-progress-fill {
+      height: 100%;
+      background: #10b981;
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    /* Theme Variants */
+    .loading-success .loading-spinner { border-top-color: #10b981; }
+    .loading-success .loading-progress-fill { background: #10b981; }
+
+    .loading-warning .loading-spinner { border-top-color: #f59e0b; }
+    .loading-warning .loading-progress-fill { background: #f59e0b; }
+
+    .loading-error .loading-spinner { border-top-color: #ef4444; }
+    .loading-error .loading-progress-fill { background: #ef4444; }
+
+    @keyframes loading-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Dark mode support */
+    [data-theme="dark"] .loading-content {
+      background: #2a2a2a;
+      color: #ffffff;
+    }
+
+    [data-theme="dark"] .loading-message {
+      color: #ffffff;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .loading-content {
+        padding: 1.5rem;
+        margin: 1rem;
+      }
+    }
+  </style>
+
+  </head>
+
+  <body class="bg-gray-100 dark:bg-gray-900">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+      <div class="text-center">
+        <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+      </div>
+    </div>
+    <!-- LoadingSystem Container -->
+    <div id="loading-system-container" class="loading-system-container"></div>
+
+    <!-- Sidebar Component -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="flex-1 transition-all duration-300 p-4">
+      <!-- Header -->
+      <header class="mb-6 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-lg">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <h1 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+              <i class="bi bi-receipt text-green-600 mr-2"></i>
+              ใบเสร็จรับเงิน/ใบกำกับภาษี (ใบรับเงินมัดจำ)
+            </h1>
+            <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+              กำลังโหลดสาขา...
+            </p>
+          </div>
+          
+          <!-- Quick Actions Menu สำหรับใบเสร็จมัดจำ -->
+          <div class="relative">
+            <button id="quickActionsBtn" class="btn btn-outline btn-sm flex items-center gap-2 px-4 py-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-300">
+              <i class="bi bi-list text-lg"></i>
+              <span class="hidden md:inline">เมนูด่วน</span>
+              <i class="bi bi-chevron-down text-sm ml-1"></i>
+            </button>
+            
+            <!-- Dropdown Menu -->
+            <div id="quickActionsDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+              <div class="px-4 py-2 text-sm font-semibold text-gray-600 border-b border-gray-100 flex items-center justify-between">
+                <span>เลือกหน้าที่ต้องการ</span>
+                <span id="dropdownBranchInfo" class="text-xs text-gray-400">สาขา: สำนักงานใหญ่</span>
+              </div>
+              
+              <!-- กลับไปหน้าใบรับเงินมัดจำ -->
+              <a href="/DepositReceipt" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-receipt-cutoff text-green-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ระบบมัดจำ</div>
+                  <div class="text-xs text-gray-500">กลับไปหน้าจัดการใบรับเงินมัดจำ</div>
+                </div>
+              </a>
+              
+              <!-- ใบเสนอราคา (ใบรับเงินมัดจำ) -->
+              <a href="/DepositReceiptQuotation" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-file-earmark-text text-amber-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ใบเสนอราคา</div>
+                  <div class="text-xs text-gray-500">ใบเสนอราคาสำหรับใบรับเงินมัดจำ</div>
+                </div>
+              </a>
+
+              <!-- ประวัติใบเสร็จทั่วไป -->
+              <a href="/History_installment" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-receipt text-blue-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ใบเสร็จทั่วไป</div>
+                  <div class="text-xs text-gray-500">ใบเสร็จระบบผ่อนและขายสด</div>
+                </div>
+              </a>
+              
+              <!-- รายงานสรุป -->
+              <a href="/DepositReceipt?view=report" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-bar-chart text-purple-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">รายงานสรุป</div>
+                  <div class="text-xs text-gray-500">รายงานใบรับเงินมัดจำ</div>
+                </div>
+              </a>
+              
+              <!-- กลับไปหน้าหลัก -->
+              <a href="/installment/step1" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-arrow-left text-orange-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ระบบผ่อน</div>
+                  <div class="text-xs text-gray-500">กลับไปหน้าระบบผ่อนหลัก</div>
+                </div>
+              </a>
+              
+              <!-- Footer with shortcuts -->
+              <div class="px-4 py-2 border-t border-gray-100 mt-2">
+                <div class="flex items-center justify-between text-xs text-gray-400">
+                  <span>กด Alt+M เพื่อเปิดเมนูด่วน</span>
+                  <span>v1.0.0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Search and Filter Section -->
+      <div class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Search Input -->
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              ค้นหาใบรับเงินมัดจำ
+            </label>
+            <div class="relative">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="ค้นหาด้วยเลขที่ใบรับ, ชื่อลูกค้า, หรือชื่อสินค้า..."
+                class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+              <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+          </div>
+
+          <!-- Date Range -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              ช่วงวันที่
+            </label>
+            <select id="dateRange" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+              <option value="today">วันนี้</option>
+              <option value="week">สัปดาห์นี้</option>
+              <option value="month" selected>เดือนนี้</option>
+              <option value="all">ทั้งหมด</option>
+            </select>
+          </div>
+
+          <!-- Status Filter -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              สถานะ
+            </label>
+            <select id="statusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+              <option value="all">ทั้งหมด</option>
+              <option value="active">ใช้งาน</option>
+              <option value="completed">เสร็จสิ้น</option>
+              <option value="cancelled">ยกเลิก</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div class="mb-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            รายการใบรับเงินมัดจำ
+          </h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400" id="resultsCount">
+            กำลังโหลด...
+          </p>
+        </div>
+        
+        <!-- Export Options -->
+        <div class="flex gap-2">
+          <button id="exportExcel" class="btn btn-outline btn-sm gap-2">
+            <i class="bi bi-file-earmark-excel"></i>
+            Excel
+          </button>
+          <button id="exportPDF" class="btn btn-outline btn-sm gap-2">
+            <i class="bi bi-file-earmark-pdf"></i>
+            PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Deposit Receipts List -->
+      <div id="depositReceiptsList" class="space-y-4">
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center py-8">
+          <div class="loading-spinner mx-auto mb-4"></div>
+          <p class="text-gray-600">กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-12">
+          <i class="bi bi-inbox text-6xl text-gray-300 mb-4"></i>
+          <h3 class="text-lg font-medium text-gray-700 mb-2">ไม่พบข้อมูลใบรับเงินมัดจำ</h3>
+          <p class="text-gray-500 mb-4">ลองเปลี่ยนเงื่อนไขการค้นหาหรือสร้างใบรับเงินมัดจำใหม่</p>
+          <a href="/DepositReceipt" class="btn btn-primary gap-2">
+            <i class="bi bi-plus-lg"></i>
+            สร้างใบรับเงินมัดจำ
+          </a>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" class="mt-6 flex justify-center">
+        <!-- Pagination will be inserted here -->
+      </div>
+
+      <!-- Invoice Detail Modal -->
+      <div id="invoiceDetailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
+          <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                <i class="bi bi-receipt text-green-600 mr-2"></i>
+                รายละเอียดใบรับเงินมัดจำ
+              </h3>
+              <button id="closeInvoiceModal" class="text-gray-400 hover:text-gray-600">
+                <i class="bi bi-x-lg text-xl"></i>
+              </button>
+            </div>
+
+            <!-- Invoice Content -->
+            <div id="invoiceContent">
+              <!-- Content will be inserted here -->
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3 mt-6 border-t pt-4">
+              <button id="printReceipt" class="btn btn-primary gap-2">
+                <i class="bi bi-printer"></i>
+                พิมพ์ใบเสร็จ
+              </button>
+              <button id="printTaxInvoice" class="btn btn-success gap-2">
+                <i class="bi bi-printer"></i>
+                พิมพ์ใบกำกับภาษี
+              </button>
+              <button id="emailInvoice" class="btn btn-outline gap-2">
+                <i class="bi bi-envelope"></i>
+                ส่งอีเมล
+              </button>
+              <button id="downloadReceiptPDF" class="btn btn-outline gap-2">
+                <i class="bi bi-download"></i>
+                ดาวน์โหลด PDF ใบเสร็จ
+              </button>
+              <button id="downloadTaxInvoicePDF" class="btn btn-outline gap-2">
+                <i class="bi bi-download"></i>
+                ดาวน์โหลด PDF ใบกำกับภาษี
+              </button>
+              <button id="closeModal" class="btn btn-ghost">
+                ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Global Variables
+      let currentPage = 1;
+      let totalPages = 1;
+      let depositReceipts = [];
+      let filteredReceipts = [];
+      const itemsPerPage = 20;
+
+      // Branch URL handling function (synchronized with DepositReceipt.html)
+      function getBranchFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchFromURL = urlParams.get('branch');
+        const branchNameFromURL = urlParams.get('name');
+
+        if (branchFromURL) {
+          console.log('🏢 Branch Code from URL:', branchFromURL);
+          console.log('🏢 Branch Name from URL:', branchNameFromURL);
+
+          // เก็บข้อมูลสาขาไว้ใน localStorage สำหรับใช้ในหน้าอื่น
+          localStorage.setItem('activeBranch', branchFromURL);
+          localStorage.setItem('activeBranchName', branchNameFromURL || '');
+
+          return branchFromURL;
+        } else {
+          // fallback ไปใช้ข้อมูลจาก localStorage หรือค่าเริ่มต้น
+          const storedBranch = localStorage.getItem('activeBranch');
+          if (storedBranch) {
+            console.log('🏢 Branch Code from localStorage:', storedBranch);
+            return storedBranch;
+          } else {
+            console.log('🏢 Using default branch code: 00001');
+            return '00001'; // default สำหรับการทดสอบ
+          }
+        }
+      }
+
+      window.BRANCH_CODE = getBranchFromURL();
+      console.log('🏢 Final Branch Code initialized:', window.BRANCH_CODE);
+
+      // Initialize on DOM load
+      // Show/Hide Loading with Lottie animation
+      let lottieAnimation = null;
+      function showLoading(show) {
+        const loader = document.getElementById('loadingOverlay');
+        if (show) {
+          loader.style.display = 'flex';
+          loader.classList.remove('animate__fadeOut');
+          loader.classList.add('animate__fadeIn');
+
+          // โหลดและเล่น Lottie animation
+          if (!lottieAnimation) {
+            console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+            fetch('/Loading/Loading.json')
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(animationData => {
+                lottieAnimation = lottie.loadAnimation({
+                  container: document.getElementById('lottieContainer'),
+                  renderer: 'svg',
+                  loop: true,
+                  autoplay: true,
+                  animationData: animationData
+                });
+
+                console.log('✅ Lottie animation loaded successfully');
+              })
+              .catch(error => {
+                console.error('❌ Error loading Lottie animation:', error);
+                // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+                document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+              });
+          } else {
+            lottieAnimation.play();
+          }
+        } else {
+          if (lottieAnimation) {
+            lottieAnimation.pause();
+          }
+          loader.classList.remove('animate__fadeIn');
+          loader.classList.add('animate__fadeOut');
+          setTimeout(() => { loader.style.display = 'none'; }, 600);
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        // Setup authentication and user data for testing
+        setupAuthenticationData();
+
+        showLoading(true);
+        initializeQuickActionsMenu();
+        initializeSearchAndFilters();
+        loadBranchInfo();
+        loadDepositReceipts();
+        setTimeout(() => showLoading(false), 800);
+      });
+
+      // Setup authentication data function (check existing session)
+      function setupAuthenticationData() {
+        // Log authentication status (matching DepositReceipt.html pattern)
+        const currentSession = {
+          staffId: localStorage.getItem('userId') || 'anonymous',
+          staffName: localStorage.getItem('userName') || 'Unknown',
+          staffRole: localStorage.getItem('userRole') || 'Unknown',
+          branchCode: localStorage.getItem('branchCode') || window.BRANCH_CODE || '00000'
+        };
+
+        if (!currentSession.staffId || currentSession.staffId === 'anonymous') {
+          console.warn('⚠️ ไม่พบข้อมูลการล็อกอิน - กรุณาล็อกอินใหม่');
+          // อาจต้องเปลี่ยนเส้นทางไปหน้า login
+          if (!localStorage.getItem('authToken')) {
+            console.warn('⚠️ ไม่พบ auth token - อาจต้องล็อกอินใหม่');
+          }
+        } else {
+          console.log(`✅ ล็อกอินเป็น: ${currentSession.staffName} (ID: ${currentSession.staffId})`);
+          console.log(`👥 User Role: ${currentSession.staffRole}`);
+          console.log(`🏢 Branch Code: ${currentSession.branchCode}`);
+        }
+      }
+
+      // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+      window.addEventListener('beforeunload', () => {
+        if (lottieAnimation) {
+          lottieAnimation.destroy();
+          lottieAnimation = null;
+        }
+      });
+
+      // Quick Actions Menu
+      function initializeQuickActionsMenu() {
+        const quickActionsBtn = document.getElementById('quickActionsBtn');
+        const quickActionsDropdown = document.getElementById('quickActionsDropdown');
+      
+        if (quickActionsBtn && quickActionsDropdown) {
+          quickActionsBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            quickActionsDropdown.classList.toggle('hidden');
+          });
+
+          document.addEventListener('click', function(e) {
+            if (!quickActionsBtn.contains(e.target) && !quickActionsDropdown.contains(e.target)) {
+              quickActionsDropdown.classList.add('hidden');
+            }
+          });
+
+          document.addEventListener('keydown', function(e) {
+            if (e.altKey && e.key.toLowerCase() === 'm') {
+              e.preventDefault();
+              quickActionsDropdown.classList.toggle('hidden');
+            }
+          });
+
+          const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+          if (dropdownBranchInfo) {
+            const branchName = localStorage.getItem('activeBranchName') || 'สำนักงานใหญ่';
+            dropdownBranchInfo.textContent = `สาขา: ${branchName}`;
+          }
+        }
+      }
+
+      // Search and Filter Initialization
+      function initializeSearchAndFilters() {
+        const searchInput = document.getElementById('searchInput');
+        const dateRange = document.getElementById('dateRange');
+        const statusFilter = document.getElementById('statusFilter');
+
+        if (searchInput) {
+          searchInput.addEventListener('input', debounce(filterReceipts, 300));
+        }
+
+        if (dateRange) {
+          dateRange.addEventListener('change', filterReceipts);
+        }
+
+        if (statusFilter) {
+          statusFilter.addEventListener('change', filterReceipts);
+        }
+
+        // Export buttons
+        const exportExcel = document.getElementById('exportExcel');
+        const exportPDF = document.getElementById('exportPDF');
+
+        if (exportExcel) {
+          exportExcel.addEventListener('click', () => exportToExcel());
+        }
+
+        if (exportPDF) {
+          exportPDF.addEventListener('click', () => exportToPDF());
+        }
+      }
+
+      // Load Branch Information
+      async function loadBranchInfo() {
+        try {
+          const token = localStorage.getItem('authToken');
+          const branchInfo = document.getElementById('branchInfo');
+
+          // ดึงข้อมูลสาขาจาก window.BRANCH_CODE ที่ได้จาก getBranchFromURL()
+          const BRANCH_CODE = window.BRANCH_CODE;
+          const branchNameFromStorage = localStorage.getItem('activeBranchName');
+
+          // ถ้ามีชื่อสาขาใน localStorage ให้ใช้เลย
+          if (branchNameFromStorage && BRANCH_CODE) {
+            // แสดงแค่ชื่อสาขาจาก cache ก่อน จนกว่า API จะตอบกลับมา
+            branchInfo.textContent = branchNameFromStorage;
+
+            // อัปเดตข้อมูลใน dropdown ด้วย
+            const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+            if (dropdownBranchInfo) {
+              dropdownBranchInfo.textContent = `สาขา: ${branchNameFromStorage}`;
+            }
+
+            console.log('✅ Branch info loaded from cache:', branchNameFromStorage);
+          }
+
+          // เรียก API เพื่อตรวจสอบและอัปเดตข้อมูลให้แน่ใจ
+          if (token) {
+            const res = await fetch(`/api/branch`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            const js = await res.json();
+            if (res.ok && js.success) {
+              // หา record ที่ตรงกับ BRANCH_CODE
+              const branch = js.data.find(b => b.branch_code === BRANCH_CODE);
+              if (branch) {
+                const fullBranchInfo = `${branch.name} — ${branch.address}`;
+                branchInfo.textContent = fullBranchInfo;
+
+                // อัปเดตข้อมูลใน dropdown ด้วย
+                const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+                if (dropdownBranchInfo) {
+                  dropdownBranchInfo.textContent = `สาขา: ${branch.name}`;
+                }
+
+                // บันทึกข้อมูลใน localStorage
+                localStorage.setItem('activeBranchName', branch.name);
+                localStorage.setItem('activeBranch', branch.branch_code);
+
+                console.log('✅ Branch info updated from API:', branch.name);
+              }
+            }
+          }
+
+          // ถ้าไม่มีข้อมูลเลย ให้แสดงข้อความโหลด
+          if (!branchInfo.textContent || branchInfo.textContent === 'กำลังโหลดสาขา...') {
+            branchInfo.textContent = 'ไม่สามารถโหลดข้อมูลสาขาได้';
+          }
+
+        } catch (error) {
+          console.error('❌ Error loading branch info:', error);
+          const branchInfo = document.getElementById('branchInfo');
+          if (branchInfo) {
+            branchInfo.textContent = 'ไม่สามารถโหลดข้อมูลสาขาได้';
+          }
+        }
+      }
+
+      // Load Deposit Receipts
+      async function loadDepositReceipts() {
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+        const receiptsList = document.getElementById('depositReceiptsList');
+
+        try {
+          if (loadingState) loadingState.classList.remove('hidden');
+          if (emptyState) emptyState.classList.add('hidden');
+
+          const branchCode = localStorage.getItem('activeBranch') || '00000';
+          const token = localStorage.getItem('authToken');
+
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(`/api/deposit-receipts?branchCode=${branchCode}&limit=1000`, {
+            headers: headers
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+
+          if (result.success && result.data) {
+            depositReceipts = result.data;
+            console.log('First receipt structure:', depositReceipts[0]);
+
+            // Debug: ตรวจสอบโครงสร้างข้อมูลใบเสร็จที่โหลดมา
+            if (depositReceipts.length > 0) {
+              const firstReceipt = depositReceipts[0];
+              console.log('🔍 [LOAD RECEIPTS DEBUG] First receipt detailed structure:', {
+                receiptNumber: firstReceipt.receiptNumber,
+                customer: firstReceipt.customer,
+                product: firstReceipt.product,
+                amounts: firstReceipt.amounts,
+                salesperson: firstReceipt.salesperson,
+                paymentMethod: firstReceipt.paymentMethod,
+                depositType: firstReceipt.depositType,
+                saleType: firstReceipt.saleType,
+                tax: firstReceipt.tax,  // เพิ่มข้อมูลภาษี
+                hasValidData: !!(firstReceipt.customer?.name && firstReceipt.product?.name)
+              });
+
+              // ตรวจสอบว่าควรสร้างใบกำกับภาษีหรือไม่
+              const shouldCreateTaxInvoice = firstReceipt.tax?.taxType !== 'none' && firstReceipt.tax?.includeTaxInvoice !== false;
+              console.log('📋 ควรสร้างใบกำกับภาษี:', shouldCreateTaxInvoice, '(taxType:', firstReceipt.tax?.taxType, ')');
+            }
+
+            // โหลดข้อมูลใบลดหนี้ที่เกี่ยวข้องกับใบรับเงินมัดจำแต่ละใบ
+            await loadRelatedCreditNotes();
+
+            filteredReceipts = [...depositReceipts];
+
+            // บันทึกข้อมูลใบเสร็จใน localStorage เพื่อให้ PDF ใช้งาน
+            localStorage.setItem('depositReceipts', JSON.stringify(depositReceipts));
+            console.log('💾 Saved', depositReceipts.length, 'receipts to localStorage');
+
+            if (loadingState) loadingState.classList.add('hidden');
+
+            if (filteredReceipts.length === 0) {
+              if (emptyState) emptyState.classList.remove('hidden');
+            } else {
+              renderReceipts();
+            }
+
+            updateResultsCount();
+          } else {
+            throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลได้');
+          }
+
+        } catch (error) {
+          console.error('Error loading deposit receipts:', error);
+          if (loadingState) loadingState.classList.add('hidden');
+          if (emptyState) emptyState.classList.remove('hidden');
+      
+          const emptyTitle = emptyState?.querySelector('h3');
+          const emptyDesc = emptyState?.querySelector('p');
+          if (emptyTitle) emptyTitle.textContent = 'เกิดข้อผิดพลาด';
+          if (emptyDesc) emptyDesc.textContent = `ไม่สามารถโหลดข้อมูลได้: ${error.message}`;
+        }
+      }
+
+      // โหลดข้อมูลใบลดหนี้ที่เกี่ยวข้องกับใบรับเงินมัดจำ
+      async function loadRelatedCreditNotes() {
+        try {
+          const token = localStorage.getItem('authToken');
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          // โหลดใบลดหนี้ทั้งหมดที่เกี่ยวข้องกับใบรับเงินมัดจำ
+          const response = await fetch('/api/sales-credit-notes?limit=1000', {
+            headers: headers
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+              const creditNotes = result.data;
+
+              // เชื่อมโยงใบลดหนี้กับใบรับเงินมัดจำ
+              depositReceipts.forEach(receipt => {
+                const relatedCreditNotes = creditNotes.filter(cn => {
+                  // ตรวจสอบจาก notes หรือ reference ที่อาจมีเลขที่ใบรับเงินมัดจำ
+                  const notesMatch = cn.notes && cn.notes.includes(receipt.receiptNumber);
+                  const customerMatch = cn.customer && receipt.customer &&
+                                       (cn.customer._id === receipt.customer._id ||
+                                        cn.customer.displayName === receipt.customer.name);
+
+                  return notesMatch || (customerMatch && cn.status === 'approved');
+                });
+
+                if (relatedCreditNotes.length > 0) {
+                  receipt.creditNotes = relatedCreditNotes;
+
+                  // คำนวณยอดลดหนี้รวม
+                  const totalCreditAmount = relatedCreditNotes.reduce((sum, cn) => {
+                    return sum + (cn.totalAmount || 0);
+                  }, 0);
+
+                  receipt.totalCreditAmount = totalCreditAmount;
+
+                  // ปรับปรุงยอดคงเหลือ
+                  if (receipt.amounts) {
+                    receipt.amounts.adjustedRemainingAmount =
+                      (receipt.amounts.remainingAmount || 0) - totalCreditAmount;
+
+                    // ไม่ให้ติดลบ
+                    if (receipt.amounts.adjustedRemainingAmount < 0) {
+                      receipt.amounts.adjustedRemainingAmount = 0;
+                    }
+                  }
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error loading related credit notes:', error);
+        }
+      }
+
+      // Filter Receipts
+      function filterReceipts() {
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const dateRange = document.getElementById('dateRange')?.value || 'all';
+        const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+
+        filteredReceipts = depositReceipts.filter(receipt => {
+          // Search filter
+          const matchesSearch = !searchTerm ||
+            receipt.receiptNumber.toLowerCase().includes(searchTerm) ||
+            receipt.customer?.name.toLowerCase().includes(searchTerm) ||
+            receipt.product?.name.toLowerCase().includes(searchTerm);
+
+          // Date filter
+          let matchesDate = true;
+          if (dateRange !== 'all') {
+            const receiptDate = new Date(receipt.depositDate);
+            const now = new Date();
+      
+            switch (dateRange) {
+              case 'today':
+                matchesDate = receiptDate.toDateString() === now.toDateString();
+                break;
+              case 'week':
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                matchesDate = receiptDate >= weekAgo;
+                break;
+              case 'month':
+                matchesDate = receiptDate.getMonth() === now.getMonth() &&
+                             receiptDate.getFullYear() === now.getFullYear();
+                break;
+            }
+          }
+
+          // Status filter
+          const matchesStatus = statusFilter === 'all' || receipt.status === statusFilter;
+
+          return matchesSearch && matchesDate && matchesStatus;
+        });
+
+        currentPage = 1;
+        renderReceipts();
+        updateResultsCount();
+      }
+
+      // Render Receipts
+      function renderReceipts() {
+        const receiptsList = document.getElementById('depositReceiptsList');
+        if (!receiptsList) return;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageReceipts = filteredReceipts.slice(startIndex, endIndex);
+
+        receiptsList.innerHTML = '';
+
+        pageReceipts.forEach(receipt => {
+          const receiptCard = createReceiptCard(receipt);
+          receiptsList.appendChild(receiptCard);
+        });
+
+        // Hide loading and empty states
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+      
+        if (loadingState) loadingState.classList.add('hidden');
+      
+        if (filteredReceipts.length === 0) {
+          if (emptyState) emptyState.classList.remove('hidden');
+        } else {
+          if (emptyState) emptyState.classList.add('hidden');
+          renderPagination();
+        }
+      }
+
+      // Create Receipt Card
+      function createReceiptCard(receipt) {
+        const card = document.createElement('div');
+        card.className = 'deposit-receipt-card bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-300';
+      
+        const statusColor = getStatusColor(receipt.status);
+        const depositTypeText = receipt.depositType === 'preorder' ? 'Pre-order' : 'ออนไลน์';
+        const saleTypeText = receipt.saleType === 'cash' ? 'ขายสด' : 'ขายผ่อน';
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-3">
+                <h3 class="font-semibold text-lg text-gray-800 dark:text-gray-200">
+                  ${receipt.receiptNumber}
+                </h3>
+                <span class="deposit-badge">${depositTypeText}</span>
+                <span class="px-2 py-1 text-xs font-medium rounded-full ${statusColor}">
+                  ${getStatusText(receipt.status)}
+                </span>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">ลูกค้า</p>
+                  <p class="font-medium text-gray-800 dark:text-gray-200">${receipt.customer?.name || 'ไม่ระบุ'}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">สินค้า</p>
+                  <p class="font-medium text-gray-800 dark:text-gray-200">${receipt.product?.name || 'ไม่ระบุ'}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">วันที่</p>
+                  <p class="font-medium text-gray-800 dark:text-gray-200">
+                    ${new Date(receipt.depositDate).toLocaleDateString('th-TH')}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-6">
+                  <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">ราคารวม</p>
+                    <p class="font-semibold text-gray-800 dark:text-gray-200">
+                      ฿${(receipt.amounts?.totalAmount || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">เงินมัดจำ</p>
+                    <p class="font-bold amount-highlight">
+                      ฿${(receipt.amounts?.depositAmount || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">คงเหลือ</p>
+                    <div class="space-y-1">
+                      ${receipt.totalCreditAmount > 0 ? `
+                        <p class="text-xs text-gray-500 line-through">
+                          ฿${(receipt.amounts?.remainingAmount || 0).toLocaleString()}
+                        </p>
+                        <p class="font-semibold text-green-600">
+                          ฿${(receipt.amounts?.adjustedRemainingAmount || 0).toLocaleString()}
+                        </p>
+                        <p class="text-xs text-red-500">
+                          -฿${receipt.totalCreditAmount.toLocaleString()} (ใบลดหนี้)
+                        </p>
+                      ` : `
+                        <p class="font-semibold text-orange-600">
+                          ฿${(receipt.amounts?.remainingAmount || 0).toLocaleString()}
+                        </p>
+                      `}
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex gap-2">
+                  <button 
+                    onclick="viewReceiptDetail('${receipt.receiptNumber}')" 
+                    class="btn btn-outline btn-sm gap-2 hover:bg-green-50 hover:border-green-300"
+                    title="ดูรายละเอียด"
+                  >
+                    <i class="bi bi-eye"></i>
+                    ดูรายละเอียด
+                  </button>
+                  <button
+                    onclick="printInvoice('${receipt.receiptNumber}')"
+                    class="btn btn-primary btn-sm gap-2"
+                    title="พิมพ์ใบเสร็จ"
+                  >
+                    <i class="bi bi-printer"></i>
+                    พิมพ์
+                  </button>
+                  ${receipt.creditNotes && receipt.creditNotes.length > 0 ? `
+                    <button
+                      onclick="viewCreditNotes('${receipt.receiptNumber}')"
+                      class="btn btn-warning btn-sm gap-2"
+                      title="ดูใบลดหนี้ที่เกี่ยวข้อง"
+                    >
+                      <i class="bi bi-receipt-cutoff"></i>
+                      ใบลดหนี้ (${receipt.creditNotes.length})
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        return card;
+      }
+
+      // Get Status Color
+      function getStatusColor(status) {
+        const colors = {
+          'active': 'bg-green-100 text-green-800',
+          'completed': 'bg-blue-100 text-blue-800',
+          'cancelled': 'bg-red-100 text-red-800'
+        };
+        return colors[status] || 'bg-gray-100 text-gray-800';
+      }
+
+      // Get Status Text
+      function getStatusText(status) {
+        const texts = {
+          'active': 'ใช้งาน',
+          'completed': 'เสร็จสิ้น',
+          'cancelled': 'ยกเลิก'
+        };
+        return texts[status] || status;
+      }
+
+      // Pagination
+      function renderPagination() {
+        const pagination = document.getElementById('pagination');
+        if (!pagination) return;
+
+        totalPages = Math.ceil(filteredReceipts.length / itemsPerPage);
+      
+        if (totalPages <= 1) {
+          pagination.innerHTML = '';
+          return;
+        }
+
+        let paginationHTML = '<nav class="flex items-center gap-2">';
+      
+        // Previous button
+        if (currentPage > 1) {
+          paginationHTML += `<button onclick="changePage(${currentPage - 1})" class="page-link">ก่อนหน้า</button>`;
+        }
+
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+          if (i === currentPage) {
+            paginationHTML += `<button class="page-link active">${i}</button>`;
+          } else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) {
+            paginationHTML += `<button onclick="changePage(${i})" class="page-link">${i}</button>`;
+          } else if (i === currentPage - 3 || i === currentPage + 3) {
+            paginationHTML += '<span class="page-link">...</span>';
+          }
+        }
+
+        // Next button
+        if (currentPage < totalPages) {
+          paginationHTML += `<button onclick="changePage(${currentPage + 1})" class="page-link">ถัดไป</button>`;
+        }
+
+        paginationHTML += '</nav>';
+        pagination.innerHTML = paginationHTML;
+      }
+
+      // Change Page
+      function changePage(page) {
+        currentPage = page;
+        renderReceipts();
+      }
+
+      // Update Results Count
+      function updateResultsCount() {
+        const resultsCount = document.getElementById('resultsCount');
+        if (resultsCount) {
+          resultsCount.textContent = `แสดง ${filteredReceipts.length} รายการ จากทั้งหมด ${depositReceipts.length} รายการ`;
+        }
+      }
+
+      // Load Related Tax Invoice
+      async function loadRelatedTaxInvoice(receipt) {
+        try {
+          const token = localStorage.getItem('authToken');
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          // Search for tax invoices related to this deposit receipt
+          const response = await fetch(`/api/taxinvoice?limit=1000`, {
+            headers: headers
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+              // Find tax invoice that matches this deposit receipt
+              const relatedTaxInvoice = result.data.find(invoice => {
+                // Check if quotation number matches or if customer info matches
+                return invoice.quotationNumber === receipt.quotationNumber ||
+                       (invoice.customer?.name === receipt.customer?.name &&
+                        Math.abs(new Date(invoice.issueDate) - new Date(receipt.depositDate)) < 24 * 60 * 60 * 1000); // same day
+              });
+
+              if (relatedTaxInvoice) {
+                console.log('🔍 Found related tax invoice:', relatedTaxInvoice);
+
+                // Update receipt with tax invoice data
+                receipt.taxInvoiceData = relatedTaxInvoice;
+                receipt.taxInvoiceNumber = relatedTaxInvoice.taxInvoiceNumber;
+
+                // Update customer data from tax invoice if more complete
+                if (relatedTaxInvoice.customer && relatedTaxInvoice.customer.name) {
+                  receipt.customer = {
+                    ...receipt.customer,
+                    ...relatedTaxInvoice.customer
+                  };
+                }
+
+                // Update calculation data from tax invoice
+                if (relatedTaxInvoice.calculation) {
+                  receipt.calculation = relatedTaxInvoice.calculation;
+                }
+
+                console.log('✅ Successfully merged tax invoice data with receipt');
+                return relatedTaxInvoice;
+              } else {
+                console.warn('⚠️ No related tax invoice found for receipt:', receipt.receiptNumber);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error loading related tax invoice:', error);
+        }
+        return null;
+      }
+
+      // View Receipt Detail
+      async function viewReceiptDetail(receiptNumber) {
+        console.log('viewReceiptDetail called with receiptNumber:', receiptNumber);
+
+        const receipt = depositReceipts.find(r => r.receiptNumber === receiptNumber);
+        if (!receipt) {
+          console.error('Receipt not found for receiptNumber:', receiptNumber);
+          return;
+        }
+
+        // Load related Tax Invoice data
+        await loadRelatedTaxInvoice(receipt);
+
+        console.log('Receipt found:', receipt);
+
+        const modal = document.getElementById('invoiceDetailModal');
+        const content = document.getElementById('invoiceContent');
+
+        console.log('Modal element:', modal);
+        console.log('Content element:', content);
+
+        if (modal && content) {
+          try {
+            content.innerHTML = generateInvoiceHTML(receipt);
+            modal.classList.remove('hidden');
+            console.log('Modal opened successfully');
+          } catch (error) {
+            console.error('Error generating or displaying invoice HTML:', error);
+          }
+      
+          // Setup modal close
+          const closeBtn = document.getElementById('closeInvoiceModal');
+          if (closeBtn) {
+            closeBtn.onclick = () => modal.classList.add('hidden');
+          }
+      
+          // Setup print buttons
+          const printReceiptBtn = document.getElementById('printReceipt');
+          const printTaxInvoiceBtn = document.getElementById('printTaxInvoice');
+          const downloadReceiptPDFBtn = document.getElementById('downloadReceiptPDF');
+          const downloadTaxInvoicePDFBtn = document.getElementById('downloadTaxInvoicePDF');
+          const closeModalBtn = document.getElementById('closeModal');
+
+          if (printReceiptBtn) {
+            printReceiptBtn.onclick = () => {
+              showDocument('receipt');
+              setTimeout(() => printInvoiceContent(receipt, 'receipt'), 100);
+            };
+          }
+
+          if (printTaxInvoiceBtn) {
+            printTaxInvoiceBtn.onclick = () => {
+              showDocument('taxinvoice');
+              setTimeout(() => printInvoiceContent(receipt, 'taxinvoice'), 100);
+            };
+          }
+
+          if (downloadReceiptPDFBtn) {
+            downloadReceiptPDFBtn.onclick = () => {
+              downloadPDF(receipt, 'receipt');
+            };
+          }
+
+          if (downloadTaxInvoicePDFBtn) {
+            downloadTaxInvoicePDFBtn.onclick = () => {
+              downloadPDF(receipt, 'taxinvoice');
+            };
+          }
+
+          if (closeModalBtn) {
+            closeModalBtn.onclick = () => modal.classList.add('hidden');
+          }
+        }
+      }
+
+      // Generate Invoice HTML
+      function generateInvoiceHTML(receipt) {
+        return `
+          <div class="invoice-content bg-white">
+            <!-- Document Tabs -->
+            <div class="border-b border-gray-200 mb-6 document-tabs no-print">
+              <nav class="flex space-x-8" aria-label="Tabs">
+                <button onclick="showDocument('receipt')" id="receiptTab" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600">
+                  ใบเสร็จรับเงิน
+                </button>
+                <button onclick="showDocument('taxinvoice')" id="taxinvoiceTab" class="whitespace-nowrap py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">
+                  ใบกำกับภาษี
+                </button>
+              </nav>
+            </div>
+
+            <!-- Receipt Document -->
+            <div id="receiptDocument" class="document-content p-6">
+              <!-- Header -->
+              <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold mb-2">ใบเสร็จรับเงิน</h2>
+                <h3 class="text-lg text-gray-600">สำหรับใบรับเงินมัดจำ</h3>
+                <p class="text-sm text-gray-500 mt-2">เลขที่: ${receipt.receiptNumber || 'RE-' + new Date(receipt.createdAt || new Date()).toISOString().slice(2,10).replace(/-/g,'') + '-' + String(receipt.sequenceNumber || 1).padStart(3, '0')}</p>
+              </div>
+
+            <!-- Company Info -->
+            <div class="mb-6 pb-4 border-b">
+              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 class="font-bold mb-2">ข้อมูลร้าน</h4>
+                  <p>${localStorage.getItem('activeBranchName') || 'สำนักงานใหญ่'}</p>
+                  <p>สาขา: ${localStorage.getItem('activeBranch') || '00000'} (${localStorage.getItem('activeBranchName') || 'สำนักงานใหญ่'})</p>
+                </div>
+                <div>
+                  <h4 class="font-bold mb-2">ข้อมูลลูกค้า</h4>
+                  <p><strong>ชื่อ:</strong> ${receipt.customer?.name || 'ไม่ระบุ'}</p>
+                  <p><strong>ที่อยู่:</strong> ${receipt.customer?.address ?
+                    (typeof receipt.customer.address === 'object' ?
+                      [receipt.customer.address.street, receipt.customer.address.district, receipt.customer.address.province, receipt.customer.address.postalCode].filter(Boolean).join(', ') :
+                      receipt.customer.address) : 'ไม่ระบุ'}</p>
+                  <p><strong>เบอร์โทร:</strong> ${receipt.customer?.phone || 'ไม่ระบุ'}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Receipt Details -->
+            <div class="mb-6">
+              <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr class="bg-gray-50">
+                    <th class="border border-gray-300 px-4 py-2 text-left">รายการ</th>
+                    <th class="border border-gray-300 px-4 py-2 text-center">จำนวน</th>
+                    <th class="border border-gray-300 px-4 py-2 text-right">ราคา</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="border border-gray-300 px-4 py-2">
+                      ${receipt.product?.name || 'สินค้า'}<br>
+                      <small class="text-gray-500">เงินมัดจำ (${receipt.depositType === 'preorder' ? 'Pre-order' : 'ออนไลน์'})</small>
+                    </td>
+                    <td class="border border-gray-300 px-4 py-2 text-center">1</td>
+                    <td class="border border-gray-300 px-4 py-2 text-right">฿${(receipt.amounts?.depositAmount || 0).toLocaleString()}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr class="bg-gray-50 font-bold">
+                    <td class="border border-gray-300 px-4 py-2 text-right" colspan="2">รวมเงินมัดจำ</td>
+                    <td class="border border-gray-300 px-4 py-2 text-right">฿${(receipt.amounts?.depositAmount || 0).toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td class="border border-gray-300 px-4 py-2 text-right" colspan="2">ราคาสินค้าทั้งหมด</td>
+                    <td class="border border-gray-300 px-4 py-2 text-right">฿${(receipt.amounts?.totalAmount || 0).toLocaleString()}</td>
+                  </tr>
+                  <tr class="bg-yellow-50">
+                    <td class="border border-gray-300 px-4 py-2 text-right font-bold" colspan="2">คงเหลือ</td>
+                    <td class="border border-gray-300 px-4 py-2 text-right font-bold text-orange-600">฿${(receipt.amounts?.remainingAmount || 0).toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+              <!-- Additional Info -->
+              <div class="text-sm text-gray-600 space-y-2">
+                <p><strong>วันที่:</strong> ${new Date(receipt.depositDate).toLocaleDateString('th-TH')}</p>
+                <p><strong>ประเภทการขาย:</strong> ${receipt.saleType === 'cash' ? 'ขายสด' : 'ขายผ่อน'}</p>
+                <p><strong>พนักงานขาย:</strong> ${receipt.salesperson?.name || 'ไม่ระบุ'}</p>
+              </div>
+            </div>
+
+            <!-- Tax Invoice Document -->
+            <div id="taxinvoiceDocument" class="document-content p-6 hidden">
+              ${receipt.taxInvoiceData ? `
+                <!-- Header -->
+                <div class="text-center mb-8">
+                  <h2 class="text-2xl font-bold mb-2">ใบกำกับภาษี</h2>
+                  <h3 class="text-lg text-gray-600">Tax Invoice</h3>
+                  <p class="text-sm text-gray-500 mt-2">เลขที่: ${receipt.taxInvoiceData.taxInvoiceNumber}</p>
+                </div>
+
+                <!-- Company Info -->
+                <div class="mb-6 pb-4 border-b">
+                  <div class="grid grid-cols-2 gap-6">
+                    <div>
+                      <h4 class="font-bold mb-2">ข้อมูลร้าน</h4>
+                      <p><strong>${receipt.taxInvoiceData.company?.name || 'บริษัท 2 พี่น้อง โมบาย จำกัด'}</strong></p>
+                      <p>${receipt.taxInvoiceData.company?.address || '148/91 หมู่ที่ 6 ตำบลรูสะมิแล อำเภอปัตตานี จังหวัดปัตตานี 94000'}</p>
+                      <p>เลขประจำตัวผู้เสียภาษี: ${receipt.taxInvoiceData.company?.taxId || '0945566000616'}</p>
+                      <p>โทร: ${receipt.taxInvoiceData.company?.phone || '09-2427-0769'}</p>
+                    </div>
+                    <div>
+                      <h4 class="font-bold mb-2">ข้อมูลลูกค้า</h4>
+                      <p><strong>ชื่อ:</strong> ${receipt.taxInvoiceData.customer?.fullName || receipt.taxInvoiceData.customer?.name || 'ไม่ระบุ'}</p>
+                      <p><strong>ที่อยู่:</strong> ${receipt.taxInvoiceData.customer?.address || 'ไม่ระบุ'}</p>
+                      <p><strong>เบอร์โทร:</strong> ${receipt.taxInvoiceData.customer?.phone || receipt.taxInvoiceData.customer?.phone_number || 'ไม่ระบุ'}</p>
+                      <p><strong>เลขประจำตัวผู้เสียภาษี:</strong> ${receipt.taxInvoiceData.customer?.taxId || receipt.taxInvoiceData.customer?.tax_id || 'ไม่ระบุ'}</p>
+                      <p><strong>อีเมล:</strong> ${receipt.taxInvoiceData.customer?.email || 'ไม่ระบุ'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tax Invoice Details -->
+                <div class="mb-6">
+                  <table class="w-full border-collapse border border-gray-300">
+                    <thead>
+                      <tr class="bg-gray-50">
+                        <th class="border border-gray-300 px-4 py-2 text-left">รายการ</th>
+                        <th class="border border-gray-300 px-4 py-2 text-center">จำนวน</th>
+                        <th class="border border-gray-300 px-4 py-2 text-right">ราคาต่อหน่วย</th>
+                        <th class="border border-gray-300 px-4 py-2 text-right">จำนวนเงิน</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${receipt.taxInvoiceData.items?.map(item => `
+                        <tr>
+                          <td class="border border-gray-300 px-4 py-2">
+                            ${item.name}<br>
+                            <small class="text-gray-500">${item.description || ''}</small>
+                          </td>
+                          <td class="border border-gray-300 px-4 py-2 text-center">${item.quantity}</td>
+                          <td class="border border-gray-300 px-4 py-2 text-right">฿${(item.unitPrice || 0).toLocaleString()}</td>
+                          <td class="border border-gray-300 px-4 py-2 text-right">฿${(item.totalPrice || 0).toLocaleString()}</td>
+                        </tr>
+                      `).join('') || `
+                        <tr>
+                          <td class="border border-gray-300 px-4 py-2">ไม่มีรายการสินค้า</td>
+                          <td class="border border-gray-300 px-4 py-2 text-center">-</td>
+                          <td class="border border-gray-300 px-4 py-2 text-right">-</td>
+                          <td class="border border-gray-300 px-4 py-2 text-right">-</td>
+                        </tr>
+                      `}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td class="border border-gray-300 px-4 py-2 text-right" colspan="3">รวมเงิน (ก่อนภาษี)</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">฿${(receipt.taxInvoiceData.calculation?.beforeTax || receipt.taxInvoiceData.summary?.beforeTax || 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td class="border border-gray-300 px-4 py-2 text-right" colspan="3">ภาษีมูลค่าเพิ่ม (${receipt.taxInvoiceData.calculation?.vatRate || receipt.taxInvoiceData.vatRate || 7}%)</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">฿${(receipt.taxInvoiceData.calculation?.vatAmount || receipt.taxInvoiceData.summary?.vatAmount || 0).toLocaleString()}</td>
+                      </tr>
+                      <tr class="bg-gray-50 font-bold">
+                        <td class="border border-gray-300 px-4 py-2 text-right" colspan="3">รวมทั้งสิ้น</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">฿${(receipt.taxInvoiceData.calculation?.totalAmount || receipt.taxInvoiceData.summary?.totalWithTax || receipt.taxInvoiceData.summary?.total || 0).toLocaleString()}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <!-- Tax Invoice Additional Info -->
+                <div class="text-sm text-gray-600 space-y-2">
+                  <p><strong>วันที่ออกใบกำกับภาษี:</strong> ${new Date(receipt.taxInvoiceData.issueDate).toLocaleDateString('th-TH')}</p>
+                  <p><strong>วันที่ชำระเงิน:</strong> ${receipt.taxInvoiceData.paymentDate ? new Date(receipt.taxInvoiceData.paymentDate).toLocaleDateString('th-TH') : 'ไม่ระบุ'}</p>
+                  <p><strong>ประเภทการขาย:</strong> ${receipt.taxInvoiceData.saleType === 'cash' ? 'ขายสด' : 'ขายผ่อน'}</p>
+                  <p><strong>วิธีการชำระเงิน:</strong> ${receipt.taxInvoiceData.paymentMethod === 'cash' ? 'เงินสด' : receipt.taxInvoiceData.paymentMethod || 'ไม่ระบุ'}</p>
+                  <p><strong>พนักงานขาย:</strong> ${receipt.taxInvoiceData.employeeName || 'ไม่ระบุ'}</p>
+                  <p><strong>รหัสสาขา:</strong> ${receipt.taxInvoiceData.branchCode || '00000'}</p>
+                  ${receipt.taxInvoiceData.quotationNumber ? `<p><strong>เลขที่ใบเสนอราคา:</strong> ${receipt.taxInvoiceData.quotationNumber}</p>` : ''}
+                  ${receipt.taxInvoiceData.notes ? `<p><strong>หมายเหตุ:</strong> ${receipt.taxInvoiceData.notes}</p>` : ''}
+                </div>
+              ` : `
+                <!-- No Tax Invoice Data -->
+                <div class="text-center py-12">
+                  <i class="bi bi-exclamation-triangle text-6xl text-yellow-300 mb-4"></i>
+                  <h3 class="text-lg font-medium text-gray-700 mb-2">ไม่พบข้อมูลใบกำกับภาษี</h3>
+                  <p class="text-gray-500 mb-4">ไม่พบใบกำกับภาษีที่เกี่ยวข้องกับใบรับเงินมัดจำนี้</p>
+                  <p class="text-sm text-gray-400">อาจยังไม่ได้สร้างใบกำกับภาษี หรือข้อมูลอาจไม่ตรงกัน</p>
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }
+
+      // Function to switch between documents
+      function showDocument(docType) {
+        // Hide all documents
+        const receiptDoc = document.getElementById('receiptDocument');
+        const taxInvoiceDoc = document.getElementById('taxinvoiceDocument');
+        const receiptTab = document.getElementById('receiptTab');
+        const taxInvoiceTab = document.getElementById('taxinvoiceTab');
+
+        if (receiptDoc && taxInvoiceDoc && receiptTab && taxInvoiceTab) {
+          if (docType === 'receipt') {
+            receiptDoc.classList.remove('hidden');
+            taxInvoiceDoc.classList.add('hidden');
+
+            // Update tab styles
+            receiptTab.className = 'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600';
+            taxInvoiceTab.className = 'whitespace-nowrap py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm';
+          } else if (docType === 'taxinvoice') {
+            receiptDoc.classList.add('hidden');
+            taxInvoiceDoc.classList.remove('hidden');
+
+            // Update tab styles
+            receiptTab.className = 'whitespace-nowrap py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm';
+            taxInvoiceTab.className = 'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600';
+          }
+        }
+      }
+
+      // Print Invoice
+      function printInvoice(receiptNumber) {
+        const receipt = depositReceipts.find(r => r.receiptNumber === receiptNumber);
+        if (receipt) {
+          printInvoiceContent(receipt);
+        }
+      }
+
+      // View Related Credit Notes
+      function viewCreditNotes(receiptNumber) {
+        const receipt = depositReceipts.find(r => r.receiptNumber === receiptNumber);
+        if (!receipt || !receipt.creditNotes) {
+          alert('ไม่พบใบลดหนี้ที่เกี่ยวข้อง');
+          return;
+        }
+
+        let creditNotesInfo = `ใบลดหนี้ที่เกี่ยวข้องกับ ${receipt.receiptNumber}\n\n`;
+
+        receipt.creditNotes.forEach((cn, index) => {
+          creditNotesInfo += `${index + 1}. เลขที่: ${cn.creditNoteNumber || 'N/A'}\n`;
+          creditNotesInfo += `   จำนวน: ฿${(cn.totalAmount || 0).toLocaleString()}\n`;
+          creditNotesInfo += `   สถานะ: ${cn.status === 'approved' ? 'อนุมัติแล้ว' : cn.status}\n`;
+          creditNotesInfo += `   วันที่: ${new Date(cn.issueDate || cn.createdAt).toLocaleDateString('th-TH')}\n`;
+          if (cn.reason) creditNotesInfo += `   เหตุผล: ${cn.reason}\n`;
+          if (cn.notes) creditNotesInfo += `   หมายเหตุ: ${cn.notes}\n`;
+          creditNotesInfo += '\n';
+        });
+
+        creditNotesInfo += `ยอดลดหนี้รวม: ฿${receipt.totalCreditAmount.toLocaleString()}\n`;
+        creditNotesInfo += `ยอดคงเหลือหลังหักลดหนี้: ฿${(receipt.amounts?.adjustedRemainingAmount || 0).toLocaleString()}`;
+
+        alert(creditNotesInfo);
+      }
+
+      // Print Invoice Content
+      function printInvoiceContent(receipt, docType = 'receipt') {
+        const printWindow = window.open('', '_blank');
+        const invoiceHTML = generateInvoiceHTML(receipt);
+        const title = docType === 'taxinvoice' ? 'ใบกำกับภาษี' : 'ใบเสร็จรับเงิน';
+        const docNumber = docType === 'taxinvoice' ? (receipt.taxInvoiceNumber || 'TX-' + new Date(receipt.createdAt || new Date()).toISOString().slice(2,10).replace(/-/g,'') + '-' + String(receipt.sequenceNumber || 1).padStart(3, '0')) : receipt.receiptNumber;
+
+        printWindow.document.write('<!DOCTYPE html>');
+        printWindow.document.write('<html>');
+        printWindow.document.write('<head>');
+        printWindow.document.write('<title>' + title + ' - ' + docNumber + '</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: "Prompt", sans-serif; margin: 0; padding: 20px; }');
+        printWindow.document.write('table { width: 100%; border-collapse: collapse; }');
+        printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; }');
+        printWindow.document.write('th { background-color: #f5f5f5; }');
+        printWindow.document.write('.text-center { text-align: center; }');
+        printWindow.document.write('.text-right { text-align: right; }');
+        printWindow.document.write('.font-bold { font-weight: bold; }');
+        printWindow.document.write('.hidden { display: none !important; }');
+        printWindow.document.write('@media print { body { margin: 0; } .no-print { display: none; } .document-tabs { display: none; } }');
+        printWindow.document.write('</style>');
+        printWindow.document.write('</head>');
+        printWindow.document.write('<body>');
+        printWindow.document.write('<scr' + 'ipt>');
+        printWindow.document.write('function showOnlyDocument(docType) {');
+        printWindow.document.write('  const receiptDoc = document.getElementById("receiptDocument");');
+        printWindow.document.write('  const taxInvoiceDoc = document.getElementById("taxinvoiceDocument");');
+        printWindow.document.write('  if (receiptDoc && taxInvoiceDoc) {');
+        printWindow.document.write('    if (docType === "receipt") {');
+        printWindow.document.write('      receiptDoc.classList.remove("hidden");');
+        printWindow.document.write('      taxInvoiceDoc.classList.add("hidden");');
+        printWindow.document.write('    } else {');
+        printWindow.document.write('      receiptDoc.classList.add("hidden");');
+        printWindow.document.write('      taxInvoiceDoc.classList.remove("hidden");');
+        printWindow.document.write('    }');
+        printWindow.document.write('  }');
+        printWindow.document.write('}');
+        printWindow.document.write('document.addEventListener("DOMContentLoaded", function() {');
+        printWindow.document.write('  showOnlyDocument("' + docType + '");');
+        printWindow.document.write('});');
+        printWindow.document.write('setTimeout(function() {');
+        printWindow.document.write('  showOnlyDocument("' + docType + '");');
+        printWindow.document.write('}, 100);');
+        printWindow.document.write('</' + 'script>');
+        printWindow.document.write(invoiceHTML);
+        printWindow.document.write('</body>');
+        printWindow.document.write('</html>');
+      
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
+
+      // Download PDF Function
+      function downloadPDF(receipt, docType = 'receipt') {
+        try {
+          console.log('📄 Downloading PDF for:', docType, receipt.receiptNumber);
+
+          // Debug: ตรวจสอบโครงสร้างข้อมูลใบเสร็จ
+          console.log('🔍 [DOWNLOAD PDF DEBUG] Receipt structure:', {
+            receiptNumber: receipt.receiptNumber,
+            customer: receipt.customer,
+            product: receipt.product,
+            amounts: receipt.amounts,
+            salesperson: receipt.salesperson,
+            paymentMethod: receipt.paymentMethod,
+            hasCustomerName: receipt.customer?.name,
+            hasProductName: receipt.product?.name,
+            hasAmounts: !!receipt.amounts
+          });
+
+          // บันทึกข้อมูลใบเสร็จใน localStorage สำหรับให้หน้า PDF อ่าน
+          localStorage.setItem('currentDepositReceipt', JSON.stringify(receipt));
+
+          // เตรียมข้อมูลเพิ่มเติมสำหรับ PDF
+          const pdfData = {
+            ...receipt,
+            docType: docType,
+            title: docType === 'taxinvoice' ? 'ใบกำกับภาษี' : 'ใบเสร็จรับเงิน',
+            invoiceNumber: docType === 'taxinvoice' ?
+              (receipt.taxInvoiceData?.taxInvoiceNumber || receipt.taxInvoiceNumber || 'TX-' + new Date(receipt.createdAt || new Date()).toISOString().slice(2,10).replace(/-/g,'') + '-' + String(receipt.sequenceNumber || 1).padStart(3, '0')) :
+              receipt.receiptNumber,
+            // Pass tax invoice data specifically for tax invoice PDF
+            taxInvoiceData: receipt.taxInvoiceData
+          };
+
+          console.log('🔍 [PDF DATA DEBUG] Final PDF data:', {
+            docType: pdfData.docType,
+            invoiceNumber: pdfData.invoiceNumber,
+            customer: pdfData.customer,
+            product: pdfData.product,
+            amounts: pdfData.amounts
+          });
+
+          localStorage.setItem('currentPDFData', JSON.stringify(pdfData));
+
+          // เปิดหน้า PDF ในหน้าต่างใหม่
+          const pdfUrl = `/ReceiptTaxInvoicePDF?type=${docType}&id=${encodeURIComponent(receipt.receiptNumber || receipt._id)}&_t=${Date.now()}`;
+
+          console.log('🔗 PDF URL:', pdfUrl);
+
+          // เพิ่ม delay สั้นๆ เพื่อให้ localStorage ถูกบันทึกก่อน
+          setTimeout(() => {
+            const pdfWindow = window.open(pdfUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes,menubar=yes,toolbar=yes');
+
+            if (!pdfWindow) {
+              console.error('❌ Could not open PDF window - popup may be blocked');
+              // Fallback: แสดงข้อความแจ้งเตือน
+              alert('ไม่สามารถเปิดหน้าต่าง PDF ได้ กรุณาอนุญาต popup สำหรับเว็บไซต์นี้');
+            }
+          }, 100);
+
+          console.log('✅ เปิดหน้า PDF สำเร็จ');
+        } catch (error) {
+          console.error('❌ เกิดข้อผิดพลาดในการเปิด PDF:', error);
+          alert('เกิดข้อผิดพลาดในการเปิด PDF กรุณาลองใหม่อีกครั้ง');
+        }
+      }
+
+      // Export Functions
+      function exportToExcel() {
+        console.log('Export to Excel - ฟีเจอร์นี้อยู่ระหว่างการพัฒนา');
+      }
+
+      function exportToPDF() {
+        console.log('Export to PDF - ฟีเจอร์นี้อยู่ระหว่างการพัฒนา');
+      }
+
+      // Utility Functions
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+
+      // Click outside modal to close
+      document.addEventListener('click', function(e) {
+        const modal = document.getElementById('invoiceDetailModal');
+        if (modal && e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+
+      // Escape key to close modal
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          const modal = document.getElementById('invoiceDetailModal');
+          if (modal && !modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accounting Dashboard (Tailwind + DaisyUI)</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons (เฉพาะไอคอน ไม่ได้ใช้ Bootstrap CSS/JS) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) กำหนดค่า Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+          colors: {
+            primary: {
+              50: '#eef2ff','
+              100: '#e0e7ff','
+              200: '#c7d2fe','
+              300: '#a5b4fc','
+              400: '#818cf8','
+              500: '#6366f1','
+              600: '#4f46e5','
+              700: '#4338ca','
+              800: '#3730a3','
+              900: '#312e81','
+              950: '#1e1b4b','
+            }
+          }
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],'
+      },
+    }
+  </script>
+
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" type="text/css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+
+  <!-- Socket.io -->
+  <script src="/socket.io.min.js" integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2" crossorigin="anonymous"></script>
+
+  <!-- Dark Mode Support -->
+  <script>
+    (function() {
+      function updateDarkModeLabel(isDark) {
+        const lbl = document.getElementById('darkModeLabel');'
+        if (lbl) {
+          lbl.textContent = isDark ? 'Light Mode' : 'Dark Mode';'
+        }
+      }
+      function loadDarkMode() {
+        const savedDark = localStorage.getItem('darkMode') === 'true';'
+        document.documentElement.classList.toggle('dark', savedDark);'
+        updateDarkModeLabel(savedDark);
+      }
+      function toggleDarkMode() {
+        const isDark = document.documentElement.classList.toggle('dark');'
+        localStorage.setItem('darkMode', isDark);'
+        updateDarkModeLabel(savedDark);
+      }
+      document.addEventListener('DOMContentLoaded', () => {'
+        loadDarkMode();
+        const btnDark = document.getElementById('btnToggleDark');'
+        if (btnDark) {
+          btnDark.addEventListener('click', toggleDarkMode);'
+        }
+      });
+    })();
+  </script>
+
+  <style>
+    /* ฟอนต์หลัก + ลดขนาดฟอนต์ลง */
+    body {
+      font-family: 'Prompt', sans-serif;'
+      font-size: 0.875rem; /* ~14px */
+      animation: fadeIn 0.5s ease-in-out;
+      margin: 0;
+      padding: 0;
+    }
+    
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    
+    /* การ์ด (card-custom) โดยแทนที่ @apply ด้วย CSS ปกติ */
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    
+    .card-custom {
+      background-color: white;
+      border-radius: 0.75rem; /* rounded-xl */
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* shadow-sm */
+      transition: transform 0.2s, box-shadow 0.2s;
+      padding: 1rem; /* p-4 */
+      animation: floatUp 0.4s ease-out;
+    }
+    
+    .card-custom:hover {
+      transform: translateY(-0.25rem); /* -translate-y-1 */
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    }
+    
+    /* Dark mode สำหรับการ์ด */
+    .dark .card-custom {
+      background-color: #1F2937; /* dark:bg-gray-800 */
+    }
+    
+    /* ปุ่มโค้งมน */
+    .btn-rounded {
+      border-radius: 30px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn-rounded:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    }
+    
+    /* สไตล์เพิ่มเติม */
+    .badge-counter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 6px;
+      margin-left: 8px;
+    }
+    
+    .badge-gray {
+      background-color: #e9ecef;
+      color: #6c757d;
+    }
+    
+    .badge-orange {
+      background-color: #ffedd8;
+      color: #fd7e14;
+    }
+    
+    .badge-blue {
+      background-color: #e3f2fd;
+      color: #0d6efd;
+    }
+    
+    /* Tab ที่เลือก */
+    .tab-active {
+      color: #4f46e5;
+      border-bottom: 3px solid #4f46e5;
+      font-weight: 500;
+    }
+    
+    /* Table */
+    .table-custom th {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      font-weight: 500;
+      text-transform: none;
+      font-size: 0.85rem;
+    }
+    
+    .dark .table-custom th {
+      background-color: #374151;
+      color: #d1d5db;
+    }
+    
+    .table-custom td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark .table-custom td {
+      border-bottom: 1px solid #374151;
+    }
+    
+    /* ช่องค้นหา */
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #adb5bd;
+    }
+    
+    /* สีไอคอน */
+    .icon-income {
+      color: #10b981; /* สีเขียว */
+    }
+    
+    .icon-expense {
+      color: #ef4444; /* สีแดง */
+    }
+    
+    .icon-accounting {
+      color: #6366f1; /* สีน้ำเงินม่วง */
+    }
+    
+    .icon-contacts {
+      color: #f59e0b; /* สีส้ม */
+    }
+    
+    .icon-products {
+      color: #8b5cf6; /* สีม่วง */
+    }
+    
+    .icon-documents {
+      color: #3b82f6; /* สีฟ้า */
+    }
+    
+    .icon-settings {
+      color: #6b7280; /* สีเทา */
+    }
+    
+    /* เมนูย่อยตกแต่ง */
+    .2s, padding-left 0.2s;
+      border-left: 3px solid transparent;
+    }
+    
+    .gradient-bg {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%);
+    }
+    
+    .dark .gradient-bg {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.1) 100%);
+    }
+    
+    /* เอฟเฟคปุ่ม */
+    .01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .3;
+      transition: 0s;
+    }
+    
+    /* แอนิเมชั่นเพิ่มเติม */
+    .hover-scale {
+      transition: transform 0.3s ease;
+    }
+    
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+    
+    /* แถบสถานะ */
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    
+    .status-draft {
+      background-color: #9ca3af;
+    }
+    
+    .status-pending {
+      background-color: #f59e0b;
+    }
+    
+    .status-waiting {
+      background-color: #3b82f6;
+    }
+    
+    .status-paid {
+      background-color: #10b981;
+    }
+    
+    /* สไตล์กล่องว่างเปล่า */
+    .empty-state {
+      border: 2px dashed #e5e7eb;
+      border-radius: 1rem;
+      padding: 2rem;
+      transition: all 0.3s ease;
+    }
+    
+    .empty-state:hover {
+      border-color: #6366f1;
+      background-color: rgba(99, 102, 241, 0.03);
+    }
+    
+    .dark .empty-state {
+      border-color: #374151;
+    }
+    
+    .dark .empty-state:hover {
+      border-color: #6366f1;
+      background-color: rgba(99, 102, 241, 0.1);
+    }
+    
+    /* ปุ่มลอย */
+    .floating-button {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 999;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .floating-button:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* เมนู dropdown มี shadow */
+    .08);
+      border-radius: 0.5rem;
+      overflow: hidden;
+      min-width: 200px;
+    }
+    
+    /* ปรับแต่ง submenu */
+    .5rem 1rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    
+    .dark .dropdown ul li a:hover {
+      background-color: #1f2937;
+    }
+  </style>
+  
+  <!-- Template สำหรับเมนู -->
+  
+  <!-- Account Menu Styles -->
+  <link rel="stylesheet" href="/css/account-menu.css">
+</head>
+
+<body class="bg-gray-100 dark:bg-gray-900 dark:text-white">
+  <!-- Navbar -->
+  <!-- Account System Navbar Template -->
+<div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0">
+  <div class="flex-1 flex items-center space-x-6">
+    <img src="/uploads/Logo2.png"
+         alt="Logo"
+         class="rounded-full shadow-lg"
+         style="width: 40px; height: 40px;" />
+    <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี</span>
+    <!-- Menu Container -->
+    <div id="mainMenuContainer" class="ml-auto"></div>
+  </div>
+  <div class="flex-none flex items-center space-x-2">
+    <!-- User Profile Section -->
+    <div class="flex items-center space-x-3 mr-4">
+      <img id="employeePhoto"
+           alt="Profile"
+           class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600"
+           src="/img/default-avatar.svg">
+      <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+    </div>
+
+    <!-- Dark Mode Toggle -->
+    <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+      <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+      <span id="darkModeLabel">Dark Mode</span>
+    </button>
+
+    <!-- Logout Button -->
+    <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+      <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+    </button>
+  </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="loader"></div>
+</div>
+
+<div class="flex-none flex items-center space-x-2">
+      <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+        <i class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+        <span id="darkModeLabel">Dark Mode</span>
+      </button>
+      <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+        <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container mx-auto px-4 py-6">
+    <!-- Dashboard Header -->
+    <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+      <h1 class="text-2xl font-semibold">แดชบอร์ดบัญชี</h1>
+      <div class="flex gap-3">
+        <button class="btn btn-outline btn-primary gap-2">
+          <i class="bi bi-calendar-event"></i> พฤษภาคม 2025
+        </button>
+        <button class="btn btn-primary gap-2">
+          <i class="bi bi-plus-lg"></i> สร้างรายการใหม่
+        </button>
+      </div>
+    </div>
+    
+    <!-- Section 1: Accounts -->
+    <div class="mb-8">
+      <div class="flex items-center mb-4">
+        <h2 class="text-xl font-medium">บัญชีที่ติดตาม</h2>
+        <div class="tooltip tooltip-right ml-2" data-tip="คลิกที่บัญชีเพื่อดูรายละเอียด">
+          <i class="bi bi-info-circle text-primary-500"></i>
+        </div>
+        <button class="btn btn-outline btn-sm ml-4">
+          <i class="bi bi-filter mr-1"></i> เลือกบัญชี
+        </button>
+      </div>
+      
+      <!-- Accounts Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Account 1 -->
+        <div class="card-custom cursor-pointer hover-scale">
+          <h3 class="font-semibold text-base">ภาษีขาย ภ.พ.30</h3>
+          <p class="text-sm text-gray-500 mb-2 dark:text-gray-400">หนี้สินทางภาษีและประกันสังคม</p>
+          <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md inline-block mb-3">215101</span>
+          <div class="flex justify-end">
+            <div class="text-right">
+              <div class="font-semibold">0.00 บาท</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">N/A MoM</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Account 2 -->
+        <div class="card-custom cursor-pointer hover-scale">
+          <h3 class="font-semibold text-base">ภ.ง.ด. 1 ค้างจ่าย</h3>
+          <p class="text-sm text-gray-500 mb-2 dark:text-gray-400">หนี้สินทางภาษีและประกันสังคม</p>
+          <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md inline-block mb-3">215201</span>
+          <div class="flex justify-end">
+            <div class="text-right">
+              <div class="font-semibold">0.00 บาท</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">N/A MoM</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Account 3 -->
+        <div class="card-custom cursor-pointer hover-scale">
+          <h3 class="font-semibold text-base">ภ.ง.ด. 3 ค้างจ่าย</h3>
+          <p class="text-sm text-gray-500 mb-2 dark:text-gray-400">หนี้สินทางภาษีและประกันสังคม</p>
+          <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md inline-block mb-3">215203</span>
+          <div class="flex justify-end">
+            <div class="text-right">
+              <div class="font-semibold">0.00 บาท</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">N/A MoM</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Account 4 -->
+        <div class="card-custom cursor-pointer hover-scale">
+          <h3 class="font-semibold text-base">ภ.ง.ด. 53 ค้างจ่าย</h3>
+          <p class="text-sm text-gray-500 mb-2 dark:text-gray-400">หนี้สินทางภาษีและประกันสังคม</p>
+          <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md inline-block mb-3">215204</span>
+          <div class="flex justify-end">
+            <div class="text-right">
+              <div class="font-semibold">0.00 บาท</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">N/A MoM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Section 2: Records and Reports -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <!-- Left Report: Expenses Paid -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div class="flex items-center mb-4">
+          <h2 class="text-lg font-medium">บันทึกค่าใช้จ่ายที่ชำระแล้ว รอชำระ และพ้นกำหนด</h2>
+          <div class="tooltip tooltip-right ml-2" data-tip="แสดงสถานะการชำระเงิน">
+            <i class="bi bi-info-circle text-primary-500"></i>
+          </div>
+        </div>
+        
+        <div class="flex justify-between mb-4">
+          <div class="flex gap-2">
+            <div class="dropdown">
+              <label tabindex="0" class="btn btn-outline btn-sm">
+                รายเดือน <i class="bi bi-chevron-down ml-1"></i>
+              </label>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-gray-700 rounded-lg w-52">
+                <li><a>รายวัน</a></li>
+                <li><a>รายสัปดาห์</a></li>
+                <li><a>รายเดือน</a></li>
+                <li><a>รายไตรมาส</a></li>
+                <li><a>รายปี</a></li>
+              </ul>
+            </div>
+            
+            <div class="dropdown">
+              <label tabindex="0" class="btn btn-outline btn-sm">
+                2025 <i class="bi bi-chevron-down ml-1"></i>
+              </label>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-gray-700 rounded-lg w-52">
+                <li><a>2023</a></li>
+                <li><a>2024</a></li>
+                <li><a>2025</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex flex-col items-center justify-center py-6">
+          <div class="w-48 h-32 bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 flex items-end justify-around px-2 pb-2">
+            <div class="bar-chart w-full h-full flex items-end justify-around">
+              <div class="bar" style="height: 40%;"></div>
+              <div class="bar" style="height: 60%;"></div>
+              <div class="bar" style="height: 30%;"></div>
+              <div class="bar" style="height: 50%;"></div>
+              <div class="bar" style="height: 70%;"></div>
+              <div class="bar" style="height: 45%;"></div>
+              <div class="bar" style="height: 80%;"></div>
+            </div>
+          </div>
+          <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">ไม่มีข้อมูลรายงานสำหรับ <span class="text-primary-600 font-medium">พฤษภาคม 2025</span></p>
+          <button class="btn btn-primary btn-sm btn-outline">
+            <i class="bi bi-plus-circle mr-1"></i> เพิ่มบันทึกค่าใช้จ่าย
+          </button>
+        </div>
+      </div>
+      
+      <!-- Right Report: Documents -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div class="flex items-center mb-4">
+          <h2 class="text-lg font-medium">เอกสารที่ออก</h2>
+          <div class="tooltip tooltip-right ml-2" data-tip="แสดงเอกสารที่ออกในช่วงเวลาที่เลือก">
+            <i class="bi bi-info-circle text-primary-500"></i>
+          </div>
+        </div>
+        
+        <div class="flex justify-between mb-4">
+          <div class="flex gap-2">
+            <div class="dropdown">
+              <label tabindex="0" class="btn btn-outline btn-sm">
+                บันทึกค่าใช้จ่าย <i class="bi bi-chevron-down ml-1"></i>
+              </label>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-gray-700 rounded-lg w-52">
+                <li><a>ใบเสร็จรับเงิน</a></li>
+                <li><a>ใบแจ้งหนี้</a></li>
+                <li><a>บันทึกค่าใช้จ่าย</a></li>
+                <li><a>ใบกำกับภาษี</a></li>
+              </ul>
+            </div>
+            
+            <div class="dropdown">
+              <label tabindex="0" class="btn btn-outline btn-sm">
+                เดือนนี้ <i class="bi bi-chevron-down ml-1"></i>
+              </label>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-gray-700 rounded-lg w-52">
+                <li><a>วันนี้</a></li>
+                <li><a>สัปดาห์นี้</a></li>
+                <li><a>เดือนนี้</a></li>
+                <li><a>ไตรมาสนี้</a></li>
+                <li><a>ปีนี้</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex flex-col items-center justify-center py-6">
+          <div class="w-48 h-32 bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 flex items-end justify-around px-2 pb-2">
+            <div class="bar-chart w-full h-full flex items-end justify-around">
+              <div class="bar" style="height: 35%;"></div>
+              <div class="bar" style="height: 55%;"></div>
+              <div class="bar" style="height: 25%;"></div>
+              <div class="bar" style="height: 45%;"></div>
+              <div class="bar" style="height: 65%;"></div>
+              <div class="bar" style="height: 40%;"></div>
+              <div class="bar" style="height: 75%;"></div>
+            </div>
+          </div>
+          <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">ไม่มีข้อมูลรายงานสำหรับ <span class="text-primary-600 font-medium">พฤษภาคม 2025</span></p>
+          <button class="btn btn-primary btn-sm btn-outline">
+            <i class="bi bi-file-earmark mr-1"></i> สร้างเอกสารใหม่
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Section 3: Expense Analysis -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Left Report: Top Expenses -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div class="flex items-center mb-4">
+          <h2 class="text-lg font-medium">คุณจ่ายให้ใครมากที่สุด</h2>
+          <div class="tooltip tooltip-right ml-2" data-tip="แสดงผู้รับเงินรายใหญ่">
+            <i class="bi bi-info-circle text-primary-500"></i>
+          </div>
+        </div>
+        
+        <div class="flex justify-between mb-4">
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-outline btn-sm">
+              เดือนนี้ <i class="bi bi-chevron-down ml-1"></i>
+            </label>
+            <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-gray-700 rounded-lg w-52">
+              <li><a>วันนี้</a></li>
+              <li><a>สัปดาห์นี้</a></li>
+              <li><a>เดือนนี้</a></li>
+              <li><a>ไตรมาสนี้</a></li>
+              <li><a>ปีนี้</a></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="flex flex-col items-center justify-center py-6">
+          <div class="mb-4">
+            <div class="donut-chart">
+              <div class="donut-chart-bg"></div>
+              <div class="donut-chart-hole dark:bg-gray-800"></div>
+            </div>
+          </div>
+          <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">ไม่มีข้อมูลรายงานสำหรับ <span class="text-primary-600 font-medium">พฤษภาคม 2025</span></p>
+          <button class="btn btn-primary btn-sm btn-outline">
+            <i class="bi bi-pie-chart mr-1"></i> ดูรายงานย้อนหลัง
+          </button>
+        </div>
+      </div>
+      
+      <!-- Right Report: Expense Categories -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div class="flex items-center mb-4">
+          <h2 class="text-lg font-medium">คุณจ่ายค่าอะไรมากที่สุด</h2>
+          <div class="tooltip tooltip-right ml-2" data-tip="แสดงหมวดหมู่ค่าใช้จ่าย">
+            <i class="bi bi-info-circle text-primary-500"></i>
+          </div>
+        </div>
+        
+        <div class="flex justify-between mb-4">
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-outline btn-sm">
+              เดือนนี้ <i class="bi bi-chevron-down ml-1"></i>
+            </label>
+            <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-gray-700 rounded-lg w-52">
+              <li><a>วันนี้</a></li>
+              <li><a>สัปดาห์นี้</a></li>
+              <li><a>เดือนนี้</a></li>
+              <li><a>ไตรมาสนี้</a></li>
+              <li><a>ปีนี้</a></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="flex flex-col items-center justify-center py-6">
+          <div class="mb-4">
+            <div class="donut-chart">
+              <div class="donut-chart-bg"></div>
+              <div class="donut-chart-hole dark:bg-gray-800"></div>
+            </div>
+          </div>
+          <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">ไม่มีข้อมูลรายงานสำหรับ <span class="text-primary-600 font-medium">พฤษภาคม 2025</span></p>
+          <button class="btn btn-primary btn-sm btn-outline">
+            <i class="bi bi-pie-chart mr-1"></i> ดูรายงานย้อนหลัง
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Menu Script -->
+  <script src="/js/account-menu.js"></script>
+</body>
+</html>

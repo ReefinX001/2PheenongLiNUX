@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบ HR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: { 
+        extend: { 
+          fontFamily: { sans: ['Prompt','sans-serif'] } '
+        } 
+      },
+      daisyui: { themes: ['light','dark','corporate'] },'
+    }
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* เพิ่ม CSS สำหรับความสวยงาม */
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background-color: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+
+    .calendar-day-holiday {
+      background-color: #fee2e2;
+      color: #ef4444;
+    }
+
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    #notificationBtn span.badge-notification { /* More specific selector for the badge */
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .status-active {
+      background-color: #10b981;
+    }
+
+    .status-away {
+      background-color: #f59e0b;
+    }
+
+    .status-offline {
+      background-color: #6b7280;
+    }
+  </style>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="hr_dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="hr_dashboard" class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="employee_directory" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-people-fill text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">พนักงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="attendance" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+            </a>
+          </li>
+          <li>
+            <a href="leave_requests" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+              <span class="ml-3">การลา</span>
+            </a>
+          </li>
+          <li>
+            <a href="payroll" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+              <span class="ml-3">เงินเดือน</span>
+            </a>
+          </li>
+          <li>
+            <a href="performance_reviews" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">ประเมินผลงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="bonus_list" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>รายการโบนัส</span>
+            </a>
+          </li>
+          <li>
+           
+          <li class="mt-4">
+            <a href="role_management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <li>
+            <a href="employee_directory.html" id="profile" class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <img id="employeePhoto" src="/api/placeholder/36/36" alt="Employee Photo" class="w-10 h-10 rounded-full mr-3"/>
+              <span id="employeeName">Loading...</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+  
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900" id="mainContent">
+      <!-- Top Bar -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center">
+          <button id="menuToggle" class="mr-4 text-gray-600 dark:text-gray-200"><i class="bi bi-list text-xl"></i></button>
+          <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200"><i class="bi bi-speedometer2 text-indigo-600 mr-2"></i>HR Dashboard</h2>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="hidden md:flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
+            <i class="bi bi-search text-gray-500 dark:text-gray-300 mr-2"></i>
+            <input type="text" placeholder="ค้นหาพนักงาน..." class="bg-transparent focus:outline-none text-gray-700 dark:text-gray-200"/>
+          </div>
+          <div class="relative">
+            <button id="notificationBtn" class="btn btn-outline relative"><i class="bi bi-bell"></i><span class="badge-notification absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">3</span></button>
+            <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden z-50 animate-fadeIn">
+              <h3 class="p-3 font-semibold border-b border-gray-200 dark:border-gray-700">การแจ้งเตือน</h3>
+              <div class="p-3 space-y-3">
+                <div class="flex items-start">
+                  <div class="bg-blue-100 text-blue-600 p-2 rounded-lg mr-3"><i class="bi bi-person-plus"></i></div>
+                  <div>
+                    <p class="font-medium">พนักงานใหม่</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-300">มีพนักงานใหม่ 3 คนรอการอนุมัติ</p>
+                    <p class="text-xs text-gray-400 mt-1">2 ชั่วโมงที่แล้ว</p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div class="bg-amber-100 text-amber-600 p-2 rounded-lg mr-3"><i class="bi bi-calendar-check"></i></div>
+                  <div>
+                    <p class="font-medium">คำขอลา</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-300">มีคำขอลา 5 รายการรออนุมัติ</p>
+                    <p class="text-xs text-gray-400 mt-1">1 วันที่แล้ว</p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div class="bg-green-100 text-green-600 p-2 rounded-lg mr-3"><i class="bi bi-check-circle"></i></div>
+                  <div>
+                    <p class="font-medium">ประเมินผลงาน</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-300">การประเมินผลงานประจำเดือนพร้อมแล้ว</p>
+                    <p class="text-xs text-gray-400 mt-1">3 วันที่แล้ว</p>
+                  </div>
+                </div>
+              </div>
+              <a href="notifications" class="block text-center text-indigo-600 py-2 border-t border-gray-200 dark:border-gray-700">ดูทั้งหมด</a>
+            </div>
+          </div>
+          <div class="relative">
+            <button id="userBtn" class="btn btn-outline flex items-center"><div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center"><span id="userInitial" class="text-indigo-700 font-bold">U</span></div></button>
+            <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden z-50 animate-fadeIn">
+              <a href="profile" class="flex items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"><i class="bi bi-person mr-2"></i>โปรไฟล์</a>
+              <a href="settings" class="flex items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"><i class="bi bi-gear mr-2"></i>ตั้งค่า</a>
+              <button id="btnLogoutDropdown" class="w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"><i class="bi bi-box-arrow-right mr-2"></i>ออกจากระบบ</button>
+            </div>
+          </div>
+<a href="/HR/App/New/dashboard" class="hidden md:flex btn btn-primary items-center"> 
+  <i class="bi bi-person-plus mr-2"></i>
+  <span>การจัดการ APP</span>
+</a>
+        </div>
+      </div>
+
+      <!-- Welcome Banner -->
+      <div class="mb-6 bg-indigo-600 text-white p-6 rounded-lg shadow-md">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+          <div>
+            <h2 id="welcomeMessage" class="text-2xl font-bold mb-2">ยินดีต้อนรับกลับ, Loading...</h2>
+            <p class="mb-4">วันนี้เป็นวันที่ <span id="currentDate">Loading...</span> คุณมีการแจ้งเตือน <span id="unreadNotifications" class="font-bold">0</span> รายการที่ยังไม่ได้อ่าน</p>
+            <div class="flex space-x-4">
+              <button id="btnViewNotificationsWelcome" class="bg-white text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-50 transition">
+                <i class="bi bi-bell mr-2"></i>แจ้งเตือน
+              </button>
+              <button id="btnViewEmployeesWelcome" class="bg-indigo-500 px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                <i class="bi bi-people mr-2"></i>ดูรายชื่อพนักงาน
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-people text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">พนักงานทั้งหมด</h3>
+              <p id="totalEmployees" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">ข้อมูลล่าสุด</p>
+        </div>
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-green-100 text-green-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-person-check text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">กำลังทำงาน</h3>
+              <p id="activeEmployees" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+           <p class="text-xs text-gray-500 dark:text-gray-400">สถานะ Active</p>
+        </div>
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-red-100 text-red-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-person-x text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">ลาออก</h3>
+              <p id="resignedEmployees" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+           <p class="text-xs text-gray-500 dark:text-gray-400">สถานะ Resigned</p>
+        </div>
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-amber-100 text-amber-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-clock-history text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">เข้างานสาย (สมมติ)</h3>
+              <p id="lateEmployees" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">ต้องมีข้อมูล isLate</p>
+        </div>
+      </div>
+
+      <!-- Quick Action Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+        <div id="cardApproveLeave" class="card p-4 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2"><div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mr-3"><i class="bi bi-calendar-check text-amber-600 text-xl"></i></div><h3 class="font-medium">อนุมัติการลา</h3></div>
+          <p class="text-sm text-gray-500 dark:text-gray-300">รออนุมัติ 5 รายการ</p>
+        </div>
+        <div id="cardRecruitment" class="card p-4 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2"><div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3"><i class="bi bi-file-earmark-person text-blue-600 text-xl"></i></div><h3 class="font-medium">รับสมัครงาน</h3></div>
+          <p class="text-sm text-gray-500 dark:text-gray-300">ใบสมัครใหม่ 12 รายการ</p>
+        </div>
+        <div id="cardPayroll" class="card p-4 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2"><div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3"><i class="bi bi-cash text-green-600 text-xl"></i></div><h3 class="font-medium">จ่ายเงินเดือน</h3></div>
+          <p class="text-sm text-gray-500 dark:text-gray-300">กำหนดจ่าย 25 พ.ค. 2568</p>
+        </div>
+        <div id="cardPerformanceReview" class="card p-4 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mr-3">
+              <i class="bi bi-graph-up text-purple-600 text-xl"></i>
+            </div>
+            <h3 class="font-medium">ประเมินผลงาน</h3>
+          </div>
+          <p class="text-sm text-gray-500 dark:text-gray-300">ถึงกำหนดประเมิน 8 รายการ</p>
+        </div>
+      </div>
+
+      <!-- Calendar & Announcement -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <!-- Holiday Calendar -->
+        <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4"><h3 class="font-semibold text-lg"><i class="bi bi-calendar-event text-indigo-600 mr-2"></i>ปฏิทินกิจกรรม</h3><a href="calendar" class="text-sm text-indigo-600">ดูทั้งหมด</a></div>
+          <div id="upcomingHolidayList" class="space-y-4">
+            <div class="text-gray-400 text-sm text-center py-4">กำลังโหลดข้อมูล...</div>
+          </div>
+        </div>
+
+        <!-- Announcements -->
+        <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-lg"><i class="bi bi-megaphone text-indigo-600 mr-2"></i>ประกาศล่าสุด</h3>
+            <a href="announcements.html" class="text-sm text-indigo-600">ดูทั้งหมด</a>
+          </div>
+          <div class="space-y-4">
+            <div class="p-3 border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 rounded">
+              <div class="flex justify-between">
+                <h4 class="font-medium">การประชุมประจำไตรมาส</h4>
+                <span class="text-xs text-gray-500">3 วันที่แล้ว</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">ขอเชิญพนักงานทุกท่านเข้าร่วมการประชุมประจำไตรมาสในวันที่ 15 พ.ค. 2568</p>
+            </div>
+            <div class="p-3 border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-900/20 rounded">
+              <div class="flex justify-between">
+                <h4 class="font-medium">อบรมความปลอดภัยประจำปี</h4>
+                <span class="text-xs text-gray-500">5 วันที่แล้ว</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">พนักงานทุกคนต้องเข้าร่วมการอบรมความปลอดภัยประจำปี ภายในวันที่ 30 มิ.ย. 2568</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Chart -->
+      <div class="mt-6">
+        <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-lg"><i class="bi bi-bar-chart-line text-indigo-600 mr-2"></i>สถิติพนักงาน</h3>
+            <div class="flex space-x-2">
+              <button class="px-3 py-1 text-xs rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200">รายวัน</button>
+              <button class="px-3 py-1 text-xs rounded-full text-gray-500 dark:text-gray-300">รายสัปดาห์</button>
+              <button class="px-3 py-1 text-xs rounded-full text-gray-500 dark:text-gray-300">รายเดือน</button>
+            </div>
+          </div>
+          <div class="h-64 flex items-end justify-between px-2">
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 40%"></div>
+              <span class="text-xs mt-2">จันทร์</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 65%"></div>
+              <span class="text-xs mt-2">อังคาร</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 85%"></div>
+              <span class="text-xs mt-2">พุธ</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 75%"></div>
+              <span class="text-xs mt-2">พฤหัส</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 55%"></div>
+              <span class="text-xs mt-2">ศุกร์</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 25%"></div>
+              <span class="text-xs mt-2">เสาร์</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 15%"></div>
+              <span class="text-xs mt-2">อาทิตย์</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Employees Table (Placeholder - data should be dynamic) -->
+      <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow mt-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg"><i class="bi bi-people-fill text-indigo-600 mr-2"></i>พนักงานล่าสุด</h3>
+          <a href="employee_directory.html" class="text-sm text-indigo-600">ดูทั้งหมด</a>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="text-left border-b dark:border-gray-700">
+                <th class="pb-3">ชื่อ</th>
+                <th class="pb-3">ตำแหน่ง</th>
+                <th class="pb-3">แผนก</th>
+                <th class="pb-3">สถานะ</th>
+                <th class="pb-3">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="recentEmployeesTableBody">
+              <!-- Rows will be populated by fetchDashboardStats or a dedicated function -->
+              <tr><td colspan="5" class="text-center py-4">Loading recent employees...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+  
+<script>
+  const API_BASE = '/api';'
+  const token    = localStorage.getItem('authToken');'
+
+  // ช่วยแปลง photoUrl
+  function resolvePhotoUrl(raw) {
+    if (!raw) return '/uploads/employees/default.png';'
+    if (/^https?:\/\//.test(raw)) return raw;
+    if (raw.startsWith('/uploads/employees/')) return raw;'
+    if (raw.startsWith('/uploads/')) return raw.replace(/^\/uploads\//, '/uploads/employees/');'
+    return '/uploads/employees/' + raw;'
+  }
+
+  // ดึงโปรไฟล์ผู้ใช้จริงจาก API
+  async function fetchUserProfile() {
+    try {
+      const res  = await fetch(`${API_BASE}/users/me`, {
+        headers: { 'Authorization': 'Bearer ' + token }'
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Failed to load profile');'
+
+      const userName = json.data.name || 'ผู้ใช้';'
+      document.getElementById('employeeName').textContent  = userName;'
+      document.getElementById('employeePhoto').src        = resolvePhotoUrl(json.data.photoUrl);'
+      const initialEl = document.getElementById('userInitial');'
+      if (initialEl) initialEl.textContent = userName.charAt(0).toUpperCase();
+      const welcomeEl = document.getElementById('welcomeMessage');'
+      if (welcomeEl) welcomeEl.textContent = `ยินดีต้อนรับกลับ, ${userName}`;
+    } catch (err) {
+      console.error('fetchUserProfile:', err);'
+      alert('ไม่สามารถโหลดข้อมูลผู้ใช้ได้: ' + err.message);'
+      if (res?.status === 401) logout();
+    }
+  }
+
+  // ====== ดึงสถิติ Dashboard และพนักงานล่าสุด ======
+  async function fetchDashboardStats() {
+    try {
+      const res  = await fetch(`${API_BASE}/users`, { // Fetches all users
+        headers: { 'Authorization': 'Bearer ' + token }'
+      });
+      const json = await res.json();
+      // ถ้าโทเค็นหมดอายุหรือสิทธิ์ไม่พอ ให้ลบโทเค็นแล้วไปหน้า login ทันที
+      // 401 → หมดอายุ → logout
+  if (res.status === 401) {
+    showToast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', 'error');'
+    logout();
+    return;
+  }
+  // 403 → ไม่อนุญาต → กลับ Main Home
+  if (res.status === 403) {
+    showToast('คุณไม่มีสิทธิ์ดู Dashboard ฝ่ายบุคคล', 'error');'
+    setTimeout(() => window.location.href = 'home.html', 1200);'
+    return;
+  }
+      
+
+      const users = json.data;
+      const total     = users.length;
+      // Ensure u.status exists before filtering. Default to 'unknown' if not present.'
+      const active    = users.filter(u => (u.status || 'unknown').toLowerCase() === 'active').length;'
+      const resigned  = users.filter(u => (u.status || 'unknown').toLowerCase() === 'resigned').length;'
+      const late      = users.filter(u => u.isLate === true).length; // Assumes isLate is boolean
+
+      document.getElementById('totalEmployees').textContent   = total;'
+      document.getElementById('activeEmployees').textContent  = active;'
+      document.getElementById('resignedEmployees').textContent= resigned;'
+      document.getElementById('lateEmployees').textContent    = late; // This relies on `isLate` field'
+
+      // Populate recent employees table (e.g., first 3 users or sort by date if available)
+      populateRecentEmployees(users.slice(0, 3)); // Show first 3 as an example
+
+    } catch (err) {
+      console.error('fetchDashboardStats:', err);'
+      // Display error in stats area if needed, but avoid alert for non-critical stat load failure
+      document.getElementById('totalEmployees').textContent   = 'Error';'
+    }
+  }
+
+  function populateRecentEmployees(recentUsers) {
+    const tbody = document.getElementById('recentEmployeesTableBody');'
+    tbody.innerHTML = ''; // Clear loading/previous'
+    if (!recentUsers || recentUsers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">ไม่พบข้อมูลพนักงานล่าสุด</td></tr>';'
+        return;
+    }
+    recentUsers.forEach(user => {
+        const tr = document.createElement('tr');'
+        tr.className = 'border-b dark:border-gray-700';'
+        const userStatus = (user.status || 'unknown').toLowerCase();'
+        let statusClass = 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200';'
+        let statusIndicatorClass = 'status-offline';'
+        let statusText = user.status || 'Unknown';'
+
+        if (userStatus === 'active') {'
+            statusClass = 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';'
+            statusIndicatorClass = 'status-active';'
+            statusText = 'ทำงาน';'
+        } else if (userStatus === 'resigned' || userStatus === 'ลาออก') { // Assuming 'ลาออก' might be a value'
+            statusClass = 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';'
+            statusIndicatorClass = 'status-offline'; // Or a specific 'resigned' status'
+            statusText = 'ลาออก';'
+        } else if (userStatus === 'ลา' || userStatus === 'on_leave') { // Example for 'on leave''
+             statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';'
+             statusIndicatorClass = 'status-away';'
+             statusText = 'ลา';'
+        }
+
+
+        tr.innerHTML = `
+            <td class="py-3">
+              <div class="flex items-center">
+                <img src="${resolvePhotoUrl(user.photoUrl)}" class="w-8 h-8 rounded-full mr-3" alt="Profile picture">
+                <span>${user.name || 'N/A'}</span>'
+              </div>
+            </td>
+            <td>${user.position || 'N/A'}</td>'
+            <td>${user.department || 'N/A'}</td>'
+            <td>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                <span class="status-indicator ${statusIndicatorClass}"></span>${statusText}
+              </span>
+            </td>
+            <td>
+              <div class="flex space-x-2">
+                <button class="text-blue-500 hover:text-blue-700" title="ดูรายละเอียด"><i class="bi bi-eye"></i></button>
+                <button class="text-green-500 hover:text-green-700" title="แก้ไข"><i class="bi bi-pencil"></i></button>
+              </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+  }
+
+
+  // ====== ตั้งค่าวันที่ปัจจุบัน ======
+  function setCurrentDate() {
+    const months = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                    "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+    const now   = new Date();
+    const day   = now.getDate();
+    const month = months[now.getMonth()];
+    const year  = now.getFullYear() + 543;
+    const el = document.getElementById('currentDate');'
+    if(el) el.textContent = `${day} ${month} ${year}`;
+  }
+
+  // ====== ดึงเหตุการณ์ล่วงหน้า ======
+  async function fetchUpcomingEventsDashboard() {
+    try {
+      const res = await fetch(`${API_BASE}/events`, {
+        headers: { 'Authorization': 'Bearer ' + token }'
+      });
+      if (!res.ok) throw new Error('โหลดเหตุการณ์ไม่สำเร็จ');'
+      const json = await res.json();
+      const events = json.data || [];
+      const today = new Date(); today.setHours(0,0,0,0);
+
+      const upcoming = events
+        .filter(e => new Date(e.date) >= today)
+        .sort((a,b) => new Date(a.date) - new Date(b.date))
+        .slice(0,3);
+
+      const container = document.getElementById('upcomingHolidayList');'
+      if (!upcoming.length) {
+        container.innerHTML = '<div class="text-gray-400 text-sm text-center py-2">ไม่มีเหตุการณ์ที่กำลังจะมาถึง</div>';'
+        return;
+      }
+
+      const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];'
+      container.innerHTML = upcoming.map(e => {
+        const d = new Date(e.date);
+        const day = d.getDate(), mon = months[d.getMonth()];
+        const holidayCls = e.type==='holiday'?'calendar-day-holiday':'';'
+        return `
+          <div class="flex items-center">
+            <div class="calendar-day ${holidayCls} mr-4">
+              <span class="text-xs">${mon}</span>
+              <div class="text-xl font-bold">${day}</div>
+            </div>
+            <div>
+              <h4 class="font-medium">${e.title}</h4>
+              <p class="text-sm text-gray-500 dark:text-gray-300">
+                ${e.extendedProps?.description||e.description||''}'
+              </p>
+            </div>
+          </div>`;
+      }).join('');'
+    } catch (err) {
+      console.error('fetchUpcomingEventsDashboard:', err);'
+      document.getElementById('upcomingHolidayList').innerHTML ='
+        '<div class="text-red-500 text-sm text-center py-2">โหลดข้อมูลล่วงหน้าไม่สำเร็จ</div>';'
+    }
+  }
+
+  // ====== Dark Mode ======
+  function checkDarkMode() {
+    const dark = localStorage.getItem('darkMode') === 'true';'
+    document.documentElement.classList.toggle('dark', dark);'
+    const label = document.getElementById('darkModeLabel');'
+    if(label) label.textContent = dark ? 'Light Mode' : 'Dark Mode';'
+  }
+
+  // ====== Event Listeners ======
+  function setupEventListeners() {
+    const sidebar = document.getElementById('sidebar');'
+    const btnToggleMenu = document.getElementById('btnToggleMenu');'
+    const menuToggle = document.getElementById('menuToggle');'
+    const btnToggleDark = document.getElementById('btnToggleDark');'
+    const notificationBtn = document.getElementById('notificationBtn');'
+    const userBtn = document.getElementById('userBtn');'
+    const btnLogoutSidebar = document.getElementById('btnLogoutSidebar');'
+    const btnLogoutDropdown = document.getElementById('btnLogoutDropdown');'
+
+    const cardApproveLeave = document.getElementById('cardApproveLeave');'
+    const cardRecruitment = document.getElementById('cardRecruitment');'
+    const cardPayroll = document.getElementById('cardPayroll');'
+    const cardPerformanceReview = document.getElementById('cardPerformanceReview');'
+    const btnViewNotificationsWelcome = document.getElementById('btnViewNotificationsWelcome');'
+    const btnViewEmployeesWelcome = document.getElementById('btnViewEmployeesWelcome');'
+
+
+    if(btnToggleMenu) btnToggleMenu.addEventListener('click', () => {'
+      if(sidebar) sidebar.classList.toggle('-ml-64');'
+      const icon = btnToggleMenu.querySelector('i');'
+      if(icon) {
+        icon.classList.toggle('bi-chevron-left');'
+        icon.classList.toggle('bi-chevron-right');'
+      }
+    });
+    if(menuToggle && sidebar) menuToggle.addEventListener('click', () => {'
+      sidebar.classList.toggle('-ml-64');'
+    });
+
+    if(btnToggleDark) btnToggleDark.addEventListener('click', () => {'
+      const isDark = document.documentElement.classList.toggle('dark');'
+      localStorage.setItem('darkMode', isDark);'
+      const label = document.getElementById('darkModeLabel');'
+      if(label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';'
+    });
+
+    if(notificationBtn) notificationBtn.addEventListener('click', e => {'
+      e.stopPropagation();
+      document.getElementById('notificationDropdown')?.classList.toggle('hidden');'
+      document.getElementById('userDropdown')?.classList.add('hidden');'
+    });
+
+    if(userBtn) userBtn.addEventListener('click', e => {'
+      e.stopPropagation();
+      document.getElementById('userDropdown')?.classList.toggle('hidden');'
+      document.getElementById('notificationDropdown')?.classList.add('hidden');'
+    });
+
+    if(btnLogoutSidebar) btnLogoutSidebar.addEventListener('click', logout);'
+    if(btnLogoutDropdown) btnLogoutDropdown.addEventListener('click', logout);'
+
+    // Quick Action Cards
+    if(cardApproveLeave) cardApproveLeave.addEventListener('click', approveLeave);'
+    if(cardRecruitment) cardRecruitment.addEventListener('click', () => window.location.href = 'recruitment.html');'
+    if(cardPayroll) cardPayroll.addEventListener('click', () => window.location.href = 'payroll.html');'
+    if(cardPerformanceReview) cardPerformanceReview.addEventListener('click', () => window.location.href = 'performance_reviews.html');'
+    
+    // Welcome banner buttons
+    if(btnViewNotificationsWelcome) btnViewNotificationsWelcome.addEventListener('click', () => window.location.href = 'notifications.html');'
+    if(btnViewEmployeesWelcome) btnViewEmployeesWelcome.addEventListener('click', () => window.location.href = 'employee_directory.html');'
+
+  }
+
+  // ====== คลิกพื้นที่นอก dropdown ปิดเมนู ======
+  function setupOutsideClickHandlers() {
+    document.addEventListener('click', e => {'
+      const notificationDropdown = document.getElementById('notificationDropdown');'
+      const userDropdown = document.getElementById('userDropdown');'
+
+      if (notificationDropdown && !e.target.closest('#notificationBtn') && !e.target.closest('#notificationDropdown')) {'
+        notificationDropdown.classList.add('hidden');'
+      }
+      if (userDropdown && !e.target.closest('#userBtn') && !e.target.closest('#userDropdown')) {'
+        userDropdown.classList.add('hidden');'
+      }
+    });
+  }
+
+  // ====== Logout ======
+  function logout(showAlert = true) {
+    const btnSidebar = document.getElementById('btnLogoutSidebar');'
+    const btnDropdown = document.getElementById('btnLogoutDropdown'); // Assuming this is the one in user dropdown'
+    const userBtnAvatar = document.getElementById('userBtn');'
+
+
+    if(btnSidebar) btnSidebar.innerHTML = '<span class="loading loading-spinner loading-sm mx-auto"></span>';'
+    if(btnDropdown) btnDropdown.innerHTML = '<span class="loading loading-spinner loading-sm mx-auto"></span> <span class="ml-2">กำลังออก...</span>';'
+    if(userBtnAvatar) userBtnAvatar.innerHTML = '<div class="w-8 h-8 rounded-full flex items-center justify-center"><span class="loading loading-spinner loading-xs"></span></div>';'
+
+
+    setTimeout(() => {
+      localStorage.removeItem('authToken');'
+      localStorage.removeItem('userId'); // Also remove userId if you store it'
+      localStorage.removeItem('darkMode'); // Clear dark mode preference on logout'
+      if (showAlert) {
+        alert('ออกจากระบบแล้ว');'
+      }
+      window.location.href = '/login';'
+    }, 500); // Increased timeout slightly for spinner visibility
+  }
+
+  // ====== Quick Actions (defined for clarity, might be simple navigations) ======
+  // function addEmployee() { window.location.href = 'employee_directory.html'; } // Or specific add page'
+  function approveLeave() { window.location.href = 'leave_requests.html'; }'
+
+  document.addEventListener('DOMContentLoaded', () => {'
+    if (!token) return window.location.href = '/login';'
+
+    // ① เรียก API อัปเดตโปรไฟล์ก่อน
+    fetchUserProfile();
+
+    // ② ฟังก์ชันอื่นๆ ตามเดิม
+    fetchDashboardStats();
+    fetchUpcomingEventsDashboard();
+    checkDarkMode();
+    setupEventListeners();
+    setupOutsideClickHandlers();
+    setCurrentDate();
+  });
+</script>
+</body>
+</html>

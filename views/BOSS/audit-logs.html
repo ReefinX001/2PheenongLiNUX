@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Audit Logs Dashboard - Boss Panel</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;'
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .log-entry {
+            transition: all 0.2s ease;
+        }
+        
+        .log-entry:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .level-info { border-left: 4px solid #3b82f6; }
+        .level-warning { border-left: 4px solid #f59e0b; }
+        .level-error { border-left: 4px solid #ef4444; }
+        .level-critical { border-left: 4px solid #dc2626; }
+        .level-security { border-left: 4px solid #7c3aed; }
+        .level-success { border-left: 4px solid #10b981; }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .stats-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .stats-card.success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .stats-card.danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .financial-card {
+            transition: all 0.3s ease;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        
+        .financial-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(45deg, #2563eb, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-value.positive {
+            background: linear-gradient(45deg, #059669, #10b981);
+        }
+        
+        .stat-value.negative {
+            background: linear-gradient(45deg, #dc2626, #ef4444);
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(to right, #1e40af, #3b82f6);
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            position: relative;
+            padding-left: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, #3b82f6, #60a5fa);
+            border-radius: 2px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.5rem;
+        }
+        
+        .data-table th {
+            background: #f8fafc;
+            padding: 1rem;
+            font-weight: 500;
+            text-align: left;
+            color: #4b5563;
+        }
+        
+        .data-table td {
+            padding: 1rem;
+            background: white;
+        }
+        
+        .data-table tr:hover td {
+            background: #f8fafc;
+        }
+    </style>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="container mx-auto px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="text-4xl">🔍</div>
+                    <div>
+                        <h1 class="text-3xl font-bold">Audit Logs Dashboard</h1>
+                        <p class="text-blue-100">ระบบตรวจสอบและติดตามการใช้งานแบบครอบคลุม</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-white/10 rounded-lg px-4 py-2">
+                        <span class="text-sm text-blue-100">Last Updated:</span>
+                        <span class="font-medium text-white" id="lastUpdated">--</span>
+                    </div>
+                    <button id="refreshBtn" class="btn btn-ghost btn-sm text-white hover:bg-white/10">
+                        <i class="bi bi-arrow-clockwise mr-2"></i> Refresh
+                    </button>
+                    <a href="home.html" class="btn btn-outline btn-sm text-white border-white hover:bg-white/10">
+                        <i class="bi bi-house mr-2"></i> Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="stats-card rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">Total Events</h3>
+                        <p class="text-3xl font-bold" id="totalEvents">0</p>
+                    </div>
+                    <div class="text-4xl opacity-80">📊</div>
+                </div>
+            </div>
+            
+            <div class="stats-card warning rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">Security Events</h3>
+                        <p class="text-3xl font-bold" id="securityEvents">0</p>
+                    </div>
+                    <div class="text-4xl opacity-80">🚨</div>
+                </div>
+            </div>
+            
+            <div class="stats-card success rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">Active Users</h3>
+                        <p class="text-3xl font-bold" id="activeUsers">0</p>
+                    </div>
+                    <div class="text-4xl opacity-80">👥</div>
+                </div>
+            </div>
+            
+            <div class="stats-card danger rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold opacity-90">Error Rate</h3>
+                        <p class="text-3xl font-bold"><span id="errorRate">0</span>%</p>
+                    </div>
+                    <div class="text-4xl opacity-80">⚠️</div>
+                </div>
+            </div>
+        </div>
+
+     
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="glass-card rounded-lg p-6 shadow-lg">
+                <h3 class="text-lg font-semibold mb-4">📈 Events Timeline</h3>
+                <canvas id="timelineChart" height="200"></canvas>
+            </div>
+            
+            <div class="glass-card rounded-lg p-6 shadow-lg">
+                <h3 class="text-lg font-semibold mb-4">🔍 Event Categories</h3>
+                <canvas id="categoryChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="glass-card rounded-lg p-6 shadow-lg mb-6">
+            <h3 class="text-lg font-semibold mb-4">🔎 Filters & Search</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="label">
+                        <span class="label-text">Date Range</span>
+                    </label>
+                    <select id="dateRange" class="select select-bordered w-full">
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="label">
+                        <span class="label-text">Level</span>
+                    </label>
+                    <select id="levelFilter" class="select select-bordered w-full">
+                        <option value="">All Levels</option>
+                        <option value="INFO">Info</option>
+                        <option value="WARNING">Warning</option>
+                        <option value="ERROR">Error</option>
+                        <option value="CRITICAL">Critical</option>
+                        <option value="SECURITY">Security</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="label">
+                        <span class="label-text">User</span>
+                    </label>
+                    <select id="userFilter" class="select select-bordered w-full">
+                        <option value="">All Users</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="label">
+                        <span class="label-text">Search</span>
+                    </label>
+                    <input type="text" id="searchInput" class="input input-bordered w-full" placeholder="Search actions, details...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tabs tabs-boxed bg-white rounded-lg shadow-lg mb-6">
+            <a class="tab tab-active" data-tab="all">🔍 All Events</a>
+            <a class="tab" data-tab="pos">🛒 POS System</a>
+            <a class="tab" data-tab="inventory">📦 Inventory</a>
+            <a class="tab" data-tab="users">👥 User Management</a>
+            <a class="tab" data-tab="security">🔒 Security</a>
+            <a class="tab" data-tab="errors">⚠️ Errors</a>
+            <a class="tab" data-tab="payments">💰 Payments</a>
+            <a class="tab" data-tab="reports">📊 Reports</a>
+        </div>
+
+        <!-- Tab Contents -->
+        
+        <!-- All Events Tab -->
+        <div id="tab-all" class="tab-content active">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold">🔍 All Audit Events</h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-500" id="allEventsCount">0 events</span>
+                            <button id="exportAllBtn" class="btn btn-sm btn-outline">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div id="allEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POS System Tab -->
+        <div id="tab-pos" class="tab-content">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">🛒 POS System Events</h3>
+                    <p class="text-gray-600">การทำรายการขาย, การเพิ่มสินค้าในตะกร้า, การชำระเงิน</p>
+                </div>
+                <div class="p-6">
+                    <div id="posEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- POS Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Tab -->
+        <div id="tab-inventory" class="tab-content">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">📦 Inventory Management Events</h3>
+                    <p class="text-gray-600">การจัดการสต๊อก, การอัปเดตสินค้า, การตรวจสอบสต๊อก</p>
+                </div>
+                <div class="p-6">
+                    <div id="inventoryEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Inventory Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management Tab -->
+        <div id="tab-users" class="tab-content">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">👥 User Management Events</h3>
+                    <p class="text-gray-600">การเข้าสู่ระบบ, การออกจากระบบ, การเปลี่ยนแปลงข้อมูลผู้ใช้</p>
+                </div>
+                <div class="p-6">
+                    <div id="usersEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- User Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Tab -->
+        <div id="tab-security" class="tab-content">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">🔒 Security Events</h3>
+                    <p class="text-gray-600">การพยายามเข้าระบบผิด, การเข้าถึงที่ไม่ได้รับอนุญาต, ความผิดปกติ</p>
+                </div>
+                <div class="p-6">
+                    <div id="securityEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Security Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Errors Tab -->
+        <div id="tab-errors" class="tab-content">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">⚠️ Error Events</h3>
+                    <p class="text-gray-600">ข้อผิดพลาดของระบบ, การล้มเหลวของการทำรายการ</p>
+                </div>
+                <div class="p-6">
+                    <div id="errorsEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Error Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payments Tab -->
+        <div id="tab-payments" class="tab-content">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">💰 Payment Events</h3>
+                    <p class="text-gray-600">การชำระเงิน, การคืนเงิน, การจัดการใบเสร็จ</p>
+                </div>
+                <div class="p-6">
+                    <div id="paymentsEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Payment Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="tab-reports" class="tab-content">
+            <div class="glass-card rounded-lg shadow-lg">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">📊 Report Generation Events</h3>
+                    <p class="text-gray-600">การสร้างรายงาน, การส่งออกข้อมูล, การดูรายงาน</p>
+                </div>
+                <div class="p-6">
+                    <div id="reportsEventsList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Report Events will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+       
+    </main>
+
+    <!-- Event Detail Modal -->
+    <div id="eventModal" class="modal">
+        <div class="modal-box max-w-4xl">
+            <h3 class="font-bold text-lg mb-4">🔍 Event Details</h3>
+            <div id="eventDetails"></div>
+            <div class="modal-action">
+                <label for="eventModal" class="btn">Close</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Global variables
+        let auditLogs = [];
+        let filteredLogs = [];
+        let timelineChart = null;
+        let categoryChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+            initializePage();
+            setupEventListeners();
+            loadAuditLogs();
+        });
+
+        function initializePage() {
+            updateLastUpdated();
+            initializeCharts();
+        }
+
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {'
+                tab.addEventListener('click', (e) => {'
+                    e.preventDefault();
+                    switchTab(tab.dataset.tab);
+                });
+            });
+
+            // Filters
+            document.getElementById('dateRange').addEventListener('change', applyFilters);'
+            document.getElementById('levelFilter').addEventListener('change', applyFilters);'
+            document.getElementById('userFilter').addEventListener('change', applyFilters);'
+            document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));'
+
+            // Refresh button
+            document.getElementById('refreshBtn').addEventListener('click', loadAuditLogs);'
+
+            // Export buttons
+            document.getElementById('exportAllBtn').addEventListener('click', () => exportData('all'));'
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        async function loadAuditLogs() {
+            try {
+                const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+                const token = localStorage.getItem('authToken');'
+                
+                const response = await fetch('/api/audit/logs', {'
+                    headers: {
+                        'Authorization': 'Bearer ' + token,'
+                        'Content-Type': 'application/json''
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                auditLogs = data.logs || [];
+                
+                updateStatistics();
+                updateCharts();
+                applyFilters();
+                updateLastUpdated();
+                
+            } catch (error) {
+                console.error('Failed to load audit logs:', error);'
+                showToast('Failed to load audit logs: ' + error.message, 'error');'
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateStatistics() {
+            const total = auditLogs.length;
+            const security = auditLogs.filter(log => log.level === 'SECURITY' || log.category === 'SECURITY').length;'
+            const errors = auditLogs.filter(log => log.level === 'ERROR' || log.level === 'CRITICAL').length;'
+            const users = new Set(auditLogs.map(log => log.userId)).size;
+            const errorRate = total > 0 ? ((errors / total) * 100).toFixed(1) : 0;
+
+            document.getElementById('totalEvents').textContent = total.toLocaleString();'
+            document.getElementById('securityEvents').textContent = security.toLocaleString();'
+            document.getElementById('activeUsers').textContent = users.toLocaleString();'
+            document.getElementById('errorRate').textContent = errorRate;'
+        }
+
+        function initializeCharts() {
+            // Timeline Chart
+            const timelineCtx = document.getElementById('timelineChart').getContext('2d');'
+            timelineChart = new Chart(timelineCtx, {
+                type: 'line','
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Events','
+                        data: [],
+                        borderColor: '#3b82f6','
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)','
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Category Chart
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');'
+            categoryChart = new Chart(categoryCtx, {
+                type: 'doughnut','
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#7c3aed', '#06b6d4''
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (!auditLogs.length) return;
+
+            // Update timeline chart
+            const timelineData = processTimelineData(auditLogs);
+            timelineChart.data.labels = timelineData.labels;
+            timelineChart.data.datasets[0].data = timelineData.data;
+            timelineChart.update();
+
+            // Update category chart
+            const categoryData = processCategoryData(auditLogs);
+            categoryChart.data.labels = categoryData.labels;
+            categoryChart.data.datasets[0].data = categoryData.data;
+            categoryChart.update();
+        }
+
+        function processTimelineData(logs) {
+            const hours = {};
+            logs.forEach(log => {
+                const hour = new Date(log.timestamp).getHours();
+                const key = `${hour}:00`;
+                hours[key] = (hours[key] || 0) + 1;
+            });
+
+            const labels = [];
+            const data = [];
+            for (let i = 0; i < 24; i++) {
+                const key = `${i}:00`;
+                labels.push(key);
+                data.push(hours[key] || 0);
+            }
+
+            return { labels, data };
+        }
+
+        function processCategoryData(logs) {
+            const categories = {};
+            logs.forEach(log => {
+                const category = log.category || 'Other';'
+                categories[category] = (categories[category] || 0) + 1;
+            });
+
+            return {
+                labels: Object.keys(categories),
+                data: Object.values(categories)
+            };
+        }
+
+        function switchTab(tabName) {
+            // Update tab appearance
+            document.querySelectorAll('.tab').forEach(tab => {'
+                tab.classList.remove('tab-active');'
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('tab-active');'
+
+            // Show/hide tab content
+            document.querySelectorAll('.tab-content').forEach(content => {'
+                content.classList.remove('active');'
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');'
+
+            // Load tab-specific data
+            loadTabData(tabName);
+        }
+
+        function loadTabData(tabName) {
+            let logs = filteredLogs;
+
+            switch (tabName) {
+                case 'pos':'
+                    logs = logs.filter(log => log.category === 'CART' || log.category === 'POS' || '
+                                            log.action.includes('ADD_TO_CART') || log.action.includes('CHECKOUT'));'
+                    break;
+                case 'inventory':'
+                    logs = logs.filter(log => log.category === 'INVENTORY' || log.action.includes('STOCK'));'
+                    break;
+                case 'users':'
+                    logs = logs.filter(log => log.category === 'USER' || log.action.includes('LOGIN') || '
+                                            log.action.includes('LOGOUT'));'
+                    break;
+                case 'security':'
+                    logs = logs.filter(log => log.level === 'SECURITY' || log.category === 'SECURITY');'
+                    break;
+                case 'errors':'
+                    logs = logs.filter(log => log.level === 'ERROR' || log.level === 'CRITICAL');'
+                    break;
+                case 'payments':'
+                    logs = logs.filter(log => log.category === 'PAYMENT' || log.action.includes('PAYMENT'));'
+                    break;
+                case 'reports':'
+                    logs = logs.filter(log => log.action.includes('REPORT') || log.action.includes('EXPORT'));'
+                    break;
+            }
+
+            const containerId = tabName === 'all' ? 'allEventsList' : `${tabName}EventsList`;'
+            renderEventsList(logs, containerId);
+        }
+
+        function applyFilters() {
+            const dateRange = document.getElementById('dateRange').value;'
+            const level = document.getElementById('levelFilter').value;'
+            const user = document.getElementById('userFilter').value;'
+            const search = document.getElementById('searchInput').value.toLowerCase();'
+
+            filteredLogs = auditLogs.filter(log => {
+                // Date filter
+                if (!passesDateFilter(log, dateRange)) return false;
+                
+                // Level filter
+                if (level && log.level !== level) return false;
+                
+                // User filter
+                if (user && log.userId !== user) return false;
+                
+                // Search filter
+                if (search && !passesSearchFilter(log, search)) return false;
+                
+                return true;
+            });
+
+            // Get current active tab and reload its data
+            const activeTab = document.querySelector('.tab-active').dataset.tab;'
+            loadTabData(activeTab);
+        }
+
+        function passesDateFilter(log, dateRange) {
+            const logDate = new Date(log.timestamp);
+            const now = new Date();
+            
+            switch (dateRange) {
+                case 'today':'
+                    return logDate.toDateString() === now.toDateString();
+                case 'yesterday':'
+                    const yesterday = new Date(now);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    return logDate.toDateString() === yesterday.toDateString();
+                case 'week':'
+                    const weekAgo = new Date(now);
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return logDate >= weekAgo;
+                case 'month':'
+                    const monthAgo = new Date(now);
+                    monthAgo.setMonth(monthAgo.getMonth() - 1);
+                    return logDate >= monthAgo;
+                default:
+                    return true;
+            }
+        }
+
+        function passesSearchFilter(log, search) {
+            return log.action.toLowerCase().includes(search) ||
+                   log.userName.toLowerCase().includes(search) ||
+                   JSON.stringify(log.details).toLowerCase().includes(search);
+        }
+
+        function renderEventsList(logs, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!logs.length) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8">No events found</p>';'
+                return;
+            }
+
+            container.innerHTML = logs.map(log => `
+                <div class="log-entry level-${log.level.toLowerCase()} bg-white rounded-lg p-4 shadow-sm cursor-pointer"
+                     onclick="showEventDetails('${log.id}')">'
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-1">
+                                <span class="badge badge-${getLevelBadgeClass(log.level)} badge-sm">
+                                    ${log.level}
+                                </span>
+                                <span class="font-medium">${log.action}</span>
+                                <span class="text-sm text-gray-500">${log.userName} (${log.userId})</span>
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                ${formatTimestamp(log.timestamp)} | Branch: ${log.branchCode || 'N/A'}'
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                ${truncateDetails(log.details)}
+                            </div>
+                        </div>
+                        <div class="text-2xl opacity-60">
+                            ${getLevelEmoji(log.level)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');'
+        }
+
+        function getLevelBadgeClass(level) {
+            const classes = {
+                'INFO': 'info','
+                'WARNING': 'warning','
+                'ERROR': 'error','
+                'CRITICAL': 'error','
+                'SECURITY': 'secondary','
+                'SUCCESS': 'success''
+            };
+            return classes[level] || 'neutral';'
+        }
+
+        function getLevelEmoji(level) {
+            const emojis = {
+                'INFO': 'ℹ️','
+                'WARNING': '⚠️','
+                'ERROR': '❌','
+                'CRITICAL': '🚨','
+                'SECURITY': '🔒','
+                'SUCCESS': '✅''
+            };
+            return emojis[level] || 'ℹ️';'
+        }
+
+        function formatTimestamp(timestamp) {
+            return new Date(timestamp).toLocaleString('th-TH');'
+        }
+
+        function truncateDetails(details) {
+            const str = JSON.stringify(details);
+            return str.length > 100 ? str.substring(0, 100) + '...' : str;'
+        }
+
+        function showEventDetails(logId) {
+            const log = auditLogs.find(l => l.id === logId);
+            if (!log) return;
+
+            const modal = document.getElementById('eventModal');'
+            const details = document.getElementById('eventDetails');'
+
+            details.innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="font-semibold">Event ID:</label>
+                            <p class="font-mono text-sm">${log.id}</p>
+                        </div>
+                        <div>
+                            <label class="font-semibold">Timestamp:</label>
+                            <p>${formatTimestamp(log.timestamp)}</p>
+                        </div>
+                        <div>
+                            <label class="font-semibold">Action:</label>
+                            <p>${log.action}</p>
+                        </div>
+                        <div>
+                            <label class="font-semibold">Level:</label>
+                            <span class="badge badge-${getLevelBadgeClass(log.level)}">${log.level}</span>
+                        </div>
+                        <div>
+                            <label class="font-semibold">User:</label>
+                            <p>${log.userName} (${log.userId})</p>
+                        </div>
+                        <div>
+                            <label class="font-semibold">Branch:</label>
+                            <p>${log.branchCode || 'N/A'}</p>'
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="font-semibold">Details:</label>
+                        <pre class="bg-gray-100 p-3 rounded mt-2 text-sm overflow-x-auto">${JSON.stringify(log.details, null, 2)}</pre>
+                    </div>
+                    
+                    ${log.deviceInfo ? `
+                    <div>
+                        <label class="font-semibold">Device Info:</label>
+                        <pre class="bg-gray-100 p-3 rounded mt-2 text-sm overflow-x-auto">${JSON.stringify(log.deviceInfo, null, 2)}</pre>
+                    </div>
+                    ` : ''}'
+                </div>
+            `;
+
+            modal.classList.add('modal-open');'
+        }
+
+        function exportData(type) {
+            let dataToExport = type === 'all' ? filteredLogs : getTabSpecificLogs(type);'
+            
+            const csv = convertToCSV(dataToExport);
+            const blob = new Blob([csv], { type: 'text/csv' });'
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');'
+            a.href = url;
+            a.download = `audit-logs-${type}-${new Date().toISOString().split('T')[0]}.csv`;'
+            a.click();
+            
+            window.URL.revokeObjectURL(url);
+        }
+
+        function convertToCSV(logs) {
+            const headers = ['ID', 'Timestamp', 'Action', 'Level', 'User', 'Branch', 'Details'];'
+            const rows = logs.map(log => [
+                log.id,
+                log.timestamp,
+                log.action,
+                log.level,
+                `${log.userName} (${log.userId})`,
+                log.branchCode || 'N/A','
+                JSON.stringify(log.details).replace(/"/g, '""')'
+            ]);
+            
+            return [headers, ...rows].map(row => 
+                row.map(cell => `"${cell}"`).join(',')'
+            ).join('\n');'
+        }
+
+        function updateLastUpdated() {
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleString('th-TH');'
+        }
+
+                function hideLoading() {
+            // Remove loading spinner or overlay
+            console.log('Loading complete');'
+        }
+
+        function showToast(message, type = 'info') {'
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            // Implement toast notification
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            loadAuditLogs();
+        }, 30000);
+    
+}</script>
+</body>
+</html>

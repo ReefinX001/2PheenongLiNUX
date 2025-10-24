@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ลงทะเบียนสินค้า & ปรับราคา</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <!-- Flatpickr CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script src="../js/activity-tracker.js"></script>
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  
+   <!-- โหลด Socket.IO client จากเซิร์ฟเวอร์ตัวเอง -->
+   <script src="/socket.io/socket.io.js"></script>
+   <script>
+     const socket = io();
+   </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    #dropzone {
+      width: 300px;
+      height: 300px;
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    /* Tab styles */
+    .tab-active {
+      color: #0ea5e9;
+      border-bottom: 2px solid #0ea5e9;
+      font-weight: 600;
+    }
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    /* สไตล์สำหรับ radio buttons */
+    .radio-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .radio-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .price-input {
+  width: 100%;
+  max-width: 120px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  text-align: right;
+  transition: all 0.2s;
+}
+.price-input:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: #3b82f6;
+}
+    .radio-item:hover {
+      border-color: #3b82f6;
+      background-color: #f9fafb;
+    }
+    .dark .radio-item {
+      border-color: #4b5563;
+    }
+    .dark .radio-item:hover {
+      border-color: #60a5fa;
+      background-color: #1f2937;
+    }
+    .radio-item input[type="radio"] {
+      margin-right: 0.5rem;
+    }
+    .radio-item.selected {
+      border-color: #3b82f6;
+      background-color: #eff6ff;
+    }
+    .dark .radio-item.selected {
+      border-color: #60a5fa;
+      background-color: #1e3a8a;
+    }
+    /* Tab navigation */
+    .tab-nav {
+      display: flex;
+      border-bottom: 2px solid #e5e7eb;
+      margin-bottom: 2rem;
+    }
+    .tab-nav button {
+      padding: 0.75rem 1.5rem;
+      font-weight: 500;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      transition: all 0.3s;
+    }
+    .tab-nav button.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+    .tab-content {
+      display: none !important;
+    }
+    .tab-content.active {
+      display: block !important;
+    }
+    /* Product item selection */
+    .product-item {
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+    .product-item:hover {
+      border-color: #e5e7eb;
+    }
+    .product-item.selected {
+      border-color: #3b82f6;
+      background-color: #eff6ff;
+    }
+    .dark .product-item.selected {
+      background-color: #1e3a8a;
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+          class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Layout หลัก: Sidebar - Main Content -->
+  <div class="flex min-h-screen">
+    <div class="flex w-full">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+       class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+              transform transition-transform duration-300 translate-x-0 z-20">
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-hidden">
+        <ul class="flex flex-col w-full space-y-1">
+
+
+           <li class="my-px">
+            <a href="branch_stock_overview"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                <i class="bi bi-grid text-xl"></i>
+              </span>
+              <span class="ml-3">สต๊อกคงเหลือ</span>
+            </a>
+          </li>
+
+          <!-- เมนู: ตรวจสินค้า/อนุมัติ -->
+          <li class="my-px">
+            <a href="inventory_dashboard"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+                <i class="bi bi-clipboard-check text-xl"></i>
+              </span>
+              <span class="ml-3">ตรวจสินค้า/อนุมัติ</span>
+            </a>
+          </li>
+
+          <!-- เมนู:PO -->
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+                <i class="bi bi-file-earmark-text text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+          <!-- เมนู: Quotation -->
+          <li class="my-px">
+            <a href="quotation_Stock"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+                <i class="bi bi-file-earmark-richtext text-xl"></i>
+              </span>
+              <span class="ml-3">สร้างใบเสนอราคา</span>
+            </a>
+          </li>
+          <!-- เมนู: Transfer -->
+          <li class="my-px">
+            <a href="Transfer"
+               class="flex flex-row items-center h-12 px-4 rounded-lg
+            text-gray-600 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-700 transition-all sidebar-link">
+              <span class="flex items-center justify-center text-lg text-primary-500 dark:text-primary-400">
+                <i class="bi bi-truck text-xl"></i>
+              </span>
+              <span class="ml-3">ย้ายสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="product_Image"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-yellow-500 dark:text-yellow-400">
+                <i class="bi bi-upc-scan text-xl"></i>
+              </span>
+              <span class="ml-3">ลงทะเบียนสินค้า</span>
+            </a>
+          </li>
+
+          <!-- เมนู: เพิ่มเติม -->
+          <li class="my-px">
+            <a href="StockAdditional"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-three-dots text-xl"></i>
+              </span>
+              <span class="ml-3">เพิ่มเติม</span>
+            </a>
+          </li>
+
+
+          <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <!-- Dark Mode Toggle -->
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+                <i class="bi bi-moon-stars text-xl"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+                <i class="bi bi-box-arrow-right text-xl"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px mt-2">
+            <div id="profile"
+                 class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+              <div class="avatar mr-3">
+                <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+                  <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium" id="employeeName">Loading...</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ส่วนเนื้อหา (Main Content) -->
+    <div id="mainContent"
+         class="flex-1 ml-56 p-6 space-y-6 transition-all duration-300 ease-in-out">
+      <!-- Header -->
+      <header class="p-4 bg-white dark:bg-gray-800  flex justify-between items-center transition-colors">
+        <h1 class="text-xl font-bold" id="pageTitle">ลงทะเบียนสินค้า
+        </h1>
+        <div class="flex space-x-2">
+          <!-- ปุ่มสำหรับการเลือกประเภทการลงทะเบียน -->
+        </div>
+      </header>
+
+      <!-- Tab Navigation -->
+      <div class="tab-nav bg-white dark:bg-gray-800 rounded-t-xl px-6 pt-6">
+        <button class="tab-btn active" data-tab="single">
+          <i class="bi bi-plus-circle mr-2"></i>ลงทะเบียนสินค้าใหม่
+        </button>
+        
+        <button class="tab-btn" data-tab="pricing">
+  <i class="bi bi-tag mr-2"></i>ปรับราคาสินค้า
+</button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="bg-white dark:bg-gray-800 rounded-b-xl rounded-tr-xl p-6">
+        <!-- Tab 1: ลงทะเบียนสินค้าเดี่ยว -->
+        <div id="single" class="tab-content active">
+          <section class="space-y-6">
+            <form id="createProductForm" enctype="multipart/form-data" class="space-y-6">
+        
+              <!-- ชื่อสินค้า / Brand -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label for="productName" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ชื่อสินค้า</label>
+                  <input
+                    type="text" id="productName" name="name" placeholder="ระบุชื่อสินค้า" required
+                    class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+                <div>
+                  <label for="productBrand" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Brand</label>
+                  <input
+                    type="text" id="productBrand" name="brand" placeholder="ระบุแบรนด์สินค้า"
+                    class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+              </div>
+
+              <!-- ประเภทสินค้า -->
+              <div>
+  <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
+    ประเภทสินค้า
+  </label>
+  <div class="radio-group">
+    <label class="radio-item">
+      <input type="radio" name="productType" value="mobile" checked />
+      <span class="flex items-center">
+        <i class="bi bi-phone mr-2"></i> มือถือ
+      </span>
+    </label>
+    <label class="radio-item">
+      <input type="radio" name="productType" value="accessory" />
+      <span class="flex items-center">
+        <i class="bi bi-headphones mr-2"></i> อุปกรณ์เสริม
+      </span>
+    </label>
+    <label class="radio-item">
+      <input type="radio" name="productType" value="gift" />
+      <span class="flex items-center">
+        <i class="bi bi-gift mr-2"></i> ของแถม
+      </span>
+    </label>
+  </div>
+</div>
+
+              <!-- ประเภทการซื้อ -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  ประเภทการซื้อ
+                </label>
+                <div class="flex items-center gap-4 mb-6">
+                  <label class="flex items-center gap-1">
+                    <input type="checkbox" name="purchaseType" value="cash" />
+                    <span>ซื้อสด</span>
+                  </label>
+                  <label class="flex items-center gap-1">
+                    <input type="checkbox" name="purchaseType" value="installment" />
+                    <span>ผ่อน</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- การจัดการ Stock -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
+                  ประเภทการจัดการ Stock
+                </label>
+                <div class="radio-group">
+                  <label class="radio-item">
+                    <input type="radio" name="stockType" value="imei" checked />
+                    <span class="flex items-center">
+                      <i class="bi bi-qr-code mr-2"></i> สินค้าที่มีเลข IMEI (แยก Stock แต่ละเครื่อง)
+                    </span>
+                  </label>
+                  <label class="radio-item">
+                    <input type="radio" name="stockType" value="quantity" />
+                    <span class="flex items-center">
+                      <i class="bi bi-boxes mr-2"></i> สินค้าที่ไม่มีเลข IMEI (นับเป็นจำนวนชิ้น)
+                    </span>
+                  </label>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  <i class="bi bi-info-circle mr-1"></i>
+                  Stock จริงจะมีเมื่อรับของจากใบสั่งซื้อ (PO) เท่านั้น
+                </p>
+              </div>
+
+              <!-- สเปคมือถือ (แสดงเมื่อเลือกประเภท มือถือ) -->
+              <div id="mobileSpecsSection" class="bg-blue-50 dark:bg-gray-800 p-6 rounded-xl border border-blue-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                  <i class="bi bi-phone-fill text-blue-500 mr-2"></i>
+                  สเปคมือถือ
+                </h3>
+
+                <!-- กลุ่มข้อมูลพื้นฐาน -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label for="mobileModel" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">รุ่น/โมเดล</label>
+                    <input type="text" id="mobileModel" name="mobileSpecs[model]" placeholder="เช่น iPhone 15 Pro Max"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileOS" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ระบบปฏิบัติการ</label>
+                    <input type="text" id="mobileOS" name="mobileSpecs[os]" placeholder="เช่น iOS 17, Android 14"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+
+                <!-- กลุ่มหน้าจอ -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label for="mobileScreenSize" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ขนาดหน้าจอ</label>
+                    <input type="text" id="mobileScreenSize" name="mobileSpecs[screenSize]" placeholder="เช่น 6.7 นิ้ว"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileScreenType" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ประเภทหน้าจอ</label>
+                    <input type="text" id="mobileScreenType" name="mobileSpecs[screenType]" placeholder="เช่น Super Retina XDR OLED"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileResolution" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ความละเอียด</label>
+                    <input type="text" id="mobileResolution" name="mobileSpecs[resolution]" placeholder="เช่น 2796 x 1290"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+
+                <!-- กลุ่มประสิทธิภาพ -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label for="mobileProcessor" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ชิปประมวลผล</label>
+                    <input type="text" id="mobileProcessor" name="mobileSpecs[processor]" placeholder="เช่น A17 Pro, Snapdragon 8 Gen 3"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileRAM" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">RAM</label>
+                    <input type="text" id="mobileRAM" name="mobileSpecs[ram]" placeholder="เช่น 8GB, 12GB"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileStorage" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ความจุเก็บข้อมูล</label>
+                    <input type="text" id="mobileStorage" name="mobileSpecs[storage]" placeholder="เช่น 128GB, 256GB, 512GB"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+
+                <!-- กลุ่มกล้อง -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label for="mobileMainCamera" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">กล้องหลัก</label>
+                    <input type="text" id="mobileMainCamera" name="mobileSpecs[mainCamera]" placeholder="เช่น 48MP (f/1.78) + 12MP (f/2.2) + 12MP (f/1.78)"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileFrontCamera" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">กล้องหน้า</label>
+                    <input type="text" id="mobileFrontCamera" name="mobileSpecs[frontCamera]" placeholder="เช่น 12MP (f/1.9)"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+
+                <!-- กลุ่มแบตเตอรี่และการชาร์จ -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label for="mobileBattery" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">แบตเตอรี่</label>
+                    <input type="text" id="mobileBattery" name="mobileSpecs[battery]" placeholder="เช่น 4422 mAh"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileCharging" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">การชาร์จ</label>
+                    <input type="text" id="mobileCharging" name="mobileSpecs[charging]" placeholder="เช่น 27W Fast Charging, 15W Wireless"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileConnectivity" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">การเชื่อมต่อ</label>
+                    <input type="text" id="mobileConnectivity" name="mobileSpecs[connectivity]" placeholder="เช่น 5G, Wi-Fi 6E, Bluetooth 5.3"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+
+                <!-- กลุ่มข้อมูลเพิ่มเติม -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label for="mobileColors" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">สีที่มีจำหน่าย</label>
+                    <input type="text" id="mobileColors" name="mobileSpecs[colors]" placeholder="เช่น Natural Titanium, Blue Titanium, White Titanium"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div>
+                    <label for="mobileWarranty" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">การรับประกัน</label>
+                    <input type="text" id="mobileWarranty" name="mobileSpecs[warranty]" placeholder="เช่น 1 ปี, 2 ปี, ประกันศูนย์"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+
+                <div class="mt-4">
+                  <label for="mobileFeatures" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">คุณสมบัติเด่น</label>
+                  <textarea id="mobileFeatures" name="mobileSpecs[features]" rows="3" placeholder="เช่น Face ID, MagSafe, Action Button, Dynamic Island, ถ่ายวิดีโอ 4K ProRes"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"></textarea>
+                </div>
+              </div>
+
+              <div>
+                <label for="productImage" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  อัปโหลดภาพสินค้า
+                </label>
+                <div id="dropzone" class="relative flex items-center justify-center w-[600px] h-[600px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                  <input type="file" id="productImage" name="image" accept="image/*"
+                         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  <!-- Hint -->
+                  <div id="dropzoneHint" class="text-center">
+                    <i class="bi bi-cloud-arrow-up text-4xl text-gray-400 dark:text-gray-500 mb-2"></i>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                      ลากแล้ววาง หรือ คลิกเพื่ออัปโหลด<br>PNG/JPG, ขั้นต่ำ 600×600px
+                    </p>
+                  </div>
+              
+                  <!-- Preview -->
+                  <div id="previewWrapper"
+                       class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 dark:bg-gray-800 dark:bg-opacity-75 hidden">
+                    <img id="previewImage"
+                         src=""
+                         alt="Preview"
+                         class="object-contain max-w-full max-h-full rounded-lg" />
+                  </div>
+              
+                  <!-- Clear Button -->
+                  <button type="button" id="clearImage"
+                          class="absolute top-2 right-2 bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-2 py-1 rounded shadow hidden">
+                    ล้างรูป
+                  </button>
+                </div>
+                
+                <!-- เวลาอัปโหลด -->
+                <p id="uploadTime" class="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
+              </div>
+        
+              <!-- Submit Button -->
+              <button
+                type="submit"
+                class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl  transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                บันทึกสินค้า
+              </button>
+            </form>
+          </section>
+
+          <!-- ย้ายตารางมาไว้ที่นี่ (ใน Tab 1) -->
+          <section class="bg-white dark:bg-gray-800 rounded-2xl p-6 transition-colors mt-6">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <i class="bi bi-table text-green-500"></i> รายการสินค้าที่ลงทะเบียน
+              </h2>
+            </div>
+          
+            <div class="overflow-x-auto">
+              <table class="min-w-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">ลำดับ</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">ภาพสินค้า</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">Brand</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">ประเภทสินค้า</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">ประเภทการซื้อ</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">การจัดการ Stock</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">ชื่อสินค้า</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase">สเปค (มือถือ)</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium uppercase">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="productImageTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <!-- เมื่อไม่มีข้อมูล -->
+                  <tr>
+                    <td colspan="8" class="py-6 text-center text-gray-400 dark:text-gray-500">ยังไม่มีรูปสินค้า</td>
+                  </tr>
+                </tbody>
+              </table>
+              <!-- ใส่หลัง </table> -->
+              <div class="mt-4 flex justify-end space-x-2">
+                <button id="prevPage"
+                        class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
+                        disabled>ก่อนหน้า</button>
+                <span id="pageInfo" class="px-2 text-gray-600 dark:text-gray-300"></span>
+                <button id="nextPage"
+                        class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
+                        disabled>ถัดไป</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+
+
+        <!-- Tab 3: ปรับราคาสินค้า -->
+        <div id="pricing" class="tab-content">
+          <!-- Filter Section -->
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm space-y-4 mb-6">
+            <h3 class="text-lg font-semibold mb-4">กรองและค้นหา</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm font-medium mb-2">ประเภทสินค้า</label>
+                <select id="pricingTypeFilter" class="select select-bordered w-full">
+                  <option value="all">ทั้งหมด</option>
+                  <option value="mobile">มือถือ</option>
+                  <option value="accessory">อุปกรณ์เสริม</option>
+  
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">ค้นหาสินค้า</label>
+                <input type="text" id="pricingSearchInput" placeholder="ชื่อสินค้า..." 
+                       class="input input-bordered w-full">
+              </div>
+              <div class="flex items-end">
+                <button id="applyPricingFilter" class="btn btn-primary w-full">
+                  <i class="bi bi-search mr-2"></i> ค้นหา
+                </button>
+              </div>
+            </div>
+          </div>
+        
+          <!-- Products Grid -->
+          <section class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-xl font-semibold">รายการสินค้าสำหรับปรับราคา</h3>
+              <button id="saveAllPricesBtn" class="btn btn-success">
+                <i class="bi bi-save mr-2"></i> บันทึกราคาทั้งหมด
+              </button>
+            </div>
+        
+            <!-- Loading State -->
+            <div id="pricingLoadingState" class="hidden py-8 text-center">
+              <div class="spinner mx-auto mb-4"></div>
+              <p class="text-gray-500 dark:text-gray-400">กำลังโหลดข้อมูล...</p>
+            </div>
+        
+            <!-- Products Grid Container -->
+            <div id="pricingProductsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <!-- Product cards will be populated here -->
+            </div>
+        
+            <!-- Empty State -->
+            <div id="pricingEmptyState" class="hidden py-8 text-center">
+              <i class="bi bi-inbox text-4xl text-gray-400 mb-4"></i>
+              <p class="text-gray-500 dark:text-gray-400">ไม่พบข้อมูลสินค้า</p>
+            </div>
+        
+            <!-- Pagination -->
+            <div class="mt-6 flex justify-between items-center">
+              <div id="pricingPageStats" class="text-sm text-gray-500 dark:text-gray-400">
+                แสดง 0 รายการ
+              </div>
+              <div class="flex gap-2">
+                <button id="pricingPrevBtn" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50" disabled>
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <span id="pricingPageInfo" class="px-3 py-1 text-sm">1 / 1</span>
+                <button id="pricingNextBtn" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      
+      <script>
+        const productImageInput = document.getElementById('productImage');
+        const previewWrapper     = document.getElementById('previewWrapper');
+        const previewImage       = document.getElementById('previewImage');
+        const uploadTime         = document.getElementById('uploadTime');
+        const clearBtn           = document.getElementById('clearImage');
+
+        productImageInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            // แสดง preview
+            previewImage.src = URL.createObjectURL(file);
+            previewWrapper.classList.remove('hidden');
+            clearBtn.classList.remove('hidden');
+            // แสดงเวลาอัปโหลด
+            const now = new Date();
+            uploadTime.textContent = `อัปโหลดเมื่อ: ${now.toLocaleString('th-TH')}`;
+          }
+        });
+
+        clearBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          // รีเซ็ต input, preview และเวลา
+          productImageInput.value = '';
+          previewImage.src       = '';
+          previewWrapper.classList.add('hidden');
+          clearBtn.classList.add('hidden');
+          uploadTime.textContent = '';
+        });
+      </script>
+
+
+<script>
+// ฟังก์ชันจัดรูปแบบตัวเลขให้มีคอมมา
+function formatNumber(num) {
+  if (num === null || num === undefined) return '0.00';
+  const number = parseFloat(num);
+  if (isNaN(number)) return '0.00';
+  return number.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+// ฟังก์ชันสำหรับ parse ตัวเลขที่มีคอมมา
+function parseFormattedNumber(str) {
+  if (!str) return 0;
+  return parseFloat(str.toString().replace(/,/g, ''));
+}
+  async function loadEmployeeProfile() {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const res = await fetch('/api/users/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || 'Load profile failed');
+      const user = result.data;
+      document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+      let url = user.photoUrl || '';
+      if (!url.startsWith('/') && !/^https?:\/\//.test(url)) url = '/' + url;
+      document.getElementById('employeePhoto').src = url;
+    } catch (err) {
+      console.error('loadEmployeeProfile error:', err);
+    }
+  }
+
+  // Variables removed for boxset creation (moved to separate module)
+  let availableProducts = [];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    showLoading(true);
+    const socket = io();
+    loadEmployeeProfile();
+
+    // --- Socket.io connection & realtime update ---
+          socket.on('updateProductImages', () => {
+        console.log('Socket event: updateProductImages');
+        window.loadAndDisplayProducts();
+        window.showNotification('ข้อมูลถูกอัปเดตแล้ว!', 'info');
+      });
+
+
+    // --- Stock Type (เฉพาะกำหนดประเภท ไม่ต้องจัดการ Stock เริ่มต้น) ---
+
+    // --- Tab Navigation ---
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetTab = btn.dataset.tab;
+
+        // (1) ตัดคลาส active เดิมออก
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+
+        // (2) ใส่ active ให้ปุ่มและคอนเทนต์ที่ถูกเลือก
+        btn.classList.add('active');
+        document.getElementById(targetTab).classList.add('active');
+
+        // (3) โหลดข้อมูลเฉพาะแท็บนั้นๆ
+        if (targetTab === 'pricing') {
+          loadPricingData();
+        }
+      });
+    });
+
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter');
+        filterProducts(filter);
+      });
+    });
+
+    // --- Mobile Specs Section Toggle ---
+    function toggleMobileSpecsSection() {
+      const mobileRadio = document.querySelector('input[name="productType"][value="mobile"]');
+      const mobileSpecsSection = document.getElementById('mobileSpecsSection');
+
+      if (mobileRadio && mobileRadio.checked) {
+        mobileSpecsSection.style.display = 'block';
+        mobileSpecsSection.classList.add('animate__animated', 'animate__fadeIn');
+      } else {
+        mobileSpecsSection.style.display = 'none';
+        mobileSpecsSection.classList.remove('animate__animated', 'animate__fadeIn');
+      }
+    }
+
+    // เพิ่ม event listeners สำหรับ radio buttons ประเภทสินค้า
+    const productTypeRadios = document.querySelectorAll('input[name="productType"]');
+    productTypeRadios.forEach(radio => {
+      radio.addEventListener('change', toggleMobileSpecsSection);
+    });
+
+    // เรียกใช้ครั้งแรกเพื่อแสดงสถานะเริ่มต้น
+    toggleMobileSpecsSection();
+
+    // --- Dark Mode ---
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      html.classList.toggle('dark', !isDark);
+      localStorage.setItem('darkMode', !isDark);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Dark Mode' : 'Light Mode';
+    }
+    function loadDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+    loadDarkMode();
+    document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
+
+    // --- Profile, Logout, Sidebar Toggle ---
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userId');
+      location.href = '/login.html';
+    });
+    document.getElementById('btnToggleMenu').addEventListener('click', () => {
+      const sidebar = document.querySelector('aside');
+      sidebar.classList.toggle('collapsed');
+      const ico = document.querySelector('#btnToggleMenu i');
+      ico.classList.toggle('bi-chevron-left');
+      ico.classList.toggle('bi-chevron-right');
+    });
+
+    // --- Preview image before upload ---
+    document.getElementById('productImage').addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      // 1) Preview รูป - ใช้ data URL แทน blob URL เพื่อหลีกเลี่ยงปัญหา CSP
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = document.getElementById('previewImage');
+        img.src = reader.result; // data URL ไม่มีปัญหากับ CSP
+        document.getElementById('previewWrapper').classList.remove('hidden');
+        document.getElementById('clearImage').classList.remove('hidden');
+        // ซ่อน hint ด้านหลัง
+        document.getElementById('dropzoneHint').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+
+      // 2) แสดงเวลาปัจจุบัน
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}
+        ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      document.getElementById('uploadTime').textContent = 'อัปโหลดเมื่อ: ' + timestamp;
+    });
+
+
+
+    // --- Create new product ---
+    document.getElementById('createProductForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const token = localStorage.getItem('authToken');
+      const form = new FormData();
+
+      // เก็บ field อื่นๆ
+      form.append('name', e.target.name.value);
+      form.append('brand', e.target.brand.value);
+
+      // เก็บประเภทสินค้า
+      const productType = document.querySelector('input[name="productType"]:checked').value;
+      // ตรวจสอบความสอดคล้องของชื่อและประเภท
+const productName = e.target.name.value;
+
+
+
+      form.append('productType', productType);
+
+      // เก็บค่า purchaseType จาก checkbox หลายตัว
+      const checkedTypes = Array.from(
+        document.querySelectorAll('input[name="purchaseType"]:checked')
+      ).map(cb => cb.value);
+      checkedTypes.forEach(type => form.append('purchaseType', type));
+
+      // เก็บข้อมูล Stock Type (เฉพาะประเภท ไม่มีจำนวน)
+      const stockType = document.querySelector('input[name="stockType"]:checked').value;
+      form.append('stockType', stockType);
+
+      // เก็บข้อมูลสเปคมือถือ (เมื่อเป็นประเภทมือถือ)
+      if (productType === 'mobile') {
+        const mobileSpecs = {
+          model: document.getElementById('mobileModel')?.value || '',
+          os: document.getElementById('mobileOS')?.value || '',
+          screenSize: document.getElementById('mobileScreenSize')?.value || '',
+          screenType: document.getElementById('mobileScreenType')?.value || '',
+          resolution: document.getElementById('mobileResolution')?.value || '',
+          processor: document.getElementById('mobileProcessor')?.value || '',
+          ram: document.getElementById('mobileRAM')?.value || '',
+          storage: document.getElementById('mobileStorage')?.value || '',
+          mainCamera: document.getElementById('mobileMainCamera')?.value || '',
+          frontCamera: document.getElementById('mobileFrontCamera')?.value || '',
+          battery: document.getElementById('mobileBattery')?.value || '',
+          charging: document.getElementById('mobileCharging')?.value || '',
+          connectivity: document.getElementById('mobileConnectivity')?.value || '',
+          colors: document.getElementById('mobileColors')?.value || '',
+          warranty: document.getElementById('mobileWarranty')?.value || '',
+          features: document.getElementById('mobileFeatures')?.value || ''
+        };
+        form.append('mobileSpecs', JSON.stringify(mobileSpecs));
+      }
+
+      // เก็บไฟล์ภาพ
+      if (e.target.image.files[0]) {
+        form.append('image', e.target.image.files[0]);
+      }
+
+      try {
+        const res = await fetch('/api/product-image', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: form
+        });
+        const body = await res.json();
+        if (!res.ok || body.status !== 'success') throw new Error(body.message);
+        alert('สร้างสินค้าเรียบร้อย');
+        e.target.reset();
+
+        // Clear mobile specs form
+        const mobileSpecsInputs = document.querySelectorAll('#mobileSpecsSection input, #mobileSpecsSection textarea');
+        mobileSpecsInputs.forEach(input => input.value = '');
+
+        // Reset mobile specs section visibility
+        toggleMobileSpecsSection();
+
+        // Clear preview
+        document.getElementById('previewWrapper').classList.add('hidden');
+        document.getElementById('dropzoneHint').classList.remove('hidden');
+        document.getElementById('uploadTime').textContent = '';
+
+        // เพิ่มสินค้าใหม่แล้วไปหน้าล่าสุด
+        window.refreshTableAfterAdd('single');
+
+        socket.emit('updateProductImages');
+      } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+      }
+    });
+
+
+
+
+
+    // --- Pagination Setup & API Load ---
+    window.singleProductItems = [];
+    window.singleProductCurrentPage = 1;
+    window.pageSize = 10;
+
+    window.isInitialLoad = true;
+
+    window.initSingleProductPagination = function(items) {
+      window.singleProductItems = items;
+
+      // ถ้าเป็นการโหลดครั้งแรก ไปหน้าแรก
+      // ถ้าเป็นการอัปเดตหลังจากเพิ่มสินค้าใหม่ ให้คงหน้าเดิม
+      if (window.singleProductCurrentPage === 0) {
+        window.singleProductCurrentPage = 1;
+      }
+
+      // ตรวจสอบว่าหน้าปัจจุบันยังอยู่ในช่วงที่ถูกต้อง
+      const totalPages = Math.ceil(items.length / window.pageSize);
+      if (window.singleProductCurrentPage > totalPages) {
+        window.singleProductCurrentPage = totalPages || 1;
+      }
+
+      console.log('Single products loaded:', items.length, 'Current page:', window.singleProductCurrentPage, 'Total pages:', totalPages);
+
+      window.renderSingleProductPage();
+      setupSingleProductPaginationControls();
+    };
+
+    window.renderSingleProductPage = function() {
+      const tbody = document.getElementById('productImageTableBody');
+      tbody.innerHTML = '';
+      const start = (window.singleProductCurrentPage - 1) * window.pageSize;
+      const slice = window.singleProductItems.slice(start, start + window.pageSize);
+
+      if (slice.length === 0) {
+        tbody.innerHTML = `
+
+          <tr>
+            <td colspan="7" class="py-6 text-center text-gray-400 dark:text-gray-500">
+              ยังไม่มีรูปสินค้า
+            </td>
+          </tr>`;
+      } else {
+        slice.forEach((item, i) => {
+          const idx = start + i + 1;
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors';
+
+          // ลำดับ
+          const td1 = document.createElement('td');
+          td1.className = 'px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-200';
+          td1.textContent = idx;
+          tr.appendChild(td1);
+
+          // รูป
+          const td2 = document.createElement('td');
+          td2.className = 'px-6 py-4 whitespace-nowrap';
+          const img = document.createElement('img');
+          img.src = item.image
+                    ? `/uploads/${item.image.replace(/^.*uploads[\\/]/, '')}`
+                    : 'https://via.placeholder.com/80?text=No+Image';
+          img.alt = item.name || '-';
+          img.className = 'w-16 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600';
+          td2.appendChild(img);
+          tr.appendChild(td2);
+
+          // Brand
+          const td3 = document.createElement('td');
+          td3.className = 'px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-200';
+          td3.textContent = item.brand || '-';
+          tr.appendChild(td3);
+
+          const tdProductType = document.createElement('td');
+tdProductType.className = 'px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-200';
+let productTypeLabel = '';
+if (item.productType === 'mobile') {
+  productTypeLabel = 'มือถือ';
+} else if (item.productType === 'accessory') {
+  productTypeLabel = 'อุปกรณ์เสริม';
+} else if (item.productType === 'gift') {
+  productTypeLabel = '🎁 ของแถม';
+}
+tdProductType.textContent = productTypeLabel;
+tr.appendChild(tdProductType);
+
+          // ประเภทการซื้อ (รองรับหลายค่า)
+          const tdPurchase = document.createElement('td');
+          tdPurchase.className = 'px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-200';
+          const types = Array.isArray(item.purchaseType) ? item.purchaseType : [item.purchaseType];
+          const labels = types.map(t => t === 'cash' ? 'ซื้อสด' : 'ผ่อน');
+          tdPurchase.textContent = labels.join(', ') || '-';
+          tr.appendChild(tdPurchase);
+
+          // การจัดการ Stock
+          const tdStock = document.createElement('td');
+          tdStock.className = 'px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-200';
+          if (item.stockType === 'quantity') {
+            tdStock.innerHTML = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+              <i class="bi bi-boxes mr-1"></i> นับเป็นจำนวนชิ้น
+            </span>`;
+          } else {
+            tdStock.innerHTML = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+              <i class="bi bi-qr-code mr-1"></i> แยกตาม IMEI
+            </span>`;
+          }
+          tr.appendChild(tdStock);
+
+          // ชื่อสินค้า
+          const td4 = document.createElement('td');
+          td4.className = 'px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-200';
+          td4.textContent = item.name || '-';
+          tr.appendChild(td4);
+
+          // สเปคมือถือ (แสดงเฉพาะประเภทมือถือ)
+          const tdSpecs = document.createElement('td');
+          tdSpecs.className = 'px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-200';
+          if (item.productType === 'mobile' && item.mobileSpecs) {
+            const specs = item.mobileSpecs;
+            const specsInfo = [];
+            if (specs.model) specsInfo.push(`รุ่น: ${specs.model}`);
+            if (specs.storage) specsInfo.push(`${specs.storage}`);
+            if (specs.ram) specsInfo.push(`RAM: ${specs.ram}`);
+            if (specs.screenSize) specsInfo.push(`หน้าจอ: ${specs.screenSize}`);
+
+            if (specsInfo.length > 0) {
+              tdSpecs.innerHTML = `
+                <div class="text-xs space-y-1">
+                  ${specsInfo.slice(0, 3).map(spec => `<div class="text-blue-600 dark:text-blue-400">${spec}</div>`).join('')}
+                  ${specsInfo.length > 3 ? '<div class="text-gray-500">...</div>' : ''}
+                </div>
+              `;
+            } else {
+              tdSpecs.innerHTML = '<span class="text-gray-400 text-xs">ไม่มีข้อมูลสเปค</span>';
+            }
+          } else {
+            tdSpecs.innerHTML = '<span class="text-gray-400 text-xs">-</span>';
+          }
+          tr.appendChild(tdSpecs);
+
+          // ปุ่มแก้ไข / ลบ
+          const td5 = document.createElement('td');
+          td5.className = 'px-6 py-4 whitespace-nowrap text-center space-x-2';
+
+          const editBtn = document.createElement('button');
+          editBtn.className = 'inline-flex items-center gap-1 px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-xs';
+          editBtn.innerHTML = '<i class="bi bi-pencil-fill"></i> แก้ไข';
+          editBtn.addEventListener('click', () => openEditModal(item._id));
+          td5.appendChild(editBtn);
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'inline-flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs';
+          delBtn.innerHTML = '<i class="bi bi-trash-fill"></i> ลบ';
+          delBtn.addEventListener('click', () => {
+            customConfirm(`ลบ "${item.name}"?`, () => {
+              deleteProductImage(item._id);
+            });
+          });
+          td5.appendChild(delBtn);
+
+          tr.appendChild(td5);
+          tbody.appendChild(tr);
+        });
+      }
+
+      // อัปเดตปุ่ม pagination
+      document.getElementById('prevPage').disabled = window.singleProductCurrentPage === 1;
+      document.getElementById('nextPage').disabled = (window.singleProductCurrentPage * window.pageSize) >= window.singleProductItems.length;
+
+      const totalPages = Math.ceil(window.singleProductItems.length / window.pageSize) || 1;
+      const startItem = window.singleProductItems.length === 0 ? 0 : (window.singleProductCurrentPage - 1) * window.pageSize + 1;
+      const endItem = Math.min(window.singleProductCurrentPage * window.pageSize, window.singleProductItems.length);
+
+      document.getElementById('pageInfo').textContent =
+        `หน้า ${window.singleProductCurrentPage} / ${totalPages} (แสดง ${startItem}-${endItem} จาก ${window.singleProductItems.length} รายการ)`;
+    };
+
+    function setupSingleProductPaginationControls() {
+      document.getElementById('prevPage').onclick = () => {
+        if (window.singleProductCurrentPage > 1) { window.singleProductCurrentPage--; window.renderSingleProductPage(); }
+      };
+      document.getElementById('nextPage').onclick = () => {
+        if (window.singleProductCurrentPage * window.pageSize < window.singleProductItems.length) { window.singleProductCurrentPage++; window.renderSingleProductPage(); }
+      };
+    }
+
+
+
+    // ย้ายฟังก์ชันนี้ออกมาเป็น global function
+    window.loadAndDisplayProducts = async function() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('ไม่พบ authToken ใน localStorage');
+
+        const res = await fetch('/api/product-image', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const body = await res.json();
+        if (body.status !== 'success') {
+          throw new Error(body.message || 'API ตอบไม่ใช่ success');
+        }
+
+        const allItems = body.data || [];
+        const singleProducts = allItems;
+
+        console.log('API Response - Total items:', allItems.length);
+
+        // ถ้าเป็นการโหลดครั้งแรก ให้ไปหน้าแรก
+        if (window.isInitialLoad) {
+          window.singleProductCurrentPage = 1;
+          window.isInitialLoad = false;
+        }
+
+        window.initSingleProductPagination(singleProducts);
+
+        // แสดงข้อมูล pagination สำหรับ debug
+        console.log('Single products pagination - Current page:', window.singleProductCurrentPage, 'Total pages:', Math.ceil(singleProducts.length / window.pageSize));
+
+      } catch (err) {
+        console.error('loadAndDisplayProducts error:', err);
+        window.showNotification('ไม่สามารถโหลดรูปสินค้า: ' + err.message, 'error');
+      }
+    };
+
+    // --- Edit Modal & Save ---
+    let currentEditingId = null;
+    async function openEditModal(id) {
+      currentEditingId = id;
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/product-image/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const body = await res.json();
+        if (!res.ok || body.status !== 'success') throw new Error(body.message);
+        const p = body.data;
+
+        // กรอกชื่อ-แบรนด์
+        document.getElementById('editName').value  = p.name  || '';
+        document.getElementById('editBrand').value = p.brand || '';
+
+        // ตั้งค่า radio ประเภทสินค้า
+        // ตั้งค่า radio ประเภทสินค้า
+// ตั้งค่า radio ประเภทสินค้า
+// ตั้งค่า radio ประเภทสินค้า
+const mobileRadio = document.querySelector('input[name="editProductType"][value="mobile"]');
+const accessoryRadio = document.querySelector('input[name="editProductType"][value="accessory"]');
+const giftRadio = document.querySelector('input[name="editProductType"][value="gift"]');
+
+if (p.productType === 'accessory') {
+  accessoryRadio.checked = true;
+} else if (p.productType === 'gift') {
+  giftRadio.checked = true;
+} else {
+  mobileRadio.checked = true;
+}
+
+        // ติ๊ก checkbox ประเภทการซื้อ
+        const cashCb = document.querySelector('input[name="editPurchaseType"][value="cash"]');
+        const instCb = document.querySelector('input[name="editPurchaseType"][value="installment"]');
+        const types = Array.isArray(p.purchaseType) ? p.purchaseType : [p.purchaseType];
+        cashCb.checked = types.includes('cash');
+        instCb.checked = types.includes('installment');
+
+        // ตั้งค่า Stock Type (เฉพาะประเภท)
+        const imeiRadio = document.querySelector('input[name="editStockType"][value="imei"]');
+        const quantityRadio = document.querySelector('input[name="editStockType"][value="quantity"]');
+
+        if (p.stockType === 'quantity') {
+          quantityRadio.checked = true;
+        } else {
+
+
+
+          imeiRadio.checked = true;
+        }
+
+        // แสดงรูปปัจจุบัน...
+        const preview = document.getElementById('currentImagePreview');
+        if (p.image) {
+          const imgPath = p.image.startsWith('/uploads/')
+            ? p.image
+            : `/uploads/${p.image.replace(/^.*uploads[\\/]/, '')}`;
+          preview.src = imgPath;
+        } else {
+          preview.src = 'https://via.placeholder.com/150?text=No+Image';
+        }
+        document.getElementById('currentImageContainer').classList.remove('hidden');
+      } catch (err) {
+        console.warn('Cannot fetch for edit:', err);
+      } finally {
+        document.getElementById('editModal').classList.remove('hidden');
+      }
+    }
+
+    // Stock Type ใน Edit Modal ไม่ต้องมี Event Listener (เฉพาะกำหนดประเภท)
+
+    document.getElementById('editProductForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const token = localStorage.getItem('authToken');
+      const form = new FormData();
+      form.append('name', document.getElementById('editName').value);
+      form.append('brand', document.getElementById('editBrand').value);
+
+      // เก็บประเภทสินค้า
+      const productType = document.querySelector('input[name="editProductType"]:checked').value;
+      form.append('productType', productType);
+
+      // เก็บค่า purchaseType (checkbox หลายตัว)
+      const checkedTypes = Array.from(
+        document.querySelectorAll('input[name="editPurchaseType"]:checked')
+      ).map(cb => cb.value);
+      checkedTypes.forEach(type => form.append('purchaseType', type));
+
+      // เก็บข้อมูล Stock Type (เฉพาะประเภท)
+      const editStockType = document.querySelector('input[name="editStockType"]:checked').value;
+      form.append('stockType', editStockType);
+
+      // ถ้าเปลี่ยนรูป
+      const fileEl = document.getElementById('editProductImage');
+      if (fileEl.files[0]) form.append('image', fileEl.files[0]);
+
+      try {
+        const res = await fetch(`/api/product-image/${currentEditingId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+          body: form
+        });
+        const body = await res.json();
+        if (!res.ok || body.status !== 'success') throw new Error(body.message);
+        alert('แก้ไขเรียบร้อย');
+        document.getElementById('editModal').classList.add('hidden');
+        window.loadAndDisplayProducts();
+        window.showNotification('แก้ไขข้อมูลเรียบร้อยแล้ว!', 'success');
+        socket.emit('updateProductImages');
+      } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+      }
+    });
+
+    document.getElementById('cancelEdit').addEventListener('click', () => {
+      document.getElementById('editModal').classList.add('hidden');
+    });
+
+    // --- Delete Product Image ---
+    async function deleteProductImage(id) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/product-image/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const body = await res.json();
+        if (!res.ok || body.status !== 'success') throw new Error(body.message);
+        alert('ลบเรียบร้อย');
+        window.loadAndDisplayProducts();
+        window.showNotification('ลบรายการเรียบร้อยแล้ว!', 'success');
+        socket.emit('updateProductImages');
+      } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // === Pricing Event Listeners ===
+    // Pagination
+    document.getElementById('pricingPrevBtn').addEventListener('click', () => {
+      if (currentPricingPage > 1) {
+        currentPricingPage--;
+        renderPricingGrid();
+      }
+    });
+
+    document.getElementById('pricingNextBtn').addEventListener('click', () => {
+      const totalPages = Math.ceil(filteredPricingProducts.length / pricingItemsPerPage);
+      if (currentPricingPage < totalPages) {
+        currentPricingPage++;
+        renderPricingGrid();
+      }
+    });
+
+    // Save single price
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.save-single-price')) {
+        const btn = e.target.closest('.save-single-price');
+        const productName = btn.getAttribute('data-product-name');
+        saveSinglePrice(productName, btn);
+      }
+    });
+
+    // === เพิ่ม Event Listener สำหรับอัปเดต PayOff ===
+    document.addEventListener('input', function(e) {
+      if (e.target.matches('input[data-action="update-payoff"]')) {
+        const card = e.target.closest('.bg-white, .dark\\:bg-gray-900');
+        if (!card) return;
+
+        const price = parseFormattedNumber(e.target.value) || 0;
+        const spanPayOff = card.querySelector('span[data-field="pricePayOff"]');
+        if (spanPayOff) {
+          spanPayOff.textContent = `฿${formatNumber(price + 2590)}`;
+        }
+      }
+    });
+
+    // --- Initial Load ---
+    window.loadAndDisplayProducts();
+    setTimeout(() => showLoading(false), 800);
+  });
+
+  socket.on('updatePricing', () => {
+  console.log('Pricing updated via socket');
+  if (document.getElementById('pricing').classList.contains('active')) {
+    loadPricingData();
+  }
+});
+
+let allPricingProducts = [];
+let filteredPricingProducts = [];
+let currentPricingPage = 1;
+const pricingItemsPerPage = 10;
+
+  function customConfirm(message, actionCallback) {
+  // แสดงข้อความ
+  document.getElementById('confirmActionText').textContent = message;
+
+  // ลบ event listener เก่าออกก่อน
+  const okBtn = document.getElementById('okActionBtn');
+  const cancelBtn = document.getElementById('cancelActionBtn');
+
+  // Clone เพื่อลบ event listeners เก่า
+  const newOkBtn = okBtn.cloneNode(true);
+  const newCancelBtn = cancelBtn.cloneNode(true);
+
+  okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+  // เพิ่ม event listener ใหม่
+  newOkBtn.addEventListener('click', () => {
+    document.getElementById('confirmActionModal').checked = false;
+    if (typeof actionCallback === 'function') {
+      actionCallback();
+    }
+  });
+
+  newCancelBtn.addEventListener('click', () => {
+    document.getElementById('confirmActionModal').checked = false;
+  });
+
+  // แสดง modal
+  document.getElementById('confirmActionModal').checked = true;
+}
+
+// === PRICING FUNCTIONS ===
+async function loadPricingData() {
+  console.log('Loading pricing data...');
+
+  // Show loading state
+  document.getElementById('pricingLoadingState').classList.remove('hidden');
+  document.getElementById('pricingEmptyState').classList.add('hidden');
+  document.getElementById('pricingProductsGrid').innerHTML = '';
+
+  try {
+    const token = localStorage.getItem('authToken');
+    const res = await fetch('/api/product-image/pricing', {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.status !== 'success') {
+      throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลราคา');
+    }
+
+    allPricingProducts = data.data || [];
+    filteredPricingProducts = [...allPricingProducts];
+    renderPricingGrid();
+  } catch (err) {
+    console.error('Error loading pricing data:', err);
+    showPricingEmptyState();
+  } finally {
+    document.getElementById('pricingLoadingState').classList.add('hidden');
+  }
+}
+
+function renderPricingGrid() {
+  const container = document.getElementById('pricingProductsGrid');
+  container.innerHTML = '';
+
+  if (filteredPricingProducts.length === 0) {
+    showPricingEmptyState();
+    return;
+  }
+
+  document.getElementById('pricingEmptyState').classList.add('hidden');
+
+  // Calculate pagination
+  const startIndex = (currentPricingPage - 1) * pricingItemsPerPage;
+  const endIndex = Math.min(startIndex + pricingItemsPerPage, filteredPricingProducts.length);
+  const pageProducts = filteredPricingProducts.slice(startIndex, endIndex);
+
+  pageProducts.forEach((product) => {
+    const card = createPricingCard(product);
+    container.appendChild(card);
+  });
+
+  updatePricingPagination(filteredPricingProducts.length);
+}
+
+// === แทนที่ createPricingCard function ===
+function createPricingCard(product) {
+  const card = document.createElement('div');
+  card.className = 'bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow';
+
+  const imgSrc = product.image
+    ? `/uploads/${product.image.replace(/^.*uploads[\\/]/, '')}`
+    : 'https://via.placeholder.com/150?text=No+Image';
+
+  // Extract values with defaults
+  const price = product.price || 0;
+  const downAmount = product.downAmount || 0;
+  const downInstallmentCount = product.downInstallmentCount || 0;
+  const downInstallment = product.downInstallment || 0;
+  const creditThreshold = product.creditThreshold || 0;
+  const payUseInstallmentCount = product.payUseInstallmentCount || 0;
+  const payUseInstallment = product.payUseInstallment || 0;
+  const payOff = price + 2590;
+  const docFee = product.docFee || 0;
+
+  card.innerHTML = `
+    <div class="flex flex-col h-full">
+      <!-- Product Image -->
+      <div class="w-full h-32 mb-3 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+        <img src="${imgSrc}" alt="${product.name}" class="w-full h-full object-contain">
+      </div>
+      
+      <!-- Product Info -->
+      <div class="mb-3">
+        <h4 class="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-2">${product.name || 'ไม่มีชื่อ'}</h4>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${product.brand || 'ไม่มีแบรนด์'}</p>
+        <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+          ${product.productType === 'mobile' ? '<i class="bi bi-phone"></i> มือถือ' :
+            product.productType === 'accessory' ? '<i class="bi bi-headphones"></i> อุปกรณ์เสริม' :
+            product.productType === 'gift' ? '<i class="bi bi-gift"></i> ของแถม' :
+            product.productType}
+        </div>
+      </div>
+      
+      <!-- Price Inputs -->
+      <div class="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-3">
+        <!-- ราคาสด -->
+        <div>
+          <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">ราคาสด</label>
+          <input type="text" 
+                 class="w-full px-2 py-1 text-sm text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                 value="${formatNumber(price)}"
+                 data-product="${product.name}"
+                 data-field="price"
+                 data-action="update-payoff"
+                 onblur="this.value = formatNumber(parseFormattedNumber(this.value))"
+                 onfocus="this.value = parseFormattedNumber(this.value) || ''">
+        </div>
+
+        <!-- ดาวน์ -->
+        <div>
+          <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">ดาวน์ (ขั้นต่ำ/งวด/ผ่อน)</label>
+          <div class="grid grid-cols-3 gap-1">
+            <input type="text" 
+                   class="px-1 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                   value="${formatNumber(downAmount)}"
+                   data-product="${product.name}"
+                   data-field="downAmount"
+                   placeholder="ขั้นต่ำ"
+                   onblur="this.value = formatNumber(parseFormattedNumber(this.value))"
+                   onfocus="this.value = parseFormattedNumber(this.value) || ''">
+            <input type="number" 
+                   class="px-1 py-1 text-xs text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                   value="${downInstallmentCount}"
+                   data-product="${product.name}"
+                   data-field="downInstallmentCount"
+                   placeholder="งวด">
+            <input type="text" 
+                   class="px-1 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                   value="${formatNumber(downInstallment)}"
+                   data-product="${product.name}"
+                   data-field="downInstallment"
+                   placeholder="/เดือน"
+                   onblur="this.value = formatNumber(parseFormattedNumber(this.value))"
+                   onfocus="this.value = parseFormattedNumber(this.value) || ''">
+          </div>
+        </div>
+
+        <!-- ผ่อนไปใช้ -->
+        <div>
+          <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">ผ่อนไปใช้ (เครดิต/งวด/เดือน)</label>
+          <div class="grid grid-cols-3 gap-1">
+            <input type="text" 
+                   class="px-1 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                   value="${formatNumber(creditThreshold)}"
+                   data-product="${product.name}"
+                   data-field="creditThreshold"
+                   placeholder="เครดิต"
+                   onblur="this.value = formatNumber(parseFormattedNumber(this.value))"
+                   onfocus="this.value = parseFormattedNumber(this.value) || ''">
+            <input type="number" 
+                   class="px-1 py-1 text-xs text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                   value="${payUseInstallmentCount}"
+                   data-product="${product.name}"
+                   data-field="payUseInstallmentCount"
+                   placeholder="งวด">
+            <input type="text" 
+                   class="px-1 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                   value="${formatNumber(payUseInstallment)}"
+                   data-product="${product.name}"
+                   data-field="payUseInstallment"
+                   placeholder="/เดือน"
+                   onblur="this.value = formatNumber(parseFormattedNumber(this.value))"
+                   onfocus="this.value = parseFormattedNumber(this.value) || ''">
+          </div>
+        </div>
+
+        <!-- ผ่อนหมดรับ -->
+        <div>
+          <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">ผ่อนหมดรับ</label>
+          <div class="px-2 py-1 text-sm text-right bg-gray-100 dark:bg-gray-700 rounded">
+            <span data-field="pricePayOff">฿${formatNumber(payOff)}</span>
+          </div>
+        </div>
+
+        <!-- ค่าธรรมเนียม -->
+        <div>
+          <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">ค่าธรรมเนียม</label>
+          <input type="text" 
+                 class="w-full px-2 py-1 text-sm text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+                 value="${formatNumber(docFee)}"
+                 data-product="${product.name}"
+                 data-field="docFee"
+                 onblur="this.value = formatNumber(parseFormattedNumber(this.value))"
+                 onfocus="this.value = parseFormattedNumber(this.value) || ''">
+        </div>
+        
+        <!-- Save Button -->
+        <button class="w-full btn btn-sm btn-primary save-single-price" data-product-name="${product.name}">
+          <i class="bi bi-save"></i> บันทึกราคา
+        </button>
+      </div>
+    </div>
+  `;
+
+  return card;
+}
+
+function showPricingEmptyState() {
+  document.getElementById('pricingProductsGrid').innerHTML = '';
+  document.getElementById('pricingEmptyState').classList.remove('hidden');
+  updatePricingPagination(0);
+}
+
+function updatePricingPagination(totalItems) {
+  const totalPages = Math.ceil(totalItems / pricingItemsPerPage);
+  const startItem = totalItems === 0 ? 0 : (currentPricingPage - 1) * pricingItemsPerPage + 1;
+  const endItem = Math.min(currentPricingPage * pricingItemsPerPage, totalItems);
+
+  document.getElementById('pricingPageStats').textContent =
+    totalItems === 0 ? 'ไม่มีข้อมูล' : `แสดง ${startItem}-${endItem} จาก ${totalItems} รายการ`;
+
+
+  document.getElementById('pricingPageInfo').textContent = `${currentPricingPage} / ${totalPages || 1}`;
+
+  document.getElementById('pricingPrevBtn').disabled = currentPricingPage === 1;
+  document.getElementById('pricingNextBtn').disabled = currentPricingPage >= totalPages;
+}
+
+// === แทนที่ saveSinglePrice function ===
+async function saveSinglePrice(productName, btnEl) {
+  const card = btnEl.closest('.bg-white, .dark\\:bg-gray-900');
+
+  // Disable button and show loading
+  btnEl.disabled = true;
+  const originalHTML = btnEl.innerHTML;
+  btnEl.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+
+  // Collect all price data - ใช้ parseFormattedNumber เพื่อแปลงค่าที่มีคอมมา
+  const priceValue = parseFormattedNumber(card.querySelector('input[data-field="price"]').value) || 0;
+  const body = {
+    price: priceValue,
+    downAmount: parseFormattedNumber(card.querySelector('input[data-field="downAmount"]').value) || 0,
+    downInstallmentCount: parseInt(card.querySelector('input[data-field="downInstallmentCount"]').value) || 0,
+    downInstallment: parseFormattedNumber(card.querySelector('input[data-field="downInstallment"]').value) || 0,
+    creditThreshold: parseFormattedNumber(card.querySelector('input[data-field="creditThreshold"]').value) || 0,
+    payUseInstallmentCount: parseInt(card.querySelector('input[data-field="payUseInstallmentCount"]').value) || 0,
+    payUseInstallment: parseFormattedNumber(card.querySelector('input[data-field="payUseInstallment"]').value) || 0,
+    pricePayOff: priceValue + 2590,
+    docFee: parseFormattedNumber(card.querySelector('input[data-field="docFee"]').value) || 0
+  };
+
+  try {
+    const token = localStorage.getItem('authToken');
+    const res = await fetch(
+      `/api/product-image/price/name/${encodeURIComponent(productName)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body)
+      }
+    );
+
+    const payload = await res.json();
+
+    if (!res.ok || payload.status !== 'success') {
+      throw new Error(payload.message || 'Update failed');
+    }
+
+    // Show success state
+    btnEl.innerHTML = '<i class="bi bi-check-lg"></i>';
+    btnEl.classList.add('btn-success');
+
+    // Emit socket event
+    socket.emit('updatePricing');
+
+    // Reset button after delay
+    setTimeout(() => {
+      btnEl.innerHTML = originalHTML;
+      btnEl.disabled = false;
+      btnEl.classList.remove('btn-success');
+    }, 2000);
+
+    window.showNotification('บันทึกราคาเรียบร้อยแล้ว', 'success');
+
+  } catch (err) {
+    console.error('savePrice error:', err);
+    btnEl.innerHTML = originalHTML;
+    btnEl.disabled = false;
+    window.showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
+}
+
+// Show notification
+window.showNotification = function(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeIn ${
+    type === 'success' ? 'bg-green-500 text-white' :
+    type === 'error' ? 'bg-red-500 text-white' :
+    'bg-blue-500 text-white'
+  }`;
+  notification.innerHTML = `
+    <div class="flex items-center gap-3">
+      <i class="bi ${type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : 'bi-info-circle'}"></i>
+      <span>${message}</span>
+    </div>
+  `;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.remove();
+  }, 3000);
+};
+
+// ฟังก์ชันสำหรับอัปเดตตารางหลังจากเพิ่มสินค้า
+window.refreshTableAfterAdd = function(type = 'single') {
+  setTimeout(() => {
+    window.loadAndDisplayProducts().then(() => {
+      if (type === 'single') {
+        // ไปหน้าล่าสุดเพื่อเห็นสินค้าใหม่
+        const totalPages = Math.ceil(window.singleProductItems.length / window.pageSize);
+        if (totalPages > 0) {
+          window.singleProductCurrentPage = totalPages;
+          window.renderSingleProductPage();
+        }
+                 window.showNotification('เพิ่มสินค้าใหม่เรียบร้อยแล้ว!', 'success');
+      }
+    });
+  }, 500);
+};
+</script>
+
+  <!-- Footer (fixed) -->
+  <footer id="footer" class="bg-white dark:bg-gray-900 text-center py-4 shadow fixed bottom-0 left-64 w-[calc(100%-16rem)]">
+    <div class="container mx-auto">
+      <small>© 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์.</small>
+    </div>
+  </footer>
+<!-- Edit Modal -->
+<div id="editModal"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg w-full max-w-md p-6">
+    <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">แก้ไขสินค้า</h2>
+
+    <div id="currentImageContainer" class="mb-4 text-center hidden">
+      <img
+        id="currentImagePreview"
+        src=""
+        alt="Current Product"
+        class="inline-block w-32 h-32 object-contain rounded border dark:border-gray-600"
+      />
+    </div>
+
+    <form id="editProductForm" class="space-y-4">
+      <!-- ชื่อสินค้า -->
+      <div>
+        <label for="editName" class="block mb-1 text-gray-700 dark:text-gray-300">ชื่อสินค้า</label>
+        <input
+          type="text"
+          id="editName"
+          name="name"
+          class="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+          required
+        />
+      </div>
+      <!-- Brand -->
+      <div>
+        <label for="editBrand" class="block mb-1 text-gray-700 dark:text-gray-300">Brand</label>
+        <input
+          type="text"
+          id="editBrand"
+          name="brand"
+          class="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+          placeholder="ระบุแบรนด์สินค้า"
+        />
+      </div>
+      
+      <!-- ประเภทสินค้า -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+          ประเภทสินค้า
+        <div class="radio-group">
+  <label class="radio-item">
+    <input type="radio" name="editProductType" value="mobile" checked />
+    <span class="flex items-center">
+      <i class="bi bi-phone mr-2"></i> มือถือ
+    </span>
+  </label>
+  <label class="radio-item">
+    <input type="radio" name="editProductType" value="accessory" />
+    <span class="flex items-center">
+      <i class="bi bi-headphones mr-2"></i> อุปกรณ์เสริม
+    </span>
+  </label>
+  <label class="radio-item">
+    <input type="radio" name="editProductType" value="gift" />
+    <span class="flex items-center">
+      <i class="bi bi-gift mr-2"></i> ของแถม
+    </span>
+  </label>
+</div>
+
+      <!-- ประเภทการซื้อ -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+          ประเภทการซื้อ
+        </label>
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-1">
+            <input type="checkbox"
+                   name="editPurchaseType"
+                   value="cash"
+                   class="checkbox checkbox-sm" />
+            <span>ซื้อสด</span>
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="checkbox"
+                   name="editPurchaseType"
+                   value="installment"
+                   class="checkbox checkbox-sm" />
+            <span>ผ่อน</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- การจัดการ Stock -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+          ประเภทการจัดการ Stock
+        </label>
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-1">
+            <input type="radio" name="editStockType" value="imei" checked class="radio radio-sm" />
+            <span><i class="bi bi-qr-code mr-1"></i> แยกตาม IMEI</span>
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="radio" name="editStockType" value="quantity" class="radio radio-sm" />
+            <span><i class="bi bi-boxes mr-1"></i> นับเป็นจำนวนชิ้น</span>
+          </label>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+          <i class="bi bi-info-circle mr-1"></i>
+          Stock จริงจะมีเมื่อรับของจากใบสั่งซื้อ (PO) เท่านั้น
+        </p>
+      </div>
+      <!-- รูปภาพใหม่ -->
+      <div>
+        <label for="editProductImage" class="block mb-1 text-gray-700 dark:text-gray-300">
+          เลือกรูปภาพใหม่ (ถ้าต้องการ)
+        </label>
+        <input
+          type="file"
+          id="editProductImage"
+          name="image"
+          accept="image/*"
+          class="w-full text-gray-700 dark:text-gray-300"
+        />
+      </div>
+      <!-- ปุ่ม -->
+      <div class="flex justify-end space-x-2 pt-4">
+        <button type="button"
+                id="cancelEdit"
+                class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500">
+          ยกเลิก
+        </button>
+        <button type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          บันทึก
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- Confirm Modal -->
+<input type="checkbox" id="confirmActionModal" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+    <h3 class="font-bold text-lg">ยืนยันการกระทำ</h3>
+    <p class="py-4" id="confirmActionText">ข้อความยืนยันที่นี่</p>
+    <div class="modal-action">
+      <label for="confirmActionModal" class="btn btn-secondary bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600" id="cancelActionBtn">ยกเลิก</label>
+      <label for="confirmActionModal" class="btn btn-primary bg-blue-600 dark:bg-orange-500 text-white hover:bg-blue-700 dark:hover:bg-orange-600" id="okActionBtn">ตกลง</label>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Show/Hide Loading with Lottie animation
+  let lottieAnimation = null;
+  function showLoading(show) {
+    const loader = document.getElementById('loadingOverlay');
+    if (show) {
+      loader.style.display = 'flex';
+      loader.classList.remove('animate__fadeOut');
+      loader.classList.add('animate__fadeIn');
+
+      // โหลดและเล่น Lottie animation
+      if (!lottieAnimation) {
+        console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+        fetch('/Loading/Loading.json')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(animationData => {
+            lottieAnimation = lottie.loadAnimation({
+              container: document.getElementById('lottieContainer'),
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+
+            console.log('✅ Lottie animation loaded successfully');
+          })
+          .catch(error => {
+            console.error('❌ Error loading Lottie animation:', error);
+            // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+            document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+          });
+      } else {
+        lottieAnimation.play();
+      }
+    } else {
+      if (lottieAnimation) {
+        lottieAnimation.pause();
+      }
+      loader.classList.remove('animate__fadeIn');
+      loader.classList.add('animate__fadeOut');
+      setTimeout(() => { loader.style.display = 'none'; }, 600);
+    }
+  }
+
+  function toggleMenu() {
+    const sb   = document.getElementById('sidebar');
+    const mc   = document.getElementById('mainContent');
+    const icon = document.querySelector('#btnToggleMenu i');
+
+    // ซ่อน/โชว์ sidebar
+    sb.classList.toggle('-translate-x-full');
+    // สลับ margin ของ mainContent
+    mc.classList.toggle('ml-64');
+    mc.classList.toggle('ml-0');
+    // เปลี่ยนไอคอน
+    icon.classList.toggle('bi-chevron-left');
+    icon.classList.toggle('bi-chevron-right');
+  }
+  document.getElementById('btnToggleMenu')
+          .addEventListener('click', toggleMenu);
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar link highlighting
+    const sidebarLinks = document.querySelectorAll('aside a');
+    function highlightSidebar(link) {
+      sidebarLinks.forEach(l => {
+        l.style.backgroundColor = '';
+        l.style.color = '';
+        const ico = l.querySelector('i');
+        if (ico) ico.style.color = '';
+      });
+      const icon = link.querySelector('i');
+      if (icon) {
+        const c = getComputedStyle(icon).color;
+        link.style.backgroundColor = c;
+        link.style.color = '#fff';
+        icon.style.color = '#fff';
+      }
+    }
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => highlightSidebar(link));
+    });
+    const page = window.location.pathname.split('/').pop();
+    sidebarLinks.forEach(link => {
+      if (link.getAttribute('href') === page) highlightSidebar(link);
+    });
+  });
+
+  // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+  window.addEventListener('beforeunload', () => {
+    if (lottieAnimation) {
+      lottieAnimation.destroy();
+      lottieAnimation = null;
+    }
+  });
+</script>

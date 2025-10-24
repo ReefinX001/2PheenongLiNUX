@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เอกสารทางการเงิน - ระบบบัญชี</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons (เฉพาะไอคอน ไม่ได้ใช้ Bootstrap CSS/JS) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) กำหนดค่า Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],'
+      },
+    }
+  </script>
+
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" type="text/css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+
+  <!-- Socket.io -->
+  <script src="/socket.io.min.js" integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2" crossorigin="anonymous"></script>
+
+  <!-- Dark Mode Support -->
+  <script>
+    (function() {
+      function updateDarkModeLabel(isDark) {
+        const lbl = document.getElementById('darkModeLabel');'
+        if (lbl) {
+          lbl.textContent = isDark ? 'Light Mode' : 'Dark Mode';'
+        }
+      }
+      function loadDarkMode() {
+        const savedDark = localStorage.getItem('darkMode') === 'true';'
+        document.documentElement.classList.toggle('dark', savedDark);'
+        updateDarkModeLabel(savedDark);
+      }
+      function toggleDarkMode() {
+        const isDark = document.documentElement.classList.toggle('dark');'
+        localStorage.setItem('darkMode', isDark);'
+        updateDarkModeLabel(isDark);
+      }
+      document.addEventListener('DOMContentLoaded', () => {'
+        loadDarkMode();
+        const btnDark = document.getElementById('btnToggleDark');'
+        if (btnDark) {
+          btnDark.addEventListener('click', toggleDarkMode);'
+        }
+      });
+    })();
+  </script>
+
+  <style>
+    /* ฟอนต์หลัก + ลดขนาดฟอนต์ลง */
+    body {
+      font-family: 'Prompt', sans-serif;'
+      font-size: 0.875rem; /* ~14px */
+      animation: fadeIn 0.5s ease-in-out;
+      margin: 0;
+      padding: 0;
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    /* การ์ด (card-custom) โดยแทนที่ @apply ด้วย CSS ปกติ */
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .card-custom {
+      background-color: white;
+      border-radius: 0.75rem; /* rounded-xl */
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* shadow-sm */
+      transition: transform 0.2s, box-shadow 0.2s;
+      padding: 1rem; /* p-4 */
+      animation: floatUp 0.4s ease-out;
+    }
+    .card-custom:hover {
+      transform: translateY(-0.25rem); /* -translate-y-1 */
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    }
+    /* Dark mode สำหรับการ์ด */
+    .dark .card-custom {
+      background-color: #1F2937; /* dark:bg-gray-800 */
+    }
+    /* ปุ่มโค้งมน */
+    .btn-rounded {
+      border-radius: 30px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-rounded:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    }
+    /* สถานะเอกสาร */
+    .status-badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .status-success {
+      background-color: #d1fae5;
+      color: #047857;
+    }
+    .status-pending {
+      background-color: #fef3c7;
+      color: #b45309;
+    }
+    .status-draft {
+      background-color: #e5e7eb;
+      color: #4b5563;
+    }
+    .status-canceled {
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 dark:bg-gray-900 dark:text-white">
+<!-- Template สำหรับเมนู -->
+<template id="mainMenuTemplate">
+  <ul class="menu menu-horizontal p-0 bg-white dark:bg-gray-800 rounded-lg shadow-md space-x-2">
+    <!-- รายรับ -->
+    <li tabindex="0" class="dropdown">
+      <a class="flex justify-between items-center px-4 py-2">
+        <i class="bi bi-cash-stack text-green-600 mr-2"></i> รายรับ
+        <i class="bi bi-caret-down-fill text-green-600 ml-1 text-xs"></i>
+      </a>
+      <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg space-y-1">
+        <li class="submenu-item">
+          <a href="income_overview" class="flex items-center px-4 py-2">
+            <i class="bi bi-bar-chart-line text-green-500 mr-2"></i> ดูภาพรวม
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="quotation" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-text text-green-500 mr-2"></i> ใบเสนอราคา
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="deposit_receipt" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-check text-green-500 mr-2"></i> ใบรับเงินมัดจำ
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="invoice" class="flex items-center px-4 py-2">
+            <i class="bi bi-receipt text-green-500 mr-2"></i> ใบแจ้งหนี้
+            <small class="text-gray-500 ml-1">(ใบส่งของ, บันทึกลูกหนี้)</small>
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="receipt" class="flex items-center px-4 py-2">
+            <i class="bi bi-receipt-cutoff text-green-500 mr-2"></i> ใบเสร็จรับเงิน
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="tax_invoice" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-spreadsheet text-green-500 mr-2"></i> ใบกำกับภาษีขาย
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="credit_note" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-minus text-green-500 mr-2"></i> ใบลดหนี้
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="debit_note" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-plus text-green-500 mr-2"></i> ใบเพิ่มหนี้
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="billing" class="flex items-center px-4 py-2 font-medium">
+            <i class="bi bi-file-earmark-bar-graph text-green-500 mr-2"></i> ใบวางบิล
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="import_documents" class="flex items-center px-4 py-2">
+            <i class="bi bi-upload text-green-500 mr-2"></i> นำเข้าเอกสาร
+          </a>
+        </li>
+      </ul>
+    </li>
+  
+    <!-- รายจ่าย -->
+    <li tabindex="0" class="dropdown">
+      <a class="flex justify-between items-center px-4 py-2">
+        <i class="bi bi-wallet2 text-red-600 mr-2"></i> รายจ่าย
+        <i class="bi bi-caret-down-fill text-red-600 ml-1 text-xs"></i>
+      </a>
+      <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+        <li class="submenu-item">
+          <a href="expense_overview" class="flex items-center px-4 py-2">
+            <i class="bi bi-bar-chart-fill text-red-500 mr-2"></i> ดูภาพรวม
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="sales_overview" class="flex items-center px-4 py-2">
+            <i class="bi bi-cart-fill text-red-500 mr-2"></i> การขาย
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="management_overview" class="flex items-center px-4 py-2">
+            <i class="bi bi-gear-fill text-red-500 mr-2"></i> บริหาร
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="purchase_order" class="flex items-center px-4 py-2">
+            <i class="bi bi-receipt text-red-500 mr-2"></i> ใบสั่งซื้อ
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="deposit_payment" class="flex items-center px-4 py-2">
+            <i class="bi bi-cash-stack text-red-500 mr-2"></i> ใบจ่ายเงินมัดจำ
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="expense_entry" class="flex items-center px-4 py-2">
+            <i class="bi bi-journal-plus text-red-500 mr-2"></i> บันทึกซื้อสินค้า
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="expense_record" class="flex items-center px-4 py-2">
+            <i class="bi bi-journal-text text-red-500 mr-2"></i> บันทึกค่าใช้จ่าย
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="asset_order" class="flex items-center px-4 py-2">
+            <i class="bi bi-box-seam text-red-500 mr-2"></i> ใบสั่งซื้อสินทรัพย์
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="asset_purchase" class="flex items-center px-4 py-2">
+            <i class="bi bi-bag-check text-red-500 mr-2"></i> ซื้อสินทรัพย์
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="purchase_tax_invoice" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-spreadsheet text-red-500 mr-2"></i> ใบกำกับภาษีซื้อ
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="receive_credit_note" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-minus text-red-500 mr-2"></i> รับใบลดหนี้
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a href="receive_debit_note" class="flex items-center px-4 py-2">
+            <i class="bi bi-file-earmark-plus text-red-500 mr-2"></i> รับใบเพิ่มหนี้
+          </a>
+        </li>
+        <li class="submenu-item">
+          <a class="flex justify-between items-center px-4 py-2">
+            <span><i class="bi bi-file-earmark-text text-red-500 mr-2"></i> ใบรวบจ่าย</span>
+            <span class="text-orange-500 bg-orange-100 dark:bg-orange-900 dark:text-orange-300 px-2 py-1 rounded-full text-xs">ทดลองฟรี</span>
+          </a>
+        </li>
+      </ul>
+    </li>
+  
+    <!-- บัญชี & การเงิน -->
+    <li tabindex="0" class="dropdown">
+      <a class="flex justify-between items-center px-4 py-2">
+        <i class="bi bi-bank text-blue-600 mr-2"></i> บัญชี & การเงิน
+        <i class="bi bi-caret-down-fill text-blue-600 ml-1 text-xs"></i>
+      </a>
+      <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+        <li class="submenu-item"><a href="chart_of_accounts" class="flex items-center px-4 py-2"><i class="bi bi-diagram-3-fill text-blue-500 mr-2"></i> ผังบัญชี</a></li>
+        <li class="submenu-item"><a href="journal" class="flex items-center px-4 py-2"><i class="bi bi-journal-text text-blue-500 mr-2"></i> บัญชีรายวัน</a></li>
+        <li class="submenu-item"><a href="general_ledger" class="flex items-center px-4 py-2"><i class="bi bi-book-half text-blue-500 mr-2"></i> บัญชีแยกประเภท</a></li>
+        <li class="submenu-item"><a href="trial_balance" class="flex items-center px-4 py-2"><i class="bi bi-calculator-fill text-blue-500 mr-2"></i> งบทดลอง</a></li>
+        <li class="submenu-item"><a href="financial_position" class="flex items-center px-4 py-2"><i class="bi bi-graph-up text-blue-500 mr-2"></i> งบฐานะการเงิน</a></li>
+        <li class="submenu-item"><a href="income_statement" class="flex items-center px-4 py-2"><i class="bi bi-graph-down text-blue-500 mr-2"></i> งบกำไรขาดทุน</a></li>
+        <li class="submenu-item"><a href="cash_flow" class="flex items-center px-4 py-2"><i class="bi bi-arrow-right-circle text-blue-500 mr-2"></i> งบกระแสเงินสด</a></li>
+        <li class="submenu-item"><a href="dbd_efiling" class="flex items-center px-4 py-2"><i class="bi bi-file-medical text-blue-500 mr-2"></i> DBD e-Filing</a></li>
+        <li class="submenu-item"><a href="assets" class="flex items-center px-4 py-2"><i class="bi bi-collection-fill text-blue-500 mr-2"></i> สินทรัพย์</a></li>
+      </ul>
+    </li>
+  
+    <!-- ผู้ติดต่อ -->
+    <li tabindex="0" class="dropdown">
+      <a class="flex justify-between items-center px-4 py-2">
+        <i class="bi bi-people-fill text-purple-600 mr-2"></i> ผู้ติดต่อ
+        <i class="bi bi-caret-down-fill text-purple-600 ml-1 text-xs"></i>
+      </a>
+      <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+        <li class="submenu-item">
+          <a href="contacts" class="flex items-center px-4 py-2">
+            <i class="bi bi-list-ul text-purple-500 mr-2"></i> ดูภาพรวม
+          </a>
+        </li>
+        <li>
+          <a href="contacts_new" class="flex items-center px-4 py-2 bg-primary text-white rounded-lg">
+            <i class="bi bi-plus-lg mr-2"></i> เพิ่มผู้ติดต่อใหม่
+          </a>
+        </li>
+      </ul>
+    </li>
+  
+    <!-- สินค้า/บริการ -->
+    <li tabindex="0" class="dropdown">
+      <a class="flex justify-between items-center px-4 py-2">
+        <i class="bi bi-box-seam text-amber-600 mr-2"></i> สินค้า/บริการ
+        <i class="bi bi-caret-down-fill text-amber-600 ml-1 text-xs"></i>
+      </a>
+      <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+        <li class="submenu-item"><a href="products" class="flex items-center px-4 py-2"><i class="bi bi-box-fill text-amber-500 mr-2"></i> สินค้า/บริการ</a></li>
+        <li class="submenu-item"><a href="units" class="flex items-center px-4 py-2"><i class="bi bi-rulers text-amber-500 mr-2"></i> หน่วย</a></li>
+      </ul>
+    </li>
+  
+    <!-- คลังเอกสาร -->
+    <li>
+      <a href="document_library" class="flex items-center px-4 py-2">
+        <i class="bi bi-folder2 text-cyan-600 mr-2"></i> คลังเอกสาร
+      </a>
+    </li>
+  
+    <!-- ตั้งค่า -->
+    <li tabindex="0" class="dropdown">
+      <a class="flex justify-between items-center px-4 py-2">
+        <i class="bi bi-gear-fill text-slate-600 mr-2"></i> ตั้งค่า
+        <i class="bi bi-caret-down-fill text-slate-600 ml-1 text-xs"></i>
+      </a>
+      <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+        <li class="submenu-item"><a href="package_info" class="flex items-center px-4 py-2"><i class="bi bi-box-arrow-in-down-right text-slate-500 mr-2"></i> ข้อมูลแพ็กเกจ/ต่ออายุ</a></li>
+        <li class="submenu-item"><a href="organization_settings" class="flex items-center px-4 py-2"><i class="bi bi-building text-slate-500 mr-2"></i> ตั้งค่าองค์กร</a></li>
+        <li class="submenu-item"><a href="user_settings" class="flex items-center px-4 py-2"><i class="bi bi-person-gear text-slate-500 mr-2"></i> ตั้งค่าผู้ใช้งาน</a></li>
+        <li class="submenu-item"><a href="document_settings" class="flex items-center px-4 py-2"><i class="bi bi-file-earmark-text text-slate-500 mr-2"></i> ตั้งค่าเอกสาร</a></li>
+        <li class="submenu-item"><a href="accounting_policy" class="flex items-center px-4 py-2"><i class="bi bi-shield-lock text-slate-500 mr-2"></i> นโยบายบัญชี</a></li>
+        <li class="submenu-item"><a href="external_integration" class="flex items-center px-4 py-2"><i class="bi bi-plug-fill text-slate-500 mr-2"></i> เชื่อมต่อภายนอก</a></li>
+        <li class="submenu-item"><a href="register_accounting_firm" class="flex items-center px-4 py-2"><i class="bi bi-journal-bookmark-fill text-slate-500 mr-2"></i> ลงทะเบียนสำนักงานบัญชี</a></li>
+      </ul>
+    </li>
+  </ul>
+</template>
+</body>
+
+  <!-- Navbar -->
+  <div class="navbar bg-white dark:bg-gray-800 shadow-md">
+    <div class="flex-1 flex items-center space-x-6">
+      <img src="/uploads/Logo2.png"
+           alt="Logo"
+           class="rounded-full"
+           style="width: 40px; height: 40px;" />
+      <span class="text-lg font-semibold">ระบบบัญชี</span>
+      <!-- จุดปล่อยเมนู -->
+      <div id="mainMenuContainer"></div>
+    </div>
+    <div class="flex-none flex items-center space-x-2">
+      <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700">
+        <span id="darkModeLabel">Dark Mode</span>
+      </button>
+      <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded">
+        <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+      </button>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">เอกสารทางการเงิน</h1>
+      <p class="text-gray-600 dark:text-gray-300">จัดการเอกสารทางการเงินทั้งหมดในระบบ</p>
+    </div>
+
+    <!-- แผงควบคุมตัวกรอง -->
+    <div class="flex flex-wrap gap-4 mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+      <div class="flex items-center">
+        <i class="bi bi-funnel mr-2 text-blue-500"></i>
+        <select 
+          id="document-type-select" 
+          class="border rounded px-3 py-2 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+        >
+          <option value="all">เอกสารทั้งหมด</option>
+          <option value="quotation">ใบเสนอราคา</option>
+          <option value="deposit">ใบรับเงินมัดจำ</option>
+          <option value="invoice">ใบแจ้งหนี้</option>
+          <option value="receipt">ใบเสร็จรับเงิน</option>
+          <option value="tax">ใบกำกับภาษีขาย</option>
+          <option value="credit">ใบลดหนี้</option>
+          <option value="debit">ใบเพิ่มหนี้</option>
+          <option value="billing">ใบวางบิล</option>
+        </select>
+      </div>
+      
+      <div class="flex items-center">
+        <i class="bi bi-calendar-range mr-2 text-blue-500"></i>
+        <select 
+          id="period-select" 
+          class="border rounded px-3 py-2 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+        >
+          <option value="month">เดือนนี้</option>
+          <option value="quarter">ไตรมาสนี้</option>
+          <option value="year">ปีนี้</option>
+          <option value="custom">กำหนดเอง</option>
+        </select>
+      </div>
+
+      <div class="flex items-center">
+        <i class="bi bi-filter mr-2 text-blue-500"></i>
+        <select 
+          id="status-select" 
+          class="border rounded px-3 py-2 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+        >
+          <option value="all">สถานะทั้งหมด</option>
+          <option value="draft">ร่าง</option>
+          <option value="pending">รอดำเนินการ</option>
+          <option value="completed">เสร็จสิ้น</option>
+          <option value="canceled">ยกเลิก</option>
+        </select>
+      </div>
+
+      <div class="flex-grow"></div>
+
+      <button class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg mr-1"></i> สร้างเอกสารใหม่
+      </button>
+      <button class="btn btn-outline btn-sm">
+        <i class="bi bi-upload mr-1"></i> นำเข้าเอกสาร
+      </button>
+    </div>
+
+    <!-- บัตรสถิติ -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 mb-1">เอกสารทั้งหมด</p>
+            <h2 class="text-2xl font-bold dark:text-white" id="total-docs">148 ฉบับ</h2>
+          </div>
+          <i class="bi bi-file-earmark-text text-2xl text-blue-500"></i>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 mb-1">ยอดมูลค่ารวม</p>
+            <h2 class="text-2xl font-bold dark:text-white" id="total-amount">2,450,000 บาท</h2>
+          </div>
+          <i class="bi bi-cash text-2xl text-green-500"></i>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 mb-1">รอดำเนินการ</p>
+            <h2 class="text-2xl font-bold dark:text-white" id="pending-docs">26 ฉบับ</h2>
+          </div>
+          <i class="bi bi-hourglass-split text-2xl text-orange-500"></i>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 mb-1">ยังไม่ได้ชำระ</p>
+            <h2 class="text-2xl font-bold dark:text-white" id="unpaid-amount">580,000 บาท</h2>
+          </div>
+          <i class="bi bi-exclamation-triangle text-2xl text-red-500"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- กราฟแท่งมูลค่าเอกสาร -->
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold dark:text-white">มูลค่าเอกสารจำแนกตามประเภท</h3>
+        <div class="flex gap-2">
+          <button class="px-3 py-1 border rounded text-sm" data-period="month">รายเดือน</button>
+          <button class="px-3 py-1 border rounded text-sm bg-blue-500 text-white" data-period="quarter">รายไตรมาส</button>
+          <button class="px-3 py-1 border rounded text-sm" data-period="year">รายปี</button>
+        </div>
+      </div>
+      <div class="h-64">
+        <canvas id="bar-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- แถวล่าง - กราฟวงกลมและตารางข้อมูล -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- กราฟวงกลมสัดส่วนเอกสาร -->
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">สัดส่วนประเภทเอกสาร</h3>
+        <div class="h-64">
+          <canvas id="pie-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- ตารางข้อมูลเอกสารล่าสุด -->
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow lg:col-span-2">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold dark:text-white">เอกสารล่าสุด</h3>
+          <a href="#" class="text-blue-500 text-sm hover:underline">ดูทั้งหมด</a>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เลขที่</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ประเภท</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้ติดต่อ</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">มูลค่า</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">สถานะ</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">วันที่</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">INV-20250503-001</td>
+                <td class="px-6 py-4 whitespace-nowrap">ใบแจ้งหนี้</td>
+                <td class="px-6 py-4 whitespace-nowrap">บริษัท เอบีซี จำกัด</td>
+                <td class="px-6 py-4 whitespace-nowrap">85,000 บาท</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="status-badge status-pending">รอชำระเงิน</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">3 พ.ค. 2025</td>
+              </tr>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">QT-20250502-012</td>
+                <td class="px-6 py-4 whitespace-nowrap">ใบเสนอราคา</td>
+                <td class="px-6 py-4 whitespace-nowrap">บริษัท โกลเด้น กรุ๊ป จำกัด</td>
+                <td class="px-6 py-4 whitespace-nowrap">120,000 บาท</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="status-badge status-draft">ร่าง</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">2 พ.ค. 2025</td>
+              </tr>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">REC-20250501-007</td>
+                <td class="px-6 py-4 whitespace-nowrap">ใบเสร็จรับเงิน</td>
+                <td class="px-6 py-4 whitespace-nowrap">ห้างหุ้นส่วน วันดี จำกัด</td>
+                <td class="px-6 py-4 whitespace-nowrap">45,000 บาท</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="status-badge status-success">เสร็จสิ้น</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">1 พ.ค. 2025</td>
+              </tr>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">TAX-20250430-021</td>
+                <td class="px-6 py-4 whitespace-nowrap">ใบกำกับภาษี</td>
+                <td class="px-6 py-4 whitespace-nowrap">บริษัท สมายล์ จำกัด</td>
+                <td class="px-6 py-4 whitespace-nowrap">32,100 บาท</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="status-badge status-success">เสร็จสิ้น</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">30 เม.ย. 2025</td>
+              </tr>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">DEP-20250429-005</td>
+                <td class="px-6 py-4 whitespace-nowrap">มัดจำ</td>
+                <td class="px-6 py-4 whitespace-nowrap">บริษัท ไทยเทค จำกัด</td>
+                <td class="px-6 py-4 whitespace-nowrap">25,000 บาท</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="status-badge status-canceled">ยกเลิก</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">29 เม.ย. 2025</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <script>
+    // ข้อมูลเอกสารในระบบแบบสมมติ
+    const documentData = {
+      // จำนวนเอกสารแต่ละประเภท
+      count: {
+        quotation: 32,
+        deposit: 18,
+        invoice: 45,
+        receipt: 38,
+        tax: 27,
+        credit: 11,
+        debit: 5,
+        billing: 14
+      },
+      
+      // มูลค่าเอกสารแต่ละประเภท
+      amount: {
+        quotation: 850000,
+        deposit: 320000,
+        invoice: 720000,
+        receipt: 680000,
+        tax: 580000,
+        credit: 120000,
+        debit: 45000,
+        billing: 540000
+      },
+      
+      // ข้อมูลแสดงค่าตามช่วงเวลา (รายไตรมาส)
+      quarterly: [
+        // ไตรมาส 1
+        {
+          quotation: 210000,
+          deposit: 85000,
+          invoice: 180000,
+          receipt: 160000,
+          tax: 150000,
+          credit: 30000,
+          debit: 12000,
+          billing: 140000
+        },
+        // ไตรมาส 2
+        {
+          quotation: 310000,
+          deposit: 105000,
+          invoice: 240000,
+          receipt: 220000,
+          tax: 195000,
+          credit: 45000,
+          debit: 15000,
+          billing: 185000
+        },
+        // ไตรมาส 3 (ไตรมาสปัจจุบัน)
+        {
+          quotation: 330000,
+          deposit: 130000,
+          invoice: 300000,
+          receipt: 300000,
+          tax: 235000,
+          credit: 45000,
+          debit: 18000,
+          billing: 215000
+        }
+      ]
+    };
+
+    // ชื่อไทยของประเภทเอกสาร
+    const documentLabels = {
+      quotation: "ใบเสนอราคา",
+      deposit: "ใบรับเงินมัดจำ",
+      invoice: "ใบแจ้งหนี้",
+      receipt: "ใบเสร็จรับเงิน",
+      tax: "ใบกำกับภาษีขาย",
+      credit: "ใบลดหนี้",
+      debit: "ใบเพิ่มหนี้",
+      billing: "ใบวางบิล"
+    };
+
+    // สีสำหรับกราฟ
+    const COLORS = [
+      '#3b82f6', // blue'
+      '#10b981', // green'
+      '#f59e0b', // amber'
+      '#ef4444', // red'
+      '#8b5cf6', // purple'
+      '#ec4899', // pink'
+      '#06b6d4', // cyan'
+      '#f97316'  // orange'
+    ];
+
+    // สร้างกราฟแท่งมูลค่าเอกสาร
+    let barChart;
+    function createBarChart() {
+      const ctx = document.getElementById('bar-chart').getContext('2d');'
+      
+      // ถ้ามีกราฟอยู่แล้ว ให้ทำลายก่อน
+      if (barChart) {
+        barChart.destroy();
+      }
+      
+      // สร้างข้อมูลสำหรับกราฟแท่ง
+      const labels = Object.keys(documentLabels).map(key => documentLabels[key]);
+      const data = Object.keys(documentData.amount).map(key => documentData.amount[key]);
+      
+      barChart = new Chart(ctx, {
+        type: 'bar','
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'มูลค่า (บาท)','
+            data: data,
+            backgroundColor: COLORS,
+            borderWidth: 0,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.parsed.y.toLocaleString()} บาท`;
+                }
+              }
+            },
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  if (value >= 1000000) {
+                    return (value / 1000000).toFixed(1) + ' ล้านบาท';'
+                  } else if (value >= 1000) {
+                    return (value / 1000).toFixed(0) + 'K บาท';'
+                  }
+                  return value.toLocaleString() + ' บาท';'
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // สร้างกราฟวงกลมสัดส่วนเอกสาร
+    let pieChart;
+    function createPieChart() {
+      const ctx = document.getElementById('pie-chart').getContext('2d');'
+      
+      const labels = Object.keys(documentLabels).map(key => documentLabels[key]);
+      const data = Object.keys(documentData.count).map(key => documentData.count[key]);
+      
+      pieChart = new Chart(ctx, {
+        type: 'doughnut','
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: COLORS,
+            borderWidth: 1,
+            borderColor: '#ffffff''
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';'
+                  const value = context.parsed || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return `${label}: ${value} ฉบับ (${percentage}%)`;
+                }
+              }
+            },
+            legend: {
+              position: 'right','
+              labels: {
+                boxWidth: 12,
+                font: {
+                  size: 11
+                }
+              }
+            }
+          },
+          cutout: '60%''
+        }
+      });
+    }
+
+    // เพิ่ม Event Listeners
+    document.addEventListener('DOMContentLoaded', function() {'
+      // สร้างกราฟเริ่มต้น
+      createBarChart();
+      createPieChart();
+      
+      // เพิ่มไอคอน Bootstrap ให้ปุ่มกรอง
+      
+      // เพิ่ม event listener สำหรับตัวกรอง
+      document.getElementById('document-type-select').addEventListener('change', function(e) {'
+        // ในอนาคตจะกรองข้อมูลตามประเภทเอกสาร
+        console.log("กรองตามประเภท: " + e.target.value);
+      });
+      
+      document.getElementById('period-select').addEventListener('change', function(e) {'
+        // ในอนาคตจะกรองตามช่วงเวลา
+        console.log("กรองตามช่วงเวลา: " + e.target.value);
+      });
+      
+      document.getElementById('status-select').addEventListener('change', function(e) {'
+        // ในอนาคตจะกรองตามสถานะ
+        console.log("กรองตามสถานะ: " + e.target.value);
+      });
+      
+      // เพิ่ม event listener สำหรับปุ่มช่วงเวลาของกราฟ
+      document.querySelectorAll('[data-period]').forEach(button => {'
+        button.addEventListener('click', function() {'
+          // ล้างคลาสจากปุ่มทั้งหมด
+          document.querySelectorAll('[data-period]').forEach(btn => {'
+            btn.classList.remove('bg-blue-500', 'text-white');'
+          });
+          
+          // เพิ่มคลาสให้ปุ่มที่ถูกเลือก
+          this.classList.add('bg-blue-500', 'text-white');'
+          
+          // ในอนาคตจะอัปเดตกราฟตามช่วงเวลา
+          console.log("เปลี่ยนช่วงเวลากราฟเป็น: " + this.dataset.period);
+        });
+      });
+
+      // ดึงเทมเพลตเมนูและเพิ่มลงในพื้นที่เมนู
+      const template = document.getElementById('mainMenuTemplate');'
+      const menuContainer = document.getElementById('mainMenuContainer');'
+      if (template && menuContainer) {
+        menuContainer.appendChild(template.content.cloneNode(true));
+      }
+    });
+  </script>
+</body>
+</html>

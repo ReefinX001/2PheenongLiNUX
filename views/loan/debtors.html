@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ลูกหนี้</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <script>
+    // Suppress Tailwind CSS production warning completely
+    const originalWarn = console.warn;
+    const originalLog = console.log;
+    
+    console.warn = function(msg) {
+      if (msg && typeof msg === 'string' && (
+        msg.includes('should not be used in production') ||
+        msg.includes('cdn.tailwindcss.com') ||
+        msg.includes('tailwindcss.com/docs/installation') ||
+        msg.includes('Tailwind CSS')
+      )) {
+        return; // Suppress all Tailwind production warnings
+      }
+      originalWarn.apply(console, arguments);
+    };
+    
+    console.log = function(msg) {
+      if (msg && typeof msg === 'string' && (
+        msg.includes('should not be used in production') ||
+        msg.includes('cdn.tailwindcss.com')
+      )) {
+        return; // Suppress Tailwind production logs
+      }
+      originalLog.apply(console, arguments);
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'Prompt', 'sans-serif'] },
+        },
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Day.js with Thai locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  <script>dayjs.locale('th');</script>
+
+  <!-- Chart.js for charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Lottie Web for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css for smooth animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Avatar Utils - แก้ไขปัญหา 404 errors จาก avatar-default.png -->
+  <script>
+    // Suppress avatar-utils console messages and handle gracefully
+    (function() {
+      try {
+        const script = document.createElement('script');
+        script.src = '/js/avatar-utils.js';
+        script.onerror = function() {
+          // Silently fail if avatar-utils.js is not available
+          console.debug('Avatar utils not available, continuing without it');
+        };
+        document.head.appendChild(script);
+      } catch (e) {
+        // Ignore avatar utils loading errors
+        console.debug('Avatar utils loading skipped');
+      }
+    })();
+  </script>
+
+  <!-- Utility Functions -->
+  <script>
+    // Utility functions to prevent console errors
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      // If SweetAlert2 is available, use it
+      if (typeof Swal !== 'undefined') {
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
+        });
+        Toast.fire({
+          icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+          title: message
+        });
+      }
+    }
+
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => response.json())
+            .then(animationData => {
+              console.log('✅ Lottie animation data loaded successfully');
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: false,
+                animationData: animationData
+              });
+            })
+            .catch(error => {
+              console.warn('Failed to load Lottie animation:', error);
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        }
+        if (lottieAnimation) lottieAnimation.play();
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 300);
+      }
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }).format(amount || 0);
+    }
+
+    function formatDate(date) {
+      if (!date) return '-';
+      return dayjs(date).format('DD/MM/YYYY');
+    }
+
+    function formatDateTime(date) {
+      if (!date) return '-';
+      return dayjs(date).format('DD/MM/YYYY HH:mm');
+    }
+
+    // Make functions globally available
+    window.showToast = showToast;
+    window.showLoading = showLoading;
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+    window.formatDateTime = formatDateTime;
+  </script>
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { 
+      font-family: 'Inter', 'Prompt', sans-serif; 
+      font-weight: 400;
+      line-height: 1.5;
+    }
+    
+    /* Minimal animations */
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(8px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+    
+    /* Colorful spinner */
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .spinner { 
+      border: 2px solid #f1f5f9;
+      border-top: 2px solid #3b82f6;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite; 
+    }
+    
+    /* Colorful status colors */
+    .status-paid { color: #16a34a; font-weight: 500; }
+    .status-pending { color: #ca8a04; font-weight: 500; }
+    .status-late { color: #dc2626; font-weight: 500; }
+    
+    /* Clean table styling */
+    .minimal-table th {
+      background: #fafafa;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 500;
+      font-size: 14px;
+      color: #374151;
+    }
+    
+    .minimal-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+      color: #374151;
+    }
+    
+    .minimal-table tbody tr:hover {
+      background: #fafafa;
+    }
+    
+    /* Dark mode adjustments */
+    .dark .minimal-table th {
+      background: #1f2937;
+      border-bottom: 1px solid #374151;
+      color: #d1d5db;
+    }
+    
+    .dark .minimal-table td {
+      border-bottom: 1px solid #374151;
+      color: #d1d5db;
+    }
+    
+    .dark .minimal-table tbody tr:hover {
+      background: #1f2937;
+    }
+    
+    /* Colorful buttons */
+    .btn-minimal {
+      @apply bg-transparent border border-blue-300 text-blue-700 hover:bg-blue-50 px-3 py-2 text-sm font-medium rounded-md transition-colors;
+    }
+    
+    .btn-minimal-primary {
+      @apply bg-indigo-600 border border-indigo-600 text-white hover:bg-indigo-700 px-3 py-2 text-sm font-medium rounded-md transition-colors;
+    }
+    
+    .btn-minimal-success {
+      @apply bg-transparent border border-green-400 text-green-600 hover:bg-green-50 px-3 py-2 text-sm font-medium rounded-md transition-colors;
+    }
+    
+    .btn-minimal-info {
+      @apply bg-transparent border border-cyan-300 text-cyan-600 hover:bg-cyan-50 px-2 py-1 text-xs font-medium rounded transition-colors;
+    }
+    
+    /* Clean inputs */
+    .input-minimal {
+      @apply border-gray-300 focus:border-gray-500 focus:ring-0 text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 rounded-md;
+    }
+    
+    /* Disabled states */
+    .btn-minimal:disabled, .btn-minimal-primary:disabled {
+      @apply opacity-50 cursor-not-allowed;
+    }
+    
+    /* Focus states */
+    .btn-minimal:focus, .btn-minimal-primary:focus {
+      @apply outline-none ring-2 ring-gray-300 ring-offset-1;
+    }
+    
+    /* Dark mode button adjustments */
+    .dark .btn-minimal {
+      @apply border-blue-600 text-blue-400 hover:bg-blue-900/30;
+    }
+    
+    .dark .btn-minimal-primary {
+      @apply bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700;
+    }
+    
+    .dark .btn-minimal-success {
+      @apply border-green-500 text-green-400 hover:bg-green-900/30;
+    }
+    
+    .dark .btn-minimal-info {
+      @apply border-cyan-600 text-cyan-400 hover:bg-cyan-900/30;
+    }
+    
+    /* Tab styling */
+    .tab {
+      @apply text-gray-600 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors;
+    }
+    
+    .tab.active {
+      @apply text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400;
+    }
+    
+    /* Dropdown styling */
+    .dropdown-minimal {
+      @apply border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700;
+    }
+    
+    .Logo { max-width: 100%; height: auto; }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+
+    /* Modal Animations */
+    @keyframes modalFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes modalBackdropIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal {
+        transition: all 0.3s ease-in-out;
+    }
+
+    .modal-box {
+        animation: modalFadeIn 0.3s ease-out;
+    }
+
+    /* Alert Styles */
+    .alert-float {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 100;
+        animation: alertSlideIn 0.3s ease-out;
+        max-width: 24rem;
+    }
+
+    @keyframes alertSlideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Form Styling */
+    .form-group {
+        @apply space-y-1;
+    }
+
+    .form-label {
+        @apply text-sm font-medium text-gray-700 dark:text-gray-300;
+    }
+
+    .form-input {
+        @apply w-full rounded-md border-gray-300 dark:border-gray-600 
+               focus:border-indigo-500 focus:ring focus:ring-indigo-200 
+               focus:ring-opacity-50 dark:bg-gray-700 dark:text-gray-100
+               transition-colors duration-200;
+    }
+
+    /* Loading Button Animation */
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    /* Improved Modal Backdrop */
+    .modal-backdrop {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+
+<body class="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 font-light">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container - จะถูกเติมด้วย loan-sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <div class="min-h-screen bg-white dark:bg-gray-900">
+    <div class="flex-1 flex flex-col ml-64 main-content">
+
+      <!-- Minimal Header -->
+      <header class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-medium text-gray-900 dark:text-gray-100">ข้อมูลลูกหนี้</h1>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">จัดการข้อมูลลูกหนี้ทั้งหมด</p>
+        </div>
+          <div class="flex gap-3">
+          <div class="relative">
+            <input type="text" id="searchInput" placeholder="ค้นหาลูกหนี้..." 
+                    class="input-minimal pl-10 pr-4 py-2 w-64" />
+            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          </div>
+          <div class="dropdown dropdown-end">
+              <label tabindex="0" class="btn-minimal dropdown-minimal">
+                <i class="bi bi-funnel text-sm"></i>
+                <span class="ml-1">ตัวกรอง</span>
+            </label>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-white dark:bg-gray-800 rounded-lg w-52 mt-1 border border-gray-200 dark:border-gray-700">
+                <li><a class="filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-filter="all">ทั้งหมด</a></li>
+                <li><a class="filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-filter="unpaid">ยังไม่ชำระ</a></li>
+                <li><a class="filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-filter="paid">ชำระแล้ว</a></li>
+                <li><a class="filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-filter="overdue">เกินกำหนด</a></li>
+            </ul>
+          </div>
+          <div class="dropdown dropdown-end">
+              <label tabindex="0" class="btn-minimal dropdown-minimal">
+                <i class="bi bi-building text-sm"></i>
+                <span class="ml-1">สาขา</span>
+            </label>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-white dark:bg-gray-800 rounded-lg w-52 mt-1 border border-gray-200 dark:border-gray-700">
+                <li><a class="branch-filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-branch="all">ทุกสาขา</a></li>
+                <li><a class="branch-filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-branch="เชียงใหม่">สาขาเชียงใหม่</a></li>
+                <li><a class="branch-filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-branch="กรุงเทพ">สาขากรุงเทพ</a></li>
+                <li><a class="branch-filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-branch="ขอนแก่น">สาขาขอนแก่น</a></li>
+                <li><a class="branch-filter-option text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" data-branch="ภูเก็ต">สาขาภูเก็ต</a></li>
+            </ul>
+          </div>
+            <button class="btn-minimal-primary">
+              <i class="bi bi-plus-lg text-sm"></i>
+              <span class="ml-1">เพิ่มลูกหนี้ใหม่</span>
+          </button>
+        </div>
+      </div>
+      </header>
+
+      <div class="p-6">
+        <!-- Colorful Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 animate-fadeIn">
+          <div class="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg p-4 shadow-sm">
+            <div class="flex items-center">
+              <div class="rounded-lg bg-blue-100 dark:bg-blue-900/30 p-3 mr-4">
+                <i class="bi bi-people-fill text-xl text-blue-600 dark:text-blue-400"></i>
+          </div>
+          <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">สัญญาทั้งหมด</p>
+                <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100" id="totalDebtors">0</h2>
+          </div>
+        </div>
+          </div>
+          <div class="bg-white dark:bg-gray-800 border border-green-200 dark:border-green-800 rounded-lg p-4 shadow-sm">
+            <div class="flex items-center">
+              <div class="rounded-lg bg-green-100 dark:bg-green-900/30 p-3 mr-4">
+                <i class="bi bi-cash-coin text-xl text-green-600 dark:text-green-400"></i>
+          </div>
+          <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">ยอดหนี้คงเหลือ</p>
+                <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100" id="totalDebtAmount">฿0.00</h2>
+          </div>
+        </div>
+          </div>
+          <div class="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-sm">
+            <div class="flex items-center">
+              <div class="rounded-lg bg-red-100 dark:bg-red-900/30 p-3 mr-4">
+                <i class="bi bi-exclamation-triangle-fill text-xl text-red-600 dark:text-red-400"></i>
+          </div>
+          <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">ลูกหนี้ค้างชำระ</p>
+                <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100" id="overdueCount">0</h2>
+              </div>
+          </div>
+        </div>
+      </div>
+
+        <!-- Clean Tabs -->
+        <div class="border-b border-gray-200 dark:border-gray-700 mb-6 animate-fadeIn" style="animation-delay: 0.1s;">
+        <div class="flex flex-wrap -mb-px">
+            <button class="tab active inline-block p-4 text-base font-medium" data-tab="normal">
+            ลูกหนี้ผ่อนชำระปกติ
+          </button>
+            <button class="tab inline-block p-4 text-base font-medium" data-tab="overdue">
+            ลูกหนี้ค้างชำระ
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content" id="normalDebtorsContent">
+          <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden animate-fadeIn" style="animation-delay: 0.2s;">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 class="text-base font-medium text-gray-900 dark:text-gray-100">รายการสัญญาผ่อนชำระทั้งหมด</h3>
+          </div>
+          <div class="overflow-x-auto">
+              <table class="w-full minimal-table">
+                <thead>
+                <tr>
+                    <th>Contract No</th>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th>เบอร์โทร</th>
+                    <th>สาขา</th>
+                    <th class="text-right">Total Amount</th>
+                    <th class="text-right">Paid Amount</th>
+                    <th class="text-right">Remaining</th>
+                    <th>งวดที่</th>
+                    <th>กำหนดชำระถัดไป</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">จัดการ</th>
+                </tr>
+              </thead>
+                <tbody id="normalDebtorsTable">
+                  <tr>
+                    <td colspan="12" class="text-center py-8">
+                      <div class="flex items-center justify-center">
+                        <div class="spinner mr-2"></div>
+                        <span class="text-gray-500">กำลังโหลดข้อมูล...</span>
+                      </div>
+                    </td>
+                  </tr>
+              </tbody>
+            </table>
+          </div>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800 flex justify-between items-center border-t border-gray-200 dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+              แสดง <span id="normalDebtorsCount">0</span> รายการ
+            </div>
+              <div class="flex gap-2">
+                <button class="btn-minimal px-3 py-1 text-xs">ก่อนหน้า</button>
+                <button class="btn-minimal-primary px-3 py-1 text-xs">1</button>
+                <button class="btn-minimal px-3 py-1 text-xs">2</button>
+                <button class="btn-minimal px-3 py-1 text-xs">3</button>
+                <button class="btn-minimal px-3 py-1 text-xs">ถัดไป</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="overdueDebtorsContent">
+          <div class="bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 overflow-hidden animate-fadeIn" style="animation-delay: 0.2s;">
+            <div class="p-4 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+              <h3 class="text-base font-medium mb-2 text-red-900 dark:text-red-300">
+                <i class="bi bi-exclamation-triangle-fill mr-2 text-red-600 dark:text-red-400"></i>รายการลูกหนี้ค้างชำระ
+            </h3>
+              <p class="text-sm text-red-700 dark:text-red-400">รายการลูกหนี้ที่เกินกำหนดชำระ ควรติดตามโดยเร็ว</p>
+          </div>
+          <div class="overflow-x-auto">
+              <table class="w-full minimal-table">
+                <thead>
+                <tr>
+                    <th>คำนำหน้า</th>
+                    <th>ชื่อ-นามสกุล</th>
+                    <th>รหัสลูกค้า</th>
+                    <th>อายุ</th>
+                    <th>อีเมล</th>
+                    <th>เบอร์โทร</th>
+                    <th>สาขา</th>
+                    <th class="text-right">ยอดค้างชำระ</th>
+                    <th>เกินกำหนด (วัน)</th>
+                    <th>กำหนดชำระเดิม</th>
+                    <th class="text-center">ระดับความเร่งด่วน</th>
+                    <th class="text-center">จัดการ</th>
+                </tr>
+              </thead>
+                <tbody id="overdueDebtorsTable">
+                  <tr>
+                    <td colspan="12" class="text-center py-8">
+                      <div class="flex items-center justify-center">
+                        <div class="spinner mr-2"></div>
+                        <span class="text-gray-500">กำลังโหลดข้อมูล...</span>
+                      </div>
+                    </td>
+                  </tr>
+              </tbody>
+            </table>
+          </div>
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800 flex justify-between items-center border-t border-gray-200 dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+              แสดง <span id="overdueDebtorsCount">0</span> รายการ
+            </div>
+              <div class="flex gap-2">
+                <button class="btn-minimal px-3 py-1 text-xs">ก่อนหน้า</button>
+                <button class="btn-minimal-primary px-3 py-1 text-xs">1</button>
+                <button class="btn-minimal px-3 py-1 text-xs">ถัดไป</button>
+            </div>
+          </div>
+        </div>
+      </div>
+          </div>
+          </div>
+        </div>
+
+  <!-- Minimal Modal -->
+  <div id="debtorDetailModal" class="modal">
+    <div class="modal-box w-11/12 max-w-3xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+      <h3 class="font-medium text-lg mb-6 text-gray-900 dark:text-gray-100">รายละเอียดลูกหนี้</h3>
+      <div id="debtorDetailContent" class="space-y-4"></div>
+      <div class="modal-action mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <button id="closeDebtorDetailModal" class="btn-minimal">ปิด</button>
+    </div>
+  </div>
+</div>
+
+  <!-- New Debtor Modal -->
+  <div id="newDebtorModal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box w-11/12 max-w-4xl bg-white dark:bg-gray-800 shadow-xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-medium text-gray-900 dark:text-gray-100">
+                <i class="bi bi-plus-circle text-blue-600 dark:text-blue-400 mr-2"></i>
+                เพิ่มลูกหนี้ใหม่
+            </h3>
+            <button onclick="closeNewDebtorModal()" class="btn btn-ghost btn-sm">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto max-h-[calc(100vh-200px)]">
+            <form id="newDebtorForm" class="space-y-6">
+                <!-- Customer Information -->
+                <div class="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h4 class="font-medium text-base mb-4 text-gray-900 dark:text-gray-100">ข้อมูลลูกค้า</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">คำนำหน้า*</span>
+                      </label>
+                      <input type="text" name="prefix" class="input input-bordered w-full form-input" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">ชื่อ-นามสกุล*</span>
+                      </label>
+                      <input type="text" name="customerName" class="input input-bordered w-full form-input" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">เลขบัตรประชาชน*</span>
+                      </label>
+                      <input type="text" name="idCard" class="input input-bordered w-full form-input" maxlength="13" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">อายุ*</span>
+                      </label>
+                      <input type="text" name="age" class="input input-bordered w-full form-input" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">อีเมล*</span>
+                      </label>
+                      <input type="email" name="email" class="input input-bordered w-full form-input" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">เบอร์โทรศัพท์*</span>
+                      </label>
+                      <input type="tel" name="phone" class="input input-bordered w-full form-input" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">สาขา*</span>
+                      </label>
+                      <select name="branch" class="select select-bordered w-full form-input" required>
+                        <option value="">เลือกสาขา</option>
+                        <option value="เชียงใหม่">สาขาเชียงใหม่</option>
+                        <option value="กรุงเทพ">สาขากรุงเทพ</option>
+                        <option value="ขอนแก่น">สาขาขอนแก่น</option>
+                        <option value="ภูเก็ต">สาขาภูเก็ต</option>
+                      </select>
+                    </div>
+                    <div class="md:col-span-2">
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">ที่อยู่*</span>
+                      </label>
+                      <textarea name="address" class="textarea textarea-bordered w-full form-input" rows="2" required></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Loan Information -->
+                <div class="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h4 class="font-medium text-base mb-4 text-gray-900 dark:text-gray-100">ข้อมูลการผ่อนชำระ</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">ยอดเงินรวม*</span>
+                      </label>
+                      <input type="number" name="totalAmount" class="input input-bordered w-full form-input" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">จำนวนงวด*</span>
+                      </label>
+                      <select name="installments" class="select select-bordered w-full form-input" required>
+                        <option value="">เลือกจำนวนงวด</option>
+                        <option value="3">3 งวด</option>
+                        <option value="6">6 งวด</option>
+                        <option value="12">12 งวด</option>
+                        <option value="24">24 งวด</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">วันที่เริ่มผ่อน*</span>
+                      </label>
+                      <input type="date" name="startDate" class="input input-bordered w-full form-input" required />
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text text-gray-700 dark:text-gray-300">วันที่ชำระรายเดือน*</span>
+                      </label>
+                      <select name="paymentDate" class="select select-bordered w-full form-input" required>
+                        <option value="">เลือกวันที่ชำระ</option>
+                        <option value="1">ทุกวันที่ 1</option>
+                        <option value="5">ทุกวันที่ 5</option>
+                        <option value="10">ทุกวันที่ 10</option>
+                        <option value="15">ทุกวันที่ 15</option>
+                        <option value="20">ทุกวันที่ 20</option>
+                        <option value="25">ทุกวันที่ 25</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button type="button" class="btn btn-ghost" onclick="closeNewDebtorModal()">
+                    ยกเลิก
+                  </button>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-plus-lg mr-1"></i>
+                    เพิ่มลูกหนี้
+                  </button>
+                </div>
+              </form>
+        </div>
+    </div>
+  </div>
+
+  <!-- Alert Component -->
+<div id="alertContainer" class="alert-float hidden">
+    <div class="alert shadow-lg">
+        <div class="flex-1">
+            <svg id="alertIcon" class="w-6 h-6 mr-2"></svg>
+            <span id="alertMessage"></span>
+        </div>
+        <button onclick="closeAlert()" class="btn btn-ghost btn-xs">✕</button>
+    </div>
+</div>
+
+  <!-- JavaScript for the page -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        // Initialize loan sidebar first
+        if (typeof initializeLoanSidebar === 'function') {
+          initializeLoanSidebar();
+        }
+
+        // Initialize avatar utils
+        if (typeof initializeAvatarUtils === 'function') {
+          initializeAvatarUtils();
+        }
+
+        // Show loading
+        showLoading(true);
+
+        // สลับระหว่าง tabs
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+    
+      tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+          const target = this.getAttribute('data-tab');
+    
+          // เปลี่ยน active tab
+          tabs.forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+    
+          // แสดง tab content ที่เกี่ยวข้อง
+          tabContents.forEach(content => {
+            content.classList.add('hidden');
+          });
+          document.getElementById(target + 'DebtorsContent').classList.remove('hidden');
+        });
+      });
+
+      // Note: Sidebar functionality is now handled by loan-sidebar.js
+
+      // ตัวแปรเก็บข้อมูลลูกหนี้
+      let normalDebtors = [];
+      let overdueDebtors = [];
+      let allDebtors = [];
+    
+      // Authentication
+      const authToken = localStorage.getItem('authToken') ||
+                       localStorage.getItem('token') ||
+                       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODFlYjhhZWIxNTkzY2VhMTc1Njg5MTYiLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6IlN1cGVyIEFkbWluIiwiaWF0IjoxNzU2MjU4NDQ0fQ.F1Dt5Y336qLjd7ikBQ_OlfmaVcm-3XF2t9qK81MpXW4';
+    
+      if (!authToken) {
+        console.error('No authentication token found');
+        alert('กรุณาเข้าสู่ระบบก่อน');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+    
+      const token = authToken; // เพิ่มตัวแปร token สำหรับใช้ใน API calls
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+    
+      // ฟังก์ชันดึงข้อมูลลูกหนี้จาก API
+      async function loadDebtorsData() {
+        try {
+          // แสดง loading
+          const totalDebtorsEl = document.getElementById('totalDebtors');
+          const overdueCountEl = document.getElementById('overdueCount');
+          const totalDebtAmountEl = document.getElementById('totalDebtAmount');
+    
+          if (totalDebtorsEl) totalDebtorsEl.innerHTML = '<div class="spinner"></div>';
+          if (overdueCountEl) overdueCountEl.innerHTML = '<div class="spinner"></div>';
+          if (totalDebtAmountEl) totalDebtAmountEl.innerHTML = '<div class="spinner"></div>';
+    
+          console.log('🔄 Loading debtors data from API...');
+    
+          // ใช้ API endpoint ที่ถูกต้องสำหรับข้อมูลลูกหนี้
+          const endpoints = [
+            '/api/installment/reports/debtors',
+            '/api/loan/dashboard/debtors',
+            '/api/installment/orders'
+          ];
+    
+          let data = null;
+          let usedEndpoint = null;
+    
+          // ลองเรียก API endpoints ตามลำดับ
+          for (const endpoint of endpoints) {
+            try {
+              console.log(`🔍 Trying endpoint: ${endpoint}`);
+              const response = await fetch(endpoint, { headers });
+    
+              if (response.ok) {
+                data = await response.json();
+                usedEndpoint = endpoint;
+                console.log(`✅ Successfully loaded data from: ${endpoint}`);
+                break;
+              } else {
+                console.warn(`❌ Failed ${endpoint}: ${response.status}`);
+              }
+            } catch (endpointError) {
+              console.warn(`❌ Error with ${endpoint}:`, endpointError.message);
+              continue;
+            }
+          }
+    
+          if (!data) {
+            throw new Error('ไม่สามารถเชื่อมต่อ API ได้');
+          }
+    
+          console.log('📊 API Response from', usedEndpoint, ':', data);
+    
+          // Debug: แสดงโครงสร้างข้อมูลที่ได้รับ
+          if (data && data.data) {
+            console.log('🔍 Data structure check:');
+            console.log('- data.success:', data.success);
+            console.log('- data.data type:', Array.isArray(data.data) ? 'Array' : typeof data.data);
+            console.log('- data.data length:', data.data.length);
+            if (data.data.length > 0) {
+              console.log('- Sample item keys:', Object.keys(data.data[0]));
+              console.log('- Sample item:', data.data[0]);
+            }
+          }
+    
+          if ((data.success && data.data) || (data.data && Array.isArray(data.data))) {
+            console.log('🔍 Raw API data:', data.data);
+            console.log(`📥 Received ${data.data.length} contracts from API`);
+    
+            // ประมวลผลข้อมูลที่ได้รับจาก API
+            const debtorsArray = Array.isArray(data.data) ? data.data : [];
+    
+            allDebtors = debtorsArray.map(d => {
+              // Extract customer name from various possible fields
+              let customerName = 'ไม่ระบุ';
+              if (d.customerName) {
+                customerName = d.customerName;
+              } else if (d.customer_info) {
+                customerName = `${d.customer_info.firstName || ''} ${d.customer_info.lastName || ''}`.trim();
+              } else if (d.customer && d.customer.personalInfo) {
+                customerName = `${d.customer.personalInfo.firstName || ''} ${d.customer.personalInfo.lastName || ''}`.trim();
+              }
+    
+              // Extract phone from various possible fields
+              let phone = '-';
+              if (d.phone) {
+                phone = d.phone;
+              } else if (d.customer_info && d.customer_info.phone) {
+                phone = d.customer_info.phone;
+              } else if (d.customer && d.customer.phoneNumbers && d.customer.phoneNumbers.length > 0) {
+                phone = d.customer.phoneNumbers[0];
+              }
+    
+              // Calculate remaining amount
+              const totalAmount = Math.max(0, d.totalAmount || d.finalTotalAmount || 0);
+              const paidAmount = Math.max(0, d.paidAmount || 0);
+              const remainingAmount = Math.max(0, totalAmount - paidAmount);
+    
+              // Extract product name
+              let productName = 'สินค้าผ่อนชำระ';
+              if (d.productName) {
+                productName = d.productName;
+              } else if (d.items && d.items.length > 0 && d.items[0].name) {
+                productName = d.items[0].name;
+              } else if (d.planType) {
+                productName = d.planType;
+              }
+    
+              return {
+                _id: d._id || d.id,
+                prefix: d.prefix || d.customer_info?.prefix || '',
+                customerName: customerName,
+                contractNo: d.contractNo || 'ไม่ระบุ',
+                age: d.age || d.customer_info?.age || '-',
+                email: d.email || d.customer_info?.email || '-',
+                phone: phone,
+                branchName: d.branch || d.branchName || d.branch_code || 'สำนักงานใหญ่',
+                remainingAmount: remainingAmount,
+                totalAmount: totalAmount,
+                paidAmount: paidAmount,
+                paidInstallments: d.currentInstallment || d.paidInstallments || (d.payments ? d.payments.length : 0),
+                totalInstallments: d.installmentCount || d.totalInstallments || 12,
+                nextDueDate: d.nextDueDate || d.dueDate || d.createdAt,
+                status: d.status || 'active',
+                isOverdue: d.isOverdue || d.status === 'overdue' || false,
+                overdueDays: d.daysSinceContract || d.overdueDays || d.daysOverdue || 0,
+                monthlyPayment: Math.max(0, d.monthlyPayment || 0),
+                productName: productName,
+                daysSinceContract: d.daysSinceContract || d.daysOverdue || 0,
+                allowanceAmount: d.allowanceAmount || 0,
+                address: d.address || (d.customer_info && d.customer_info.address ?
+                  `${d.customer_info.address.houseNo || ''} ${d.customer_info.address.subDistrict || ''} ${d.customer_info.address.district || ''} ${d.customer_info.address.province || ''}`.trim() :
+                  '')
+              };
+            });
+    
+            console.log(`📊 Processed ${allDebtors.length} debtors from API`);
+    
+            // Debug: แสดงข้อมูลแต่ละสัญญา
+            allDebtors.forEach((debtor, index) => {
+              console.log(`🔸 Contract ${index + 1}: ${debtor.contractNo} - ${debtor.customerName} - Total: ${debtor.totalAmount} - Paid: ${debtor.paidAmount} - Remaining: ${debtor.remainingAmount}`);
+            });
+    
+            // แสดงข้อมูลทั้งหมดโดยไม่กรอง - รวมทั้งสัญญาที่เสร็จสิ้นแล้ว
+            // allDebtors = allDebtors.filter(d => d.remainingAmount > 0);
+    
+            // แยกประเภทลูกหนี้ตามสถานะใหม่
+            normalDebtors = allDebtors.filter(d => {
+              return (d.status === 'ongoing' || d.status === 'active') &&
+                     d.remainingAmount > 0 && !d.isOverdue;
+            });
+    
+            overdueDebtors = allDebtors.filter(d => {
+              return d.status === 'overdue' || d.isOverdue ||
+                     d.status === 'allowance' || d.status === 'doubtful' || d.status === 'baddebt';
+            });
+    
+            console.log(`📈 Total contracts: ${allDebtors.length}`);
+            console.log(`📈 Active debtors: ${normalDebtors.length}, Overdue: ${overdueDebtors.length}`);
+    
+            // แสดงข้อมูล
+            updateDebtorStats();
+            renderNormalDebtors(); // แสดงสัญญาทั้งหมด
+            // renderOverdueDebtors(); // ไม่ต้องใช้ตารางแยก
+    
+          } else if (Array.isArray(data)) {
+            // กรณีที่ API ส่งข้อมูลเป็น array โดยตรง
+            console.log('🔍 API returned direct array:', data);
+            console.log(`📥 Received ${data.length} contracts from API (direct array)`);
+    
+            const debtorsArray = data;
+    
+            allDebtors = debtorsArray.map(d => {
+              // Extract customer name from various possible fields
+              let customerName = 'ไม่ระบุ';
+              if (d.customerName) {
+                customerName = d.customerName;
+              } else if (d.customer_info) {
+                customerName = `${d.customer_info.firstName || ''} ${d.customer_info.lastName || ''}`.trim();
+              } else if (d.customer && d.customer.personalInfo) {
+                customerName = `${d.customer.personalInfo.firstName || ''} ${d.customer.personalInfo.lastName || ''}`.trim();
+              }
+    
+              // Extract phone from various possible fields
+              let phone = '-';
+              if (d.phone) {
+                phone = d.phone;
+              } else if (d.customer_info && d.customer_info.phone) {
+                phone = d.customer_info.phone;
+              } else if (d.customer && d.customer.phoneNumbers && d.customer.phoneNumbers.length > 0) {
+                phone = d.customer.phoneNumbers[0];
+              }
+    
+              // Calculate remaining amount
+              const totalAmount = Math.max(0, d.totalAmount || d.finalTotalAmount || 0);
+              const paidAmount = Math.max(0, d.paidAmount || 0);
+              const remainingAmount = Math.max(0, totalAmount - paidAmount);
+    
+              // Extract product name
+              let productName = 'สินค้าผ่อนชำระ';
+              if (d.productName) {
+                productName = d.productName;
+              } else if (d.items && d.items.length > 0 && d.items[0].name) {
+                productName = d.items[0].name;
+              } else if (d.planType) {
+                productName = d.planType;
+              }
+    
+              return {
+                _id: d._id || d.id,
+                prefix: d.prefix || d.customer_info?.prefix || '',
+                customerName: customerName,
+                contractNo: d.contractNo || 'ไม่ระบุ',
+                age: d.age || d.customer_info?.age || '-',
+                email: d.email || d.customer_info?.email || '-',
+                phone: phone,
+                branchName: d.branch || d.branchName || d.branch_code || 'สำนักงานใหญ่',
+                remainingAmount: remainingAmount,
+                totalAmount: totalAmount,
+                paidAmount: paidAmount,
+                paidInstallments: d.currentInstallment || d.paidInstallments || (d.payments ? d.payments.length : 0),
+                totalInstallments: d.installmentCount || d.totalInstallments || 12,
+                nextDueDate: d.nextDueDate || d.dueDate || d.createdAt,
+                status: d.status || 'active',
+                isOverdue: d.isOverdue || d.status === 'overdue' || false,
+                overdueDays: d.daysSinceContract || d.overdueDays || d.daysOverdue || 0,
+                monthlyPayment: Math.max(0, d.monthlyPayment || 0),
+                productName: productName,
+                daysSinceContract: d.daysSinceContract || d.daysOverdue || 0,
+                allowanceAmount: d.allowanceAmount || 0,
+                address: d.address || (d.customer_info && d.customer_info.address ?
+                  `${d.customer_info.address.houseNo || ''} ${d.customer_info.address.subDistrict || ''} ${d.customer_info.address.district || ''} ${d.customer_info.address.province || ''}`.trim() :
+                  '')
+              };
+            });
+    
+            console.log(`📊 Processed ${allDebtors.length} debtors from API (direct array)`);
+    
+            // Debug: แสดงข้อมูลแต่ละสัญญา
+            allDebtors.forEach((debtor, index) => {
+              console.log(`🔸 Contract ${index + 1}: ${debtor.contractNo} - ${debtor.customerName} - Total: ${debtor.totalAmount} - Paid: ${debtor.paidAmount} - Remaining: ${debtor.remainingAmount}`);
+            });
+    
+            // แยกประเภทลูกหนี้ตามสถานะใหม่
+            normalDebtors = allDebtors.filter(d => {
+              return (d.status === 'ongoing' || d.status === 'active') &&
+                     d.remainingAmount > 0 && !d.isOverdue;
+            });
+    
+            overdueDebtors = allDebtors.filter(d => {
+              return d.status === 'overdue' || d.isOverdue ||
+                     d.status === 'allowance' || d.status === 'doubtful' || d.status === 'baddebt';
+            });
+    
+            console.log(`📈 Total contracts: ${allDebtors.length}`);
+            console.log(`📈 Active debtors: ${normalDebtors.length}, Overdue: ${overdueDebtors.length}`);
+    
+            // แสดงข้อมูล
+            updateDebtorStats();
+            renderNormalDebtors();
+    
+          } else {
+            console.warn('⚠️ Invalid API response structure:', data);
+            throw new Error(data.error || data.message || 'ไม่มีข้อมูลลูกหนี้');
+          }
+    
+        } catch (error) {
+          console.error('❌ Error loading debtors:', error);
+    
+          // แสดง error message แบบ colorful
+          const totalDebtorsEl = document.getElementById('totalDebtors');
+          const overdueCountEl = document.getElementById('overdueCount');
+          const totalDebtAmountEl = document.getElementById('totalDebtAmount');
+    
+          if (totalDebtorsEl) totalDebtorsEl.textContent = '0';
+          if (overdueCountEl) overdueCountEl.textContent = '0';
+          if (totalDebtAmountEl) totalDebtAmountEl.textContent = '฿0.00';
+    
+          // แสดง error ในตาราง
+          const errorHTML = `
+            <tr><td colspan="12" class="text-center py-8">
+              <div class="text-gray-500">
+                <i class="bi bi-exclamation-triangle text-orange-500 text-2xl mb-3"></i>
+                <div class="mb-3 text-gray-700 dark:text-gray-300">ไม่สามารถดึงข้อมูลลูกหนี้ได้</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400 mb-4">กรุณาตรวจสอบการเชื่อมต่อเครือข่ายหรือติดต่อผู้ดูแลระบบ</div>
+                <button onclick="loadDebtorsData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                  <i class="bi bi-arrow-clockwise text-sm mr-1"></i>
+                  ลองอีกครั้ง
+                </button>
+              </div>
+            </td></tr>`;
+    
+          const normalTable = document.getElementById('normalDebtorsTable');
+          const overdueTable = document.getElementById('overdueDebtorsTable');
+    
+          if (normalTable) normalTable.innerHTML = errorHTML;
+          if (overdueTable) overdueTable.innerHTML = errorHTML;
+    
+          // อัปเดตสถิติให้เป็น 0
+          const normalCountEl = document.getElementById('normalDebtorsCount');
+          const overdueCountEl2 = document.getElementById('overdueDebtorsCount');
+    
+          if (normalCountEl) normalCountEl.textContent = '0';
+          if (overdueCountEl2) overdueCountEl2.textContent = '0';
+    
+          // Show toast notification
+          showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลลูกหนี้', 'error');
+        }
+      }
+    
+      // ฟังก์ชันคำนวณจำนวนวันค้างชำระ
+      function calculateOverdueDays(dueDate) {
+        const due = new Date(dueDate);
+        const today = new Date();
+        const diffTime = Math.abs(today - due);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+      }
+    
+      // ฟังก์ชันกำหนดระดับความเร่งด่วน
+      function getUrgencyLevel(overdueDays) {
+        if (overdueDays >= 30) return 'สูง';
+        if (overdueDays >= 15) return 'ปานกลาง';
+        return 'ต่ำ';
+      }
+    
+      // เรียกใช้เมื่อโหลดหน้า
+      loadDebtorsData();
+
+      // ฟังก์ชันอัพเดทสถิติลูกหนี้
+      function updateDebtorStats() {
+        const totalDebtorsEl = document.getElementById('totalDebtors');
+        const overdueCountEl = document.getElementById('overdueCount');
+        const totalDebtAmountEl = document.getElementById('totalDebtAmount');
+        const normalCountEl = document.getElementById('normalDebtorsCount');
+        const overdueCountEl2 = document.getElementById('overdueDebtorsCount');
+    
+        // แสดงสัญญาทั้งหมด (รวมที่เสร็จสิ้นแล้ว)
+        if (totalDebtorsEl) totalDebtorsEl.textContent = allDebtors.length;
+        if (overdueCountEl) overdueCountEl.textContent = overdueDebtors.length;
+    
+        // คำนวณยอดหนี้คงเหลือรวม (เฉพาะที่ยังค้างอยู่)
+        const totalRemainingDebt = allDebtors.reduce((sum, debtor) => {
+          return sum + (debtor.remainingAmount || 0);
+        }, 0);
+    
+        if (totalDebtAmountEl) {
+          totalDebtAmountEl.textContent = formatCurrency(totalRemainingDebt);
+        }
+    
+        // แสดงจำนวนสัญญาทั้งหมด
+        if (normalCountEl) normalCountEl.textContent = allDebtors.length;
+        if (overdueCountEl2) overdueCountEl2.textContent = overdueDebtors.length;
+    
+        console.log(`📊 Stats updated: Total: ${allDebtors.length}, Normal: ${normalDebtors.length}, Overdue: ${overdueDebtors.length}, Total Debt: ${formatCurrency(totalRemainingDebt)}`);
+      }
+    
+      // ฟังก์ชันแสดงข้อมูลในตาราง
+      function renderDebtorTables() {
+        renderNormalDebtors();
+        renderOverdueDebtors();
+        // เพิ่ม event listeners หลัง render
+        setTimeout(attachEventListeners, 100);
+      }
+    
+      // แสดงลูกหนี้ปกติ
+      function renderNormalDebtors() {
+        const normalDebtorsTable = document.getElementById('normalDebtorsTable');
+        if (!normalDebtorsTable) {
+          console.error('normalDebtorsTable element not found');
+          return;
+        }
+    
+        normalDebtorsTable.innerHTML = '';
+    
+        if (!allDebtors || allDebtors.length === 0) {
+          normalDebtorsTable.innerHTML = `
+            <tr><td colspan="12" class="text-center py-8">
+              <div class="text-gray-500">
+                <i class="bi bi-info-circle text-blue-500 text-2xl mb-3"></i>
+                <div class="text-gray-700 dark:text-gray-300">ไม่พบข้อมูลสัญญาผ่อนชำระ</div>
+              </div>
+            </td></tr>`;
+          return;
+        }
+    
+        // แสดงสัญญาทั้งหมด (ทั้ง Active และ Completed)
+        console.log(`🔄 Rendering ${allDebtors.length} contracts...`);
+        allDebtors.forEach((debtor, index) => {
+          console.log(`Debug: แสดงข้อมูลสัญญาที่ ${index + 1}:`, debtor.contractNo, debtor.customerName);
+    
+          const row = document.createElement('tr');
+    
+          // Format date - handle null/undefined dates for completed contracts
+          const formattedDate = debtor.nextDueDate ? formatDate(debtor.nextDueDate) : '-';
+    
+          // สร้างไอคอนสำหรับสาขา
+          const branchIcon = getBranchIcon(debtor.branchName || 'ไม่ระบุ');
+    
+            row.innerHTML = `
+            <td class="animate-fadeIn font-medium">${debtor.contractNo || '-'}</td>
+            <td class="animate-fadeIn">
+                <div class="flex items-center">
+                <div class="font-medium">${debtor.customerName || '-'}</div>
+                </div>
+              </td>
+            <td>${debtor.productName || 'ไม่ระบุ'}</td>
+            <td>${debtor.phone || '-'}</td>
+            <td>
+              <div class="flex items-center space-x-1">
+                <span>${branchIcon} ${debtor.branchName || '-'}</span>
+                </div>
+              </td>
+            <td class="text-right font-medium">${formatCurrency(debtor.totalAmount || 0)}</td>
+            <td class="text-right font-medium text-green-600">${formatCurrency(debtor.paidAmount || 0)}</td>
+            <td class="text-right font-medium text-blue-600">${formatCurrency(debtor.remainingAmount || 0)}</td>
+            <td>${debtor.paidInstallments || 0}/${debtor.totalInstallments || 0}</td>
+            <td>${formattedDate}</td>
+            <td class="text-center">
+                <span class="px-2 py-1 text-xs rounded-full ${debtor.remainingAmount > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'}">
+                  ${debtor.remainingAmount > 0 ? 'Active' : 'Completed'}
+                </span>
+              </td>
+            <td class="text-center">
+              <button class="btn-minimal-info view-details" data-id="${debtor._id}" data-type="normal">
+                <i class="bi bi-eye"></i> ดู
+                </button>
+              </td>
+            `;
+            normalDebtorsTable.appendChild(row);
+          });
+        }
+    
+        // แสดงลูกหนี้ค้างชำระ
+        function renderOverdueDebtors() {
+          const overdueDebtorsTable = document.getElementById('overdueDebtorsTable');
+          overdueDebtorsTable.innerHTML = '';
+    
+          overdueDebtors.forEach(debtor => {
+            const row = document.createElement('tr');
+    
+            // คำนวณวันค้างชำระ
+            const overdueDays = calculateOverdueDays(debtor.nextDueDate);
+            const urgency = getUrgencyLevel(overdueDays);
+    
+            // Format date
+            const formattedDate = formatDate(debtor.nextDueDate);
+    
+            // สร้างไอคอนสำหรับสาขา
+          const branchIcon = getBranchIcon(debtor.branchName || 'ไม่ระบุ');
+    
+          let urgencyClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+            if (urgency === 'สูง') {
+            urgencyClass = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+            } else if (urgency === 'ต่ำ') {
+            urgencyClass = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+            }
+    
+          // ใช้ยอดหนี้คงเหลือแทนการคำนวณ
+          const overdueAmount = debtor.remainingAmount || debtor.monthlyPayment || 0;
+    
+            row.innerHTML = `
+            <td class="animate-fadeIn">${debtor.prefix || '-'}</td>
+            <td class="animate-fadeIn">
+                <div class="flex items-center">
+                <div class="font-medium">${debtor.customerName || '-'}</div>
+                </div>
+              </td>
+            <td>${debtor.contractNo || '-'}</td>
+            <td>${debtor.age || '-'}</td>
+            <td>${debtor.email || '-'}</td>
+            <td>${debtor.phone || '-'}</td>
+            <td>
+              <div class="flex items-center space-x-1">
+                <span>${branchIcon} ${debtor.branchName || '-'}</span>
+                </div>
+              </td>
+            <td class="text-right font-semibold text-red-600 dark:text-red-400">฿${overdueAmount.toLocaleString('th-TH')}</td>
+            <td class="font-semibold text-red-600 dark:text-red-400">${overdueDays} วัน</td>
+            <td>${formattedDate}</td>
+            <td class="text-center">
+              <span class="px-2 py-1 text-xs font-medium rounded-full ${urgencyClass}">
+                  ${urgency}
+                </span>
+              </td>
+            <td class="text-center">
+              <div class="flex justify-center gap-1">
+                <button class="btn-minimal-info view-details" data-id="${debtor._id || ''}" data-type="overdue">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                <button class="btn-minimal-info">
+                    <i class="bi bi-telephone"></i>
+                  </button>
+                <button class="btn-minimal-info">
+                    <i class="bi bi-cash"></i>
+                  </button>
+                </div>
+              </td>
+            `;
+            overdueDebtorsTable.appendChild(row);
+          });
+        }
+
+
+    
+      // เพิ่ม event listener หลังจาก render table
+      function attachEventListeners() {
+        document.querySelectorAll('.view-details').forEach(button => {
+          button.addEventListener('click', function() {
+            const debtorId = this.getAttribute('data-id');
+            const debtorType = this.getAttribute('data-type');
+            showDebtorDetails(debtorId, debtorType);
+          });
+        });
+      }
+    
+      // ฟังก์ชันแสดงรายละเอียดลูกหนี้
+      async function showDebtorDetails(id, type) {
+        let debtor;
+        if (type === 'normal') {
+          debtor = normalDebtors.find(d => d._id === id);
+        } else {
+          debtor = overdueDebtors.find(d => d._id === id);
+        }
+    
+        if (!debtor) return;
+    
+        // สามารถดึงข้อมูลเพิ่มเติมจาก API ได้ถ้าต้องการ
+        // const detailResponse = await fetch(`/api/loan/customer/${id}/loans`, { headers });
+    
+        const modalContent = document.getElementById('debtorDetailContent');
+        const isOverdue = type === 'overdue';
+    
+        modalContent.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 class="font-medium text-base mb-3 text-gray-900 dark:text-gray-100">ข้อมูลลูกหนี้</h4>
+              <div class="space-y-2 text-sm">
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">ชื่อ-นามสกุล:</span> <span class="text-gray-900 dark:text-gray-100">${debtor.customerName || '-'}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">เลขสัญญา:</span> <span class="text-gray-900 dark:text-gray-100">${debtor.contractNo || '-'}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">สาขา:</span> <span class="text-gray-900 dark:text-gray-100">${getBranchIcon(debtor.branchName || 'ไม่ระบุ')} ${debtor.branchName || '-'}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">เบอร์โทรศัพท์:</span> <span class="text-gray-900 dark:text-gray-100">${debtor.phone || '-'}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">ที่อยู่:</span> <span class="text-gray-900 dark:text-gray-100">${debtor.address || '-'}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">แผนการผ่อน:</span> <span class="text-gray-900 dark:text-gray-100">${debtor.planType || '-'}</span></p>
+            </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 class="font-medium text-base mb-3 text-gray-900 dark:text-gray-100">
+                ${isOverdue ? 'ข้อมูลค้างชำระ' : 'ข้อมูลการผ่อนชำระ'}
+              </h4>
+              <div class="space-y-2 text-sm">
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">ยอดเริ่มต้น:</span> <span class="text-gray-900 dark:text-gray-100">฿${(debtor.totalAmount || 0).toLocaleString('th-TH')}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">ยอดคงเหลือ:</span> <span class="text-gray-900 dark:text-gray-100">฿${(debtor.remainingAmount || 0).toLocaleString('th-TH')}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">ยอดที่ชำระแล้ว:</span> <span class="text-gray-900 dark:text-gray-100">฿${(debtor.paidAmount || 0).toLocaleString('th-TH')}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">งวดที่:</span> <span class="text-gray-900 dark:text-gray-100">${debtor.paidInstallments || 0}/${debtor.totalInstallments || 0}</span></p>
+                <p><span class="font-medium text-gray-600 dark:text-gray-400">ค่างวด:</span> <span class="text-gray-900 dark:text-gray-100">฿${(debtor.monthlyPayment || 0).toLocaleString('th-TH')}/เดือน</span></p>
+              ${isOverdue ? `
+                  <p><span class="font-medium text-gray-600 dark:text-gray-400">เกินกำหนด:</span> <span class="text-red-600 dark:text-red-400 font-medium">${calculateOverdueDays(debtor.nextDueDate)} วัน</span></p>
+              ` : ''}
+            </div>
+              </div>
+            <div class="md:col-span-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 class="font-medium text-base mb-3 text-gray-900 dark:text-gray-100">ประวัติการชำระเงิน</h4>
+              <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                <div class="spinner mx-auto mb-2"></div>
+                <p class="text-sm">กำลังโหลดประวัติการชำระ...</p>
+            </div>
+          </div>
+          </div>
+          <div class="flex justify-end gap-2 mt-6">
+            ${isOverdue ? `
+              <button class="bg-transparent border border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/30 px-3 py-2 text-sm font-medium rounded-md transition-colors">
+                <i class="bi bi-telephone-fill text-sm"></i>
+                <span class="ml-1">บันทึกการโทรติดตาม</span>
+              </button>
+              <button class="bg-transparent border border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-900/30 px-3 py-2 text-sm font-medium rounded-md transition-colors">
+                <i class="bi bi-exclamation-circle text-sm"></i>
+                <span class="ml-1">แจ้งเตือนลูกค้า</span>
+              </button>
+            ` : `
+              <button class="bg-transparent border border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-900/30 px-3 py-2 text-sm font-medium rounded-md transition-colors">
+                <i class="bi bi-pencil-square text-sm"></i>
+                <span class="ml-1">แก้ไขข้อมูล</span>
+              </button>
+            `}
+            <button class="bg-green-600 border border-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 px-3 py-2 text-sm font-medium rounded-md transition-colors">
+              <i class="bi bi-cash-coin text-sm"></i>
+              <span class="ml-1">บันทึกการชำระเงิน</span>
+            </button>
+          </div>
+        `;
+    
+        const modal = document.getElementById('debtorDetailModal');
+        modal.classList.add('modal-open');
+    
+        document.getElementById('closeDebtorDetailModal').addEventListener('click', function() {
+          modal.classList.remove('modal-open');
+        });
+      }
+    
+      // ค้นหาลูกหนี้
+      document.getElementById('searchInput').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        searchDebtors(searchTerm);
+      });
+    
+      function searchDebtors(term) {
+        const normalDebtorsTable = document.getElementById('normalDebtorsTable');
+        const overdueDebtorsTable = document.getElementById('overdueDebtorsTable');
+        const normalRows = Array.from(normalDebtorsTable.querySelectorAll('tr'));
+        const overdueRows = Array.from(overdueDebtorsTable.querySelectorAll('tr'));
+    
+        // ค้นหาในตาราง normal debtors
+        normalRows.forEach(row => {
+          const text = row.textContent.toLowerCase();
+          if (text.includes(term)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+    
+        // ค้นหาในตาราง overdue debtors
+        overdueRows.forEach(row => {
+          const text = row.textContent.toLowerCase();
+          if (text.includes(term)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+    
+        // อัพเดทจำนวนที่แสดง
+        const visibleNormalCount = normalRows.filter(row => row.style.display !== 'none').length;
+        const visibleOverdueCount = overdueRows.filter(row => row.style.display !== 'none').length;
+    
+        const normalCountEl = document.getElementById('normalDebtorsCount');
+        const overdueCountEl = document.getElementById('overdueDebtorsCount');
+    
+        if (normalCountEl) normalCountEl.textContent = visibleNormalCount;
+        if (overdueCountEl) overdueCountEl.textContent = visibleOverdueCount;
+      }
+    
+      // จัดการตัวกรอง
+      document.querySelectorAll('.filter-option').forEach(option => {
+        option.addEventListener('click', function() {
+          const filter = this.getAttribute('data-filter');
+          filterDebtors(filter);
+        });
+      });
+    
+      // จัดการตัวกรองสาขา
+      document.querySelectorAll('.branch-filter-option').forEach(option => {
+        option.addEventListener('click', function() {
+          const branch = this.getAttribute('data-branch');
+          filterByBranch(branch);
+        });
+      });
+    
+      function filterDebtors(filter) {
+        const normalDebtorsTable = document.getElementById('normalDebtorsTable');
+        const overdueDebtorsTable = document.getElementById('overdueDebtorsTable');
+    
+        if (filter === 'all') {
+          // แสดงทั้งหมด
+          searchDebtors('');
+        } else if (filter === 'unpaid') {
+          // แสดงเฉพาะลูกหนี้ที่ยังไม่ชำระ (สมมติว่าถ้ามีสถานะ "ปกติ" แสดงว่ายังไม่ชำระ)
+          const normalRows = Array.from(normalDebtorsTable.querySelectorAll('tr'));
+          normalRows.forEach(row => {
+            if (row.innerHTML.includes('ปกติ')) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          });
+        }
+        // ฯลฯ ใส่ logic filter อื่นๆ ตามต้องการ
+      }
+    
+      // ฟังก์ชันกรองตามสาขา
+      function filterByBranch(branch) {
+        const normalDebtorsTable = document.getElementById('normalDebtorsTable');
+        const overdueDebtorsTable = document.getElementById('overdueDebtorsTable');
+        const normalRows = Array.from(normalDebtorsTable.querySelectorAll('tr'));
+        const overdueRows = Array.from(overdueDebtorsTable.querySelectorAll('tr'));
+    
+        if (branch === 'all') {
+          // แสดงทั้งหมด
+          normalRows.forEach(row => { row.style.display = ''; });
+          overdueRows.forEach(row => { row.style.display = ''; });
+        } else {
+          // กรองตามสาขา
+          normalRows.forEach(row => {
+            if (row.innerHTML.includes(`>${branch}<`)) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          });
+    
+          overdueRows.forEach(row => {
+            if (row.innerHTML.includes(`>${branch}<`)) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          });
+        }
+    
+        // อัพเดทจำนวนที่แสดง
+        const visibleNormalCount = normalRows.filter(row => row.style.display !== 'none').length;
+        const visibleOverdueCount = overdueRows.filter(row => row.style.display !== 'none').length;
+    
+        const normalCountEl = document.getElementById('normalDebtorsCount');
+        const overdueCountEl = document.getElementById('overdueDebtorsCount');
+    
+        if (normalCountEl) normalCountEl.textContent = visibleNormalCount;
+        if (overdueCountEl) overdueCountEl.textContent = visibleOverdueCount;
+      }
+    
+      // ฟังก์ชันสร้างไอคอนสำหรับสาขา
+      function getBranchIcon(branch) {
+        let icon = '<i class="bi bi-building text-gray-500"></i>';
+        switch(branch) {
+          case 'เชียงใหม่':
+            icon = '<i class="bi bi-geo-alt text-blue-500"></i>';
+            break;
+          case 'กรุงเทพ':
+            icon = '<i class="bi bi-building text-purple-500"></i>';
+            break;
+          case 'ขอนแก่น':
+            icon = '<i class="bi bi-geo-alt text-green-500"></i>';
+            break;
+          case 'ภูเก็ต':
+            icon = '<i class="bi bi-geo-alt text-orange-500"></i>';
+            break;
+        }
+        return icon;
+      }
+    
+      // ฟังก์ชันแปลงสาขาเป็นจังหวัด (สำหรับแสดงที่อยู่)
+      function getBranchProvince(branch) {
+        switch(branch) {
+          case 'เชียงใหม่': return 'เชียงใหม่';
+          case 'กรุงเทพ': return 'กรุงเทพมหานคร';
+          case 'ขอนแก่น': return 'ขอนแก่น';
+          case 'ภูเก็ต': return 'ภูเก็ต';
+          default: return '';
+        }
+      }
+    
+
+      // Note: Employee profile is now handled by loan-sidebar.js
+    
+      } catch (error) {
+        console.error('Error initializing debtors page:', error);
+        // Show error message to user
+        document.getElementById('totalDebtors').textContent = '0';
+        document.getElementById('overdueCount').textContent = '0';
+        document.getElementById('totalDebtAmount').textContent = '฿0.00';
+    
+        const errorHTML = `
+          <tr><td colspan="12" class="text-center py-8">
+            <div class="text-gray-500">
+              <i class="bi bi-exclamation-triangle text-red-500 text-2xl mb-3"></i>
+              <div class="mb-3 text-gray-700 dark:text-gray-300">เกิดข้อผิดพลาดในการโหลดหน้า</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">กรุณารีเฟรชหน้าเว็บ</div>
+            </div>
+          </td></tr>`;
+    
+        document.getElementById('normalDebtorsTable').innerHTML = errorHTML;
+        document.getElementById('overdueDebtorsTable').innerHTML = errorHTML;
+      }
+    
+      // เพิ่มฟังก์ชันสำหรับจัดการ Modal
+      function showNewDebtorModal() {
+        document.getElementById('newDebtorModal').classList.add('modal-open');
+      }
+
+      function closeNewDebtorModal() {
+        document.getElementById('newDebtorModal').classList.remove('modal-open');
+      }
+
+      // เชื่อมต่อปุ่มกับฟังก์ชัน
+      const addDebtorBtn = document.querySelector('button.btn-minimal-primary');
+      if (addDebtorBtn) {
+        addDebtorBtn.addEventListener('click', showNewDebtorModal);
+      }
+
+      // เพิ่ม event listener สำหรับปุ่มยกเลิกใน modal
+      const cancelBtn = document.querySelector('#newDebtorModal button[type="button"]');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeNewDebtorModal);
+      }
+
+      // จัดการการ submit form
+      const newDebtorForm = document.getElementById('newDebtorForm');
+      if (newDebtorForm) {
+
+    newDebtorForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const submitBtn = this.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <i class="bi bi-arrow-repeat loading-spin"></i>
+        <span class="ml-2">กำลังบันทึก...</span>
+      `;
+      try {
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+        const response = await fetch('/api/loan/dashboard/debtors', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+        if (!response.ok) throw new Error('Failed to create debtor');
+        closeNewDebtorModal();
+        this.reset();
+        loadDebtorsData();
+        showToast('เพิ่มลูกหนี้สำเร็จ', 'success');
+      } catch (error) {
+        console.error('Error creating debtor:', error);
+        showToast('เกิดข้อผิดพลาดในการเพิ่มลูกหนี้', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <i class="bi bi-plus-lg mr-1"></i>
+          เพิ่มลูกหนี้
+        `;
+      }
+    });
+    }
+
+      function showAlert(message, type = 'success') {
+        const alert = document.getElementById('alertContainer');
+        if (!alert) {
+          console.log(`Alert: ${message} (${type})`);
+          return;
+        }
+    
+        const icon = document.getElementById('alertIcon');
+        const messageEl = document.getElementById('alertMessage');
+    
+        // Set icon and colors based on type
+        if (type === 'success') {
+          if (icon) icon.innerHTML = '<i class="bi bi-check-circle-fill text-green-500"></i>';
+          const alertEl = alert.querySelector('.alert');
+          if (alertEl) alertEl.className = 'alert alert-success shadow-lg';
+        } else {
+          if (icon) icon.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-red-500"></i>';
+          const alertEl = alert.querySelector('.alert');
+          if (alertEl) alertEl.className = 'alert alert-error shadow-lg';
+        }
+    
+        if (messageEl) messageEl.textContent = message;
+        alert.classList.remove('hidden');
+    
+        // Auto hide after 3 seconds
+        setTimeout(() => closeAlert(), 3000);
+      }
+
+      function closeAlert() {
+        const alert = document.getElementById('alertContainer');
+        if (alert) alert.classList.add('hidden');
+      }
+    
+  });
+
+  // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+  window.addEventListener('beforeunload', () => {
+    if (lottieAnimation) {
+      lottieAnimation.destroy();
+      lottieAnimation = null;
+    }
+  });
+</script>
+
+</body>
+</html>

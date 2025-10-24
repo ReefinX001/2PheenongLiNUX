@@ -1,0 +1,212 @@
+<!-- Stepper Template -->
+<div class="stepper-container">
+  <div class="step-item" data-step="1">
+    <div class="step-number">1</div>
+    <div class="step-label">เลือกสินค้า</div>
+  </div>
+  
+  <div class="step-item" data-step="2">
+    <div class="step-number">2</div>
+    <div class="step-label">ข้อมูลลูกค้า</div>
+  </div>
+  
+  <div class="step-item" data-step="3">
+    <div class="step-number">3</div>
+    <div class="step-label">รายละเอียดผ่อน</div>
+  </div>
+  
+  <div class="step-item" data-step="4">
+    <div class="step-number">4</div>
+    <div class="step-label">ยืนยันและพิมพ์</div>
+  </div>
+</div>
+
+<script>
+// Stepper functionality
+(function() {
+  const currentStep = window.currentStep || 1;
+  const stepItems = document.querySelectorAll('.step-item');
+
+  stepItems.forEach((item, index) => {
+    const stepNum = index + 1;
+
+    if (stepNum < currentStep) {
+      item.classList.add('completed');
+    } else if (stepNum === currentStep) {
+      item.classList.add('active');
+    }
+
+    // Add click handler for completed steps
+    if (stepNum < currentStep) {
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', function() {
+        const confirmNav = confirm(`ต้องการย้อนกลับไปขั้นตอนที่ ${stepNum} หรือไม่?`);
+        if (confirmNav) {
+          navigateToStep(stepNum);
+        }
+      });
+    }
+  });
+
+  function navigateToStep(step) {
+    const baseUrl = window.location.pathname.split('/').slice(0, -2).join('/');
+    const stepUrl = `${baseUrl}/step${step}/step${step}.html`;
+
+    // Preserve query parameters
+    const params = new URLSearchParams(window.location.search);
+    if (params.toString()) {
+      window.location.href = stepUrl + '?' + params.toString();
+    } else {
+      window.location.href = stepUrl;
+    }
+  }
+})();
+
+// Stepper loading functionality with Lottie animation
+let stepperLottieAnimation = null;
+function showStepperLoading(show) {
+  // Create loading overlay if it doesn't exist
+  let loader = document.getElementById('stepperLoadingOverlay');
+  if (!loader && show) {
+    loader = document.createElement('div');
+    loader.id = 'stepperLoadingOverlay';
+    loader.className = 'stepper-loading-overlay animate__animated animate__fadeIn';
+    loader.innerHTML = `
+      <div class="text-center">
+        <div id="stepperLottieContainer" class="w-24 h-24 mx-auto flex items-center justify-center"></div>
+        <p class="mt-2 text-sm text-gray-600">กำลังโหลด...</p>
+      </div>
+    `;
+    document.body.appendChild(loader);
+  }
+
+  if (show && loader) {
+    loader.style.display = 'flex';
+    loader.classList.remove('animate__fadeOut');
+    loader.classList.add('animate__fadeIn');
+
+    if (!stepperLottieAnimation) {
+      fetch('/Loading/Loading.json')
+        .then(response => response.json())
+        .then(animationData => {
+          stepperLottieAnimation = lottie.loadAnimation({
+            container: document.getElementById('stepperLottieContainer'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+        })
+        .catch(error => {
+          document.getElementById('stepperLottieContainer').innerHTML = '<div class="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>';
+        });
+    }
+  } else if (loader) {
+    if (stepperLottieAnimation) {
+      stepperLottieAnimation.pause();
+    }
+    loader.classList.remove('animate__fadeIn');
+    loader.classList.add('animate__fadeOut');
+    setTimeout(() => {
+      if (loader && loader.parentNode) {
+        loader.remove();
+      }
+    }, 600);
+  }
+}
+
+// Expose stepper loading to global scope
+window.showStepperLoading = showStepperLoading;
+</script>
+
+<style>
+/* Additional stepper styles */
+.stepper-container {
+  position: relative;
+  background: linear-gradient(to right, #f8f9fa, #ffffff);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.step-item {
+  transition: all 0.3s ease;
+}
+
+.step-item:hover.completed {
+  transform: scale(1.05);
+}
+
+.step-item.completed .step-number::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 20px;
+}
+
+.step-item::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background: #28a745;
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+.step-item:first-child::before {
+  display: none;
+}
+
+.step-item.completed::before {
+  background: #28a745;
+}
+
+.step-item.active::before {
+  background: linear-gradient(to right, #28a745 50%, #ddd 50%);
+}
+
+.step-number {
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.step-item.active .step-number {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+  }
+}
+
+/* Stepper Loading Overlay */
+.stepper-loading-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(8px);
+}
+
+.stepper-loading-overlay .text-center {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+</style>

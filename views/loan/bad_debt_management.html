@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>การบริหารหนี้สูญ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+    
+
+<script src="../js/activity-tracker.js"></script>
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Day.js with Thai locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  <script>dayjs.locale('th');</script>
+
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Utility Functions -->
+  <script>
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      if (typeof Swal !== 'undefined') {
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info', title: message });
+      }
+    }
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      console.log('showLoading called with:', show);
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        console.log('Showing loading overlay');
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        console.log('Hiding loading overlay');
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          loader.style.display = 'none';
+          console.log('Loading overlay hidden');
+        }, 600);
+      }
+    }
+    function formatCurrency(amount) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount || 0); }
+    function formatDate(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY'); }
+    function formatDateTime(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY HH:mm'); }
+
+    // Debt management utility functions
+    function getRiskLevelClass(level) {
+      switch(level) {
+        case 'ต่ำ': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+        case 'ปานกลาง': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+        case 'สูง': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+        case 'สูงมาก': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      }
+    }
+
+    function getRiskLevelIcon(level) {
+      switch(level) {
+        case 'ต่ำ': return 'bi-check-circle-fill';
+        case 'ปานกลาง': return 'bi-exclamation-circle-fill';
+        case 'สูง': return 'bi-exclamation-triangle-fill';
+        case 'สูงมาก': return 'bi-x-circle-fill';
+        default: return 'bi-info-circle-fill';
+      }
+    }
+
+    function getSourceTypeLabel(sourceType) {
+      switch(sourceType) {
+        case 'installment': return 'สัญญาผ่อน';
+        case 'traditional': return 'หนี้ทั่วไป';
+        case 'installment_contract': return 'สัญญาผ่อน';
+        default: return 'อื่นๆ';
+      }
+    }
+    // Debt management core functions
+    async function initializeDebtManagement() {
+      console.log('🔄 Initializing debt management system...');
+      try {
+        await loadIntegratedDebtData();
+        await loadDebtStatistics();
+        setupEventListeners();
+        console.log('✅ Debt management system initialized successfully');
+      } catch (error) {
+        console.error('❌ Failed to initialize debt management:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลหนี้สูญ', 'error');
+      }
+    }
+
+    async function loadIntegratedDebtData(page = 1) {
+      if (debtManagementState.loading) return;
+
+      debtManagementState.loading = true;
+      showLoading(true);
+
+      try {
+        const queryParams = new URLSearchParams({
+          page: page,
+          limit: debtManagementState.itemsPerPage,
+          overdueDays: debtManagementState.currentFilter.overdueDays,
+          includeInstallments: debtManagementState.currentFilter.includeInstallments,
+          sortBy: 'overdueAmount',
+          sortOrder: 'desc'
+        });
+
+        if (debtManagementState.currentFilter.branchCode) {
+          queryParams.append('branch_code', debtManagementState.currentFilter.branchCode);
+        }
+
+        console.log('🔍 Loading integrated debt data with params:', queryParams.toString());
+        const response = await fetch(`${API_BASE}/bad-debt/integrated-list?${queryParams}`, { headers });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || 'API returned success=false');
+        }
+
+        debtManagementState.debtsData = result.data || [];
+        debtManagementState.totalItems = result.pagination?.total || 0;
+        debtManagementState.currentPage = result.pagination?.page || 1;
+
+        console.log(`✅ Loaded ${debtManagementState.debtsData.length} debt records`);
+
+        // Update both debt tables
+        renderDebtorsTable();
+        renderRiskDebtorsTable();
+        updatePagination();
+
+        // Update summary if available
+        if (result.summary) {
+          updateDebtSummary(result.summary);
+        }
+
+      } catch (error) {
+        console.error('❌ Error loading debt data:', error);
+        showToast('ไม่สามารถโหลดข้อมูลหนี้สูญได้: ' + error.message, 'error');
+
+        // Show empty state
+        renderEmptyState();
+
+      } finally {
+        debtManagementState.loading = false;
+        showLoading(false);
+      }
+    }
+
+    function renderDebtorsTable() {
+      const tbody = document.getElementById('debtorsTableBody');
+      if (!tbody) {
+        console.warn('debtorsTableBody element not found');
+        return;
+      }
+
+      if (!debtManagementState.debtsData || debtManagementState.debtsData.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="11" class="p-8 text-center text-gray-500 dark:text-gray-400">
+              <i class="bi bi-inbox text-4xl mb-2 block"></i>
+              ไม่พบข้อมูลหนี้สูญ
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const rows = debtManagementState.debtsData.map(debt => `
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50" data-debt-id="${debt.integratedId || debt.id}">
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.contractNumber || debt.contractNo || '-'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerName || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerName || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">-</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">-</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerPhone || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerAddress || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">${formatCurrency(debt.overdueAmount || 0)}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${Math.round(debt.overdueDays || 0)} วัน</td>
+          <td class="p-3">
+            <span class="px-2 py-1 text-xs rounded-full ${getRiskLevelClass(debt.riskLevel)}">
+              <i class="bi ${getRiskLevelIcon(debt.riskLevel)} mr-1"></i>${debt.riskLevel || 'ไม่ระบุ'}
+            </span>
+            ${debt.sourceType ? `<div class="text-xs text-gray-500 mt-1">${getSourceTypeLabel(debt.sourceType)}</div>` : ''}
+          </td>
+          <td class="p-3 text-center">
+            <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    title="ดูรายละเอียด" onclick="viewDebtDetails('${debt.integratedId || debt.id}')">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                    title="โทรติดตาม" onclick="contactDebtor('${debt.integratedId || debt.id}', 'call')">
+              <i class="bi bi-telephone"></i>
+            </button>
+            <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
+                    title="ส่งจดหมายติดตาม" onclick="contactDebtor('${debt.integratedId || debt.id}', 'email')">
+              <i class="bi bi-envelope"></i>
+            </button>
+            <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    title="ตั้งเป็นหนี้สูญ" onclick="markAsBadDebt('${debt.integratedId || debt.id}')">
+              <i class="bi bi-x-circle"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.innerHTML = rows;
+    }
+
+    function renderRiskDebtorsTable() {
+      const tbody = document.getElementById('riskDebtorsTableBody');
+      if (!tbody) {
+        console.warn('riskDebtorsTableBody element not found');
+        return;
+      }
+
+      // Filter high-risk debts (overdue > 60 days or high risk level)
+      const riskDebts = debtManagementState.debtsData.filter(debt =>
+        (debt.overdueDays && debt.overdueDays > 60) ||
+        ['สูง', 'สูงมาก'].includes(debt.riskLevel)
+      );
+
+      if (riskDebts.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="11" class="p-8 text-center text-gray-500 dark:text-gray-400">
+              <i class="bi bi-shield-check text-4xl mb-2 block text-green-500"></i>
+              ไม่พบลูกหนี้ที่มีความเสี่ยงสูง
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const rows = riskDebts.map(debt => `
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50" data-debt-id="${debt.integratedId || debt.id}">
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.contractNumber || debt.contractNo || '-'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerName || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerName || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">-</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">-</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerPhone || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${debt.customerAddress || 'ไม่ระบุ'}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">${formatCurrency(debt.overdueAmount || 0)}</td>
+          <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${Math.round(debt.overdueDays || 0)} วัน</td>
+          <td class="p-3">
+            <span class="px-2 py-1 text-xs rounded-full ${getRiskLevelClass(debt.riskLevel)}">
+              <i class="bi ${getRiskLevelIcon(debt.riskLevel)} mr-1"></i>${debt.riskLevel || 'ไม่ระบุ'}
+            </span>
+            ${debt.sourceType ? `<div class="text-xs text-gray-500 mt-1">${getSourceTypeLabel(debt.sourceType)}</div>` : ''}
+          </td>
+          <td class="p-3 text-center">
+            <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    title="ดูรายละเอียด" onclick="viewDebtDetails('${debt.integratedId || debt.id}')">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                    title="โทรติดตาม" onclick="contactDebtor('${debt.integratedId || debt.id}', 'call')">
+              <i class="bi bi-telephone"></i>
+            </button>
+            <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
+                    title="ส่งจดหมายติดตาม" onclick="contactDebtor('${debt.integratedId || debt.id}', 'email')">
+              <i class="bi bi-envelope"></i>
+            </button>
+            <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    title="ตั้งเป็นหนี้สูญ" onclick="markAsBadDebt('${debt.integratedId || debt.id}')">
+              <i class="bi bi-x-circle"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.innerHTML = rows;
+    }
+
+    function renderEmptyState() {
+      const tbody1 = document.getElementById('debtorsTableBody');
+      const tbody2 = document.getElementById('riskDebtorsTableBody');
+
+      const emptyContent = `
+        <tr>
+          <td colspan="11" class="p-8 text-center text-gray-500 dark:text-gray-400">
+            <i class="bi bi-inbox text-4xl mb-2 block"></i>
+            ไม่พบข้อมูลหนี้สูญ
+          </td>
+        </tr>
+      `;
+
+      if (tbody1) tbody1.innerHTML = emptyContent;
+      if (tbody2) tbody2.innerHTML = emptyContent;
+    }
+
+    async function loadDebtStatistics() {
+      try {
+        const response = await fetch(`${API_BASE}/bad-debt/statistics`, { headers });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'API failed');
+
+        // Update statistics display if needed
+        console.log('✅ Debt statistics loaded:', result.data);
+
+      } catch (error) {
+        console.error('❌ Error loading debt statistics:', error);
+      }
+    }
+
+    function updateDebtSummary(summary) {
+      // Update summary cards if available
+      console.log('📊 Updating debt summary:', summary);
+    }
+
+    function updatePagination() {
+      const paginationDiv = document.querySelector('.flex.items-center.justify-between.mt-4');
+      if (!paginationDiv) return;
+
+      const totalPages = Math.ceil(debtManagementState.totalItems / debtManagementState.itemsPerPage);
+      const start = ((debtManagementState.currentPage - 1) * debtManagementState.itemsPerPage) + 1;
+      const end = Math.min(debtManagementState.currentPage * debtManagementState.itemsPerPage, debtManagementState.totalItems);
+
+      // Update pagination info
+      const infoDiv = paginationDiv.querySelector('.text-sm.text-gray-600');
+      if (infoDiv) {
+        infoDiv.textContent = `แสดง ${start} ถึง ${end} จาก ${debtManagementState.totalItems} รายการ`;
+      }
+
+      // Update pagination buttons
+      const buttonsDiv = paginationDiv.querySelector('.flex.space-x-1');
+      if (buttonsDiv) {
+        buttonsDiv.innerHTML = `
+          <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${debtManagementState.currentPage <= 1 ? 'opacity-50 cursor-not-allowed' : ''}"
+                  onclick="changePage(${debtManagementState.currentPage - 1})" ${debtManagementState.currentPage <= 1 ? 'disabled' : ''}>
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          ${generatePaginationButtons(totalPages)}
+          <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${debtManagementState.currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : ''}"
+                  onclick="changePage(${debtManagementState.currentPage + 1})" ${debtManagementState.currentPage >= totalPages ? 'disabled' : ''}>
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        `;
+      }
+    }
+
+    function generatePaginationButtons(totalPages) {
+      let buttons = '';
+      const current = debtManagementState.currentPage;
+      const start = Math.max(1, current - 2);
+      const end = Math.min(totalPages, current + 2);
+
+      for (let i = start; i <= end; i++) {
+        const isActive = i === current;
+        buttons += `
+          <button class="px-3 py-1 ${isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'} rounded-md"
+                  onclick="changePage(${i})">${i}</button>
+        `;
+      }
+
+      return buttons;
+    }
+
+    function changePage(page) {
+      if (page < 1 || page > Math.ceil(debtManagementState.totalItems / debtManagementState.itemsPerPage)) return;
+      if (page === debtManagementState.currentPage) return;
+
+      loadIntegratedDebtData(page);
+    }
+
+    function setupEventListeners() {
+      // Add search functionality
+      const searchInput = document.querySelector('input[placeholder="ค้นหาลูกหนี้..."]');
+      if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            performSearch(e.target.value);
+          }, 500);
+        });
+      }
+
+      // Add filter controls
+      const filterButtons = document.querySelectorAll('[data-filter]');
+      filterButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+          const filter = e.target.getAttribute('data-filter');
+          applyFilter(filter);
+        });
+      });
+    }
+
+    function performSearch(searchTerm) {
+      if (!searchTerm.trim()) {
+        loadIntegratedDebtData();
+        return;
+      }
+
+      // Filter existing data or reload with search parameter
+      const filteredData = debtManagementState.debtsData.filter(debt =>
+        (debt.customerName && debt.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (debt.contractNumber && debt.contractNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (debt.customerPhone && debt.customerPhone.includes(searchTerm))
+      );
+
+      const originalData = debtManagementState.debtsData;
+      debtManagementState.debtsData = filteredData;
+      renderDebtorsTable();
+      renderRiskDebtorsTable();
+
+      // Restore original data
+      debtManagementState.debtsData = originalData;
+    }
+
+    // Debt management action functions
+    function viewDebtDetails(debtId) {
+      console.log('👁️ Viewing debt details for:', debtId);
+      showToast('ฟีเจอร์นี้อยู่ระหว่างการพัฒนา', 'info');
+    }
+
+    function contactDebtor(debtId, method) {
+      console.log(`📞 Contacting debtor ${debtId} via ${method}`);
+      const methodText = method === 'call' ? 'โทรติดตาม' : 'ส่งอีเมล';
+      showToast(`${methodText}ลูกหนี้รหัส ${debtId}`, 'info');
+    }
+
+    function markAsBadDebt(debtId) {
+      console.log('❌ Marking as bad debt:', debtId);
+
+      if (confirm('คุณต้องการตั้งเป็นหนี้สูญสำหรับรายการนี้หรือไม่?')) {
+        showToast('กำลังประมวลผล...', 'info');
+        // Implement actual bad debt marking logic here
+        setTimeout(() => {
+          showToast('ตั้งเป็นหนี้สูญเรียบร้อยแล้ว', 'success');
+          loadIntegratedDebtData(); // Refresh data
+        }, 1000);
+      }
+    }
+
+    window.showToast = showToast; window.showLoading = showLoading; window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate; window.formatDateTime = formatDateTime;
+
+    // Testing and debugging functions
+    async function testIntegration() {
+      console.log('🧪 Testing bad debt integration...');
+      try {
+        // Test API endpoint
+        const response = await fetch(`${API_BASE}/bad-debt/integrated-list?page=1&limit=5&includeInstallments=true`, { headers });
+        const result = await response.json();
+
+        console.log('✅ API Response:', result);
+
+        if (result.success) {
+          console.log(`📊 Found ${result.data?.length || 0} debt records`);
+          console.log(`📈 Total items: ${result.pagination?.total || 0}`);
+          console.log('🔗 Integration status:', result.integration);
+          showToast('การเชื่อมต่อระบบหนี้สูญทำงานได้ปกติ', 'success');
+        } else {
+          console.error('❌ API Error:', result.error);
+          showToast('พบข้อผิดพลาดในการเชื่อมต่อ API: ' + result.error, 'error');
+        }
+      } catch (error) {
+        console.error('❌ Integration test failed:', error);
+        showToast('การทดสอบระบบล้มเหลว: ' + error.message, 'error');
+      }
+    }
+
+    function refreshDebtData() {
+      console.log('🔄 Manual refresh triggered');
+      loadIntegratedDebtData(debtManagementState.currentPage);
+    }
+
+    // Export debt management functions globally
+    window.viewDebtDetails = viewDebtDetails;
+    window.contactDebtor = contactDebtor;
+    window.markAsBadDebt = markAsBadDebt;
+    window.changePage = changePage;
+    window.testIntegration = testIntegration;
+    window.refreshDebtData = refreshDebtData;
+  </script>
+
+  <!-- Socket.io CDN -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <!-- Add global socket initialization -->
+  <script>
+    // Global socket declaration
+    var socket = io();
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    details summary i {
+      transition: transform 0.2s;
+    }
+    details[open] summary i {
+      transform: rotate(180deg);
+    }
+
+    /* Logo styling */
+    .Logo { max-width:100%; height:auto; }
+
+    /* Mobile Menu Overlay */
+    .menu-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5); z-index: 15; display: none;
+    }
+    .menu-overlay.active { display: block; }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      aside { z-index: 30; }
+      #mainContent { margin-left: 0 !important; }
+      aside:not(.translate-x-0) { transform: translateX(-100%); }
+      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 600px; }
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+
+  <!-- Add global API config before main JS -->
+  <script>
+    var API_BASE = '/api';
+    var headers  = {
+      'Authorization': 'Bearer ' + localStorage.getItem('authToken'),
+      'Content-Type': 'application/json'
+    };
+
+    // Debt management state
+    var debtManagementState = {
+      currentPage: 1,
+      itemsPerPage: 10,
+      totalItems: 0,
+      currentFilter: {
+        overdueDays: 30,
+        branchCode: '',
+        riskLevel: '',
+        includeInstallments: true
+      },
+      debtsData: [],
+      loading: false
+    };
+  </script>
+</head>
+<body class="flex flex-col min-h-screen bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Mobile Menu Overlay -->
+  <div id="menuOverlay" class="menu-overlay"></div>
+
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+          class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition md:p-2 p-3">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="flex flex-1">
+    <!-- Sidebar -->
+    <div class="flex w-full">
+   <!-- Sidebar -->
+<aside id="sidebar"
+   class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+          transform transition-transform duration-300 translate-x-0 z-20">
+  <!-- ส่วนหัว (Logo/Title) -->
+  <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+    <img src="/uploads/Logo2.png"
+         alt="Logo"
+         class="Logo animate-float shadow-soft w-full h-full object-cover" />
+  </a>
+  <!-- เมนูหลัก (Vertical Menu) -->
+  <div class="flex-1 p-4 overflow-hidden">
+    <ul class="flex flex-col w-full space-y-1">
+      <!-- เมนู: หน้าแรก -->
+      <li class="my-px">
+        <a href="loan_dashboard"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+            <i class="bi bi-house-door text-xl"></i>
+          </span>
+          <span class="ml-3">หน้าแรก</span>
+        </a>
+      </li>
+      <!-- เมนู: ผ่อนชำระ -->
+      <li class="my-px">
+        <a href="repayment"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+            <i class="bi bi-cash-stack text-xl"></i>
+          </span>
+          <span class="ml-3">ผ่อนชำระ</span>
+        </a>
+      </li>
+      <!-- เมนู: ประวัติการผ่อน -->
+      <li class="my-px">
+        <a href="installment_history"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+            <i class="bi bi-clock-history text-xl"></i>
+          </span>
+          <span class="ml-3">ประวัติการผ่อน</span>
+        </a>
+      </li>
+      <!-- เมนู: จัดการลูกค้า -->
+      <li class="my-px">
+        <a href="customer"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+            <i class="bi bi-people text-xl"></i>
+          </span>
+          <span class="ml-3">จัดการลูกค้า</span>
+        </a>
+      </li>
+       <!-- เมนู: ลูกหนี้ -->
+      <li class="my-px">
+        <a href="debtors"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300">
+          <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+            <i class="bi bi-receipt text-xl"></i>
+          </span>
+          <span class="ml-3">ลูกหนี้</span>
+          <span class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <i class="bi bi-chevron-right text-sm"></i>
+          </span>
+        </a>
+      </li>
+     <!-- เมนู: การบริหารหนี้สูญ -->
+      <li class="my-px">
+        <a href="bad_debt_management"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+            <i class="bi bi-currency-exchange text-xl"></i>
+          </span>
+          <span class="ml-3">การบริหารหนี้สูญ</span>
+        </a>
+      </li>
+      <!-- เมนู: เกณฑ์หนี้สูญ (เพิ่มใหม่) -->
+      <li class="my-px">
+        <a href="bad_debt_criteria"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <span class="flex items-center justify-center text-lg text-cyan-500 dark:text-cyan-400">
+            <i class="bi bi-clipboard2-check text-xl"></i>
+          </span>
+          <span class="ml-3">เกณฑ์หนี้สูญ</span>
+        </a>
+      </li>
+      
+      <!-- เมนู: ภาษี (เพิ่มใหม่) -->
+      <li class="my-px">
+        <a href="tax"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300">
+          <span class="flex items-center justify-center text-lg text-emerald-500 dark:text-emerald-400">
+            <i class="bi bi-receipt-cutoff text-xl"></i>
+          </span>
+          <span class="ml-3">ภาษี</span>
+          <span class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <i class="bi bi-chevron-right text-sm"></i>
+          </span>
+        </a>
+      </li>
+      <!-- เมนู: ต้นทุนและค่าใช้จ่าย (ใหม่) -->
+      <li class="my-px">
+        <a href="costs_expenses"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+          <span class="flex items-center justify-center text-lg text-teal-500 dark:text-teal-400">
+            <i class="bi bi-calculator text-xl"></i>
+          </span>
+          <span class="ml-3">ต้นทุนและค่าใช้จ่าย</span>
+        </a>
+      </li>
+      
+      <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+        <!-- Dark Mode Toggle -->
+        <button id="btnToggleDark"
+                class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+          <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+            <i class="bi bi-moon-stars text-xl"></i>
+          </span>
+          <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+        </button>
+      </li>
+      <!-- Logout -->
+      <li class="my-px">
+        <button id="btnLogout"
+                class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+          <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+            <i class="bi bi-box-arrow-right text-xl"></i>
+          </span>
+          <span class="ml-3">ออกจากระบบ</span>
+        </button>
+      </li>
+      <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+      <li class="my-px mt-2">
+        <div id="profile"
+             class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+          <div class="avatar mr-3">
+            <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+              <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-sm font-medium" id="employeeName">Loading...</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</aside>
+
+
+    <!-- เนื้อหาหลัก -->
+    <main id="mainContent" class="flex-1 ml-56 p-6 transition-all duration-300 max-w-full overflow-hidden">
+      <div class="container mx-auto">
+        <!-- ส่วนหัว / Header -->
+        <div class="mb-8 animate-fadeIn">
+          <h1 class="text-3xl font-bold mb-2 text-gray-800 dark:text-gray-100">
+            <i class="bi bi-currency-exchange text-purple-600 dark:text-purple-400 mr-2"></i>การบริหารหนี้สูญ
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400">
+            จัดการข้อมูลหนี้สูญและสถิติเกี่ยวกับลูกหนี้ การตั้งค่าเปอร์เซ็นต์ และข้อมูลสำคัญต่างๆ
+          </p>
+        </div>
+
+        <!-- สรุปข้อมูลสำคัญ (ไม่แสดงบนมือถือ) -->
+        <div class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- อัตราส่วนหนี้สูญ -->
+          <div class="stat-card bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md fade-in fade-in-delay-1">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">หนี้สูญ</h3>
+              <span class="p-2 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                <i class="bi bi-exclamation-triangle"></i>
+              </span>
+            </div>
+            <div class="flex items-end justify-between">
+              <div>
+                <span class="text-3xl font-bold text-red-600 dark:text-red-400" id="badDebtPercentage">4.2%</span>
+                <div class="text-sm text-gray-500 dark:text-gray-400">ของลูกหนี้ทั้งหมด</div>
+              </div>
+              <div class="flex items-center text-sm text-red-500 dark:text-red-300">
+                <i class="bi bi-arrow-up mr-1"></i> 0.5%
+                <span class="ml-1 text-gray-500 dark:text-gray-400">จากเดือนที่แล้ว</span>
+              </div>
+            </div>
+            <div class="mt-4 w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+              <div class="bg-red-500 h-full rounded-full" style="width: 4.2%"></div>
+            </div>
+          </div>
+
+          <!-- หนี้สงสัยจะสูญ -->
+          <div class="stat-card bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md fade-in fade-in-delay-2">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">หนี้สงสัยจะสูญ</h3>
+              <span class="p-2 rounded-full bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400">
+                <i class="bi bi-question-circle"></i>
+              </span>
+            </div>
+            <div class="flex items-end justify-between">
+              <div>
+                <span class="text-3xl font-bold text-yellow-600 dark:text-yellow-400" id="doubtfulDebtPercentage">7.8%</span>
+                <div class="text-sm text-gray-500 dark:text-gray-400">ของลูกหนี้ทั้งหมด</div>
+              </div>
+              <div class="flex items-center text-sm text-yellow-500 dark:text-yellow-300">
+                <i class="bi bi-arrow-down mr-1"></i> 1.2%
+                <span class="ml-1 text-gray-500 dark:text-gray-400">จากเดือนที่แล้ว</span>
+              </div>
+            </div>
+            <div class="mt-4 w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+              <div class="bg-yellow-500 h-full rounded-full" style="width: 7.8%"></div>
+            </div>
+          </div>
+
+          <!-- ลูกหนี้ผ่อนชำระ -->
+          <div class="stat-card bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md fade-in fade-in-delay-2">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">ลูกหนี้ผ่อนชำระ</h3>
+              <span class="p-2 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                <i class="bi bi-people"></i>
+              </span>
+            </div>
+            <div class="flex items-end justify-between">
+              <div>
+                <span class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="totalInstallmentDebtors">856</span>
+                <div class="text-sm text-gray-500 dark:text-gray-400">ราย</div>
+              </div>
+              <div class="flex items-center text-sm text-blue-500 dark:text-blue-300">
+                <span class="font-semibold">฿ 5,432,789</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ลูกหนี้ชำระ -->
+          <div class="stat-card bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md fade-in fade-in-delay-3">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">ลูกหนี้ชำระ</h3>
+              <span class="p-2 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+                <i class="bi bi-check-circle"></i>
+              </span>
+            </div>
+            <div class="flex items-end justify-between">
+              <div>
+                <span class="text-3xl font-bold text-green-600 dark:text-green-400" id="totalPaidDebtors">723</span>
+                <div class="text-sm text-gray-500 dark:text-gray-400">ราย</div>
+              </div>
+              <div class="flex items-center text-sm text-green-500 dark:text-green-300">
+                <span class="font-semibold">฿ 4,127,350</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- แสดงกราฟและตั้งค่า -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <!-- แสดงกราฟวงกลมแสดงสัดส่วน -->
+          <div class="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md lg:col-span-2 fade-in">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">สถิติหนี้สูญและหนี้สงสัยจะสูญ</h2>
+            <div class="h-80">
+              <canvas id="debtChart"></canvas>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p class="text-sm text-gray-500 dark:text-gray-400">หนี้สูญ</p>
+                <p class="text-2xl font-bold text-red-600 dark:text-red-400">4.2%</p>
+              </div>
+              <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p class="text-sm text-gray-500 dark:text-gray-400">หนี้สงสัยจะสูญ</p>
+                <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">7.8%</p>
+              </div>
+              <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p class="text-sm text-gray-500 dark:text-gray-400">ค่าเผื่อหนี้สงสัยจะสูญ</p>
+                <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">6.5%</p>
+              </div>
+              <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p class="text-sm text-gray-500 dark:text-gray-400">หนี้ปกติ</p>
+                <p class="text-2xl font-bold text-green-600 dark:text-green-400">88.0%</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- การตั้งค่าเปอร์เซ็นต์ -->
+          <div class="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md fade-in">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              <i class="bi bi-sliders mr-2 text-blue-500"></i>ตั้งค่าเปอร์เซ็นต์
+            </h2>
+            <div class="space-y-4">
+              <!-- หนี้สูญ -->
+              <div class="debt-settings-card p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between">
+                  <label for="badDebtSetting" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    หนี้สูญ (%)
+                  </label>
+                  <div class="flex items-center">
+                    <input type="number" id="badDebtSetting" class="w-20 p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-right mr-2 bg-gray-50 dark:bg-gray-800" value="4.2" step="0.1" min="0" max="100">
+                    <button class="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                      <i class="bi bi-check"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- หนี้สงสัยจะสูญ -->
+              <div class="debt-settings-card p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between">
+                  <label for="doubtfulDebtSetting" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    หนี้สงสัยจะสูญ (%)
+                  </label>
+                  <div class="flex items-center">
+                    <input type="number" id="doubtfulDebtSetting" class="w-20 p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-right mr-2 bg-gray-50 dark:bg-gray-800" value="7.8" step="0.1" min="0" max="100">
+                    <button class="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                      <i class="bi bi-check"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- ค่าเผื่อหนี้สงสัยจะสูญ -->
+              <div class="debt-settings-card p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between">
+                  <label for="allowanceForDoubtfulSetting" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ค่าเผื่อหนี้สงสัยจะสูญ (%)
+                  </label>
+                  <div class="flex items-center">
+                    <input type="number" id="allowanceForDoubtfulSetting" class="w-20 p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-right mr-2 bg-gray-50 dark:bg-gray-800" value="6.5" step="0.1" min="0" max="100">
+                    <button class="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                      <i class="bi bi-check"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex justify-center mt-4">
+                <button id="saveSettingsBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                  <i class="bi bi-save mr-2"></i>บันทึกการตั้งค่าทั้งหมด
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ข้อมูลค่าใช้จ่ายและลูกหนี้ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <!-- ค่าใช้จ่ายต่าง ๆ -->
+          <div class="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md fade-in">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              <i class="bi bi-cash mr-2 text-green-500"></i>ข้อมูลค่าใช้จ่าย
+            </h2>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">รายการ</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-right">จำนวนเงิน</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-right">สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ค่าใช้จ่ายในการยึดคืนสินค้า</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-right font-medium">฿ 142,650.00</td>
+                    <td class="p-3 text-right">
+                      <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                        <i class="bi bi-arrow-up mr-1"></i>เพิ่มขึ้น 5.2%
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ต้นทุนขายผ่อนชำระ</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-right font-medium">฿ 3,854,210.00</td>
+                    <td class="p-3 text-right">
+                      <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                        <i class="bi bi-arrow-down mr-1"></i>ลดลง 2.1%
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ภาษีขายยังไม่ถึงกำหนด</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-right font-medium">฿ 267,840.00</td>
+                    <td class="p-3 text-right">
+                      <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                        <i class="bi bi-dash mr-1"></i>คงที่
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ค่าเผื่อหนี้สงสัยจะสูญ (มูลค่า)</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-right font-medium">฿ 353,131.29</td>
+                    <td class="p-3 text-right">
+                      <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        <i class="bi bi-arrow-up mr-1"></i>เพิ่มขึ้น 8.3%
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- ข้อมูลลูกหนี้ -->
+          <div class="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md fade-in">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              <i class="bi bi-people mr-2 text-blue-500"></i>สรุปข้อมูลลูกหนี้
+            </h2>
+            
+            <!-- กราฟแสดงแนวโน้ม -->
+            <div class="h-48 mb-4">
+              <canvas id="debtorsChart"></canvas>
+            </div>
+            
+            <!-- ตารางข้อมูลลูกหนี้ -->
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">รหัสลูกค้า</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">คำนำหน้า</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อลูกค้า</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">อายุ</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">อีเมล</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">เบอร์โทร</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ที่อยู่</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ยอดค้างชำระ</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ระยะเวลาค้าง</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ความเสี่ยง</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-center">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="debtorsTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+                  <!-- Data will be loaded dynamically -->
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สมชาย มีเงิน</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สมชาย มีเงิน</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">30 ปี</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">somyai@example.com</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">080-123-4567</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">123 หมู่ที่ 4 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 15,750.00</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">90 วัน</td>
+                    <td class="p-3">
+                      <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        <i class="bi bi-exclamation-triangle-fill mr-1"></i>สูง
+                      </span>
+                    </td>
+                    <td class="p-3 text-center">
+                      <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                        <i class="bi bi-telephone"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                        <i class="bi bi-envelope"></i>
+                      </button>
+                      <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0023456</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">วิชัย มั่งคั่ง</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">วิชัย มั่งคั่ง</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">25 ปี</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">vichai@example.com</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">081-234-5678</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 5 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 22,400.00</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">60 วัน</td>
+                    <td class="p-3">
+                      <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                        <i class="bi bi-exclamation-circle mr-1"></i>ปานกลาง
+                      </span>
+                    </td>
+                    <td class="p-3 text-center">
+                      <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                        <i class="bi bi-telephone"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                        <i class="bi bi-envelope"></i>
+                      </button>
+                      <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0034567</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สุดา รักดี</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สุดา รักดี</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">28 ปี</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">sudda@example.com</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">082-345-6789</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 6 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 8,900.00</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">45 วัน</td>
+                    <td class="p-3">
+                      <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                        <i class="bi bi-exclamation-circle mr-1"></i>ปานกลาง
+                      </span>
+                    </td>
+                    <td class="p-3 text-center">
+                      <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                        <i class="bi bi-telephone"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                        <i class="bi bi-envelope"></i>
+                      </button>
+                      <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0045678</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ธวัช ขยัน</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ธวัช ขยัน</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">22 ปี</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">thawat@example.com</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">083-456-7890</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 7 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 12,350.00</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">30 วัน</td>
+                    <td class="p-3">
+                      <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                        <i class="bi bi-info-circle mr-1"></i>ต่ำ
+                      </span>
+                    </td>
+                    <td class="p-3 text-center">
+                      <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                        <i class="bi bi-telephone"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                        <i class="bi bi-envelope"></i>
+                      </button>
+                      <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0056789</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">มานี มีทรัพย์</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">มานี มีทรัพย์</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">20 ปี</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">mana@example.com</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">084-567-8901</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 8 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 18,700.00</td>
+                    <td class="p-3 text-sm text-gray-700 dark:text-gray-300">75 วัน</td>
+                    <td class="p-3">
+                      <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        <i class="bi bi-exclamation-triangle-fill mr-1"></i>สูง
+                      </span>
+                    </td>
+                    <td class="p-3 text-center">
+                      <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                        <i class="bi bi-telephone"></i>
+                      </button>
+                      <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                        <i class="bi bi-envelope"></i>
+                      </button>
+                      <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- รายการลูกหนี้ค้างชำระและมีความเสี่ยง -->
+        <div class="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md mb-6 fade-in">
+          <div class="flex flex-wrap items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">
+              <i class="bi bi-exclamation-circle mr-2 text-red-500"></i>รายการลูกหนี้ค้างชำระและมีความเสี่ยง
+            </h2>
+            <div class="flex space-x-2 mt-2 md:mt-0">
+              <div class="relative">
+                <input type="text" placeholder="ค้นหาลูกหนี้..." class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-200">
+                <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              </div>
+              <select class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-200">
+                <option value="all">ทั้งหมด</option>
+                <option value="30days">ค้างชำระ 30 วัน</option>
+                <option value="60days">ค้างชำระ 60 วัน</option>
+                <option value="90days">ค้างชำระ 90+ วัน</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="min-w-full table-auto">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">รหัสลูกค้า</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">คำนำหน้า</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อลูกค้า</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">อายุ</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">อีเมล</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">เบอร์โทร</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ที่อยู่</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ยอดค้างชำระ</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ระยะเวลาค้าง</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ความเสี่ยง</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-center">การจัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="riskDebtorsTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+                <!-- Data will be loaded dynamically -->
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สมชาย มีเงิน</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สมชาย มีเงิน</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">30 ปี</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">somyai@example.com</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">080-123-4567</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 4 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 15,750.00</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">90 วัน</td>
+                  <td class="p-3">
+                    <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                      <i class="bi bi-exclamation-triangle-fill mr-1"></i>สูง
+                    </span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                      <i class="bi bi-telephone"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                      <i class="bi bi-envelope"></i>
+                    </button>
+                    <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0023456</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">วิชัย มั่งคั่ง</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">วิชัย มั่งคั่ง</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">25 ปี</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">vichai@example.com</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">081-234-5678</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 5 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 22,400.00</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">60 วัน</td>
+                  <td class="p-3">
+                    <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                      <i class="bi bi-exclamation-circle mr-1"></i>ปานกลาง
+                    </span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                      <i class="bi bi-telephone"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                      <i class="bi bi-envelope"></i>
+                    </button>
+                    <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0034567</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สุดา รักดี</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">สุดา รักดี</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">28 ปี</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">sudda@example.com</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">082-345-6789</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 6 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 8,900.00</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">45 วัน</td>
+                  <td class="p-3">
+                    <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                      <i class="bi bi-exclamation-circle mr-1"></i>ปานกลาง
+                    </span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                      <i class="bi bi-telephone"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                      <i class="bi bi-envelope"></i>
+                    </button>
+                    <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0045678</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ธวัช ขยัน</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">ธวัช ขยัน</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">22 ปี</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">thawat@example.com</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">083-456-7890</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 7 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 12,350.00</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">30 วัน</td>
+                  <td class="p-3">
+                    <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                      <i class="bi bi-info-circle mr-1"></i>ต่ำ
+                    </span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                      <i class="bi bi-telephone"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                      <i class="bi bi-envelope"></i>
+                    </button>
+                    <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">C0056789</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">มานี มีทรัพย์</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">มานี มีทรัพย์</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">20 ปี</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">mana@example.com</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">084-567-8901</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">หมู่ที่ 8 ตำบลสุขสวัสดิ์ อำเภอสุขสวัสดิ์ จังหวัดสุขสวัสดิ์ 10220</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300 font-medium">฿ 18,700.00</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">75 วัน</td>
+                  <td class="p-3">
+                    <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                      <i class="bi bi-exclamation-triangle-fill mr-1"></i>สูง
+                    </span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <button class="p-1 mr-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="ดูรายละเอียด">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="โทรติดตาม">
+                      <i class="bi bi-telephone"></i>
+                    </button>
+                    <button class="p-1 mr-1 text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300" title="ส่งจดหมายติดตาม">
+                      <i class="bi bi-envelope"></i>
+                    </button>
+                    <button class="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="ตั้งเป็นหนี้สูญ">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Pagination -->
+          <div class="flex items-center justify-between mt-4">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              แสดง 1 ถึง 5 จาก 42 รายการ
+            </div>
+            <div class="flex space-x-1">
+              <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <button class="px-3 py-1 bg-blue-500 text-white rounded-md">1</button>
+              <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">2</button>
+              <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">3</button>
+              <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">...</button>
+              <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">9</button>
+              <button class="px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Footer / ปุ่มดำเนินการ -->
+        <div class="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md mb-6 fade-in">
+          <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+            <i class="bi bi-gear-fill mr-2 text-gray-600"></i>การดำเนินการ
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button class="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/30 transition flex items-center justify-center">
+              <i class="bi bi-printer mr-2 text-xl"></i>
+              <span>พิมพ์รายงานหนี้สูญ</span>
+            </button>
+            <button class="p-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/30 transition flex items-center justify-center">
+              <i class="bi bi-arrow-repeat mr-2 text-xl"></i>
+              <span>อัปเดตสถานะลูกหนี้</span>
+            </button>
+            <button class="p-4 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-800/30 transition flex items-center justify-center">
+              <i class="bi bi-file-earmark-excel mr-2 text-xl"></i>
+              <span>นำออกข้อมูล (Excel)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal สำหรับยืนยันออกจากระบบ -->
+  <div id="logoutModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full mx-4 relative z-10">
+      <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">ยืนยันการออกจากระบบ</h3>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">คุณต้องการออกจากระบบใช่หรือไม่?</p>
+      <div class="flex justify-end space-x-4">
+        <button id="cancelLogout" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+          ยกเลิก
+        </button>
+        <button id="confirmLogout" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+          ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- JavaScript -->
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Show loading initially
+      console.log('DOMContentLoaded - showLoading available?', typeof showLoading);
+      if (typeof showLoading === 'function') {
+        showLoading(true);
+      }
+
+      try {
+        // Loading state management - use global showLoading function
+        // (removed duplicate function definition)
+
+        // load profile
+        async function loadEmployeeProfile() {
+          const token = localStorage.getItem('authToken');
+          if (!token) return;
+          try {
+            // ไม่เรียก showLoading(true) ที่นี่ เพราะมีการเรียกแล้วใน DOMContentLoaded
+            const res = await fetch('/api/users/me', { headers });
+            const js  = await res.json();
+            if (!res.ok || !js.success) throw new Error(js.error||js.message||res.status);
+            const u    = js.data;
+            document.getElementById('employeeName').textContent = u.name || '(ไม่พบชื่อ)';
+            let img = u.photoUrl || u.image || '';
+            if (img && !/^https?:\/\//.test(img)) {
+              img = img.startsWith('/') ? img : '/uploads/' + img;
+              img = API_BASE + img;
+            }
+            document.getElementById('employeePhoto').src = img || '/uploads/avatar-default.png';
+          } catch (err) {
+            console.error('Load Employee Profile Error:', err);
+            // Redirect on revoked token
+            if (/โทเค็นถูกยกเลิก/.test(err.message)) {
+              alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+              window.location.href = '/login';
+            }
+          } finally {
+            // ไม่เรียก showLoading(false) ที่นี่ เพราะจะจัดการใน DOMContentLoaded finally
+          }
+        }
+
+        // รอให้ loadEmployeeProfile ทำงานเสร็จก่อน
+        await loadEmployeeProfile();
+
+        // สร้างกราฟข้อมูลหนี้สูญ
+        const debtChartCtx = document.getElementById('debtChart').getContext('2d');
+        const debtChart = new Chart(debtChartCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['หนี้ปกติ', 'หนี้สงสัยจะสูญ', 'หนี้สูญ'],
+            datasets: [{
+              data: [88.0, 7.8, 4.2],
+              backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+              borderWidth: 0,
+              hoverOffset: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  padding: 20,
+                  font: {
+                    size: 12
+                  }
+                }
+              }
+            },
+            cutout: '65%'
+          }
+        });
+    
+        // สร้างกราฟแสดงข้อมูลลูกหนี้
+        const debtorsChartCtx = document.getElementById('debtorsChart').getContext('2d');
+        const debtorsChart = new Chart(debtorsChartCtx, {
+          type: 'line',
+          data: {
+            labels: ['ม.ค','ก.พ','มี.ค','เม.ย','พ.ค','มิ.ย','ก.ค','ส.ค','ก.ย','ต.ค','พ.ย','ธ.ค'],
+            datasets: [{
+              label: 'จำนวนลูกหนี้',
+              data: [856,890,920,880,915,940,970,930,960,995,1020,1050],
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59,130,246,0.2)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { display: true },
+              y: { beginAtZero: true }
+            }
+          }
+        });
+    
+        // Toggle Sidebar (mobile)
+        const btnToggleMenu = document.getElementById('btnToggleMenu');
+        const sidebar       = document.getElementById('sidebar');
+        const menuOverlay   = document.getElementById('menuOverlay');
+        btnToggleMenu.addEventListener('click', () => {
+          sidebar.classList.toggle('-translate-x-full');
+          menuOverlay.classList.toggle('active');
+          btnToggleMenu.querySelector('i').classList.toggle('bi-chevron-left');
+          btnToggleMenu.querySelector('i').classList.toggle('bi-chevron-right');
+        });
+        menuOverlay.addEventListener('click', () => {
+          sidebar.classList.add('-translate-x-full');
+          menuOverlay.classList.remove('active');
+          btnToggleMenu.querySelector('i').classList.add('bi-chevron-left');
+        });
+    
+        // Dark Mode Toggle
+        const btnToggleDark = document.getElementById('btnToggleDark');
+        const darkModeLabel = document.getElementById('darkModeLabel');
+        btnToggleDark.addEventListener('click', () => {
+          document.documentElement.classList.toggle('dark');
+          darkModeLabel.textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+        });
+    
+        // Logout Modal
+        const btnLogout    = document.getElementById('btnLogout');
+        const logoutModal  = document.getElementById('logoutModal');
+        const cancelLogout = document.getElementById('cancelLogout');
+        const confirmLogout= document.getElementById('confirmLogout');
+        btnLogout.addEventListener('click',  () => logoutModal.classList.remove('hidden'));
+        cancelLogout.addEventListener('click',() => logoutModal.classList.add('hidden'));
+        confirmLogout.addEventListener('click',() => window.location.href = '/logout');
+    
+        // Save Settings
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+          const bad       = parseFloat(document.getElementById('badDebtSetting').value);
+          const doubtful  = parseFloat(document.getElementById('doubtfulDebtSetting').value);
+          const allowance = parseFloat(document.getElementById('allowanceForDoubtfulSetting').value);
+          socket.emit('saveBadDebtSettings', { bad, doubtful, allowance });
+          alert('บันทึกการตั้งค่าเรียบร้อย');
+        });
+    
+        // Initialize debt management system
+        await initializeDebtManagement();
+
+        // fetch bad-debt stats
+        try {
+          const res  = await fetch('/api/bad-debt/stats', { headers });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          if (!json.success) throw new Error('API returned success=false');
+          const { badDebtPct, doubtfulDebtPct } = json.data;
+          document.getElementById('badDebtPercentage').textContent       = `${badDebtPct}%`;
+          document.getElementById('doubtfulDebtPercentage').textContent = `${doubtfulDebtPct}%`;
+          debtChart.data.datasets[0].data = [
+            100 - badDebtPct - doubtfulDebtPct,
+            doubtfulDebtPct,
+            badDebtPct
+          ];
+          debtChart.update();
+        } catch (err) {
+          console.error('Cannot load bad debt stats:', err);
+        }
+      } catch (err) {
+        console.error('DOMContentLoaded error:', err);
+      } finally {
+        if (typeof showLoading === 'function') {
+          showLoading(false);
+        }
+      }
+    });
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

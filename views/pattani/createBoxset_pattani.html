@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="csrf-token" content="">
+  <title>สร้าง Boxset</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <script src="/js/activity-tracker.js"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif']
+          }
+        }
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate']
+      }
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" type="text/css" />
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Google Fonts: Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- LoadingSystem CSS (inline for simplicity) -->
+  <style>
+    /* Basic styles */
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+    }
+
+    body {
+      font-family: "Prompt", sans-serif;
+      margin: 0;
+      background-color: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    /* Main content styles */
+    #mainContent {
+      transition: margin-left 0.3s ease-in-out;
+      margin-left: 0;
+      min-height: 100vh;
+      background: var(--gray-50);
+    }
+
+    #mainContent.ml-64 {
+      margin-left: 16rem;
+    }
+
+    #mainHeader {
+      transition: margin-left 0.3s ease-in-out;
+      margin-left: 0;
+    }
+
+    #mainHeader.ml-64 {
+      margin-left: 16rem;
+    }
+
+    /* Boxset specific styles */
+    .product-card {
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .product-card.selected {
+      border-color: var(--primary);
+      background-color: rgba(37, 99, 235, 0.05);
+    }
+
+    .selected-products-container {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .selected-product-item {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .selected-product-item:hover {
+      border-color: var(--danger);
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+      border: 4px solid var(--gray-200);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: 1rem 1.5rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: none;
+      z-index: 9999;
+      max-width: 350px;
+    }
+
+    .toast.show {
+      display: block;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    /* Button loading animation */
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      #mainContent,
+      #mainHeader {
+        margin-left: 0 !important;
+      }
+    }
+  </style>
+
+  <!-- Firebase Configuration -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getDatabase, ref, onValue, set, push, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyCv4EBbKN8Kr4IMRqszJGBWTSoMihtYLo0",
+      authDomain: "pheenongacc.firebaseapp.com",
+      databaseURL: "https://pheenongacc-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pheenongacc",
+      storageBucket: "pheenongacc.appspot.com",
+      messagingSenderId: "917944021415",
+      appId: "1:917944021415:web:8c8b3d42e52a1dc8c2f0b5",
+      measurementId: "G-94BG9ECQTZ"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    window.firebaseDatabase = database;
+    window.firebaseRef = ref;
+    window.firebaseOnValue = onValue;
+    window.firebaseSet = set;
+    window.firebasePush = push;
+    window.firebaseServerTimestamp = serverTimestamp;
+  </script>
+
+  <!-- Loading Overlay CSS (Updated from BOSS home) -->
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+  <!-- Loading JavaScript (Updated from BOSS home) -->
+  <script>
+    let lottieAnimation = null;
+
+    // Show/Hide Loading Function (Updated from BOSS home.html)
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // Auto cleanup เมื่อออกจากหน้า
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+
+  <!-- Sidebar JavaScript -->
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+</head>
+
+<body class="flex flex-col min-h-screen">
+  <!-- Loading Overlay (Updated from BOSS home) -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <div class="flex items-center gap-3">
+      <i id="toastIcon" class="bi bi-info-circle"></i>
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <!-- Boxset Manager Modal -->
+  <div id="boxsetManagerModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div class="flex items-center justify-between p-6 border-b">
+          <h2 class="text-xl font-semibold flex items-center">
+            <i class="bi bi-box-seam mr-2 text-blue-500"></i>
+            จัดการ Boxset ในสาขา
+          </h2>
+          <button onclick="closeBoxsetManager()" class="text-gray-400 hover:text-gray-600">
+            <i class="bi bi-x-lg text-xl"></i>
+          </button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto max-h-[70vh]">
+          <!-- Loading State -->
+          <div id="boxsetManagerLoading" class="text-center py-8">
+            <div class="loading-spinner"></div>
+            <p class="mt-4 text-gray-600">กำลังโหลดข้อมูล Boxset...</p>
+          </div>
+          
+          <!-- Boxset List -->
+          <div id="boxsetList" class="hidden">
+            <div class="mb-4">
+              <input type="text" id="boxsetSearch" placeholder="ค้นหา Boxset..." 
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            
+            <div id="boxsetItems" class="space-y-4">
+              <!-- Boxset items will be loaded here -->
+            </div>
+            
+            <div id="noBoxsets" class="text-center py-8 text-gray-500 hidden">
+              <i class="bi bi-inbox text-4xl mb-2"></i>
+              <p>ไม่พบ Boxset ในสาขานี้</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cancel Confirmation Modal -->
+  <div id="cancelConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="p-6">
+          <div class="flex items-center mb-4">
+            <i class="bi bi-exclamation-triangle text-yellow-500 text-2xl mr-3"></i>
+            <h3 class="text-lg font-semibold">ยืนยันการยกเลิก Boxset</h3>
+          </div>
+          
+          <div id="cancelBoxsetInfo" class="mb-4 p-4 bg-gray-50 rounded-lg">
+            <!-- Boxset info will be shown here -->
+          </div>
+          
+          <div class="mb-4">
+            <label for="cancelReason" class="block text-sm font-medium text-gray-700 mb-2">
+              เหตุผลในการยกเลิก (ไม่บังคับ)
+            </label>
+            <textarea id="cancelReason" rows="3" placeholder="ระบุเหตุผล..." 
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+          </div>
+          
+          <div class="flex gap-3">
+            <button onclick="closeCancelConfirm()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+              ยกเลิก
+            </button>
+            <button onclick="confirmCancelBoxset()" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+              <i class="bi bi-trash mr-2"></i>
+              ยืนยันยกเลิก
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Boxset Details Modal -->
+  <div id="boxsetDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b">
+          <h2 class="text-xl font-semibold flex items-center">
+            <i class="bi bi-box-seam mr-2 text-blue-500"></i>
+            🎁 รายละเอียด Boxset
+          </h2>
+          <button onclick="closeBoxsetDetails()" class="text-gray-400 hover:text-gray-600">
+            <i class="bi bi-x-lg text-xl"></i>
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+          <div id="boxsetDetailsContent">
+            <!-- Boxset details will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+   
+  <!-- Header -->
+  <header class="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all duration-300" id="mainHeader">
+    <div class="flex items-center gap-4">
+      <div>
+        <h1 class="text-lg font-semibold">สร้าง Boxset</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+          กำลังโหลดสาขา...
+        </p>
+      </div>
+    </div>
+    
+    <!-- Back Button and Boxset Management -->
+    <div class="flex items-center gap-4">
+      <button onclick="navigateBack()" class="btn btn-sm btn-ghost">
+        <i class="bi bi-arrow-left"></i>
+        <span class="ml-1">กลับ</span>
+      </button>
+      <button onclick="showBoxsetManager()" class="btn btn-sm btn-outline btn-info">
+        <i class="bi bi-box-seam"></i>
+        <span class="ml-1">จัดการ Boxset</span>
+      </button>
+    </div>
+  </header>
+   
+  <!-- Main Content -->
+  <div id="mainContent" class="px-6 py-8 flex-grow transition-all">
+    <div class="container mx-auto max-w-7xl">
+      
+      <!-- Loading State -->
+      <div id="loadingState" class="text-center py-8">
+        <div class="loading-spinner"></div>
+        <p class="mt-4 text-gray-600">กำลังโหลดข้อมูล...</p>
+      </div>
+
+      <!-- Main Form -->
+      <div id="mainForm" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          <!-- Left Panel: Product Selection -->
+          <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+              <i class="bi bi-box mr-2 text-blue-500"></i>
+              เลือกสินค้าสำหรับ Boxset
+            </h2>
+
+            <!-- Search Products -->
+            <div class="mb-4">
+              <div class="relative">
+                <input type="text" id="productSearch" placeholder="ค้นหาสินค้า..." 
+                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <i class="bi bi-search absolute left-3 top-3 text-gray-400"></i>
+              </div>
+            </div>
+
+            <!-- Product List -->
+            <div id="productList" class="space-y-3 max-h-96 overflow-y-auto">
+              <!-- Products will be loaded here -->
+            </div>
+          </div>
+
+          <!-- Right Panel: Boxset Configuration -->
+          <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+              <i class="bi bi-gear mr-2 text-green-500"></i>
+              ตั้งค่า Boxset
+            </h2>
+
+            <!-- Boxset Form -->
+            <form id="boxsetForm" class="space-y-4">
+              
+              <!-- Boxset Name -->
+              <div>
+                <label for="boxsetName" class="block text-sm font-medium text-gray-700 mb-1">
+                  ชื่อ Boxset <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="boxsetName" name="boxsetName" required
+                       placeholder="ระบุชื่อ Boxset..." 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+
+              <!-- Boxset Price -->
+              <div>
+                <label for="boxsetPrice" class="block text-sm font-medium text-gray-700 mb-1">
+                  ราคา Boxset <span class="text-red-500">*</span>
+                </label>
+                <input type="number" id="boxsetPrice" name="boxsetPrice" required
+                       placeholder="0.00" min="0" step="0.01"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+
+              <!-- Sale Type -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  ประเภทการขาย <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-2">
+                  <label class="flex items-center">
+                    <input type="checkbox" name="saleType" value="cash" class="mr-2">
+                    <i class="bi bi-cash mr-1 text-green-500"></i>
+                    ขายสด (แสดงใน frontstore)
+                  </label>
+                  <label class="flex items-center">
+                    <input type="checkbox" name="saleType" value="installment" class="mr-2">
+                    <i class="bi bi-credit-card mr-1 text-blue-500"></i>
+                    ขายผ่อน (แสดงใน step1)
+                  </label>
+                </div>
+              </div>
+
+              <!-- Tax Configuration -->
+              <div>
+                <label for="taxType" class="block text-sm font-medium text-gray-700 mb-1">
+                  ประเภทภาษี
+                </label>
+                <select id="taxType" name="taxType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="รวมภาษี">รวมภาษี</option>
+                  <option value="แยกภาษี">แยกภาษี</option>
+                  <option value="ไม่มีภาษี">ไม่มีภาษี</option>
+                </select>
+              </div>
+
+              <!-- Selected Products Summary -->
+              <div class="border-t pt-4">
+                <h3 class="text-lg font-medium mb-3 flex items-center">
+                  <i class="bi bi-list-check mr-2 text-purple-500"></i>
+                  สินค้าที่เลือก (<span id="selectedCount">0</span> รายการ)
+                </h3>
+                
+                <div id="selectedProductsList" class="selected-products-container">
+                  <div id="noSelectedProducts" class="text-center text-gray-500 py-8">
+                    <i class="bi bi-inbox text-4xl mb-2"></i>
+                    <p>ยังไม่ได้เลือกสินค้า</p>
+                  </div>
+                </div>
+
+                <!-- Cost Summary -->
+                <div id="costSummary" class="hidden bg-gray-50 p-4 rounded-lg mt-4">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-600">ต้นทุนรวม:</span>
+                    <span id="totalCost" class="font-medium">฿0.00</span>
+                  </div>
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-600">ราคาขาย Boxset:</span>
+                    <span id="boxsetSalePrice" class="font-medium">฿0.00</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-medium">กำไร:</span>
+                    <span id="totalProfit" class="font-medium text-green-600">฿0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-3 pt-4">
+                <button type="submit" id="submitBoxsetBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors">
+                  <i class="bi bi-check-circle mr-2"></i>
+                  สร้าง Boxset
+                </button>
+                <button type="button" onclick="clearForm()" class="bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors">
+                  <i class="bi bi-arrow-clockwise mr-2"></i>
+                  ล้างข้อมูล
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Global variables
+    let currentBranchCode = '';
+    let availableProducts = [];
+    let selectedProducts = [];
+    let isSubmitting = false; // Flag to prevent double submission
+    let currentBoxsets = []; // Store loaded boxsets
+    let selectedBoxsetForCancel = null; // Store boxset to cancel
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', async function() {
+      try {
+        showLoading(true);
+        await checkAuth();
+        await loadBranchInfo();
+        await loadProducts();
+
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('mainForm').classList.remove('hidden');
+        showLoading(false);
+      } catch (error) {
+        console.error('Initialization error:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+        showLoading(false);
+      }
+    });
+
+    // Authentication check
+    async function checkAuth() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/users/me', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (!response.ok) {
+          localStorage.clear();
+          window.location.href = '/login';
+          return;
+        }
+
+        const data = await response.json();
+        if (!data.success) {
+          localStorage.clear();
+          window.location.href = '/login';
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        showToast('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์', 'error');
+      }
+    }
+
+    // Load branch information
+    async function loadBranchInfo() {
+      const urlParams = new URLSearchParams(window.location.search);
+      currentBranchCode = urlParams.get('branch') || localStorage.getItem('activeBranch') || 'PATTANI';
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/branch', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const branch = data.data?.find(b => b.branch_code === currentBranchCode);
+          if (branch) {
+            document.getElementById('branchInfo').textContent = `${branch.name} — ${branch.address}`;
+            document.title = `สร้าง Boxset - ${branch.name}`;
+          }
+        }
+      } catch (error) {
+        console.error('Branch loading error:', error);
+        document.getElementById('branchInfo').textContent = 'สาขา: (ไม่พบข้อมูล)';
+      }
+    }
+
+    // Load available products
+    async function loadProducts() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/branch-stock?branch_code=${currentBranchCode}&include_unverified=0`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            // Filter out products that are already in other boxsets and have stock > 0
+            availableProducts = data.data.filter(product =>
+              product.verified &&
+              product.stock_value > 0 &&
+              product.productType !== 'boxset'
+            );
+            renderProductList();
+          }
+        } else {
+          throw new Error('Failed to load products');
+        }
+      } catch (error) {
+        console.error('Products loading error:', error);
+        showToast('ไม่สามารถโหลดข้อมูลสินค้าได้', 'error');
+      }
+    }
+
+    // Render product list
+    function renderProductList(searchTerm = '') {
+      const productList = document.getElementById('productList');
+      const filteredProducts = availableProducts.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.imei && product.imei.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+      if (filteredProducts.length === 0) {
+        productList.innerHTML = `
+          <div class="text-center text-gray-500 py-8">
+            <i class="bi bi-search text-4xl mb-2"></i>
+            <p>ไม่พบสินค้าที่ตรงกับการค้นหา</p>
+          </div>
+        `;
+        return;
+      }
+
+      productList.innerHTML = filteredProducts.map(product => {
+        const isSelected = selectedProducts.find(p => p._id === product._id);
+        return `
+          <div class="product-card p-4 border rounded-lg ${isSelected ? 'selected' : ''}" 
+               onclick="toggleProduct('${product._id}')">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <h4 class="font-medium text-gray-900">${product.name}</h4>
+                <p class="text-sm text-gray-600">${product.brand} ${product.model}</p>
+                ${product.imei ? `<p class="text-xs text-gray-500">IMEI: ${product.imei}</p>` : ''}
+                <div class="flex items-center gap-4 mt-2">
+                  <span class="text-sm font-medium text-blue-600">฿${Number(product.price || 0).toLocaleString()}</span>
+                  <span class="text-xs text-gray-500">ต้นทุน: ฿${Number(product.cost || 0).toLocaleString()}</span>
+                  <span class="text-xs text-gray-500">คงเหลือ: ${product.stock_value}</span>
+                </div>
+              </div>
+              <div class="flex items-center">
+                ${isSelected ?
+                  '<i class="bi bi-check-circle-fill text-blue-500 text-xl"></i>' :
+                  '<i class="bi bi-plus-circle text-gray-400 text-xl"></i>'
+                }
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Toggle product selection
+    function toggleProduct(productId) {
+      const product = availableProducts.find(p => p._id === productId);
+      if (!product) return;
+
+      const existingIndex = selectedProducts.findIndex(p => p._id === productId);
+    
+      if (existingIndex > -1) {
+        // Remove product
+        selectedProducts.splice(existingIndex, 1);
+      } else {
+        // Add product
+        selectedProducts.push({
+          ...product,
+          selectedQuantity: 1 // Default quantity
+        });
+      }
+
+      renderProductList(document.getElementById('productSearch').value);
+      updateSelectedProductsList();
+      updateCostSummary();
+    }
+
+    // Update selected products list
+    function updateSelectedProductsList() {
+      const container = document.getElementById('selectedProductsList');
+      const countElement = document.getElementById('selectedCount');
+      const noSelectedElement = document.getElementById('noSelectedProducts');
+
+      countElement.textContent = selectedProducts.length;
+
+      if (selectedProducts.length === 0) {
+        noSelectedElement.classList.remove('hidden');
+        container.querySelectorAll('.selected-product-item').forEach(item => item.remove());
+        return;
+      }
+
+      noSelectedElement.classList.add('hidden');
+
+      // Clear existing items
+      container.querySelectorAll('.selected-product-item').forEach(item => item.remove());
+
+      // Add new items
+      selectedProducts.forEach(product => {
+        const item = document.createElement('div');
+        item.className = 'selected-product-item';
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <h5 class="font-medium text-gray-900">${product.name}</h5>
+              <p class="text-sm text-gray-600">${product.brand} ${product.model}</p>
+              ${product.imei ? `<p class="text-xs text-gray-500">IMEI: ${product.imei}</p>` : ''}
+              <div class="flex items-center gap-4 mt-1">
+                <span class="text-sm font-medium text-blue-600">฿${Number(product.price || 0).toLocaleString()}</span>
+                <span class="text-xs text-gray-500">ต้นทุน: ฿${Number(product.cost || 0).toLocaleString()}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" min="1" max="${product.stock_value}" value="${product.selectedQuantity}" 
+                     class="w-16 px-2 py-1 text-sm border rounded" 
+                     onchange="updateProductQuantity('${product._id}', this.value)">
+              <button type="button" onclick="removeProduct('${product._id}')" 
+                      class="text-red-500 hover:text-red-700">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Update product quantity
+    function updateProductQuantity(productId, quantity) {
+      const product = selectedProducts.find(p => p._id === productId);
+      if (product) {
+        product.selectedQuantity = Math.max(1, Math.min(parseInt(quantity) || 1, product.stock_value));
+        updateCostSummary();
+      }
+    }
+
+    // Remove product from selection
+    function removeProduct(productId) {
+      const index = selectedProducts.findIndex(p => p._id === productId);
+      if (index > -1) {
+        selectedProducts.splice(index, 1);
+        renderProductList(document.getElementById('productSearch').value);
+        updateSelectedProductsList();
+        updateCostSummary();
+      }
+    }
+
+    // Update cost summary
+    function updateCostSummary() {
+      const summary = document.getElementById('costSummary');
+      const totalCostEl = document.getElementById('totalCost');
+      const salePriceEl = document.getElementById('boxsetSalePrice');
+      const profitEl = document.getElementById('totalProfit');
+      const priceInput = document.getElementById('boxsetPrice');
+
+      if (selectedProducts.length === 0) {
+        summary.classList.add('hidden');
+        return;
+      }
+
+      summary.classList.remove('hidden');
+
+      const totalCost = selectedProducts.reduce((sum, product) =>
+        sum + (product.cost || 0) * (product.selectedQuantity || 1), 0
+      );
+
+      const salePrice = parseFloat(priceInput.value) || 0;
+      const profit = salePrice - totalCost;
+
+      totalCostEl.textContent = `฿${totalCost.toLocaleString()}`;
+      salePriceEl.textContent = `฿${salePrice.toLocaleString()}`;
+      profitEl.textContent = `฿${profit.toLocaleString()}`;
+      profitEl.className = `font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`;
+    }
+
+    // Clear form
+    function clearForm() {
+      if (confirm('คุณต้องการล้างข้อมูลทั้งหมดใช่หรือไม่?')) {
+        selectedProducts = [];
+        document.getElementById('boxsetForm').reset();
+        renderProductList();
+        updateSelectedProductsList();
+        updateCostSummary();
+      }
+    }
+
+    // Navigate back
+    function navigateBack() {
+      const branchCode = new URLSearchParams(window.location.search).get('branch') || localStorage.getItem('activeBranch') || 'PATTANI';
+      const branchName = localStorage.getItem('activeBranchName') || '';
+      const url = new URL('/views/pattani/Addproduct_pattani.html', window.location.href);
+      url.searchParams.set('branch', branchCode);
+      if (branchName) url.searchParams.set('name', branchName);
+      window.location.href = url.toString();
+    }
+
+    // Show toast notification
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toastIcon');
+      const msg = document.getElementById('toastMessage');
+    
+      const icons = {
+        success: 'bi-check-circle text-green-500',
+        error: 'bi-x-circle text-red-500',
+        warning: 'bi-exclamation-triangle text-yellow-500',
+        info: 'bi-info-circle text-blue-500'
+      };
+    
+      icon.className = `bi ${icons[type] || icons.info}`;
+      msg.textContent = message;
+      toast.classList.add('show');
+    
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Handle form submission
+    document.getElementById('boxsetForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      // Prevent double submission with global flag
+      if (isSubmitting) {
+        console.log('⚠️ Double submission prevented');
+        return;
+      }
+    
+      isSubmitting = true;
+    
+      // Disable submit button and show loading state
+      const submitButton = document.getElementById('submitBoxsetBtn');
+      const clearButton = document.querySelector('button[onclick="clearForm()"]');
+    
+      submitButton.disabled = true;
+      clearButton.disabled = true;
+    
+      const originalText = submitButton.innerHTML;
+      submitButton.innerHTML = '<i class="bi bi-hourglass-split mr-2 animate-spin"></i>กำลังสร้าง Boxset...';
+    
+      // Disable form inputs during submission
+      const formInputs = document.querySelectorAll('#boxsetForm input, #boxsetForm select');
+      formInputs.forEach(input => input.disabled = true);
+
+      try {
+        // Validation
+        const boxsetName = document.getElementById('boxsetName').value.trim();
+        const boxsetPrice = parseFloat(document.getElementById('boxsetPrice').value);
+        const saleTypes = Array.from(document.querySelectorAll('input[name="saleType"]:checked')).map(el => el.value);
+
+        if (!boxsetName) {
+          showToast('กรุณากรอกชื่อ Boxset', 'error');
+          return;
+        }
+
+        if (isNaN(boxsetPrice) || boxsetPrice <= 0) {
+          showToast('กรุณาระบุราคา Boxset ให้ถูกต้อง', 'error');
+          return;
+        }
+
+        if (selectedProducts.length === 0) {
+          showToast('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ', 'error');
+          return;
+        }
+
+        // Check if all products have required cost data
+        const invalidProducts = selectedProducts.filter(product =>
+          !product.cost || product.cost <= 0 || !product.price || product.price <= 0
+        );
+
+        if (invalidProducts.length > 0) {
+          console.error('❌ Products missing cost/price data:', invalidProducts);
+          showToast('พบสินค้าที่ขาดข้อมูลต้นทุนหรือราคา กรุณาตรวจสอบ', 'error');
+          return;
+        }
+
+        if (saleTypes.length === 0) {
+          showToast('กรุณาเลือกประเภทการขายอย่างน้อย 1 ประเภท', 'error');
+          return;
+        }
+
+        // Additional validation
+        const totalCost = selectedProducts.reduce((sum, product) =>
+          sum + (product.cost || 0) * (product.selectedQuantity || 1), 0
+        );
+    
+        if (boxsetPrice <= totalCost) {
+          const confirmLoss = confirm(
+            `⚠️ คำเตือน: ราคาขาย (฿${boxsetPrice.toLocaleString()}) ต่ำกว่าหรือเท่ากับต้นทุน (฿${totalCost.toLocaleString()})\n` +
+            `กำไร: ฿${(boxsetPrice - totalCost).toLocaleString()}\n\n` +
+            `คุณต้องการดำเนินการต่อหรือไม่?`
+          );
+          if (!confirmLoss) {
+            return;
+          }
+        }
+
+        // Check for duplicate product selection
+        const productIds = selectedProducts.map(p => p._id);
+        const uniqueProductIds = [...new Set(productIds)];
+        if (productIds.length !== uniqueProductIds.length) {
+          showToast('พบสินค้าซ้ำในรายการ กรุณาตรวจสอบ', 'error');
+          return;
+        }
+
+        // Prepare data with unique submission ID
+        const submissionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const boxsetData = {
+          submissionId: submissionId, // Add unique submission ID
+          name: boxsetName,
+          boxsetPrice: boxsetPrice,
+          branchCode: currentBranchCode,
+          saleTypes: saleTypes,
+          taxType: document.getElementById('taxType').value,
+          products: selectedProducts.map(product => ({
+            productId: product._id,
+            name: product.name,
+            brand: product.brand,
+            model: product.model,
+            imei: product.imei,
+            price: product.price,
+            cost: product.cost,
+            quantity: product.selectedQuantity
+          })),
+          totalCost: selectedProducts.reduce((sum, product) => {
+            const cost = parseFloat(product.cost) || 0;
+            const quantity = parseInt(product.selectedQuantity) || 1;
+            return sum + (cost * quantity);
+          }, 0),
+          createdBy: localStorage.getItem('userId'),
+          createdAt: new Date().toISOString()
+        };
+
+        // Debug: Log the data being sent
+        console.log('🔍 Boxset data to send:', boxsetData);
+        console.log('🔍 Selected products:', selectedProducts);
+        console.log('🔍 Total cost calculated:', boxsetData.totalCost);
+
+        const token = localStorage.getItem('authToken');
+
+        // Enhanced duplicate submission prevention
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+        const response = await fetch('/api/boxset', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(boxsetData),
+          signal: controller.signal
+        });
+    
+        clearTimeout(timeoutId);
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          showToast('สร้าง Boxset เรียบร้อยแล้ว', 'success');
+          setTimeout(() => {
+            navigateBack();
+          }, 2000);
+        } else {
+          throw new Error(result.message || 'เกิดข้อผิดพลาดในการสร้าง Boxset');
+        }
+      } catch (error) {
+        console.error('Boxset creation error:', error);
+    
+        // Enhanced error handling
+        let errorMessage = 'เกิดข้อผิดพลาดในการสร้าง Boxset';
+    
+        if (error.name === 'AbortError') {
+          errorMessage = 'การสร้าง Boxset หมดเวลา กรุณาลองใหม่อีกครั้ง';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+        } else if (error.message.includes('duplicate')) {
+          errorMessage = 'มี Boxset ชื่อนี้อยู่แล้วในระบบ กรุณาใช้ชื่ออื่น';
+        } else if (error.message) {
+          errorMessage += ': ' + error.message;
+        }
+    
+        showToast(errorMessage, 'error');
+      } finally {
+        // Reset submission flag and re-enable all controls
+        isSubmitting = false;
+    
+        const submitButton = document.getElementById('submitBoxsetBtn');
+        const clearButton = document.querySelector('button[onclick="clearForm()"]');
+        const formInputs = document.querySelectorAll('#boxsetForm input, #boxsetForm select');
+    
+        submitButton.disabled = false;
+        clearButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    
+        // Re-enable form inputs
+        formInputs.forEach(input => input.disabled = false);
+      }
+    });
+
+    // Search functionality
+    document.getElementById('productSearch').addEventListener('input', function(e) {
+      renderProductList(e.target.value);
+    });
+
+    // Price input change event
+    document.getElementById('boxsetPrice').addEventListener('input', updateCostSummary);
+
+    // ==================== BOXSET MANAGEMENT FUNCTIONS ====================
+
+    // Show boxset manager modal
+    async function showBoxsetManager() {
+      document.getElementById('boxsetManagerModal').classList.remove('hidden');
+      document.getElementById('boxsetManagerLoading').classList.remove('hidden');
+      document.getElementById('boxsetList').classList.add('hidden');
+    
+      await loadBoxsets();
+    }
+
+    // Close boxset manager modal
+    function closeBoxsetManager() {
+      document.getElementById('boxsetManagerModal').classList.add('hidden');
+    }
+
+    // Load boxsets from API
+    async function loadBoxsets() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/boxset?branchCode=${currentBranchCode}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            currentBoxsets = data.data || [];
+            renderBoxsets();
+          } else {
+            throw new Error(data.error || 'Failed to load boxsets');
+          }
+        } else {
+          throw new Error('Failed to fetch boxsets');
+        }
+      } catch (error) {
+        console.error('Error loading boxsets:', error);
+        showToast('ไม่สามารถโหลดข้อมูล Boxset ได้', 'error');
+        currentBoxsets = [];
+        renderBoxsets();
+      }
+    }
+
+    // Render boxsets list
+    function renderBoxsets(searchTerm = '') {
+      document.getElementById('boxsetManagerLoading').classList.add('hidden');
+      document.getElementById('boxsetList').classList.remove('hidden');
+    
+      const container = document.getElementById('boxsetItems');
+      const noBoxsetsDiv = document.getElementById('noBoxsets');
+    
+      // Filter boxsets
+      const filteredBoxsets = currentBoxsets.filter(boxset =>
+        boxset.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        boxset.status === 'active' // Only show active boxsets
+      );
+
+      if (filteredBoxsets.length === 0) {
+        container.innerHTML = '';
+        noBoxsetsDiv.classList.remove('hidden');
+        return;
+      }
+
+      noBoxsetsDiv.classList.add('hidden');
+    
+      container.innerHTML = filteredBoxsets.map(boxset => `
+        <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <h3 class="font-semibold text-gray-900 mb-2">${boxset.name}</h3>
+              <div class="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                <div>
+                  <span class="font-medium">ราคา:</span> ฿${Number(boxset.boxsetPrice || 0).toLocaleString()}
+                </div>
+                <div>
+                  <span class="font-medium">ต้นทุน:</span> ฿${Number(boxset.totalCost || 0).toLocaleString()}
+                </div>
+                <div>
+                  <span class="font-medium">กำไร:</span> 
+                  <span class="${(boxset.boxsetPrice - boxset.totalCost) >= 0 ? 'text-green-600' : 'text-red-600'}">
+                    ฿${Number(boxset.boxsetPrice - boxset.totalCost).toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span class="font-medium">สต็อก:</span> ${boxset.stock_value || 0} ชุด
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <span class="font-medium text-sm text-gray-700">ประเภทการขาย:</span>
+                <div class="flex gap-2 mt-1">
+                  ${(boxset.saleTypes || []).map(type => `
+                    <span class="px-2 py-1 text-xs rounded-full ${
+                      type === 'cash' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                    }">
+                      ${type === 'cash' ? 'ขายสด' : 'ขายผ่อน'}
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <span class="font-medium text-sm text-gray-700">สินค้าในชุด (${(boxset.products || []).length} รายการ):</span>
+                <div class="mt-1 max-h-20 overflow-y-auto">
+                  ${(boxset.products || []).map(product => `
+                    <div class="text-xs text-gray-600">
+                      • ${product.name} (${product.quantity} ${product.quantity > 1 ? 'ชิ้น' : 'ชิ้น'})
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+              
+              <div class="text-xs text-gray-500">
+                สร้างเมื่อ: ${new Date(boxset.createdAt).toLocaleDateString('th-TH')}
+              </div>
+            </div>
+            
+            <div class="flex flex-col gap-2 ml-4">
+              <button onclick="showBoxsetDetails('${boxset._id}')" 
+                      class="px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+                <i class="bi bi-eye mr-1"></i>
+                ดูรายละเอียด
+              </button>
+              
+              ${boxset.stock_value > 0 ? `
+                <button onclick="showCancelConfirm('${boxset._id}')" 
+                        class="px-3 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-colors">
+                  <i class="bi bi-trash mr-1"></i>
+                  ยกเลิก Boxset
+                </button>
+              ` : `
+                <span class="px-3 py-1 text-xs bg-gray-300 text-gray-500 rounded">
+                  ไม่มีสต็อก
+                </span>
+              `}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Show boxset details in modal
+    function showBoxsetDetails(boxsetId) {
+      const boxset = currentBoxsets.find(b => b._id === boxsetId);
+      if (!boxset) {
+        alert('ไม่พบข้อมูล Boxset');
+        return;
+      }
+
+      const modal = document.getElementById('boxsetDetailsModal');
+      const content = document.getElementById('boxsetDetailsContent');
+
+      // ลองหา field ที่เก็บรายการสินค้าจากหลาย field ที่เป็นไปได้
+      let boxsetProducts = [];
+      let sourceField = 'none';
+
+      if (boxset.products && Array.isArray(boxset.products)) {
+        boxsetProducts = boxset.products;
+        sourceField = 'products';
+      } else if (boxset.selectedProducts && Array.isArray(boxset.selectedProducts)) {
+        boxsetProducts = boxset.selectedProducts;
+        sourceField = 'selectedProducts';
+      } else if (boxset.productList && Array.isArray(boxset.productList)) {
+        boxsetProducts = boxset.productList;
+        sourceField = 'productList';
+      } else if (boxset.items && Array.isArray(boxset.items)) {
+        boxsetProducts = boxset.items;
+        sourceField = 'items';
+      }
+
+      const totalValue = boxsetProducts.reduce((sum, product) => {
+        const price = product.price || product.unitPrice || 0;
+        const qty = product.quantity || product.qty || 1;
+        return sum + (price * qty);
+      }, 0);
+
+      content.innerHTML = `
+        <!-- Boxset Info -->
+        <div class="bg-blue-50 rounded-lg p-6 mb-6">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <h3 class="text-2xl font-bold text-blue-800 mb-2">${boxset.name}</h3>
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span class="font-medium text-gray-600">ราคา Boxset:</span>
+                  <span class="text-lg font-bold text-green-600 ml-2">฿${(boxset.boxsetPrice || 0).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span class="font-medium text-gray-600">สต๊อกคงเหลือ:</span>
+                  <span class="text-lg font-bold text-blue-600 ml-2">${boxset.stock_value || 0} ชุด</span>
+                </div>
+                <div>
+                  <span class="font-medium text-gray-600">ประเภทการขาย:</span>
+                  <span class="ml-2">${(boxset.saleTypes || []).join(', ') || 'ไม่ระบุ'}</span>
+                </div>
+                <div>
+                  <span class="font-medium text-gray-600">ภาษี:</span>
+                  <span class="ml-2">${boxset.taxType || 'include'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products in Boxset -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-semibold flex items-center">
+              <i class="bi bi-list-ul mr-2 text-blue-500"></i>
+              สินค้าใน Boxset
+            </h4>
+            <span class="badge badge-primary">${boxsetProducts.length} รายการ</span>
+          </div>
+
+          ${boxsetProducts.length > 0 ? `
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div class="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
+                  <div class="col-span-1">#</div>
+                  <div class="col-span-5">ชื่อสินค้า</div>
+                  <div class="col-span-2 text-center">จำนวน</div>
+                  <div class="col-span-2 text-right">ราคาต่อหน่วย</div>
+                  <div class="col-span-2 text-right">รวม</div>
+                </div>
+              </div>
+              <div class="divide-y divide-gray-200">
+                ${boxsetProducts.map((product, idx) => {
+                  const productName = product.name || product.productName || product.itemName || product.title || 'ไม่ระบุชื่อ';
+                  const productQty = product.quantity || product.qty || product.amount || 1;
+                  const productPrice = product.price || product.unitPrice || 0;
+                  const totalPrice = productPrice * productQty;
+
+                  return `
+                    <div class="px-4 py-3 hover:bg-gray-50">
+                      <div class="grid grid-cols-12 gap-4 items-center">
+                        <div class="col-span-1 text-sm font-medium text-gray-500">${idx + 1}</div>
+                        <div class="col-span-5">
+                          <div class="font-medium text-gray-900">${productName}</div>
+                          ${product.brand ? `<div class="text-sm text-gray-500">${product.brand}</div>` : ''}
+                          ${product.model ? `<div class="text-xs text-gray-400">${product.model}</div>` : ''}
+                        </div>
+                        <div class="col-span-2 text-center">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            ${productQty} ${product.unit || 'ชิ้น'}
+                          </span>
+                        </div>
+                        <div class="col-span-2 text-right text-sm font-medium">
+                          ฿${productPrice.toLocaleString()}
+                        </div>
+                        <div class="col-span-2 text-right text-sm font-bold text-green-600">
+                          ฿${totalPrice.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+
+              <!-- Summary -->
+              <div class="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm text-gray-600">
+                    รวมมูลค่าสินค้าทั้งหมด: <span class="font-medium">${boxsetProducts.length} รายการ</span>
+                  </div>
+                  <div class="text-lg font-bold text-green-600">
+                    ฿${totalValue.toLocaleString()}
+                  </div>
+                </div>
+                ${boxset.boxsetPrice && totalValue !== boxset.boxsetPrice ? `
+                  <div class="text-right mt-2 pt-2 border-t border-gray-200">
+                    <div class="text-sm text-gray-600">
+                      ส่วนลด: <span class="text-red-500 font-medium">-฿${(totalValue - boxset.boxsetPrice).toLocaleString()}</span>
+                    </div>
+                    <div class="text-lg font-bold text-blue-600">
+                      ราคา Boxset: ฿${boxset.boxsetPrice.toLocaleString()}
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          ` : `
+            <div class="text-center py-8 text-gray-500">
+              <i class="bi bi-inbox text-4xl mb-2 block"></i>
+              <p>ยังไม่มีสินค้าใน Boxset นี้</p>
+            </div>
+          `}
+        </div>
+
+        <!-- Additional Info -->
+        ${boxset.description ? `
+          <div class="mb-4">
+            <h5 class="font-medium text-gray-700 mb-2">คำอธิบาย:</h5>
+            <p class="text-sm text-gray-600 bg-gray-50 p-3 rounded">${boxset.description}</p>
+          </div>
+        ` : ''}
+
+        <!-- Created Info -->
+        <div class="mt-6 pt-4 border-t border-gray-200">
+          <div class="text-xs text-gray-500">
+            สร้างเมื่อ: ${new Date(boxset.createdAt).toLocaleDateString('th-TH', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </div>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+    }
+
+    // Close boxset details modal
+    function closeBoxsetDetails() {
+      document.getElementById('boxsetDetailsModal').classList.add('hidden');
+    }
+
+    // Show cancel confirmation modal
+    function showCancelConfirm(boxsetId) {
+      const boxset = currentBoxsets.find(b => b._id === boxsetId);
+      if (!boxset) {
+        showToast('ไม่พบข้อมูล Boxset', 'error');
+        return;
+      }
+
+      selectedBoxsetForCancel = boxset;
+    
+      // Update cancel info
+      document.getElementById('cancelBoxsetInfo').innerHTML = `
+        <div class="font-semibold text-gray-900 mb-2">${boxset.name}</div>
+        <div class="text-sm text-gray-600 space-y-1">
+          <div>ราคา: ฿${Number(boxset.boxsetPrice).toLocaleString()}</div>
+          <div>สินค้าในชุด: ${boxset.products.length} รายการ</div>
+          <div class="text-red-600 font-medium">
+            ⚠️ การยกเลิกจะคืนสต็อกสินค้าเดิมทั้งหมด
+          </div>
+        </div>
+      `;
+    
+      // Clear reason
+      document.getElementById('cancelReason').value = '';
+    
+      // Show modal
+      document.getElementById('cancelConfirmModal').classList.remove('hidden');
+    }
+
+    // Close cancel confirmation modal
+    function closeCancelConfirm() {
+      document.getElementById('cancelConfirmModal').classList.add('hidden');
+      selectedBoxsetForCancel = null;
+    }
+
+    // Confirm cancel boxset
+    async function confirmCancelBoxset() {
+      if (!selectedBoxsetForCancel) return;
+
+      const reason = document.getElementById('cancelReason').value.trim() || 'ยกเลิก Boxset';
+      const userId = localStorage.getItem('userId');
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/boxset/${selectedBoxsetForCancel._id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            cancelledBy: userId,
+            reason: reason
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          showToast('ยกเลิก Boxset และคืนสต็อกสินค้าเรียบร้อยแล้ว', 'success');
+    
+          // Close modals
+          closeCancelConfirm();
+    
+          // Reload boxsets
+          await loadBoxsets();
+    
+          // Reload products in main form
+          await loadProducts();
+    
+        } else {
+          throw new Error(result.error || 'เกิดข้อผิดพลาดในการยกเลิก Boxset');
+        }
+      } catch (error) {
+        console.error('Error cancelling boxset:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      }
+    }
+
+    // Search boxsets
+    document.getElementById('boxsetSearch').addEventListener('input', function(e) {
+      renderBoxsets(e.target.value);
+    });
+
+    // Make functions global
+    window.showBoxsetManager = showBoxsetManager;
+    window.closeBoxsetManager = closeBoxsetManager;
+    window.showBoxsetDetails = showBoxsetDetails;
+    window.closeBoxsetDetails = closeBoxsetDetails;
+    window.showCancelConfirm = showCancelConfirm;
+    window.closeCancelConfirm = closeCancelConfirm;
+    window.confirmCancelBoxset = confirmCancelBoxset;
+  </script>
+</body>
+</html>

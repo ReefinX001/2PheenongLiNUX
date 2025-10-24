@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบ HR - คำนวณโบนัส</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: { 
+        extend: { 
+          fontFamily: { sans: ['Prompt','sans-serif'] } '
+        } 
+      },
+      daisyui: { themes: ['light','dark','corporate'] },'
+    }
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    /* เพิ่ม CSS สำหรับความสวยงาม */
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background-color: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+
+    .calendar-day-holiday {
+      background-color: #fee2e2;
+      color: #ef4444;
+    }
+
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    #notificationBtn span.badge-notification { /* More specific selector for the badge */
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .status-active {
+      background-color: #10b981;
+    }
+
+    .status-away {
+      background-color: #f59e0b;
+    }
+
+    .status-offline {
+      background-color: #6b7280;
+    }
+    
+    /* ระบบคำนวณโบนัส CSS */
+    .container {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .logo i {
+      font-size: 1.5rem;
+      color: #4f46e5;
+    }
+    
+    .logo h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    
+    .dark .logo h1 {
+      color: #e5e7eb;
+    }
+    
+    .period {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .period select {
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      background-color: white;
+    }
+    
+    .dark .period select {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Employee info styling */
+    .employee-info {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dark .employee-info {
+      background-color: #1f2937;
+    }
+    
+    .profile {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    
+    .avatar {
+      font-size: 5rem;
+      color: #4b5563;
+    }
+    
+    .dark .avatar {
+      color: #9ca3af;
+    }
+    
+    .details {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      flex: 1;
+    }
+    
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    
+    .input-group label {
+      font-size: 0.875rem;
+      color: #4b5563;
+    }
+    
+    .dark .input-group label {
+      color: #9ca3af;
+    }
+    
+    .input-group input, 
+    .input-group select {
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+    }
+    
+    .dark .input-group input, 
+    .dark .input-group select {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* KPI metrics styling */
+    .kpi-metrics {
+      margin-bottom: 2rem;
+    }
+    
+    .kpi-metrics h2 {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    
+    .base-info {
+      font-size: 0.875rem;
+      color: #4b5563;
+    }
+    
+    .dark .base-info {
+      color: #9ca3af;
+    }
+    
+    .metrics-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .dark .card {
+      background-color: #1f2937;
+    }
+    
+    .card-header {
+      background-color: #f3f4f6;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .dark .card-header {
+      background-color: #374151;
+    }
+    
+    .card-header i {
+      color: #4f46e5;
+    }
+    
+    .card-header h3 {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    
+    .card-body {
+      padding: 1rem;
+    }
+    
+    .impact {
+      margin-top: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      font-weight: 500;
+    }
+    
+    .positive {
+      color: #10b981;
+    }
+    
+    .negative {
+      color: #ef4444;
+    }
+    
+    .neutral {
+      color: #6b7280;
+    }
+    
+    /* Bonus summary styling */
+    .bonus-summary {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dark .bonus-summary {
+      background-color: #1f2937;
+    }
+    
+    .bonus-summary h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    
+    .summary-content {
+      display: flex;
+      gap: 2rem;
+    }
+    
+    .chart-container {
+      flex: 1;
+      max-width: 400px;
+      margin-right: 1rem;
+    }
+    
+    .summary-details {
+      flex: 1;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    
+    table th, table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark table th, 
+    .dark table td {
+      border-color: #4b5563;
+    }
+    
+    table th {
+      font-weight: 500;
+      background-color: #f9fafb;
+    }
+    
+    .dark table th {
+      background-color: #374151;
+    }
+    
+    .final-calculation {
+      background-color: #f9fafb;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .final-calculation {
+      background-color: #374151;
+    }
+    
+    .calculation-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    
+    .calculation-row.total {
+      font-weight: 600;
+      font-size: 1.125rem;
+      padding-top: 0.5rem;
+      margin-top: 0.5rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    .dark .calculation-row.total {
+      border-color: #4b5563;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+    
+    .btn {
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    
+    .btn.primary {
+      background-color: #4f46e5;
+      color: white;
+    }
+    
+    .btn.primary:hover {
+      background-color: #4338ca;
+    }
+    
+    .btn.secondary {
+      background-color: #ef4444;
+      color: white;
+    }
+    
+    .btn.secondary:hover {
+      background-color: #dc2626;
+    }
+    
+    .btn.tertiary {
+      background-color: #f3f4f6;
+      color: #1f2937;
+    }
+    
+    .dark .btn.tertiary {
+      background-color: #374151;
+      color: #e5e7eb;
+    }
+    
+    .btn.tertiary:hover {
+      background-color: #e5e7eb;
+    }
+    
+    .dark .btn.tertiary:hover {
+      background-color: #4b5563;
+    }
+    
+    /* History section */
+    .history-section {
+      margin-bottom: 2rem;
+    }
+    
+    .history-section h2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    
+    .history-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    
+    .history-item {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .dark .history-item {
+      background-color: #1f2937;
+    }
+    
+    .history-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    
+    .history-item-title {
+      font-weight: 500;
+    }
+    
+    .history-item-date {
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+    
+    .dark .history-item-date {
+      color: #9ca3af;
+    }
+    
+    .history-item-details {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .history-item-employee {
+      font-size: 0.875rem;
+    }
+    
+    .history-item-bonus {
+      font-weight: 600;
+      color: #10b981;
+    }
+    
+    .history-empty {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 0;
+      background-color: white;
+      border-radius: 0.5rem;
+    }
+    
+    .dark .history-empty {
+      background-color: #1f2937;
+    }
+    
+    /* Modal styling */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 2rem;
+      border-radius: 0.5rem;
+      width: 80%;
+      max-width: 800px;
+      position: relative;
+      animation: modalOpen 0.3s;
+    }
+    
+    .dark .modal-content {
+      background-color: #1f2937;
+    }
+    
+    @keyframes modalOpen {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .close-modal {
+      position: absolute;
+      right: 1.5rem;
+      top: 1.5rem;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    
+    .tab-container {
+      margin-top: 1.5rem;
+    }
+    
+    .tab-buttons {
+      display: flex;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .tab-buttons {
+      border-color: #4b5563;
+    }
+    
+    .tab-button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+    }
+    
+    .tab-button.active {
+      border-bottom-color: #4f46e5;
+      color: #4f46e5;
+    }
+    
+    .dark .tab-button.active {
+      color: #818cf8;
+      border-bottom-color: #818cf8;
+    }
+    
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Notification */
+    .notification {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      color: white;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s;
+    }
+    
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .notification.success {
+      background-color: #10b981;
+    }
+    
+    .notification.error {
+      background-color: #ef4444;
+    }
+    
+    .notification.info {
+      background-color: #3b82f6;
+    }
+    
+    /* Highlight animation for bonus result */
+    @keyframes highlight {
+      0% { background-color: rgba(79, 70, 229, 0.2); }
+      100% { background-color: transparent; }
+    }
+    
+    .highlight {
+      animation: highlight 1.5s;
+    }
+
+    /* เพิ่ม CSS สำหรับการแสดงผลระยะเวลาการทำงาน */
+    .tenure-input {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .tenure-input input {
+      width: 4rem;
+    }
+    
+    /* ปรับปรุงการแสดงผลประวัติ */
+    .history-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .history-card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .history-detail-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .history-detail-label {
+      color: #6b7280;
+    }
+
+    .dark .history-detail-label {
+      color: #9ca3af;
+    }
+
+    .history-detail-value {
+      font-weight: 500;
+    }
+
+    /* ปรับปรุงสไตล์สำหรับการพิมพ์ */
+    @media print {
+      body {
+        font-size: 12pt;
+        background-color: white !important;
+        color: black !important;
+      }
+      
+      #sidebar, 
+      #btnToggleMenu, 
+      .actions,
+      .history-section,
+      .period,
+      .logo i {
+        display: none !important;
+      }
+      
+      .container {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+      }
+      
+      .logo h1 {
+        font-size: 18pt;
+        color: black !important;
+        margin-bottom: 20pt;
+      }
+      
+      header {
+        margin-bottom: 20pt;
+      }
+      
+      .employee-info, 
+      .bonus-summary {
+        box-shadow: none !important;
+        border: 1px solid #ddd;
+        margin-bottom: 20pt;
+      }
+      
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      
+      table th, table td {
+        border: 1px solid #ddd;
+        padding: 8pt;
+      }
+      
+      .print-header {
+        display: block;
+        text-align: center;
+        margin-bottom: 20pt;
+      }
+      
+      .print-header h1 {
+        font-size: 18pt;
+        font-weight: bold;
+      }
+      
+      .print-header p {
+        font-size: 10pt;
+        color: #666;
+      }
+      
+      .print-footer {
+        display: block;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        text-align: center;
+        font-size: 9pt;
+        color: #666;
+      }
+
+      /* แสดงเฉพาะส่วนที่สำคัญ */
+      .print-only {
+        display: block !important;
+      }
+      
+      .no-print {
+        display: none !important;
+      }
+      
+      .kpi-metrics {
+        break-inside: avoid;
+      }
+    }
+    
+    .print-only {
+      display: none;
+    }
+
+    /* global transition for controls */
+    button, input, select {
+      transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+    input:focus, select:focus {
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.2);
+    }
+  </style>
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const saved = localStorage.getItem('theme');'
+    if (saved) {
+      const dark = saved === 'dark';'
+      document.documentElement.classList.toggle('dark', dark);'
+      document.documentElement.setAttribute('data-theme', saved);'
+    }
+  </script>
+  <!-- เพิ่ม resolvePhotoUrl & loadEmployeeProfile -->
+  <script>
+    // ช่วยแปลง URL รูปที่ได้จาก API
+    function resolvePhotoUrl(raw) {
+      if (!raw) return '/api/placeholder/36/36';'
+      if (/^https?:\/\//.test(raw)) return raw;
+      return raw.startsWith('/') ? raw : '/' + raw;'
+    }
+
+    // ดึงข้อมูลผู้ใช้ปัจจุบันจาก API
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');'
+        if (!token) return;
+        const res = await fetch('/api/users/me', {'
+          headers: {
+            'Authorization': 'Bearer ' + token,'
+            'Content-Type': 'application/json''
+          }
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) throw new Error(result.error||'ไม่สามารถดึงข้อมูลผู้ใช้');'
+        const user = result.data;
+        document.getElementById('employeeNameInput').textContent = user.name || '(ไม่พบชื่อ)';'
+        const photoEl   = document.getElementById('employeePhoto');'
+        const initialEl = document.getElementById('userInitial');'
+        if (user.photoUrl) {
+          photoEl.src = resolvePhotoUrl(user.photoUrl);
+          photoEl.classList.remove('hidden');'
+          initialEl.classList.add('hidden');'
+        } else {
+          photoEl.src = '/api/placeholder/36/36';'
+          photoEl.classList.remove('hidden');'
+          initialEl.textContent = user.name?.charAt(0).toUpperCase()||'';'
+          initialEl.classList.remove('hidden');'
+        }
+      } catch (err) {
+        console.error('Load Employee Profile Error:', err);'
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition-colors duration-200">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300 ease-in-out">
+      <a href="hr_dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="hr_dashboard" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="employee_directory" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-people-fill text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">พนักงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="attendance" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+            </a>
+          </li>
+          <li>
+            <a href="leave_requests" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+              <span class="ml-3">การลา</span>
+            </a>
+          </li>
+          <li>
+            <a href="payroll" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+              <span class="ml-3">เงินเดือน</span>
+            </a>
+          </li>
+          <li>
+            <a href="performance_reviews" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">ประเมินผลงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="bonus_list" class="flex items-center px-4 h-12 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>รายการโบนัส</span>
+            </a>
+          </li>
+          <li>
+          
+          <li class="mt-4">
+            <a href="role_management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <li>
+            <a href="employee_directory.html" id="profile" class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <span id="userInitial" class="w-10 h-10 flex items-center justify-center rounded-full mr-3 bg-indigo-500 text-white hidden"></span>
+              <img id="employeePhoto" src="/api/placeholder/36/36" alt="Employee Photo" class="w-10 h-10 rounded-full mr-3"/>
+              <span id="employeeNameInput">Loading...</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ส่วนเนื้อหาหลักของหน้าคำนวณโบนัส -->
+    <main id="mainContent" class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900 animate-fadeIn">
+        <!-- ส่วนหัวเอกสารสำหรับการพิมพ์ -->
+        <div class="print-only print-header">
+            <h1>รายงานการคำนวณโบนัสพนักงาน</h1>
+            <p>วันที่พิมพ์: <span id="printDate"></span></p>
+        </div>
+
+        <header>
+            <div class="logo">
+                <i class="fas fa-chart-line"></i>
+                <h1>ระบบคำนวณโบนัสพนักงาน</h1>
+            </div>
+            <div class="period">
+                <span>ประจำปี: </span>
+                <select id="bonusYear">
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="employee-info">
+            <div class="profile">
+                <div class="avatar no-print">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="details">
+                    <div class="input-group">
+                        <label for="employeeId">รหัสพนักงาน</label>
+                        <input type="text" id="employeeId" placeholder="รหัสพนักงาน">
+                    </div>
+                    <div class="input-group">
+                        <label for="employeeNameInput">ชื่อ-นามสกุล</label>
+                        <input type="text" id="employeeNameInput" placeholder="ชื่อ-นามสกุล">
+                    </div>
+                    <div class="input-group">
+                        <label for="department">แผนก</label>
+                        <select id="department">
+                            <option value="">-- เลือกแผนก --</option>
+                            <option value="บัญชี">บัญชี</option>
+                            <option value="การตลาด">การตลาด</option>
+                            <option value="ฝ่ายขาย">ฝ่ายขาย</option>
+                            <option value="ไอที">ไอที</option>
+                            <option value="ทรัพยากรบุคคล">ทรัพยากรบุคคล</option>
+                            <option value="ปฏิบัติการ">ปฏิบัติการ</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="position">ตำแหน่ง</label>
+                        <input type="text" id="position" placeholder="ตำแหน่ง">
+                    </div>
+                    <div class="input-group">
+                        <label for="baseSalaryInput">เงินเดือนปัจจุบัน (บาท)</label>
+                        <input type="number" id="baseSalaryInput" placeholder="เงินเดือน" value="30000" min="0">
+                    </div>
+                    <!-- เพิ่มส่วนระยะเวลาการทำงาน -->
+                    <div class="input-group">
+                        <label for="employmentYears">ระยะเวลาการทำงาน</label>
+                        <div class="tenure-input">
+                            <input type="number" id="employmentYears" placeholder="ปี" min="0" value="0">
+                            <span>ปี</span>
+                            <input type="number" id="employmentMonths" placeholder="เดือน" min="0" max="11" value="0">
+                            <span>เดือน</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="kpi-metrics">
+            <h2>ปัจจัยการประเมินโบนัส <span class="base-info">ฐานการคำนวณ: <span id="baseSalary">30,000</span> บาท</span></h2>
+            
+            <div class="metrics-container">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-calendar-times"></i>
+                        <h3>การขาดงาน</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label for="absence">จำนวนครั้งที่ขาดงาน</label>
+                            <input type="number" id="absence" min="0" value="0">
+                        </div>
+                        <div class="impact negative">
+                            <span>ผลกระทบ:</span>
+                            <span id="absenceImpact">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-bed"></i>
+                        <h3>การลา</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label for="leave">จำนวนวันที่ลา</label>
+                            <input type="number" id="leave" min="0" value="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="leaveType">ประเภทการลา</label>
+                            <select id="leaveType">
+                                <option value="sick">ลาป่วย</option>
+                                <option value="personal">ลากิจ</option>
+                                <option value="annual">ลาพักร้อน</option>
+                            </select>
+                        </div>
+                        <div class="impact neutral">
+                            <span>ผลกระทบ:</span>
+                            <span id="leaveImpact">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-hourglass-half"></i>
+                        <h3>การมาสาย</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label for="late">จำนวนครั้งที่มาสาย</label>
+                            <input type="number" id="late" min="0" value="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="lateMinutes">จำนวนนาทีเฉลี่ยต่อครั้ง</label>
+                            <input type="number" id="lateMinutes" min="0" value="0">
+                        </div>
+                        <div class="impact negative">
+                            <span>ผลกระทบ:</span>
+                            <span id="lateImpact">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-hands-helping"></i>
+                        <h3>การช่วยเหลือบริษัท</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label for="contributions">จำนวนกิจกรรมที่มีส่วนร่วม</label>
+                            <input type="number" id="contributions" min="0" value="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="extraHours">จำนวนชั่วโมง OT</label>
+                            <input type="number" id="extraHours" min="0" value="0">
+                        </div>
+                        <div class="impact positive">
+                            <span>ผลกระทบ:</span>
+                            <span id="contributionImpact">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-tasks"></i>
+                        <h3>ผลการปฏิบัติงาน</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label for="performanceScore">คะแนนการประเมิน (0-100)</label>
+                            <input type="number" id="performanceScore" min="0" max="100" value="70">
+                        </div>
+                        <div class="input-group">
+                            <label for="projectSuccess">จำนวนโครงการสำเร็จ</label>
+                            <input type="number" id="projectSuccess" min="0" value="0">
+                        </div>
+                        <div class="impact positive">
+                            <span>ผลกระทบ:</span>
+                            <span id="performanceImpact">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- เพิ่มการด์สำหรับระยะเวลาการทำงาน -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-business-time"></i>
+                        <h3>อายุงาน</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group" style="visibility: hidden">
+                            <label>ข้อมูลอ้างอิง</label>
+                            <div id="tenureReference"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>ระยะเวลาการทำงาน</label>
+                            <div id="tenureDisplay">0 ปี 0 เดือน</div>
+                        </div>
+                        <div class="impact positive">
+                            <span>ผลกระทบ:</span>
+                            <span id="tenureImpact">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bonus-summary">
+            <h2>สรุปการคำนวณโบนัส</h2>
+            
+            <div class="summary-content">
+                <div class="chart-container no-print">
+                    <canvas id="kpiChart"></canvas>
+                </div>
+                
+                <div class="summary-details">
+                    <table>
+                        <tr>
+                            <th>ปัจจัย</th>
+                            <th>ผลกระทบ</th>
+                            <th>คะแนน</th>
+                        </tr>
+                        <tr>
+                            <td>การขาดงาน</td>
+                            <td class="negative" id="absenceImpactSummary">0%</td>
+                            <td id="absenceScore">0</td>
+                        </tr>
+                        <tr>
+                            <td>การลา</td>
+                            <td class="neutral" id="leaveImpactSummary">0%</td>
+                            <td id="leaveScore">0</td>
+                        </tr>
+                        <tr>
+                            <td>การมาสาย</td>
+                            <td class="negative" id="lateImpactSummary">0%</td>
+                            <td id="lateScore">0</td>
+                        </tr>
+                        <tr>
+                            <td>การช่วยเหลือบริษัท</td>
+                            <td class="positive" id="contributionImpactSummary">0%</td>
+                            <td id="contributionScore">0</td>
+                        </tr>
+                        <tr>
+                            <td>ผลการปฏิบัติงาน</td>
+                            <td class="positive" id="performanceImpactSummary">0%</td>
+                            <td id="performanceScoreDisplay">0</td>
+                        </tr>
+                        <!-- เพิ่มแถวสำหรับอายุงาน -->
+                        <tr>
+                            <td>อายุงาน</td>
+                            <td class="positive" id="tenureImpactSummary">0%</td>
+                            <td id="tenureScoreDisplay">0</td>
+                        </tr>
+                    </table>
+                    
+                    <div class="final-calculation">
+                        <div class="calculation-row">
+                            <span>ฐานเงินเดือน:</span>
+                            <span id="baseSalarySummary">30,000 บาท</span>
+                        </div>
+                        <div class="calculation-row">
+                            <span>อัตราโบนัสพื้นฐาน:</span>
+                            <span id="baseBonus">2 เดือน</span>
+                        </div>
+                        <div class="calculation-row">
+                            <span>ผลกระทบจากปัจจัยทั้งหมด:</span>
+                            <span id="totalImpact">0%</span>
+                        </div>
+                        <div class="calculation-row total">
+                            <span>โบนัสที่ได้รับ:</span>
+                            <span id="finalBonus">0 บาท</span>
+                        </div>
+                    </div>
+                    
+                    <div class="actions">
+                        <button id="calculate" class="btn primary">คำนวณโบนัส</button>
+                        <button id="saveHistory" class="btn tertiary">บันทึกประวัติ</button>
+                        <button id="reset" class="btn secondary">รีเซ็ต</button>
+                        <button id="print" class="btn tertiary">พิมพ์รายงาน</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- เพิ่มส่วนลายเซ็นสำหรับการพิมพ์ -->
+        <div class="print-only" style="margin-top: 40px;">
+            <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid black; width: 200px; margin-bottom: 10px;">&nbsp;</div>
+                    <p>ลายเซ็นพนักงาน</p>
+                    <p id="printEmployeeName"></p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid black; width: 200px; margin-bottom: 10px;">&nbsp;</div>
+                    <p>ลายเซ็นผู้อนุมัติ</p>
+                    <p>ผู้จัดการฝ่ายทรัพยากรบุคคล</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- เพิ่มส่วนประวัติการคำนวณ -->
+        <div class="history-section no-print">
+            <h2>
+                ประวัติการคำนวณโบนัส
+                <div class="history-actions">
+                    <button id="clearHistory" class="btn secondary">ล้างประวัติทั้งหมด</button>
+                </div>
+            </h2>
+            <div class="history-list" id="historyList">
+                <!-- รายการประวัติจะถูกเพิ่มที่นี่โดย JavaScript -->
+                <div class="history-empty">
+                    <i class="fas fa-history" style="font-size: 3rem; color: #ddd; margin-bottom: 15px;"></i>
+                    <p>ยังไม่มีประวัติการคำนวณ</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal สำหรับแสดงรายละเอียดประวัติ -->
+        <div id="historyModal" class="modal">
+            <div class="modal-content animate-fadeIn">
+                <span class="close-modal">&times;</span>
+                <h2>รายละเอียดประวัติการคำนวณ</h2>
+                
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <button class="tab-button active" data-tab="employee-tab">ข้อมูลพนักงาน</button>
+                        <button class="tab-button" data-tab="metrics-tab">ปัจจัยการคำนวณ</button>
+                        <button class="tab-button" data-tab="result-tab">ผลลัพธ์</button>
+                        <button class="tab-button" data-tab="calculation-tab">รายละเอียดการคำนวณ</button>
+                    </div>
+                    
+                    <div id="employee-tab" class="tab-content active">
+                        <div class="input-group">
+                            <label>รหัสพนักงาน</label>
+                            <div id="modal-employee-id"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>ชื่อ-นามสกุล</label>
+                            <div id="modal-employee-name"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>แผนก</label>
+                            <div id="modal-department"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>ตำแหน่ง</label>
+                            <div id="modal-position"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>เงินเดือนพื้นฐาน</label>
+                            <div id="modal-base-salary"></div>
+                        </div>
+                        <div class="input-group">
+                            <label>อายุงาน</label>
+                            <div id="modal-tenure"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="metrics-tab" class="tab-content">
+                        <table>
+                            <tr>
+                                <th>ปัจจัย</th>
+                                <th>ค่า</th>
+                                <th>ผลกระทบ</th>
+                            </tr>
+                            <tr>
+                                <td>การขาดงาน</td>
+                                <td id="modal-absence-value"></td>
+                                <td id="modal-absence-impact"></td>
+                            </tr>
+                            <tr>
+                                <td>การลา</td>
+                                <td id="modal-leave-value"></td>
+                                <td id="modal-leave-impact"></td>
+                            </tr>
+                            <tr>
+                                <td>การมาสาย</td>
+                                <td id="modal-late-value"></td>
+                                <td id="modal-late-impact"></td>
+                            </tr>
+                            <tr>
+                                <td>การช่วยเหลือบริษัท</td>
+                                <td id="modal-contribution-value"></td>
+                                <td id="modal-contribution-impact"></td>
+                            </tr>
+                            <tr>
+                                <td>ผลการปฏิบัติงาน</td>
+                                <td id="modal-performance-value"></td>
+                                <td id="modal-performance-impact"></td>
+                            </tr>
+                            <tr>
+                                <td>อายุงาน</td>
+                                <td id="modal-tenure-value"></td>
+                                <td id="modal-tenure-impact"></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div id="result-tab" class="tab-content">
+                        <div class="final-calculation">
+                            <div class="calculation-row">
+                                <span>ปีที่คำนวณ:</span>
+                                <span id="modal-year"></span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>วันที่คำนวณ:</span>
+                                <span id="modal-calculation-date"></span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>ฐานเงินเดือน:</span>
+                                <span id="modal-base-salary-result"></span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>อัตราโบนัสพื้นฐาน:</span>
+                                <span id="modal-base-bonus"></span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>ผลกระทบจากปัจจัยทั้งหมด:</span>
+                                <span id="modal-total-impact"></span>
+                            </div>
+                            <div class="calculation-row total">
+                                <span>โบนัสที่ได้รับ:</span>
+                                <span id="modal-final-bonus"></span>
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <button id="modal-apply-btn" class="btn primary">นำข้อมูลนี้มาใช้งาน</button>
+                            <button id="modal-print-btn" class="btn tertiary">พิมพ์รายงาน</button>
+                        </div>
+                    </div>
+
+                    <!-- เพิ่ม tab รายละเอียดการคำนวณ -->
+                    <div id="calculation-tab" class="tab-content">
+                        <h3>รายละเอียดการคำนวณ</h3>
+                        <p class="mb-4">สูตรการคำนวณโบนัส: เงินเดือนพื้นฐาน × อัตราโบนัสพื้นฐาน × (1 + ผลกระทบรวม/100)</p>
+                        
+                        <div class="calculation-details mt-4" id="modal-calculation-details">
+                            <!-- รายละเอียดการคำนวณจะถูกเพิ่มที่นี่โดย JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer สำหรับการพิมพ์ -->
+        <div class="print-only print-footer">
+            <p>บริษัท 2 พี่น้อง โมบาย จำกัด © 2025 - รายงานการคำนวณโบนัสพนักงาน</p>
+        </div>
+    </main>
+  </div>
+    
+  <script>
+    // ฟังก์ชัน sidebar toggle
+    document.addEventListener('DOMContentLoaded', function() {'
+      const sidebar = document.getElementById('sidebar');'
+      const btnToggleMenu = document.getElementById('btnToggleMenu');'
+      
+      btnToggleMenu.addEventListener('click', function() {'
+        // เลื่อน sidebar เข้–ออก ด้วยคลาสเดียว
+        sidebar.classList.toggle('-ml-64');'
+        
+        // สลับไอคอนซ้าย/ขวา
+        const icon = btnToggleMenu.querySelector('i');'
+        icon.classList.toggle('bi-chevron-left');'
+        icon.classList.toggle('bi-chevron-right');'
+      });
+
+      // Dark mode toggle with persistence
+      const btnToggleDark = document.getElementById('btnToggleDark');'
+      const darkModeLabel = document.getElementById('darkModeLabel');'
+      // ปรับ label ตามสถานะปัจจุบัน
+      const isDarkNow = document.documentElement.classList.contains('dark');'
+      darkModeLabel.innerText = isDarkNow ? 'Light Mode' : 'Dark Mode';'
+
+      btnToggleDark.addEventListener('click', function() {'
+        const darkOn = document.documentElement.classList.toggle('dark');'
+        const theme = darkOn ? 'dark' : 'light';'
+        document.documentElement.setAttribute('data-theme', theme);'
+        localStorage.setItem('theme', theme);'
+        darkModeLabel.innerText = darkOn ? 'Light Mode' : 'Dark Mode';'
+      });
+
+      // Logout button
+      document.getElementById('btnLogoutSidebar').addEventListener('click', () => {'
+        localStorage.removeItem("authToken");
+        window.location.href = "login.html";
+      });
+
+      // หลังโหลด employees & attendance
+      loadEmployeeProfile();
+    });
+
+    // ฟังก์ชันจัดรูปแบบตัวเลข
+    function formatNumber(number) {
+        return new Intl.NumberFormat('th-TH').format(Math.round(number));'
+    }
+    
+    // ฟังก์ชันแสดงการแจ้งเตือน
+    function showNotification(message, type) {
+        // Create notification element
+        const notification = document.createElement('div');'
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        
+        // Append to body
+        document.body.appendChild(notification);
+        
+        // Show notification
+        setTimeout(() => {
+            notification.classList.add('show');'
+        }, 10);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');'
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // ฟังก์ชันคำนวณผลกระทบจากการขาดงาน
+    function calculateAbsenceImpact() {
+        const absences = parseInt(document.getElementById('absence').value) || 0;'
+        let impact = 0;
+        
+        if (absences === 0) {
+            impact = 0;
+        } else if (absences === 1) {
+            impact = -5;
+        } else if (absences === 2) {
+            impact = -10;
+        } else if (absences <= 5) {
+            impact = -20;
+        } else {
+            impact = -40;
+        }
+        
+        document.getElementById('absenceImpact').textContent = `${impact}%`;'
+        document.getElementById('absenceImpactSummary').textContent = `${impact}%`;'
+        document.getElementById('absenceScore').textContent = Math.max(0, 10 + impact/5);'
+        
+        updateChart();
+    }
+
+    // ฟังก์ชันคำนวณผลกระทบจากการลา
+    function calculateLeaveImpact() {
+        const leaves = parseInt(document.getElementById('leave').value) || 0;'
+        const leaveType = document.getElementById('leaveType').value;'
+        let impact = 0;
+        
+        if (leaveType === 'sick') {'
+            if (leaves <= 5) {
+                impact = 0;
+            } else if (leaves <= 10) {
+                impact = -5;
+            } else {
+                impact = -10;
+            }
+        } else if (leaveType === 'personal') {'
+            if (leaves <= 3) {
+                impact = 0;
+            } else if (leaves <= 7) {
+                impact = -10;
+            } else {
+                impact = -15;
+            }
+        } else if (leaveType === 'annual') {'
+            impact = 0; // Annual leave doesn't affect bonus'
+        }
+        
+        document.getElementById('leaveImpact').textContent = `${impact}%`;'
+        document.getElementById('leaveImpactSummary').textContent = `${impact}%`;'
+        document.getElementById('leaveScore').textContent = Math.max(0, 10 + impact/5);'
+        
+        updateChart();
+    }
+
+    // ฟังก์ชันคำนวณผลกระทบจากการมาสาย
+    function calculateLateImpact() {
+        const lateTimes = parseInt(document.getElementById('late').value) || 0;'
+        const lateMinutes = parseInt(document.getElementById('lateMinutes').value) || 0;'
+        let impact = 0;
+        
+        if (lateTimes === 0) {
+            impact = 0;
+        } else if (lateTimes <= 3) {
+            impact = -5;
+        } else if (lateTimes <= 7) {
+            impact = -10;
+        } else {
+            impact = -20;
+        }
+        
+        // Additional impact based on average late minutes
+        if (lateMinutes > 30) {
+            impact -= 10;
+        } else if (lateMinutes > 15) {
+            impact -= 5;
+        }
+        
+        document.getElementById('lateImpact').textContent = `${impact}%`;'
+        document.getElementById('lateImpactSummary').textContent = `${impact}%`;'
+        document.getElementById('lateScore').textContent = Math.max(0, 10 + impact/5);'
+        
+        updateChart();
+    }
+
+    // ฟังก์ชันคำนวณผลกระทบจากการช่วยเหลือบริษัท
+    function calculateContributionImpact() {
+        const contributions = parseInt(document.getElementById('contributions').value) || 0;'
+        const extraHours = parseInt(document.getElementById('extraHours').value) || 0;'
+        let impact = 0;
+        
+        // Impact from contributions
+        if (contributions >= 10) {
+            impact += 30;
+        } else if (contributions >= 5) {
+            impact += 15;
+        } else if (contributions >= 2) {
+            impact += 5;
+        }
+        
+        // Impact from extra hours
+        if (extraHours >= 50) {
+            impact += 20;
+        } else if (extraHours >= 20) {
+            impact += 10;
+        } else if (extraHours >= 5) {
+            impact += 5;
+        }
+        
+        document.getElementById('contributionImpact').textContent = `+${impact}%`;'
+        document.getElementById('contributionImpactSummary').textContent = `+${impact}%`;'
+        document.getElementById('contributionScore').textContent = Math.min(10, 5 + impact/10);'
+        
+        updateChart();
+    }
+
+    // ฟังก์ชันคำนวณผลกระทบจากผลการปฏิบัติงาน
+    function calculatePerformanceImpact() {
+        const performanceScore = parseInt(document.getElementById('performanceScore').value) || 0;'
+        const projectSuccess = parseInt(document.getElementById('projectSuccess').value) || 0;'
+        let impact = 0;
+        
+        // Impact from performance score
+        if (performanceScore >= 90) {
+            impact += 50;
+        } else if (performanceScore >= 80) {
+            impact += 30;
+        } else if (performanceScore >= 70) {
+            impact += 20;
+        } else if (performanceScore >= 60) {
+            impact += 10;
+        } else if (performanceScore < 50) {
+            impact -= 20;
+        }
+        
+        // Impact from project success
+        if (projectSuccess >= 5) {
+            impact += 25;
+        } else if (projectSuccess >= 3) {
+            impact += 15;
+        } else if (projectSuccess >= 1) {
+            impact += 5;
+        }
+        
+        document.getElementById('performanceImpact').textContent = `+${impact}%`;'
+        document.getElementById('performanceImpactSummary').textContent = `+${impact}%`;'
+        document.getElementById('performanceScoreDisplay').textContent = Math.min(10, 5 + impact/15);'
+        
+        updateChart();
+    }
+
+    // ฟังก์ชันคำนวณผลกระทบจากระยะเวลาการทำงาน
+    function calculateTenureImpact() {
+      const y = parseInt(document.getElementById('employmentYears').value) || 0;'
+      const m = parseInt(document.getElementById('employmentMonths').value) || 0;'
+      document.getElementById('tenureDisplay').textContent = `${y} ปี ${m} เดือน`;'
+      const totalMonths = y * 12 + m;
+      let impact = totalMonths >= 60 ? 20
+                 : totalMonths >= 36 ? 10
+                 : totalMonths >= 12 ? 5
+                 : 0;
+      document.getElementById('tenureImpact').textContent = `+${impact}%`;'
+      document.getElementById('tenureImpactSummary').textContent = `+${impact}%`;'
+      document.getElementById('tenureScoreDisplay').textContent = Math.min(10, 5 + impact/10);'
+      updateChart();
+    }
+    
+    // ฟังก์ชันคำนวณผลกระทบทั้งหมด
+    function calculateImpacts() {
+        calculateAbsenceImpact();
+        calculateLeaveImpact();
+        calculateLateImpact();
+        calculateContributionImpact();
+        calculatePerformanceImpact();
+        calculateTenureImpact();
+    }
+
+    // ฟังก์ชันอัพเดทกราฟ
+    function updateChart() {
+        const absenceScore = parseFloat(document.getElementById('absenceScore').textContent) || 0;'
+        const leaveScore = parseFloat(document.getElementById('leaveScore').textContent) || 0;'
+        const lateScore = parseFloat(document.getElementById('lateScore').textContent) || 0;'
+        const contributionScore = parseFloat(document.getElementById('contributionScore').textContent) || 0;'
+        const performanceScore = parseFloat(document.getElementById('performanceScoreDisplay').textContent) || 0;'
+        const tenureScore = parseFloat(document.getElementById('tenureScoreDisplay').textContent) || 0;'
+        
+        const chart = Chart.getChart('kpiChart');'
+        if (chart) {
+            chart.data.datasets[0].data = [
+                absenceScore,
+                leaveScore,
+                lateScore,
+                contributionScore,
+                performanceScore,
+                tenureScore
+            ];
+            chart.update();
+        }
+    }
+    
+    // ฟังก์ชันคำนวณโบนัส
+    function calculateBonus() {
+        // Get impacts
+        const absenceImpact = parseInt(document.getElementById('absenceImpact').textContent) || 0;'
+        const leaveImpact = parseInt(document.getElementById('leaveImpact').textContent) || 0;'
+        const lateImpact = parseInt(document.getElementById('lateImpact').textContent) || 0;'
+        
+        // Get positive impacts
+        let contributionText = document.getElementById('contributionImpact').textContent;'
+        let performanceText = document.getElementById('performanceImpact').textContent;'
+        
+        const contributionImpact = parseInt(contributionText.replace('+', '')) || 0;'
+        const performanceImpact = parseInt(performanceText.replace('+', '')) || 0;'
+
+        const tenureText = document.getElementById('tenureImpact').textContent || '0%';'
+        const tenureImpact = parseInt(tenureText.replace('+','')) || 0;'
+        
+        // Calculate total impact
+        const totalImpact = absenceImpact + leaveImpact + lateImpact + contributionImpact + performanceImpact + tenureImpact;
+        
+        // Update total impact display
+        document.getElementById('totalImpact').textContent = `${totalImpact > 0 ? '+' : ''}${totalImpact}%`;'
+        
+        // Calculate final bonus
+        const baseSalary = parseInt(document.getElementById('baseSalaryInput').value) || 30000;'
+        const baseBonus = baseSalary * 2; // 2 เดือนของเงินเดือน
+        const bonusAdjustment = baseBonus * (totalImpact / 100);
+        const finalBonus = baseBonus + bonusAdjustment;
+        
+        // Update final bonus display
+        document.getElementById('finalBonus').textContent = `${formatNumber(finalBonus)} บาท (${(finalBonus/baseSalary).toFixed(2)} เท่าของเงินเดือน)`;'
+        
+        // Show success notification
+        showNotification('คำนวณโบนัสสำเร็จ!', 'success');'
+        
+        // Animate the result
+        const finalBonusElement = document.getElementById('finalBonus');'
+        finalBonusElement.classList.add('highlight');'
+        setTimeout(() => {
+            finalBonusElement.classList.remove('highlight');'
+        }, 1500);
+    }
+
+    // ฟังก์ชันรีเซ็ตฟอร์ม
+    function resetForm() {
+        // Reset form fields
+        document.getElementById('employeeId').value = '';'
+        document.getElementById('employeeNameInput').value = '';'
+        document.getElementById('department').value = '';'
+        document.getElementById('position').value = '';'
+        document.getElementById('baseSalaryInput').value = '30000';'
+        
+        // Reset attendance inputs
+        document.getElementById('absence').value = 0;'
+        document.getElementById('leave').value = 0;'
+        document.getElementById('leaveType').value = 'sick';'
+        document.getElementById('late').value = 0;'
+        document.getElementById('lateMinutes').value = 0;'
+        
+        // Reset contribution inputs
+        document.getElementById('contributions').value = 0;'
+        document.getElementById('extraHours').value = 0;'
+        
+        // Reset performance inputs
+        document.getElementById('performanceScore').value = 70;'
+        document.getElementById('projectSuccess').value = 0;'
+
+        // Reset tenure inputs
+        document.getElementById('employmentYears').value = 0;'
+        document.getElementById('employmentMonths').value = 0;'
+        
+        // Update base salary display
+        document.getElementById('baseSalary').textContent = '30,000';'
+        document.getElementById('baseSalarySummary').textContent = '30,000 บาท';'
+        
+        // Recalculate impacts
+        calculateImpacts();
+        
+        // Reset final calculation
+        document.getElementById('totalImpact').textContent = '0%';'
+        document.getElementById('finalBonus').textContent = '0 บาท';'
+        
+        // Show notification
+        showNotification('ข้อมูลถูกรีเซ็ตเรียบร้อย', 'info');'
+    }
+
+    // ฟังก์ชันพิมพ์รายงาน
+    function printReport() {
+      // กำหนดวันที่พิมพ์
+      document.getElementById('printDate').textContent ='
+        new Date().toLocaleDateString('th-TH', { day:'numeric', month:'long', year:'numeric' });'
+      // กำหนดชื่อพนักงานบนลายเซ็น
+      document.getElementById('printEmployeeName').textContent ='
+        document.getElementById('employeeNameInput').value || '(ไม่ระบุชื่อ)';'
+      window.print();
+    }
+    
+    // ฟังก์ชันเตรียมตั้งค่า event listeners
+    function setupInputListeners() {
+        // Base salary input
+        document.getElementById('baseSalaryInput').addEventListener('input', function() {'
+            const baseSalary = parseInt(this.value) || 30000;
+            const formattedSalary = formatNumber(baseSalary);
+            document.getElementById('baseSalary').textContent = formattedSalary;'
+            document.getElementById('baseSalarySummary').textContent = `${formattedSalary} บาท`;'
+        });
+        
+        // Absence impact
+        document.getElementById('absence').addEventListener('input', calculateAbsenceImpact);'
+        
+        // Leave impact
+        document.getElementById('leave').addEventListener('input', calculateLeaveImpact);'
+        document.getElementById('leaveType').addEventListener('change', calculateLeaveImpact);'
+        
+        // Late impact
+        document.getElementById('late').addEventListener('input', calculateLateImpact);'
+        document.getElementById('lateMinutes').addEventListener('input', calculateLateImpact);'
+        
+        // Contribution impact
+        document.getElementById('contributions').addEventListener('input', calculateContributionImpact);'
+        document.getElementById('extraHours').addEventListener('input', calculateContributionImpact);'
+        
+        // Performance impact
+        document.getElementById('performanceScore').addEventListener('input', calculatePerformanceImpact);'
+        document.getElementById('projectSuccess').addEventListener('input', calculatePerformanceImpact);'
+
+        // Tenure impact
+        document.getElementById('employmentYears').addEventListener('input', calculateTenureImpact);'
+        document.getElementById('employmentMonths').addEventListener('input', calculateTenureImpact);'
+    }
+
+    // ฟังก์ชันแปลงประเภทการลาเป็นภาษาไทย
+    function getLeaveTypeThai(leaveType) {
+        switch(leaveType) {
+            case 'sick': return 'ลาป่วย';'
+            case 'personal': return 'ลากิจ';'
+            case 'annual': return 'ลาพักร้อน';'
+            default: return leaveType;
+        }
+    }
+    
+    // เมื่อโหลด DOM เสร็จแล้ว
+    document.addEventListener('DOMContentLoaded', function() {'
+        // ตัวแปรสำหรับจัดการประวัติ
+        let bonusHistory = [];
+        let currentHistoryIndex = -1;
+        
+        // โห
+                // โหลดประวัติจาก localStorage (ถ้ามี)
+                loadHistory();
+        
+        // Initialize default values
+        const baseSalaryInput = document.getElementById('baseSalaryInput');'
+        baseSalaryInput.addEventListener('input', function() {'
+            const formattedSalary = formatNumber(this.value);
+            document.getElementById('baseSalary').textContent = formattedSalary;'
+            document.getElementById('baseSalarySummary').textContent = `${formattedSalary} บาท`;'
+        });
+        
+        document.getElementById('baseSalary').textContent = '30,000';'
+        document.getElementById('baseSalarySummary').textContent = '30,000 บาท';'
+        document.getElementById('baseBonus').textContent = '2 เดือน';'
+        
+        // Initialize chart
+        const ctx = document.getElementById('kpiChart').getContext('2d');'
+        const kpiChart = new Chart(ctx, {
+            type: 'radar','
+            data: {
+                labels: [
+                    'การขาดงาน','
+                    'การลา','
+                    'การมาสาย','
+                    'การช่วยเหลือบริษัท','
+                    'ผลการปฏิบัติงาน','
+                    'อายุงาน''
+                ],
+                datasets: [{
+                    label: 'คะแนน KPI','
+                    data: [5, 5, 5, 5, 5, 5],
+                    fill: true,
+                    backgroundColor: 'rgba(52, 152, 219, 0.2)','
+                    borderColor: 'rgb(52, 152, 219)','
+                    pointBackgroundColor: 'rgb(52, 152, 219)','
+                    pointBorderColor: '#fff','
+                    pointHoverBackgroundColor: '#fff','
+                    pointHoverBorderColor: 'rgb(52, 152, 219)''
+                }]
+            },
+            options: {
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 10
+                    }
+                }
+            }
+        });
+        
+        // Event listeners for input changes
+        setupInputListeners();
+        
+        // Button event listeners
+        document.getElementById('calculate').addEventListener('click', calculateBonus);'
+        document.getElementById('reset').addEventListener('click', resetForm);'
+        document.getElementById('print').addEventListener('click', printReport);'
+        document.getElementById('saveHistory').addEventListener('click', saveToHistory);'
+        document.getElementById('clearHistory').addEventListener('click', confirmClearHistory);'
+        
+        // Modal event listeners
+        document.querySelector('.close-modal').addEventListener('click', closeHistoryModal);'
+        window.addEventListener('click', function(event) {'
+            const modal = document.getElementById('historyModal');'
+            if (event.target === modal) {
+                closeHistoryModal();
+            }
+        });
+        
+        // Tab navigation in modal
+        const tabButtons = document.querySelectorAll('.tab-button');'
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {'
+                const tabId = this.getAttribute('data-tab');'
+                
+                // Set active tab button
+                tabButtons.forEach(btn => btn.classList.remove('active'));'
+                this.classList.add('active');'
+                
+                // Show active tab content
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));'
+                document.getElementById(tabId).classList.add('active');'
+            });
+        });
+        
+        // Modal buttons
+        document.getElementById('modal-apply-btn').addEventListener('click', function() {'
+            applyHistoryData(currentHistoryIndex);
+            closeHistoryModal();
+        });
+        
+        document.getElementById('modal-print-btn').addEventListener('click', printReport);'
+        
+        // Calculate impact immediately when page loads
+        calculateImpacts();
+        
+        // ฟังก์ชันสำหรับโหลดประวัติจาก localStorage
+        function loadHistory() {
+            const savedHistory = localStorage.getItem('bonusCalculationHistory');'
+            if (savedHistory) {
+                bonusHistory = JSON.parse(savedHistory);
+                updateHistoryList();
+            }
+        }
+        
+        // ฟังก์ชันสำหรับบันทึกประวัติ
+        function saveHistory() {
+            localStorage.setItem('bonusCalculationHistory', JSON.stringify(bonusHistory));'
+        }
+        
+        // ฟังก์ชันอัพเดทรายการประวัติในหน้าเว็บ
+        function updateHistoryList() {
+            const historyListElement = document.getElementById('historyList');'
+            
+            // เคลียร์รายการเก่า
+            historyListElement.innerHTML = '';'
+            
+            if (bonusHistory.length === 0) {
+                // แสดงข้อความเมื่อไม่มีประวัติ
+                const emptyMessage = document.createElement('div');'
+                emptyMessage.className = 'history-empty';'
+                emptyMessage.innerHTML = `
+                    <i class="fas fa-history" style="font-size: 3rem; color: #ddd; margin-bottom: 15px;"></i>
+                    <p>ยังไม่มีประวัติการคำนวณ</p>
+                `;
+                historyListElement.appendChild(emptyMessage);
+                return;
+            }
+            
+            // สร้างรายการประวัติใหม่
+            bonusHistory.forEach((history, index) => {
+                const historyItem = document.createElement('div');'
+                historyItem.className = 'history-item';'
+                historyItem.dataset.index = index;
+                
+                historyItem.innerHTML = `
+                    <div class="history-item-header">
+                        <span class="history-item-title">คำนวณโบนัสปี ${history.year}</span>
+                        <span class="history-item-date">${history.date}</span>
+                    </div>
+                    <div class="history-item-details">
+                        <span class="history-item-employee">${history.employeeName || 'ไม่ระบุชื่อ'} (${history.employeeId || '-'})</span>'
+                        <span class="history-item-bonus">${history.finalBonus}</span>
+                    </div>
+                `;
+                
+                historyItem.addEventListener('click', function() {'
+                    openHistoryDetail(index);
+                });
+                
+                historyListElement.appendChild(historyItem);
+            });
+        }
+        
+        // ฟังก์ชันบันทึกลงประวัติ
+        function saveToHistory() {
+            // ตรวจสอบว่าได้คำนวณโบนัสแล้วหรือยัง
+            const finalBonusText = document.getElementById('finalBonus').textContent;'
+            
+            if (finalBonusText === '0 บาท') {'
+                showNotification('กรุณาคำนวณโบนัสก่อนบันทึกประวัติ', 'error');'
+                return;
+            }
+            
+            // เก็บข้อมูลที่จะบันทึก
+            const employeeId = document.getElementById('employeeId').value || 'ไม่ระบุ';'
+            const employeeName = document.getElementById('employeeNameInput').value || 'ไม่ระบุ';'
+            const department = document.getElementById('department').value || 'ไม่ระบุ';'
+            const position = document.getElementById('position').value || 'ไม่ระบุ';'
+            const baseSalary = parseInt(document.getElementById('baseSalaryInput').value) || 30000;'
+            const year = document.getElementById('bonusYear').value;'
+            
+            // ข้อมูลการคำนวณ
+            const absenceValue = parseInt(document.getElementById('absence').value) || 0;'
+            const absenceImpact = document.getElementById('absenceImpact').textContent;'
+            
+            const leaveValue = parseInt(document.getElementById('leave').value) || 0;'
+            const leaveType = document.getElementById('leaveType').value;'
+            const leaveImpact = document.getElementById('leaveImpact').textContent;'
+            
+            const lateCount = parseInt(document.getElementById('late').value) || 0;'
+            const lateMinutes = parseInt(document.getElementById('lateMinutes').value) || 0;'
+            const lateImpact = document.getElementById('lateImpact').textContent;'
+            
+            const contributionCount = parseInt(document.getElementById('contributions').value) || 0;'
+            const extraHours = parseInt(document.getElementById('extraHours').value) || 0;'
+            const contributionImpact = document.getElementById('contributionImpact').textContent;'
+            
+            const performanceScore = parseInt(document.getElementById('performanceScore').value) || 0;'
+            const projectSuccess = parseInt(document.getElementById('projectSuccess').value) || 0;'
+            const performanceImpact = document.getElementById('performanceImpact').textContent;'
+
+            const employmentYears = parseInt(document.getElementById('employmentYears').value) || 0;'
+            const employmentMonths = parseInt(document.getElementById('employmentMonths').value) || 0;'
+            const tenureImpact = document.getElementById('tenureImpact').textContent;'
+            
+            const totalImpact = document.getElementById('totalImpact').textContent;'
+            const finalBonus = document.getElementById('finalBonus').textContent;'
+            
+            // สร้าง object เก็บข้อมูล
+            const historyEntry = {
+                date: new Date().toLocaleString('th-TH'),'
+                year,
+                employeeId,
+                employeeName,
+                department,
+                position,
+                baseSalary,
+                metrics: {
+                    absence: { value: absenceValue, impact: absenceImpact },
+                    leave: { value: `${leaveValue} วัน (${getLeaveTypeThai(leaveType)})`, impact: leaveImpact },
+                    late: { value: `${lateCount} ครั้ง (เฉลี่ย ${lateMinutes} นาที)`, impact: lateImpact },
+                    contribution: { value: `${contributionCount} กิจกรรม, ${extraHours} ชั่วโมง OT`, impact: contributionImpact },
+                    performance: { value: `${performanceScore} คะแนน, ${projectSuccess} โครงการ`, impact: performanceImpact },
+                    tenure: { value: `${employmentYears} ปี ${employmentMonths} เดือน`, impact: tenureImpact }
+                },
+                totalImpact,
+                finalBonus
+            };
+            
+            // เพิ่มลงในประวัติ
+            bonusHistory.unshift(historyEntry); // เพิ่มที่ต้นอาร์เรย์เพื่อให้รายการล่าสุดอยู่บนสุด
+            
+            // บันทึกลงใน localStorage
+            saveHistory();
+            
+            // อัพเดทรายการประวัติ
+            updateHistoryList();
+            
+            // แสดงการแจ้งเตือน
+            showNotification('บันทึกประวัติเรียบร้อยแล้ว', 'success');'
+        }
+        
+        // ฟังก์ชันเปิด modal แสดงรายละเอียดประวัติ
+        function openHistoryDetail(index) {
+            currentHistoryIndex = index;
+            const history = bonusHistory[index];
+            
+            // ข้อมูลพนักงาน
+            document.getElementById('modal-employee-id').textContent = history.employeeId;'
+            document.getElementById('modal-employee-name').textContent = history.employeeName;'
+            document.getElementById('modal-department').textContent = history.department;'
+            document.getElementById('modal-position').textContent = history.position;'
+            document.getElementById('modal-base-salary').textContent = `${formatNumber(history.baseSalary)} บาท`;'
+            
+            // ข้อมูลปัจจัย
+            document.getElementById('modal-absence-value').textContent = history.metrics.absence.value;'
+            document.getElementById('modal-absence-impact').textContent = history.metrics.absence.impact;'
+            
+            document.getElementById('modal-leave-value').textContent = history.metrics.leave.value;'
+            document.getElementById('modal-leave-impact').textContent = history.metrics.leave.impact;'
+            
+            document.getElementById('modal-late-value').textContent = history.metrics.late.value;'
+            document.getElementById('modal-late-impact').textContent = history.metrics.late.impact;'
+            
+            document.getElementById('modal-contribution-value').textContent = history.metrics.contribution.value;'
+            document.getElementById('modal-contribution-impact').textContent = history.metrics.contribution.impact;'
+            
+            document.getElementById('modal-performance-value').textContent = history.metrics.performance.value;'
+            document.getElementById('modal-performance-impact').textContent = history.metrics.performance.impact;'
+
+            document.getElementById('modal-tenure-value').textContent = history.metrics.tenure.value;'
+            document.getElementById('modal-tenure-impact').textContent = history.metrics.tenure.impact;'
+            
+            // ข้อมูลผลลัพธ์
+            document.getElementById('modal-year').textContent = history.year;'
+            document.getElementById('modal-calculation-date').textContent = history.date;'
+            document.getElementById('modal-base-salary-result').textContent = `${formatNumber(history.baseSalary)} บาท`;'
+            document.getElementById('modal-base-bonus').textContent = '2 เดือน';'
+            document.getElementById('modal-total-impact').textContent = history.totalImpact;'
+            document.getElementById('modal-final-bonus').textContent = history.finalBonus;'
+            
+            // แสดง modal
+            document.getElementById('historyModal').style.display = 'block';'
+            
+            // ตั้งค่า tab เริ่มต้น
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));'
+            document.querySelector('.tab-button[data-tab="employee-tab"]').classList.add('active');'
+            
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));'
+            document.getElementById('employee-tab').classList.add('active');'
+        }
+        
+        // ฟังก์ชันปิด modal ประวัติ
+        function closeHistoryModal() {
+            document.getElementById('historyModal').style.display = 'none';'
+        }
+        
+        // ฟังก์ชันนำข้อมูลจากประวัติมาใช้
+        function applyHistoryData(index) {
+            const history = bonusHistory[index];
+            
+            // กรอกข้อมูลพนักงาน
+            document.getElementById('employeeId').value = history.employeeId;'
+            document.getElementById('employeeNameInput').value = history.employeeName;'
+            document.getElementById('department').value = history.department;'
+            document.getElementById('position').value = history.position;'
+            document.getElementById('baseSalaryInput').value = history.baseSalary;'
+            document.getElementById('baseSalary').textContent = formatNumber(history.baseSalary);'
+            document.getElementById('baseSalarySummary').textContent = `${formatNumber(history.baseSalary)} บาท`;'
+            
+            // ตั้งค่าปีการคำนวณ
+            document.getElementById('bonusYear').value = history.year;'
+            
+            // กรอกข้อมูลการขาดงาน
+            document.getElementById('absence').value = history.metrics.absence.value;'
+            
+            // กรอกข้อมูลการลา
+            const leaveMatch = history.metrics.leave.value.match(/(\d+)/);
+            if (leaveMatch) {
+                document.getElementById('leave').value = leaveMatch[0];'
+            }
+            
+            // หาประเภทการลา
+            const leaveTypeMatch = history.metrics.leave.value.match(/\((.+?)\)/);
+            if (leaveTypeMatch) {
+                const leaveTypeThai = leaveTypeMatch[1];
+                let leaveTypeValue = 'sick';'
+                if (leaveTypeThai === 'ลากิจ') leaveTypeValue = 'personal';'
+                if (leaveTypeThai === 'ลาพักร้อน') leaveTypeValue = 'annual';'
+                document.getElementById('leaveType').value = leaveTypeValue;'
+            }
+            
+            // กรอกข้อมูลการมาสาย
+            const lateMatches = history.metrics.late.value.match(/(\d+)/g);
+            if (lateMatches && lateMatches.length >= 2) {
+                document.getElementById('late').value = lateMatches[0];'
+                document.getElementById('lateMinutes').value = lateMatches[1];'
+            }
+            
+            // กรอกข้อมูลการช่วยเหลือบริษัท
+            const contributionMatches = history.metrics.contribution.value.match(/(\d+)/g);
+            if (contributionMatches && contributionMatches.length >= 2) {
+                document.getElementById('contributions').value = contributionMatches[0];'
+                document.getElementById('extraHours').value = contributionMatches[1];'
+            }
+            
+            // กรอกข้อมูลผลการปฏิบัติงาน
+            const performanceMatches = history.metrics.performance.value.match(/(\d+)/g);
+            if (performanceMatches && performanceMatches.length >= 2) {
+                document.getElementById('performanceScore').value = performanceMatches[0];'
+                document.getElementById('projectSuccess').value = performanceMatches[1];'
+            }
+
+            // กรอกข้อมูลอายุงาน
+            const tenureMatches = history.metrics.tenure.value.match(/(\d+)/g);
+            if (tenureMatches && tenureMatches.length >= 2) {
+                document.getElementById('employmentYears').value = tenureMatches[0];'
+                document.getElementById('employmentMonths').value = tenureMatches[1];'
+            }
+            
+            // คำนวณผลกระทบใหม่
+            calculateImpacts();
+            
+            // แสดงการแจ้งเตือน
+            showNotification('นำข้อมูลจากประวัติมาใช้งานแล้ว', 'info');'
+        }
+        
+        // ฟังก์ชันยืนยันการล้างประวัติ
+        function confirmClearHistory() {
+            if (bonusHistory.length === 0) {
+                showNotification('ไม่มีประวัติที่จะล้าง', 'info');'
+                return;
+            }
+            
+            if (confirm('คุณต้องการล้างประวัติการคำนวณทั้งหมดใช่หรือไม่?')) {'
+                bonusHistory = [];
+                saveHistory();
+                updateHistoryList();
+                showNotification('ล้างประวัติทั้งหมดเรียบร้อยแล้ว', 'success');'
+            }
+        }
+    });
+  </script>
+</body>
+</html>

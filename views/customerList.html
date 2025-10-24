@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Customer Management</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- ตัวอย่าง Content-Security-Policy (ปรับตามเซิร์ฟเวอร์จริง) -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content=""
+      default-src 'self';'
+      script-src 
+        'self''
+        https://cdn.tailwindcss.com
+        https://cdn.jsdelivr.net
+        https://cdn.socket.io
+        'unsafe-inline';'
+      style-src 
+        'self''
+        'unsafe-inline';'
+      connect-src
+        'self''
+        https://cdn.socket.io
+        wss://cdn.socket.io;"
+    "
+  />
+
+  <!-- ตั้งค่า Tailwind dark mode เป็น "class" ก่อนโหลด Tailwind CSS -->
+  <script>
+    window.tailwind = {
+      config: {
+        darkMode: 'class''
+      }
+    };
+  </script>
+
+  <!-- Tailwind CSS + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Socket.IO (ไฟล์โลคัล) + Subresource Integrity (SRI) -->
+  <script
+    src="/socket.io.min.js"
+    integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+    crossorigin="anonymous"
+  ></script>
+
+  <style>
+    body {
+      font-family: "Prompt", sans-serif;
+    }
+    .card-custom {
+      @apply bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4;
+    }
+    .table-auto thead th {
+      @apply bg-gray-100 dark:bg-gray-700;
+    }
+  </style>
+
+  <!-- ตรวจสอบ Token ก่อนเข้าหน้า -->
+  <script>
+    (function checkToken() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('กรุณาเข้าสู่ระบบก่อน');'
+        window.location.href = '/login'; // เปลี่ยนเป็นหน้า login ของคุณ'
+      }
+    })();
+  </script>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 p-4">
+  <div class="max-w-5xl mx-auto">
+    <!-- Header & ปุ่มกลับไปหน้า POS -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+      <h2 class="text-2xl font-bold mb-2 md:mb-0">รายการลูกค้า (Customer List)</h2>
+      <a href="frontstore_pattani.html" class="btn btn-outline btn-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        กลับไปหน้า POS
+      </a>
+    </div>
+
+    <!-- ส่วนค้นหาลูกค้า -->
+    <div class="form-control mb-4">
+      <label class="label">
+        <span class="label-text">ค้นหาชื่อลูกค้า</span>
+      </label>
+      <div class="input-group">
+        <input
+          type="text"
+          id="searchText"
+          class="input input-bordered w-full dark:bg-gray-700 dark:border-gray-600"
+          placeholder="พิมพ์ชื่อลูกค้า..."
+        />
+        <button class="btn btn-primary" onclick="searchCustomers()">ค้นหา</button>
+      </div>
+    </div>
+
+    <!-- ปุ่มเปิด Modal เพิ่มลูกค้า -->
+    <button class="btn btn-success mb-4" onclick="openAddCustomerModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      เพิ่มลูกค้าใหม่
+    </button>
+
+    <!-- ตารางแสดงรายชื่อลูกค้า -->
+    <div class="overflow-x-auto card-custom">
+      <table class="table w-full" id="customerTable">
+        <thead>
+          <tr>
+            <th>ชื่อ - นามสกุล</th>
+            <th>เบอร์โทร</th>
+            <th>เลขบัตร/Tax ID</th>
+            <th>ที่อยู่</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="customerTableBody">
+          <!-- Render จาก JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: เพิ่ม/แก้ไขลูกค้า -->
+  <input type="checkbox" id="customerModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box relative w-11/12 max-w-3xl">
+      <label for="customerModal" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label>
+      <h3 class="font-bold text-lg mb-3" id="customerModalLabel">เพิ่ม/แก้ไขลูกค้า</h3>
+
+      <div class="mb-3">
+        <!-- ปุ่มอ่านบัตรประชาชน -->
+        <button class="btn btn-info btn-sm" onclick="readCardFromID()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M3 3c0-1.1.9-2 2-2h10a2 2 0 012 2v1H3V3zM3 6h14v8a2 2 0 01-2 2H3V6z" />
+          </svg>
+          อ่านข้อมูลจากบัตร
+        </button>
+      </div>
+
+      <input type="hidden" id="modalCustomerId" value="" />
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="label">
+            <span class="label-text">ชื่อ</span>
+          </label>
+          <input type="text" id="modalFirstName" class="input input-bordered w-full" />
+        </div>
+        <div>
+          <label class="label">
+            <span class="label-text">นามสกุล</span>
+          </label>
+          <input type="text" id="modalLastName" class="input input-bordered w-full" />
+        </div>
+        <div>
+          <label class="label">
+            <span class="label-text">เบอร์โทร</span>
+          </label>
+          <input type="text" id="modalPhone" class="input input-bordered w-full" />
+        </div>
+        <div>
+          <label class="label">
+            <span class="label-text">ID Card/Tax ID</span>
+          </label>
+          <input type="text" id="modalIdCard" class="input input-bordered w-full" />
+        </div>
+        <div>
+          <label class="label">
+            <span class="label-text">Email (ถ้ามี)</span>
+          </label>
+          <input type="text" id="modalEmail" class="input input-bordered w-full" />
+        </div>
+        <div class="col-span-1 md:col-span-2">
+          <label class="label">
+            <span class="label-text">ที่อยู่</span>
+          </label>
+          <textarea id="modalAddress" class="textarea textarea-bordered w-full" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-action mt-4">
+        <label for="customerModal" class="btn btn-ghost">ยกเลิก</label>
+        <button class="btn btn-primary" onclick="saveCustomer()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container (แบบง่าย) -->
+  <div id="toastContainer" class="fixed top-4 right-4 space-y-2"></div>
+
+  <script>
+    // ตรวจ token
+    function checkTokenOrRedirect() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('❌ ยังไม่ได้เข้าสู่ระบบ หรือไม่มี token');'
+        window.location.href = '/login';'
+        return null;
+      }
+      return token;
+    }
+
+    // เมื่อหน้าโหลด
+    document.addEventListener('DOMContentLoaded', () => {'
+      loadCustomers();
+
+      // Socket.IO
+      const socket = io();
+      socket.on('connect', () => {'
+        console.log('Socket.IO connected (Customer page).');'
+      });
+      socket.on('disconnect', () => {'
+        console.warn('Socket.IO disconnected (Customer page).');'
+      });
+      // ตัวอย่าง event
+      socket.on('customerUpdate', (payload) => {'
+        console.log('Realtime customer update:', payload);
+        loadCustomers();
+      });
+    });
+
+    // ปุ่ม Logout
+    // (ตัวอย่างการ logout แบบง่าย)
+    // ถ้าคุณต้องการเรียก API logout, ให้ปรับแก้เอง
+    function logout() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userEmail');
+      window.location.href = '/login';'
+    }
+    document.getElementById('btnLogout').addEventListener('click', logout);'
+
+    // โหลดข้อมูลลูกค้าทั้งหมด
+    async function loadCustomers() {
+      try {
+        const token = checkTokenOrRedirect();
+        if (!token) return;
+
+        const res = await fetch('/api/customer', {'
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถโหลดลูกค้าได้');'
+        }
+        renderCustomerTable(data.data);
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');'
+      }
+    }
+
+    function renderCustomerTable(customers) {
+      const tb = document.getElementById('customerTableBody');
+      tb.innerHTML = '';'
+      customers.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2">${c.first_name || ''} ${c.last_name || ''}</td>'
+          <td class="py-2">${c.phone_number || '-'}</td>'
+          <td class="py-2">${c.id_card || '-'}</td>'
+          <td class="py-2">${c.address || '-'}</td>'
+          <td class="py-2">
+            <button class="btn btn-xs btn-warning mr-1" onclick="openEditCustomerModal('${c._id}')">'
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M17.414 2.586a2 2 0 00-2.828 0l-10 10A2 2 0 004 14v2a2 2 0 002 2h2a2 2 0 001.414-.586l10-10a2 2 0 000-2.828l-2.828-2.828z" />
+              </svg>
+            </button>
+            <button class="btn btn-xs btn-error" onclick="deleteCustomer('${c._id}')">'
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 100 2h.293l1.354 12.026A2 2 0 007.637 20h4.726a2 2 0 001.99-1.974L15.707 6H16a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9z" />
+              </svg>
+            </button>
+          </td>
+        `;
+        tb.appendChild(tr);
+      });
+    }
+
+    // ค้นหาลูกค้าตามชื่อ
+    async function searchCustomers() {
+      const text = document.getElementById('searchText').value.trim();
+      let url = '/api/customer';'
+      if (text) {
+        url += `?search=${encodeURIComponent(text)}`;
+      }
+      try {
+        const token = checkTokenOrRedirect();
+        if (!token) return;
+
+        const res = await fetch(url, {
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถค้นหาลูกค้าได้');'
+        }
+        renderCustomerTable(data.data);
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');'
+      }
+    }
+
+    // เปิด Modal เพิ่มลูกค้า
+    function openAddCustomerModal() {
+      document.getElementById('modalCustomerId').value = '';'
+      document.getElementById('modalFirstName').value = '';'
+      document.getElementById('modalLastName').value = '';'
+      document.getElementById('modalPhone').value = '';'
+      document.getElementById('modalIdCard').value = '';'
+      document.getElementById('modalEmail').value = '';'
+      document.getElementById('modalAddress').value = '';'
+      document.getElementById('customerModalLabel').textContent = 'เพิ่มลูกค้าใหม่';'
+      document.getElementById('customerModal').checked = true;'
+    }
+
+    // เปิด Modal แก้ไขลูกค้า
+    async function openEditCustomerModal(customerId) {
+      try {
+        const token = checkTokenOrRedirect();
+        if (!token) return;
+
+        const res = await fetch(`/api/customer/${customerId}`, {
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่พบลูกค้า');'
+        }
+        const c = data.data;
+        document.getElementById('modalCustomerId').value = c._id;'
+        document.getElementById('modalFirstName').value = c.first_name || '';'
+        document.getElementById('modalLastName').value = c.last_name || '';'
+        document.getElementById('modalPhone').value = c.phone_number || '';'
+        document.getElementById('modalIdCard').value = c.id_card || '';'
+        document.getElementById('modalEmail').value = c.email || '';'
+        document.getElementById('modalAddress').value = c.address || '';'
+        document.getElementById('customerModalLabel').textContent = 'แก้ไขลูกค้า';'
+        document.getElementById('customerModal').checked = true;'
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');'
+      }
+    }
+
+    // บันทึก (เพิ่ม/แก้ไข) ลูกค้า
+    async function saveCustomer() {
+      const _id = document.getElementById('modalCustomerId').value.trim();
+      const bodyData = {
+        first_name: document.getElementById('modalFirstName').value.trim(),'
+        last_name: document.getElementById('modalLastName').value.trim(),'
+        phone_number: document.getElementById('modalPhone').value.trim(),'
+        id_card: document.getElementById('modalIdCard').value.trim(),'
+        email: document.getElementById('modalEmail').value.trim(),'
+        address: document.getElementById('modalAddress').value.trim()'
+      };
+
+      let url = '/api/customer';'
+      let method = 'POST';'
+      if (_id) {
+        // แก้ไข
+        url = `/api/customer/${_id}`;
+        method = 'PATCH';'
+      }
+
+      try {
+        const token = checkTokenOrRedirect();
+        if (!token) return;
+
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json','
+            'Authorization': 'Bearer ' + token'
+          },
+          body: JSON.stringify(bodyData)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'บันทึกลูกค้าไม่สำเร็จ');'
+        }
+        showToast('บันทึกลูกค้าเรียบร้อย', 'success');'
+        document.getElementById('customerModal').checked = false;'
+        loadCustomers();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');'
+      }
+    }
+
+    // ลบลูกค้า
+    async function deleteCustomer(customerId) {
+      if (!confirm('ยืนยันลบลูกค้าคนนี้?')) return;'
+      try {
+        const token = checkTokenOrRedirect();
+        if (!token) return;
+
+        const res = await fetch(`/api/customer/${customerId}`, {
+          method: 'DELETE','
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ลบลูกค้าไม่สำเร็จ');'
+        }
+        showToast('ลบลูกค้าเรียบร้อย', 'success');'
+        loadCustomers();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');'
+      }
+    }
+
+    // ตัวอย่างอ่านข้อมูลบัตร
+    async function readCardFromID() {
+      try {
+        const token = checkTokenOrRedirect();
+        if (!token) return;
+
+        const res = await fetch('/api/read-card', {'
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || 'อ่านบัตรไม่สำเร็จ');'
+        }
+        const d = result.data;
+        // เซ็ตข้อมูลลงฟอร์ม
+        document.getElementById('modalFirstName').value = d.FirstNameTh || '';'
+        document.getElementById('modalLastName').value = d.LastNameTh || '';'
+        document.getElementById('modalIdCard').value = d.Citizenid || '';'
+        document.getElementById('modalAddress').value = d.Address || '';'
+        showToast('อ่านข้อมูลบัตรสำเร็จ', 'success');'
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');'
+      }
+    }
+
+    // Toast แบบง่าย
+    function showToast(msg, type='info') {'
+      const container = document.getElementById('toastContainer');
+      const toastId = 'toast' + Date.now();
+      const colorClass = (type === 'error') ? 'bg-red-600' : (type === 'success') ? 'bg-green-600' : 'bg-blue-600';
+      const toastEl = document.createElement('div');
+      toastEl.id = toastId;
+      toastEl.className = `p-3 rounded text-white ${colorClass} animate-bounce`;
+      toastEl.textContent = msg;
+      container.appendChild(toastEl);
+
+      setTimeout(() => {
+        if (toastEl) {
+          container.removeChild(toastEl);
+        }
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

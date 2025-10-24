@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ต้นทุน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] }
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- jQuery & Day.js (locale ไทย) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/locale/th.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Prompt', sans-serif; }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    aside.collapsed { width: 5rem; }
+    aside.collapsed .ml-3 { display: none; }
+    @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        .Logo { max-width:100%;height:auto; }
+    .status-paid { color: #16a34a; }
+    .status-pending { color: #ca8a04; }
+    .status-late { color: #dc2626; }
+  </style>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-900 dark:text-gray-200">
+
+  <!-- Toggle Menu -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+    class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <aside id="sidebar"
+           class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-transform duration-300 transform">
+      <a href="gifts_dashboard" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png" alt="Logo" class="Logo animate-float shadow-soft w-full h-full object-cover"
+        />
+      </a>
+      <nav class="flex-1 p-4 overflow-y-auto">
+        <ul class="space-y-1">
+          <li><a href="gifts_dashboard" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-house-door text-xl text-blue-500"></i><span class="ml-3">หน้าแรก</span>
+          </a></li>
+
+          <!-- เริ่มเมนูใหม่ -->
+          <li class="my-px">
+            <a href="inventory"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-boxes text-xl"></i>
+              </span>
+              <span class="ml-3">คลังสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="order_history"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-amber-500 dark:text-amber-400">
+                <i class="bi bi-clock-history text-xl"></i>
+              </span>
+              <span class="ml-3">ประวัติการสั่งซื้อ</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="costs"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-cyan-500 dark:text-cyan-400">
+                <i class="bi bi-currency-dollar text-xl"></i>
+              </span>
+              <span class="ml-3">ต้นทุน</span>
+            </a>
+          </li>
+          <li class="mt-6"><button id="btnToggleDark" class="flex items-center w-full px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-moon text-xl text-indigo-500"></i><span class="ml-3" id="darkModeLabel">Dark Mode</span>
+          </button></li>
+          <li><button id="btnLogout" class="flex items-center w-full px-4 h-12 rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-box-arrow-right text-xl text-red-500"></i><span class="ml-3">ออกจากระบบ</span>
+          </button></li>
+          <li class="mt-auto">
+            <div id="profile" class="flex items-center px-4 h-12 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <img id="employeePhoto" class="w-10 h-10 rounded-full mr-3" src="/static/images/avatar-default.png" alt="Emp"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 bg-gray-50 dark:bg-gray-900 overflow-y-auto animate-fadeIn">
+      <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-semibold text-gray-800 dark:text-white mb-6">ข้อมูลต้นทุน</h1>
+        
+        <!-- Cost Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="card bg-white dark:bg-gray-800 shadow-lg">
+            <div class="card-body">
+              <h2 class="card-title text-blue-600 dark:text-blue-400">ต้นทุนทั้งหมด</h2>
+              <p class="text-3xl font-bold" id="totalCost">฿0.00</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">ต้นทุนสินค้าทั้งหมดที่ซื้อเข้ามา</p>
+            </div>
+          </div>
+          
+          <div class="card bg-white dark:bg-gray-800 shadow-lg">
+            <div class="card-body">
+              <h2 class="card-title text-green-600 dark:text-green-400">ต้นทุนเฉลี่ย/ชิ้น</h2>
+              <p class="text-3xl font-bold" id="averageCost">฿0.00</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">ราคาต้นทุนเฉลี่ยต่อชิ้น</p>
+            </div>
+          </div>
+          
+          <div class="card bg-white dark:bg-gray-800 shadow-lg">
+            <div class="card-body">
+              <h2 class="card-title text-purple-600 dark:text-purple-400">จำนวนสินค้าทั้งหมด</h2>
+              <p class="text-3xl font-bold" id="totalItems">0</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">จำนวนสินค้าทั้งหมดในคลัง</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="card bg-white dark:bg-gray-800 shadow-lg mb-8">
+          <div class="card-body">
+            <h2 class="card-title mb-4">ตัวกรองข้อมูล</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text dark:text-white">ช่วงวันที่</span>
+                </label>
+                <div class="flex space-x-2">
+                  <input type="date" id="dateFrom" class="input input-bordered w-full dark:bg-gray-700" />
+                  <span class="self-center">ถึง</span>
+                  <input type="date" id="dateTo" class="input input-bordered w-full dark:bg-gray-700" />
+                </div>
+              </div>
+              
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text dark:text-white">หมวดหมู่สินค้า</span>
+                </label>
+                <select id="categoryFilter" class="select select-bordered w-full dark:bg-gray-700">
+                  <option value="">ทั้งหมด</option>
+                  <!-- Categories will be loaded here -->
+                </select>
+              </div>
+              
+              <div class="form-control mt-8">
+                <button id="applyFilters" class="btn btn-primary">ค้นหา</button>
+                <button id="resetFilters" class="btn btn-outline mt-2">ล้างตัวกรอง</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Cost Analysis Chart -->
+        <div class="card bg-white dark:bg-gray-800 shadow-lg mb-8">
+          <div class="card-body">
+            <h2 class="card-title mb-4">การวิเคราะห์ต้นทุน</h2>
+            <div class="tabs mb-4">
+              <a class="tab tab-bordered tab-active" id="tabMonthly">รายเดือน</a>
+              <a class="tab tab-bordered" id="tabCategory">ตามหมวดหมู่</a>
+            </div>
+            <div class="h-80">
+              <canvas id="costChart"></canvas>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Cost Details Table -->
+        <div class="card bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+          <div class="card-body">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="card-title">รายการต้นทุนสินค้า</h2>
+              <div class="form-control w-full max-w-xs">
+                <input type="text" id="searchInput" placeholder="ค้นหาสินค้า..." class="input input-bordered dark:bg-gray-700" />
+              </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="table w-full">
+                <thead>
+                  <tr>
+                    <th class="cursor-pointer" data-sort="id">รหัสสินค้า <i class="bi bi-arrow-down-up"></i></th>
+                    <th class="cursor-pointer" data-sort="name">ชื่อสินค้า <i class="bi bi-arrow-down-up"></i></th>
+                    <th class="cursor-pointer" data-sort="category">หมวดหมู่ <i class="bi bi-arrow-down-up"></i></th>
+                    <th class="cursor-pointer" data-sort="quantity">จำนวน <i class="bi bi-arrow-down-up"></i></th>
+                    <th class="cursor-pointer" data-sort="unitCost">ราคาต่อหน่วย <i class="bi bi-arrow-down-up"></i></th>
+                    <th class="cursor-pointer" data-sort="totalCost">ต้นทุนรวม <i class="bi bi-arrow-down-up"></i></th>
+                    <th class="cursor-pointer" data-sort="date">วันที่ซื้อ <i class="bi bi-arrow-down-up"></i></th>
+                  </tr>
+                </thead>
+                <tbody id="costTableBody">
+                  <!-- Data will be populated here -->
+                </tbody>
+              </table>
+            </div>
+            
+            <div id="loadingIndicator" class="flex justify-center py-4 hidden">
+              <div class="spinner"></div>
+            </div>
+            
+            <div id="noData" class="text-center py-4 hidden">
+              <p>ไม่พบข้อมูล</p>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="flex justify-between items-center mt-4">
+              <div>
+                <span>แสดง </span>
+                <select id="itemsPerPage" class="select select-bordered select-sm">
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+                <span> รายการต่อหน้า</span>
+              </div>
+              
+              <div class="btn-group">
+                <button id="prevPage" class="btn btn-sm">ก่อนหน้า</button>
+                <button id="currentPage" class="btn btn-sm">1</button>
+                <button id="nextPage" class="btn btn-sm">ถัดไป</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Toggle sidebar
+    document.getElementById('btnToggleMenu').addEventListener('click', function() {'
+      const sidebar = document.getElementById('sidebar');'
+      sidebar.classList.toggle('collapsed');'
+      this.querySelector('i').classList.toggle('bi-chevron-left');'
+      this.querySelector('i').classList.toggle('bi-chevron-right');'
+    });
+    
+    // Toggle dark mode
+    document.getElementById('btnToggleDark').addEventListener('click', function() {'
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark;
+      const newTheme = isDark ? 'light' : 'dark;
+      
+      html.setAttribute('data-theme', newTheme);'
+      html.classList.toggle('dark', !isDark);'
+      localStorage.setItem('theme', newTheme);'
+      
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Dark Mode' : 'Light Mode;
+    });
+    
+    // Logout button
+    document.getElementById('btnLogout').addEventListener('click', function() {'
+      if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {'
+        window.location.href = '/logout;
+      }
+    });
+    
+    // Initialize socket connection
+    const socket = io();
+    
+    // Load employee data from API
+    async function loadEmployeeData() {
+      try {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        if (!token) {
+          document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+          return;
+        }
+
+        const response = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const userData = result.data;
+          
+          document.getElementById('employeeName').textContent = userData.name || 'คุณ พนักงาน';
+          if (userData.photoUrl) {
+            document.getElementById('employeePhoto').src = userData.photoUrl;
+          }
+        } else {
+          document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+        }
+      } catch (error) {
+        console.error('Error loading employee data:', error);
+        document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+      }
+    }
+    
+    // Initialize employee data
+    loadEmployeeData();
+    
+    // Initialize costs data
+    let costsData = [];
+    let filteredData = [];
+    let categories = [];
+    
+    // Pagination variables
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let sortField = 'date;
+    let sortDirection = 'desc;
+    
+    // Load initial data
+    window.addEventListener('load', function() {'
+      // Set default date range to current month
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      
+      document.getElementById('dateFrom').value = firstDay.toISOString().split('T')[0];'
+      document.getElementById('dateTo').value = today.toISOString().split('T')[0];'
+      
+      loadCostData();
+      loadCategories();
+    });
+    
+    // Load cost data from server
+    function loadCostData() {
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+      
+      // Get filter values
+      const dateFrom = document.getElementById('dateFrom').value;'
+      const dateTo = document.getElementById('dateTo').value;'
+      const category = document.getElementById('categoryFilter').value;'
+      
+      // Emit request to server
+      socket.emit('getCostData', { dateFrom, dateTo, category });'
+    }
+    
+    // Load categories for filter
+    function loadCategories() {
+      socket.emit('getCategories');'
+    }
+    
+    // Socket event handlers
+    socket.on('costData', function(data) {'
+      costsData = data;
+      filterAndDisplayData();
+      updateSummary();
+      updateChart();
+      LoadingSystem.hide(loaderId);
+    });
+    
+    socket.on('categories', function(data) {'
+      categories = data;
+      const select = document.getElementById('categoryFilter');'
+      
+      // Clear existing options except the first one
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+      
+      // Add categories
+      categories.forEach(category => {
+        const option = document.createElement('option');'
+        option.value = category;
+        option.textContent = category;
+        select.appendChild(option);
+      });
+    });
+    
+    // Filter and display data
+    function filterAndDisplayData() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();'
+      
+      // Filter data
+      filteredData = costsData.filter(item => {
+        return item.name.toLowerCase().includes(searchTerm) ||
+               item.id.toLowerCase().includes(searchTerm) ||
+               item.category.toLowerCase().includes(searchTerm);
+      });
+      
+      // Sort data
+      filteredData.sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+        
+        if (typeof valA === 'string') valA = valA.toLowerCase();'
+        if (typeof valB === 'string') valB = valB.toLowerCase();'
+        
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;'
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;'
+        return 0;
+      });
+      
+      // Update table
+      updateTable();
+    }
+    
+    // Update table with paginated data
+    function updateTable() {
+      const tableBody = document.getElementById('costTableBody');'
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedData = filteredData.slice(startIndex, endIndex);
+      
+      // Clear table
+      tableBody.innerHTML = ';
+      
+      // Show no data message if no results
+      document.getElementById('noData').classList.toggle('hidden', paginatedData.length > 0);'
+      
+      // Populate table
+      paginatedData.forEach(item => {
+        const row = document.createElement('tr');'
+        
+        // Format date
+        const itemDate = new Date(item.date);
+        const formattedDate = `${itemDate.getDate()}/${itemDate.getMonth() + 1}/${itemDate.getFullYear()}`;
+        
+        row.innerHTML = `
+          <td>${item.id}</td>
+          <td>${item.name}</td>
+          <td>${item.category}</td>
+          <td class="text-right">${item.quantity.toLocaleString()}</td>
+          <td class="text-right">฿${item.unitCost.toFixed(2)}</td>
+          <td class="text-right">฿${(item.quantity * item.unitCost).toFixed(2)}</td>
+          <td>${formattedDate}</td>
+        `;
+        
+        tableBody.appendChild(row);
+      });
+      
+      // Update pagination
+      document.getElementById('currentPage').textContent = currentPage;'
+      document.getElementById('prevPage').disabled = currentPage <= 1;'
+      document.getElementById('nextPage').disabled = currentPage >= Math.ceil(filteredData.length / itemsPerPage);'
+    }
+    
+    // Update summary cards
+    function updateSummary() {
+      let totalItems = 0;
+      let totalCost = 0;
+      
+      filteredData.forEach(item => {
+        totalItems += item.quantity;
+        totalCost += item.quantity * item.unitCost;
+      });
+      
+      const averageCost = totalItems > 0 ? totalCost / totalItems : 0;
+      
+      document.getElementById('totalCost').textContent = `฿${totalCost.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;'
+      document.getElementById('averageCost').textContent = `฿${averageCost.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;'
+      document.getElementById('totalItems').textContent = totalItems.toLocaleString('th-TH');'
+    }
+    
+    // Chart variables
+    let costChart = null;
+    let chartType = 'monthly;
+    
+    // Update cost chart
+    function updateChart() {
+      const ctx = document.getElementById('costChart').getContext('2d');'
+      
+      // Destroy existing chart if it exists
+      if (costChart) {
+        costChart.destroy();
+      }
+      
+      let chartData;
+      
+      if (chartType === 'monthly') {'
+        chartData = processMonthlyData();
+      } else {
+        chartData = processCategoryData();
+      }
+      
+      // Create chart
+      costChart = new Chart(ctx, {
+        type: chartType === 'monthly' ? 'line' : 'bar','
+        data: {
+          labels: chartData.labels,
+          datasets: [{
+            label: 'ต้นทุนรวม (บาท)','
+            data: chartData.values,
+            backgroundColor: chartType === 'monthly' ? 'rgba(59, 130, 246, 0.5)' : ['
+              'rgba(59, 130, 246, 0.7)','
+              'rgba(16, 185, 129, 0.7)','
+              'rgba(245, 158, 11, 0.7)','
+              'rgba(239, 68, 68, 0.7)','
+              'rgba(139, 92, 246, 0.7)','
+              'rgba(236, 72, 153, 0.7)','
+              'rgba(14, 165, 233, 0.7)','
+            ],
+            borderColor: chartType === 'monthly' ? 'rgb(59, 130, 246)' : null,'
+            borderWidth: 2,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '฿' + value.toLocaleString();'
+                }
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return '฿' + context.raw.toLocaleString();'
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Process monthly data for chart
+    function processMonthlyData() {
+      const monthlyData = {};
+      
+      // Group by month
+      filteredData.forEach(item => {
+        const date = new Date(item.date);
+        const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+        
+        if (!monthlyData[monthYear]) {
+          monthlyData[monthYear] = 0;
+        }
+        
+        monthlyData[monthYear] += item.quantity * item.unitCost;
+      });
+      
+      // Sort by date
+      const sortedMonths = Object.keys(monthlyData).sort((a, b) => {
+        const [monthA, yearA] = a.split('/').map(Number);'
+        const [monthB, yearB] = b.split('/').map(Number);'
+        
+        if (yearA !== yearB) return yearA - yearB;
+        return monthA - monthB;
+      });
+      
+      // Get Thai month names
+      const thaiMonths = [
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.','
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.''
+      ];
+      
+      // Format labels and values
+      const labels = sortedMonths.map(monthYear => {
+        const [month, year] = monthYear.split('/').map(Number);'
+        return `${thaiMonths[month-1]} ${year + 543}`;
+      });
+      
+      const values = sortedMonths.map(monthYear => monthlyData[monthYear]);
+      
+      return { labels, values };
+    }
+    
+    // Process category data for chart
+    function processCategoryData() {
+      const categoryData = {};
+      
+      // Group by category
+      filteredData.forEach(item => {
+        if (!categoryData[item.category]) {
+          categoryData[item.category] = 0;
+        }
+        
+        categoryData[item.category] += item.quantity * item.unitCost;
+      });
+      
+      // Sort by total cost (descending)
+      const sortedCategories = Object.keys(categoryData).sort((a, b) => {
+        return categoryData[b] - categoryData[a];
+      });
+      
+      const labels = sortedCategories;
+      const values = sortedCategories.map(category => categoryData[category]);
+      
+      return { labels, values };
+    }
+    
+    // Show/hide loading indicator
+        // Event listeners
+    document.getElementById('applyFilters').addEventListener('click', loadCostData);'
+    
+    document.getElementById('resetFilters').addEventListener('click', function() {'
+      // Reset date range to current month
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      
+      document.getElementById('dateFrom').value = firstDay.toISOString().split('T')[0];'
+      document.getElementById('dateTo').value = today.toISOString().split('T')[0];'
+      document.getElementById('categoryFilter').value = ';
+      document.getElementById('searchInput').value = ';
+      
+      loadCostData();
+    });
+    
+    document.getElementById('searchInput').addEventListener('input', function() {'
+      filterAndDisplayData();
+    });
+    
+    document.getElementById('prevPage').addEventListener('click', function() {'
+      if (currentPage > 1) {
+        currentPage--;
+        updateTable();
+      }
+    });
+    
+    document.getElementById('nextPage').addEventListener('click', function() {'
+      if (currentPage < Math.ceil(filteredData.length / itemsPerPage)) {
+        currentPage++;
+        updateTable();
+      }
+    });
+    
+    document.getElementById('itemsPerPage').addEventListener('change', function() {'
+      itemsPerPage = parseInt(this.value);
+      currentPage = 1;
+      updateTable();
+    });
+    
+    // Table header sorting
+    document.querySelectorAll('th[data-sort]').forEach(th => {'
+      th.addEventListener('click', function() {'
+        const field = this.getAttribute('data-sort');'
+        
+        if (field === sortField) {
+          // Toggle sort direction
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc;
+        } else {
+          sortField = field;
+          sortDirection = 'asc;
+        }
+        
+        filterAndDisplayData();
+      });
+    });
+    
+    // Tab switching
+    document.getElementById('tabMonthly').addEventListener('click', function() {'
+      this.classList.add('tab-active');'
+      document.getElementById('tabCategory').classList.remove('tab-active');'
+      chartType = 'monthly;
+      updateChart();
+    });
+    
+    document.getElementById('tabCategory').addEventListener('click', function() {'
+      this.classList.add('tab-active');'
+      document.getElementById('tabMonthly').classList.remove('tab-active');'
+      chartType = 'category;
+      updateChart();
+    });
+  </script>
+</body>
+</html>

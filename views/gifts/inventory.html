@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>คลังสินค้า</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif']
+          }
+        }
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate']
+      }
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- jQuery & Day.js (locale ไทย) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/locale/th.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Prompt', sans-serif; }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    aside.collapsed { width: 5rem; }
+    aside.collapsed .ml-3 { display: none; }
+    @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .spinner { border:4px solid #f3f3f3;border-top:4px solid #3498db;border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite; }
+    .Logo { max-width:100%;height:auto; }
+    .status-paid { color: #16a34a; }
+    .status-pending { color: #ca8a04; }
+    .status-late { color: #dc2626; }
+  </style>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-900 dark:text-gray-200">
+
+  <!-- Toggle Menu -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+    class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <aside id="sidebar"
+           class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-transform duration-300 transform">
+      <a href="gifts_dashboard" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png" alt="Logo" class="Logo animate-float shadow-soft w-full h-full object-cover"
+        />
+      </a>
+      <nav class="flex-1 p-4 overflow-y-auto">
+        <ul class="space-y-1">
+          <li><a href="gifts_dashboard" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-house-door text-xl text-blue-500"></i><span class="ml-3">หน้าแรก</span>
+          </a></li>
+
+          <!-- เริ่มเมนูใหม่ -->
+          <li class="my-px">
+            <a href="inventory"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-boxes text-xl"></i>
+              </span>
+              <span class="ml-3">คลังสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="order_history"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-amber-500 dark:text-amber-400">
+                <i class="bi bi-clock-history text-xl"></i>
+              </span>
+              <span class="ml-3">ประวัติการสั่งซื้อ</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="costs"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-cyan-500 dark:text-cyan-400">
+                <i class="bi bi-currency-dollar text-xl"></i>
+              </span>
+              <span class="ml-3">ต้นทุน</span>
+            </a>
+          </li>
+          <li class="mt-6"><button id="btnToggleDark" class="flex items-center w-full px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-moon text-xl text-indigo-500"></i><span class="ml-3" id="darkModeLabel">Dark Mode</span>
+          </button></li>
+          <li><button id="btnLogout" class="flex items-center w-full px-4 h-12 rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-box-arrow-right text-xl text-red-500"></i><span class="ml-3">ออกจากระบบ</span>
+          </button></li>
+          <li class="mt-auto">
+            <div id="profile" class="flex items-center px-4 h-12 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <img id="employeePhoto" class="w-10 h-10 rounded-full mr-3" src="/static/images/avatar-default.png" alt="Emp"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 animate-fadeIn">
+      <div class="container mx-auto">
+        
+        <!-- Page Header -->
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">
+            <i class="bi bi-boxes text-indigo-500 me-2"></i>คลังสินค้าของแถม
+          </h1>
+          <div class="flex space-x-2">
+            <button id="btnImport" class="btn btn-outline btn-sm">
+              <i class="bi bi-file-earmark-excel"></i> นำเข้า Excel
+            </button>
+            <button id="btnExport" class="btn btn-outline btn-sm">
+              <i class="bi bi-download"></i> ส่งออก
+            </button>
+            <button id="btnAddItem" class="btn btn-primary btn-sm">
+              <i class="bi bi-plus"></i> เพิ่มสินค้า
+            </button>
+          </div>
+        </div>
+
+        <!-- Inventory Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-blue-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 mr-4">
+                <i class="bi bi-box-seam text-xl text-blue-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">จำนวนรายการสินค้าทั้งหมด</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="totalItems">8 รายการ</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-green-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 mr-4">
+                <i class="bi bi-check-circle text-xl text-green-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">จำนวนสินค้าคงเหลือ</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="totalStock">153 ชิ้น</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-yellow-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900 mr-4">
+                <i class="bi bi-exclamation-triangle text-xl text-yellow-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">สินค้าใกล้หมด</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="lowStock">2 รายการ</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-red-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-red-100 dark:bg-red-900 mr-4">
+                <i class="bi bi-x-circle text-xl text-red-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">สินค้าหมด</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="outOfStock">1 รายการ</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter and Search -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+          <div class="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+            <div class="flex flex-1 space-x-2">
+              <div class="form-control flex-1">
+                <div class="input-group">
+                  <input type="text" id="searchInventory" placeholder="ค้นหาสินค้า..." 
+                         class="input input-bordered w-full dark:bg-gray-700 dark:border-gray-600" />
+                  <button class="btn btn-square">
+                    <i class="bi bi-search"></i>
+                  </button>
+                </div>
+              </div>
+              <select id="categoryFilter" class="select select-bordered dark:bg-gray-700 dark:border-gray-600">
+                <option value="all">ทุกประเภท</option>
+                <option value="เครื่องใช้ส่วนตัว">เครื่องใช้ส่วนตัว</option>
+                <option value="ของใช้">ของใช้</option>
+                <option value="เครื่องเขียน">เครื่องเขียน</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
+            </div>
+            <div class="flex space-x-2">
+              <select id="sortInventory" class="select select-bordered dark:bg-gray-700 dark:border-gray-600">
+                <option value="name_asc">ชื่อ (ก-ฮ)</option>
+                <option value="name_desc">ชื่อ (ฮ-ก)</option>
+                <option value="stock_asc">สินค้าคงเหลือ (น้อย-มาก)</option>
+                <option value="stock_desc">สินค้าคงเหลือ (มาก-น้อย)</option>
+                <option value="price_asc">ราคา (ต่ำ-สูง)</option>
+                <option value="price_desc">ราคา (สูง-ต่ำ)</option>
+              </select>
+              <div class="btn-group">
+                <button id="viewGrid" class="btn btn-sm btn-active">
+                  <i class="bi bi-grid"></i>
+                </button>
+                <button id="viewList" class="btn btn-sm">
+                  <i class="bi bi-list-ul"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Grid View -->
+        <div id="gridView" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <!-- Item 1 -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div class="relative">
+              <img src="/uploads/placeholder.jpg" alt="หวีผมพกพา" class="w-full h-48 object-cover">
+              <span class="absolute top-2 right-2 badge badge-success">คงเหลือ: 45</span>
+            </div>
+            <div class="p-4">
+              <h3 class="font-semibold text-lg mb-1 dark:text-white">หวีผมพกพา</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">เครื่องใช้ส่วนตัว</p>
+              <div class="flex justify-between items-center mb-3">
+                <span class="text-blue-600 dark:text-blue-400 font-bold">12.50 บาท</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">รหัส: CMB-001</span>
+              </div>
+              <div class="flex space-x-1">
+                <button class="btn btn-sm btn-outline btn-info flex-1" data-item-id="1">
+                  <i class="bi bi-pencil mr-1"></i> แก้ไข
+                </button>
+                <button class="btn btn-sm btn-outline btn-success flex-1 manage-stock" data-item-id="1">
+                  <i class="bi bi-plus-slash-minus mr-1"></i> ปรับสต็อก
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Item 2 -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div class="relative">
+              <img src="/uploads/placeholder.jpg" alt="กระจกพกพา" class="w-full h-48 object-cover">
+              <span class="absolute top-2 right-2 badge badge-warning">คงเหลือ: 8</span>
+            </div>
+            <div class="p-4">
+              <h3 class="font-semibold text-lg mb-1 dark:text-white">กระจกพกพา</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">เครื่องใช้ส่วนตัว</p>
+              <div class="flex justify-between items-center mb-3">
+                <span class="text-blue-600 dark:text-blue-400 font-bold">18.75 บาท</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">รหัส: MRR-002</span>
+              </div>
+              <div class="flex space-x-1">
+                <button class="btn btn-sm btn-outline btn-info flex-1" data-item-id="2">
+                  <i class="bi bi-pencil mr-1"></i> แก้ไข
+                </button>
+                <button class="btn btn-sm btn-outline btn-success flex-1 manage-stock" data-item-id="2">
+                  <i class="bi bi-plus-slash-minus mr-1"></i> ปรับสต็อก
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Item 3 -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div class="relative">
+              <img src="/uploads/placeholder.jpg" alt="พวงกุญแจ" class="w-full h-48 object-cover">
+              <span class="absolute top-2 right-2 badge badge-error">คงเหลือ: 0</span>
+            </div>
+            <div class="p-4">
+              <h3 class="font-semibold text-lg mb-1 dark:text-white">พวงกุญแจ</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">ของใช้</p>
+              <div class="flex justify-between items-center mb-3">
+                <span class="text-blue-600 dark:text-blue-400 font-bold">15.00 บาท</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">รหัส: KEY-003</span>
+              </div>
+              <div class="flex space-x-1">
+                <button class="btn btn-sm btn-outline btn-info flex-1" data-item-id="3">
+                  <i class="bi bi-pencil mr-1"></i> แก้ไข
+                </button>
+                <button class="btn btn-sm btn-outline btn-success flex-1 manage-stock" data-item-id="3">
+                  <i class="bi bi-plus-slash-minus mr-1"></i> ปรับสต็อก
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Item 4 -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div class="relative">
+              <img src="/uploads/placeholder.jpg" alt="ปากกา" class="w-full h-48 object-cover">
+              <span class="absolute top-2 right-2 badge badge-success">คงเหลือ: 65</span>
+            </div>
+            <div class="p-4">
+              <h3 class="font-semibold text-lg mb-1 dark:text-white">ปากกา</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">เครื่องเขียน</p>
+              <div class="flex justify-between items-center mb-3">
+                <span class="text-blue-600 dark:text-blue-400 font-bold">8.50 บาท</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">รหัส: PEN-004</span>
+              </div>
+              <div class="flex space-x-1">
+                <button class="btn btn-sm btn-outline btn-info flex-1" data-item-id="4">
+                  <i class="bi bi-pencil mr-1"></i> แก้ไข
+                </button>
+                <button class="btn btn-sm btn-outline btn-success flex-1 manage-stock" data-item-id="4">
+                  <i class="bi bi-plus-slash-minus mr-1"></i> ปรับสต็อก
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- More items can be dynamically added -->
+        </div>
+        
+        <!-- Inventory List View (Hidden by Default) -->
+        <div id="listView" class="hidden">
+          <div class="overflow-x-auto bg-white dark:bg-gray-800 shadow-md rounded-lg">
+            <table class="table w-full">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-700">
+                  <th class="px-4 py-3">รูปภาพ</th>
+                  <th class="px-4 py-3">ชื่อสินค้า</th>
+                  <th class="px-4 py-3">รหัสสินค้า</th>
+                  <th class="px-4 py-3">ประเภท</th>
+                  <th class="px-4 py-3">คงเหลือ</th>
+                  <th class="px-4 py-3">ราคาทุน</th>
+                  <th class="px-4 py-3">การดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <td class="px-4 py-3">
+                    <img src="/uploads/placeholder.jpg" alt="หวีผม" class="w-12 h-12 object-cover rounded" />
+                  </td>
+                  <td class="px-4 py-3 font-medium dark:text-white">หวีผมพกพา</td>
+                  <td class="px-4 py-3 text-gray-500 dark:text-gray-400">CMB-001</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-ghost">เครื่องใช้ส่วนตัว</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-success">45 ชิ้น</span>
+                  </td>
+                  <td class="px-4 py-3 font-medium">12.50 บาท</td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info" data-item-id="1">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-success manage-stock" data-item-id="1">
+                        <i class="bi bi-plus-slash-minus"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-error" data-item-id="1">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <td class="px-4 py-3">
+                    <img src="/uploads/placeholder.jpg" alt="กระจกพกพา" class="w-12 h-12 object-cover rounded" />
+                  </td>
+                  <td class="px-4 py-3 font-medium dark:text-white">กระจกพกพา</td>
+                  <td class="px-4 py-3 text-gray-500 dark:text-gray-400">MRR-002</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-ghost">เครื่องใช้ส่วนตัว</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-warning">8 ชิ้น</span>
+                  </td>
+                  <td class="px-4 py-3 font-medium">18.75 บาท</td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info" data-item-id="2">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-success manage-stock" data-item-id="2">
+                        <i class="bi bi-plus-slash-minus"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-error" data-item-id="2">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- More rows can be dynamically added -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-6">
+          <span class="text-sm text-gray-600 dark:text-gray-300">แสดง 1-4 จาก 8 รายการ</span>
+          <div class="btn-group">
+            <button class="btn btn-sm">«</button>
+            <button class="btn btn-sm btn-active">1</button>
+            <button class="btn btn-sm">2</button>
+            <button class="btn btn-sm">»</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add/Edit Item Modal -->
+      <div id="itemModal" class="modal">
+        <div class="modal-box">
+          <h3 class="font-bold text-lg mb-4" id="modalTitle">เพิ่มสินค้าใหม่</h3>
+          <form id="itemForm">
+            <input type="hidden" id="itemId" value="">
+            
+            <div class="form-control mb-3">
+              <label class="label">
+                <span class="label-text">ชื่อสินค้า</span>
+              </label>
+              <input type="text" id="itemName" class="input input-bordered w-full" required>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">รหัสสินค้า</span>
+                </label>
+                <input type="text" id="itemCode" class="input input-bordered w-full">
+              </div>
+              
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">ประเภท</span>
+                </label>
+                <select id="itemCategory" class="select select-bordered w-full" required>
+                  <option value="" disabled selected>เลือกประเภท</option>
+                  <option value="เครื่องใช้ส่วนตัว">เครื่องใช้ส่วนตัว</option>
+                  <option value="ของใช้">ของใช้</option>
+                  <option value="เครื่องเขียน">เครื่องเขียน</option>
+                  <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">จำนวน</span>
+                </label>
+                <input type="number" id="itemStock" class="input input-bordered w-full" min="0" required>
+              </div>
+              
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">ราคาทุน (บาท)</span>
+                </label>
+                <input type="number" id="itemCost" class="input input-bordered w-full" min="0" step="0.01" required>
+              </div>
+            </div>
+            
+            <div class="form-control mt-3">
+              <label class="label">
+                <span class="label-text">รายละเอียด</span>
+              </label>
+              <textarea id="itemDescription" class="textarea textarea-bordered h-24"></textarea>
+            </div>
+            
+            <div class="form-control mt-3">
+              <label class="label">
+                <span class="label-text">รูปภาพ</span>
+              </label>
+              <input type="file" id="itemImage" class="file-input file-input-bordered w-full">
+            </div>
+            
+            <div class="modal-action">
+              <button type="button" class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary">บันทึก</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Manage Stock Modal -->
+      <div id="stockModal" class="modal">
+        <div class="modal-box">
+          <h3 class="font-bold text-lg mb-4">ปรับปรุงสต็อกสินค้า</h3>
+          <div id="stockItemDetails" class="flex items-center mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+            <img id="stockItemImage" src="" alt="" class="w-16 h-16 object-cover rounded mr-4">
+            <div>
+              <h4 id="stockItemName" class="font-medium text-lg">-</h4>
+              <p id="stockItemCode" class="text-sm text-gray-500">รหัส: -</p>
+            </div>
+          </div>
+          
+          <form id="stockForm">
+            <input type="hidden" id="stockItemId" value="">
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                <p class="text-sm text-gray-500 dark:text-gray-400">สต็อกปัจจุบัน</p>
+                <p id="currentStock" class="text-xl font-semibold">0 ชิ้น</p>
+              </div>
+              
+              <div class="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg">
+                <p class="text-sm text-gray-500 dark:text-gray-400">สต็อกหลังปรับปรุง</p>
+                <p id="newStock" class="text-xl font-semibold text-blue-600 dark:text-blue-400">0 ชิ้น</p>
+              </div>
+            </div>
+            
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">ประเภทการปรับปรุง</span>
+              </label>
+              <select id="stockAdjustmentType" class="select select-bordered w-full" required>
+                <option value="add" selected>เพิ่มสต็อก (+)</option>
+                <option value="remove">ลดสต็อก (-)</option>
+                <option value="set">ตั้งค่าใหม่</option>
+              </select>
+            </div>
+            
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">จำนวน</span>
+              </label>
+              <input type="number" id="stockAdjustmentQuantity" class="input input-bordered w-full" min="0" required>
+            </div>
+            
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">หมายเหตุ</span>
+              </label>
+              <input type="text" id="stockAdjustmentNote" class="input input-bordered w-full" 
+                     placeholder="เช่น เบิกใช้งาน, รับสินค้า, ตรวจนับ, ฯลฯ">
+            </div>
+            
+            <div class="modal-action">
+              <button type="button" class="btn btn-outline" onclick="closeStockModal()">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary">บันทึก</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Toggle sidebar
+    document.getElementById('btnToggleMenu').addEventListener('click', function() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('collapsed');
+      this.querySelector('i').classList.toggle('bi-chevron-left');
+      this.querySelector('i').classList.toggle('bi-chevron-right');
+    });
+    
+    // Toggle dark mode
+    document.getElementById('btnToggleDark').addEventListener('click', function() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const newTheme = isDark ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      document.documentElement.classList.toggle('dark', !isDark);
+      localStorage.setItem('theme', newTheme);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Dark Mode' : 'Light Mode';
+    });
+    
+    // Logout button
+    document.getElementById('btnLogout').addEventListener('click', function() {
+      if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+        window.location.href = '/logout';
+      }
+    });
+
+    // Toggle view (Grid/List)
+    document.getElementById('viewGrid').addEventListener('click', function() {
+      document.getElementById('gridView').classList.remove('hidden');
+      document.getElementById('listView').classList.add('hidden');
+      this.classList.add('btn-active');
+      document.getElementById('viewList').classList.remove('btn-active');
+    });
+
+    document.getElementById('viewList').addEventListener('click', function() {
+      document.getElementById('gridView').classList.add('hidden');
+      document.getElementById('listView').classList.remove('hidden');
+      this.classList.add('btn-active');
+      document.getElementById('viewGrid').classList.remove('btn-active');
+    });
+
+    // Add item modal
+    document.getElementById('btnAddItem').addEventListener('click', function() {
+      openItemModal();
+    });
+
+    function openItemModal(itemId = null) {
+      const modal = document.getElementById('itemModal');
+      const modalTitle = document.getElementById('modalTitle');
+      const form = document.getElementById('itemForm');
+      
+      // Reset form
+      form.reset();
+      
+      if (itemId) {
+        // Edit mode - would fetch item data from server in a real app
+        modalTitle.textContent = 'แก้ไขสินค้า';
+        document.getElementById('itemId').value = itemId;
+        
+        // For demo, prefill with some fake data
+        if (itemId === "1") {
+          document.getElementById('itemName').value = 'หวีผมพกพา';
+          document.getElementById('itemCode').value = 'CMB-001';
+          document.getElementById('itemCategory').value = 'เครื่องใช้ส่วนตัว';
+          document.getElementById('itemStock').value = '45';
+          document.getElementById('itemCost').value = '12.50';
+          document.getElementById('itemDescription').value = 'หวีผมพกพาขนาดเล็ก พกพาสะดวก';
+        }
+      } else {
+        // Add mode
+        modalTitle.textContent = 'เพิ่มสินค้าใหม่;
+        document.getElementById('itemId').value = ';
+      }
+      
+      modal.classList.add('modal-open');'
+    }
+
+    function closeModal() {
+      document.getElementById('itemModal').classList.remove('modal-open');'
+    }
+
+    // Manage stock modal
+    document.querySelectorAll('.manage-stock').forEach(button => {'
+      button.addEventListener('click', function() {'
+        const itemId = this.getAttribute('data-item-id');'
+        openStockModal(itemId);
+      });
+    });
+
+    function openStockModal(itemId) {
+      const modal = document.getElementById('stockModal');'
+      document.getElementById('stockItemId').value = itemId;'
+      
+      // For demo purposes, set some fake data based on itemId
+      if (itemId === "1") {
+        document.getElementById('stockItemImage').src = '/uploads/placeholder.jpg';
+        document.getElementById('stockItemName').textContent = 'หวีผมพกพา;
+        document.getElementById('stockItemCode').textContent = 'รหัส: CMB-001;
+        document.getElementById('currentStock').textContent = '45 ชิ้น;
+        document.getElementById('newStock').textContent = '45 ชิ้น;
+      } else if (itemId === "2") {
+        document.getElementById('stockItemImage').src = '/uploads/placeholder.jpg';
+        document.getElementById('stockItemName').textContent = 'กระจกพกพา;
+        document.getElementById('stockItemCode').textContent = 'รหัส: MRR-002;
+        document.getElementById('currentStock').textContent = '8 ชิ้น;
+        document.getElementById('newStock').textContent = '8 ชิ้น;
+      } else if (itemId === "3") {
+        document.getElementById('stockItemImage').src = '/uploads/placeholder.jpg';
+        document.getElementById('stockItemName').textContent = 'พวงกุญแจ;
+        document.getElementById('stockItemCode').textContent = 'รหัส: KEY-003;
+        document.getElementById('currentStock').textContent = '0 ชิ้น;
+        document.getElementById('newStock').textContent = '0 ชิ้น;
+      }
+      
+      modal.classList.add('modal-open');'
+      
+      // Reset the form
+      document.getElementById('stockForm').reset();'
+    }
+
+    function closeStockModal() {
+      document.getElementById('stockModal').classList.remove('modal-open');'
+    }
+
+    // Update new stock preview on input change
+    document.getElementById('stockAdjustmentQuantity').addEventListener('input', updateStockPreview);'
+    document.getElementById('stockAdjustmentType').addEventListener('change', updateStockPreview);'
+
+    function updateStockPreview() {
+      const quantity = parseInt(document.getElementById('stockAdjustmentQuantity').value) || 0;'
+      const type = document.getElementById('stockAdjustmentType').value;'
+      const currentStock = parseInt(document.getElementById('currentStock').textContent);'
+      let newStock = currentStock;
+      
+      if (type === 'add') {'
+        newStock += quantity;
+      } else if (type === 'remove') {'
+        newStock = Math.max(0, newStock - quantity);
+      } else if (type === 'set') {'
+        newStock = quantity;
+      }
+      
+      document.getElementById('newStock').textContent = newStock + ' ชิ้น;
+    }
+
+    // Form submissions
+    document.getElementById('itemForm').addEventListener('submit', function(e) {'
+      e.preventDefault();
+      // Here you would send the form data to the server
+      alert('บันทึกข้อมูลสินค้าเรียบร้อย');'
+      closeModal();
+    });
+
+    document.getElementById('stockForm').addEventListener('submit', function(e) {'
+      e.preventDefault();
+      // Here you would send the stock adjustment to the server
+      alert('ปรับปรุงสต็อกเรียบร้อย');'
+      closeStockModal();
+    });
+
+    // Search functionality
+    document.getElementById('searchInventory').addEventListener('input', function() {'
+      const searchTerm = this.value.toLowerCase();
+      searchAndFilterItems(searchTerm, document.getElementById('categoryFilter').value);'
+    });
+
+    // Category filter
+    document.getElementById('categoryFilter').addEventListener('change', function() {'
+      const category = this.value;
+      searchAndFilterItems(document.getElementById('searchInventory').value.toLowerCase(), category);'
+    });
+
+    function searchAndFilterItems(searchTerm, category) {
+      // In a real app, this would filter the items based on search term and category
+      console.log(`Searching for: ${searchTerm}, Category: ${category}`);
+      // For demo purposes, we'll just log it'
+    }
+
+    // Sorting functionality
+    document.getElementById('sortInventory').addEventListener('change', function() {'
+      const sortValue = this.value;
+      console.log(`Sorting by: ${sortValue}`);
+      // For demo purposes, we'll just log it
+    });
+
+    // Initialize socket connection
+    const socket = io();
+    
+    // Load employee data from API
+    async function loadEmployeeData() {
+      try {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        if (!token) {
+          document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+          return;
+        }
+
+        const response = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const userData = result.data;
+          
+          document.getElementById('employeeName').textContent = userData.name || 'คุณ พนักงาน';
+          if (userData.photoUrl) {
+            document.getElementById('employeePhoto').src = userData.photoUrl;
+          }
+        } else {
+          document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+        }
+      } catch (error) {
+        console.error('Error loading employee data:', error);
+        document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+      }
+    }
+
+    // Initialize everything
+    document.addEventListener('DOMContentLoaded', function() {
+      loadEmployeeData();
+      
+      // Update the dark mode label correctly on page load
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      
+      // Attach edit buttons event listeners
+      document.querySelectorAll('[data-item-id]').forEach(button => {'
+        if (button.classList.contains('manage-stock')) return; // Skip stock management buttons'
+        button.addEventListener('click', function() {'
+          const itemId = this.getAttribute('data-item-id');'
+          openItemModal(itemId);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

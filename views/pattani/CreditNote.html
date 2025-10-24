@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ใบลดหนี้ | ระบบบัญชี</title>
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+    <script src="../js/activity-tracker.js"></script>
+    <script src="/js/branch-navigation.js"></script>
+    <script src="/views/pattani/sidebar/sidebar.js"></script>
+    <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+
+    <!-- (2) กำหนดค่า Tailwind และ DaisyUI -->
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Prompt', 'sans-serif'],
+            },
+          },
+        },
+        daisyui: {
+          themes: ['light', 'dark', 'corporate'],
+        },
+      };
+    </script>
+
+    <!-- DaisyUI -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+
+    <!-- Socket.IO with SRI -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    />
+
+  <!-- Google Fonts: Prompt -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+    <!-- Lottie Animation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+    <style>
+      :root {
+        --primary-color: #0d6efd;
+        --primary-hover: #138af2;
+        --bg-color: #ffffff;
+        --text-color: #333333;
+        --border-color: #e0e0e0;
+        --transition-speed: 0.3s;
+      }
+      .dark {
+        --primary-color: #ff8800;
+        --primary-hover: #ffa733;
+        --bg-color: #2a2a2a;
+        --text-color: #ffffff;
+        --border-color: #555555;
+      }
+      body {
+        font-family: "Prompt", sans-serif;
+        margin: 0;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        transition: background-color var(--transition-speed),
+          color var(--transition-speed);
+      }
+      .loader {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0ea5e9;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      #btnToggleMenu {
+        /* ปุ่มลอย Toggle Sidebar (สไตล์เสริมตามต้องการ) */
+      }
+      .bubble {
+        width: 110px;
+        height: 130px;
+        border-radius: 0.75rem;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: transform var(--transition-speed);
+        background-color: var(--primary-color);
+        position: relative;
+      }
+      .bubble:hover {
+        transform: scale(1.05);
+        background-color: var(--primary-hover);
+      }
+      .bubble h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+      }
+      .stock-count {
+        position: absolute;
+        bottom: 0.5rem;
+        font-size: 0.75rem;
+      }
+      .card {
+        background-color: var(--bg-color) !important;
+        color: var(--text-color) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        /* Ensure no overflow or scrollbar properties are forcing scrollbars if not needed */
+      }
+      /* Prevent duplicate padding on cards that also have p-4 */
+      .card.p-4 {
+        padding: 1rem !important;
+      }
+      .lightOnly {
+        display: block;
+      }
+      .darkOnly {
+        display: none;
+      }
+      .dark .lightOnly {
+        display: none !important;
+      }
+      .dark .darkOnly {
+        display: block !important;
+      }
+      .dark .dark-bg {
+        background-color: var(--bg-color);
+      }
+      .dark .dark-text {
+        color: var(--primary-color);
+      }
+      /* ===== Flip Card ===== */
+      .flip-card {
+        perspective: 1000px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 0.75rem;
+        width: 200px;
+        height: 420px;
+      }
+      .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.4s ease-in-out;
+        transform-style: preserve-3d;
+      }
+      .flip-card.flipped .flip-card-inner {
+        transform: rotateY(180deg);
+      }
+      .flip-card-front,
+      .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        padding: 0.5rem;
+      }
+      .flip-card-back {
+        transform: rotateY(180deg);
+        background-color: var(--bg-color);
+      }
+      .product-price-big {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--primary-color);
+      }
+      html, body {
+  overflow-x: hidden;
+}
+
+#mainContent {
+  overflow-y: auto;
+}
+
+/* แก้ card ไม่ให้สูงเกิน */
+.card {
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+      .product-img {
+        width: 100%;
+        height: 150px; /* กำหนดความสูงคงที่ */
+        object-fit: cover;
+        border-radius: 0.25rem;
+      }
+      .product-name {
+  position: absolute;
+  top: 48%;
+  left: 0.5rem; /* หรือจะใช้ left: 50%; transform: translateX(-50%) ก็ได้ */
+  font-weight: 800;
+}
+
+h6 {
+    white-space: normal; /* อนุญาตให้ตัดบรรทัด */
+    word-wrap: break-word; /* ตัดคำเมื่อยาวเกิน */
+    overflow: visible; /* แสดงข้อความทั้งหมด */
+}
+
+      /* เพิ่ม CSS นี้ */
+      .section-title {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        font-size: 1.125rem;
+      }
+
+      .cart-table {
+        border-collapse: collapse;
+      }
+      .cart-table th,
+      .cart-table td {
+        border: 1px solid var(--border-color);
+        padding: 8px;
+      }
+
+    /* Sidebar active/highlight */
+#sidebar ul li a {
+  color: #333333 !important; /* เปลี่ยนเป็นสีที่ต้องการ */
+}
+    #sidebar ul li a.active span,
+    #sidebar ul li a.active i {
+      color: #fff !important;
+    }
+    .dark #sidebar ul li a.active {
+      background-color: #0284c7 !important;
+    }
+    /* Hover for non-active */
+    #sidebar ul li a:not(.active):hover {
+      background-color: #f3f4f6;
+    }
+    .dark #sidebar ul li a:not(.active):hover {
+      background-color: #374151;
+    }
+
+    /* Main content margin adjustment */
+    #mainContent {
+      margin-left: 14rem;
+      transition: margin-left 0.3s ease;
+    }
+    #mainContent.sidebar-closed {
+      margin-left: 0;
+    }
+    /* เพิ่ม CSS สำหรับ modal backdrop */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 9998;
+      display: none;
+    }
+    
+    .modal-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+      max-height: 90vh;
+      overflow-y: auto;
+      width: 90%;
+      max-width: 1200px;
+    }
+    
+    .modal-content {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    .dark .modal-content {
+      background-color: #1e293b;
+    }
+
+    /* เพิ่มใน style tag */
+    .badge-error {
+      background-color: #fee2e2;
+      color: #dc2626;
+    }
+
+    .badge-info {
+      background-color: #dbeafe;
+      color: #2563eb;
+    }
+
+    .dark .badge-error {
+      background-color: rgba(220, 38, 38, 0.2);
+      color: #fca5a5;
+    }
+
+    .dark .badge-info {
+      background-color: rgba(37, 99, 235, 0.2);
+      color: #93bbfe;
+    }
+        /* Loading overlay */
+        .loading-overlay {
+          position: fixed;
+          top: 0; left: 0;
+          width: 100vw; height: 100vh;
+          background: rgba(255, 255, 255, 0.9);
+          display: flex; justify-content: center; align-items: center;
+          z-index: 9999;
+          backdrop-filter: blur(12px);
+        }
+        [data-theme="dark"]     .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e5e7eb;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- Sidebar Management -->
+  <script>
+  </script>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+      <div class="text-center">
+        <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+      </div>
+    </div>
+    </div>
+  
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+
+    <!-- Header -->
+    <header class="p-4 bg-white dark:bg-gray-800"
+                     border-b border-gray-200 dark:border-gray-700
+"
+                     flex items-center justify-between ml-56 transition-all duration-300"
+                     id="mainHeader">
+      <div>
+        <h1 class="text-lg font-semibold" id="pageTitle">ใบลดหนี้</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+          กำลังโหลดสาขา...
+        </p>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="mainContent" class="flex-1 p-6 overflow-y-auto transition-all duration-300 ml-56">
+      <div class="container mx-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-bold">ใบลดหนี้</h1>
+          <div>
+            <button id="btnNewCreditNote" class="btn btn-primary">
+              <i class="bi bi-plus-circle mr-2"></i>สร้างใบลดหนี้ใหม่
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="card mb-6">
+          <div class="flex flex-wrap gap-4">
+            <div class="form-control">
+              <label class="label">วันที่เริ่มต้น</label>
+              <input type="date" id="startDate" class="input input-bordered w-full max-w-xs" />
+            </div>
+            <div class="form-control">
+              <label class="label">วันที่สิ้นสุด</label>
+              <input type="date" id="endDate" class="input input-bordered w-full max-w-xs" />
+            </div>
+            <div class="form-control">
+              <label class="label">ค้นหาจาก</label>
+              <select id="searchType" class="select select-bordered w-full max-w-xs">
+                <option value="all">ทั้งหมด</option>
+                <option value="customer">ชื่อลูกค้า</option>
+                <option value="reference">เลขที่อ้างอิง</option>
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label">คำค้นหา</label>
+              <input type="text" id="searchTerm" class="input input-bordered w-full max-w-xs" placeholder="พิมพ์คำค้นหา..." />
+            </div>
+            <div class="form-control mt-8">
+              <button id="btnSearch" class="btn btn-primary">
+                <i class="bi bi-search mr-2"></i>ค้นหา
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credit Note Table -->
+        <div class="overflow-x-auto">
+          <table class="table w-full border-collapse">
+            <thead>
+              <tr class="bg-gray-100 dark:bg-gray-700">
+                <th class="p-3 text-center">
+                  <input type="checkbox" id="selectAll" class="checkbox" />
+                </th>
+                <th class="p-3">ใบลดหนี้ <i class="bi bi-arrow-down-up"></i></th>
+                <th class="p-3">สถานะ</th>
+                <th class="p-3">วันที่</th>
+                <th class="p-3">เอกสารอ้างอิง</th>
+                <th class="p-3">ชื่อลูกค้า</th>
+                <th class="p-3">เหตุผล</th>
+                <th class="p-3">ยอดเงินรวม</th>
+                <th class="p-3">ยอดสุทธิ</th>
+                <th class="p-3">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="creditNoteTableBody">
+              <!-- Credit note rows will be inserted here dynamically -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-8 hidden">
+          <img src="/static/images/empty-state.svg" alt="ไม่มีข้อมูล" class="w-48 h-48 mx-auto mb-4 opacity-60" 
+               onerror="this.src='/static/images/fallback-image.png'; this.onerror=null;" />'
+          <h3 class="text-xl font-medium text-gray-700 dark:text-gray-300 mb-2">ยังไม่มีใบลดหนี้</h3>
+          <p class="text-gray-500 dark:text-gray-400 mb-6">คุณสามารถเริ่มสร้างใบลดหนี้ใหม่ได้เลย</p>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-6">
+          <div>
+            แสดง <span id="currentRange">0</span> จาก <span id="totalRecords">0</span> รายการ
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-sm">«</button>
+            <button class="btn btn-sm btn-active">1</button>
+            <button class="btn btn-sm">2</button>
+            <button class="btn btn-sm">3</button>
+            <button class="btn btn-sm">»</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modal Backdrop -->
+    <div id="modalBackdrop" class="modal-backdrop"></div>
+
+    <!-- Modal for New Credit Note -->
+    <div id="newCreditNoteModal" class="modal-container" style="display: none;">
+      <div class="modal-content p-6">
+        <h3 class="font-bold text-lg mb-4">สร้างใบลดหนี้ใหม่</h3>
+        <button class="btn btn-sm btn-circle absolute right-2 top-2 close-modal">✕</button>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label">เลขที่ใบลดหนี้</label>
+            <input type="text" id="creditNoteNumber" class="input input-bordered" readonly />
+          </div>
+          <div class="form-control">
+            <label class="label">วันที่</label>
+            <input type="date" id="creditNoteDate" class="input input-bordered" />
+          </div>
+          <div class="form-control col-span-2">
+            <label class="label">เลขที่ใบรับเงินมัดจำ</label>
+            <div class="flex gap-2">
+              <input type="text" id="depositReceiptNumber" class="input input-bordered flex-1" placeholder="ระบุเลขที่ใบรับเงินมัดจำ" />
+              <button type="button" id="btnLoadDepositReceipt" class="btn btn-primary">
+                <i class="bi bi-search"></i> ค้นหา
+              </button>
+            </div>
+          </div>
+          <div class="form-control">
+            <label class="label">สาเหตุการลดหนี้</label>
+            <select id="creditNoteReason" class="select select-bordered">
+              <option value="" disabled selected>เลือกสาเหตุการลดหนี้</option>
+              <option value="cancel_deposit">ยกเลิกการมัดจำ</option>
+              <option value="partial_refund">คืนเงินมัดจำบางส่วน</option>
+              <option value="change_product">เปลี่ยนสินค้า</option>
+              <option value="cancelled_order">ยกเลิกการสั่งซื้อ</option>
+              <option value="defective_product">สินค้าชำรุด/มีปัญหา</option>
+              <option value="wrong_product">ส่งสินค้าผิด</option>
+              <option value="price_adjustment">ปรับปรุงราคา</option>
+              <option value="other">อื่นๆ</option>
+            </select>
+          </div>
+          <div class="form-control">
+            <label class="label">รายละเอียดเหตุผล</label>
+            <input type="text" id="reasonDetail" class="input input-bordered" placeholder="ระบุรายละเอียดเพิ่มเติม" />
+          </div>
+        </div>
+
+        <!-- Deposit Receipt Info Section -->
+        <div id="depositReceiptInfo" class="mt-6 p-4 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 rounded-lg hidden">
+          <h4 class="font-semibold mb-4 text-blue-700 dark:text-blue-300">ข้อมูลใบรับเงินมัดจำ</h4>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="font-medium">วันที่มัดจำ:</span>
+              <span id="depositDate" class="ml-2">-</span>
+            </div>
+            <div>
+              <span class="font-medium">ประเภทการมัดจำ:</span>
+              <span id="depositType" class="ml-2">-</span>
+            </div>
+            <div>
+              <span class="font-medium">สินค้า:</span>
+              <span id="depositProduct" class="ml-2">-</span>
+            </div>
+            <div>
+              <span class="font-medium">ยอดมัดจำ:</span>
+              <span id="depositAmount" class="ml-2 font-bold text-blue-600 dark:text-blue-400">-</span>
+            </div>
+            <div>
+              <span class="font-medium">ยอดรวมทั้งหมด:</span>
+              <span id="depositTotalAmount" class="ml-2">-</span>
+            </div>
+            <div>
+              <span class="font-medium">สถานะ:</span>
+              <span id="depositStatus" class="ml-2">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Section -->
+        <div class="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+          <h4 class="font-semibold mb-4">ข้อมูลลูกค้า</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label">ชื่อลูกค้า</label>
+              <input type="text" id="customerName" class="input input-bordered" placeholder="ระบุชื่อลูกค้า" />
+            </div>
+            <div class="form-control">
+              <label class="label">เลขประจำตัวผู้เสียภาษี</label>
+              <input type="text" id="customerTaxId" class="input input-bordered" placeholder="เลขประจำตัวผู้เสียภาษี 13 หลัก" maxlength="13" />
+            </div>
+            <div class="form-control">
+              <label class="label">ที่อยู่</label>
+              <textarea id="customerAddress" class="textarea textarea-bordered" placeholder="ระบุที่อยู่ลูกค้า"></textarea>
+            </div>
+            <div class="form-control">
+              <label class="label">เบอร์โทรศัพท์</label>
+              <input type="text" id="customerPhone" class="input input-bordered" placeholder="เบอร์โทรศัพท์" />
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <h4 class="font-semibold mb-2">รายการสินค้า</h4>
+          <div class="overflow-x-auto">
+            <table class="table w-full">
+              <thead>
+                <tr>
+                  <th>ลำดับ</th>
+                  <th>รหัสสินค้า</th>
+                  <th>รายการ</th>
+                  <th>จำนวน</th>
+                  <th>หน่วย</th>
+                  <th>ราคาต่อหน่วย</th>
+                  <th>ส่วนลด %</th>
+                  <th>จำนวนเงิน</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="creditNoteItems">
+                <tr>
+                  <td>1</td>
+                  <td>
+                    <input type="text" class="input input-bordered input-sm w-full item-code" placeholder="รหัสสินค้า" />
+                  </td>
+                  <td>
+                    <input type="text" class="input input-bordered input-sm w-full item-name" placeholder="รายการสินค้า" />
+                  </td>
+                  <td>
+                    <input type="number" class="input input-bordered input-sm w-20 item-quantity" min="1" value="1" />
+                  </td>
+                  <td>
+                    <select class="select select-bordered select-sm w-full item-unit">
+                      <option value="ชิ้น">ชิ้น</option>
+                      <option value="กล่อง">กล่อง</option>
+                      <option value="ชุด">ชุด</option>
+                      <option value="เครื่อง">เครื่อง</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" class="input input-bordered input-sm w-32 item-price" value="0.00" step="0.01" />
+                  </td>
+                  <td>
+                    <input type="number" class="input input-bordered input-sm w-20 item-discount" value="0" min="0" max="100" />
+                  </td>
+                  <td class="item-amount">0.00</td>
+                  <td>
+                    <button class="btn btn-sm btn-error remove-item">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button id="btnAddItem" class="btn btn-sm btn-outline mt-2">
+            <i class="bi bi-plus-circle mr-1"></i>เพิ่มรายการ
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <div class="form-control">
+            <label class="label">หมายเหตุ</label>
+            <textarea id="creditNoteNotes" class="textarea textarea-bordered h-24" placeholder="ระบุหมายเหตุ (ถ้ามี)"></textarea>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+            <div class="flex justify-between mb-2">
+              <span>รวมเงิน:</span>
+              <span id="subtotal">0.00</span>
+            </div>
+            <div class="flex justify-between mb-2">
+              <span>ส่วนลด:</span>
+              <span id="discount">0.00</span>
+            </div>
+            <div class="flex justify-between mb-2">
+              <span>มูลค่าหลังหักส่วนลด:</span>
+              <span id="afterDiscount">0.00</span>
+            </div>
+            <div class="flex justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span>ภาษีมูลค่าเพิ่ม:</span>
+                <select id="vatType" class="select select-bordered select-sm">
+                  <option value="none">ไม่มี VAT</option>
+                  <option value="inclusive">รวมใน 7%</option>
+                  <option value="exclusive">แยกนอก 7%</option>
+                </select>
+              </div>
+              <span id="vat">0.00</span>
+            </div>
+            <div class="flex justify-between font-bold text-lg">
+              <span>ยอดเงินสุทธิ:</span>
+              <span id="total">0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Refund Method Section -->
+        <div class="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+          <h4 class="font-semibold mb-4">การคืนเงิน (ถ้ามี)</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label">วิธีการคืนเงิน</label>
+              <select id="refundMethod" class="select select-bordered">
+                <option value="">ไม่มีการคืนเงิน</option>
+                <option value="cash">เงินสด</option>
+                <option value="transfer">โอนเงิน</option>
+                <option value="check">เช็ค</option>
+                <option value="credit">เครดิตสำหรับการซื้อครั้งถัดไป</option>
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label">วันที่คืนเงิน</label>
+              <input type="date" id="refundDate" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+              <label class="label">จำนวนเงินที่คืน</label>
+              <input type="number" id="refundAmount" class="input input-bordered" value="0.00" step="0.01" />
+            </div>
+            <div class="form-control">
+              <label class="label">หลักฐานการคืนเงิน</label>
+              <input type="text" id="refundEvidence" class="input input-bordered" placeholder="เลขที่อ้างอิงการโอน/เช็ค" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action mt-6">
+          <button class="btn btn-error close-modal">ยกเลิก</button>
+          <button id="btnSaveCreditNote" class="btn btn-success">บันทึกใบลดหนี้</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JavaScript for the page functionality -->
+    <script>
+      // Function to show/hide loading overlay
+            // Global variables
+      let currentCreditNotes = [];
+      // อ่าน branch_code จาก URL parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      let BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch');
+
+      if (!BRANCH_CODE) {
+        console.warn("Branch code not specified, defaulting to 'PATTANI'");
+        BRANCH_CODE = 'PATTANI';
+      }
+      window.currentBranchCode = BRANCH_CODE;
+      console.log(`[CreditNote] Using branch code: ${BRANCH_CODE}`);
+      
+      // อัพเดท localStorage และ title
+      if (urlParams.has('branch')) {'
+        localStorage.setItem('activeBranch', BRANCH_CODE);
+      }
+      
+      // อัพเดท title ของหน้า
+      if (urlParams.has('name')) {'
+        document.title = `ใบลดหนี้ | ระบบบัญชี - ${decodeURIComponent(urlParams.get('name'))}`;
+      }
+      
+      // Show/Hide Loading with Lottie animation
+      let lottieAnimation = null;
+      function showLoading(show) {
+        const loader = document.getElementById('loadingOverlay');
+        if (show) {
+          loader.style.display = 'flex';
+          loader.classList.remove('animate__fadeOut');
+          loader.classList.add('animate__fadeIn');
+
+          // โหลดและเล่น Lottie animation
+          if (!lottieAnimation) {
+            console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+            fetch('/Loading/Loading.json')
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(animationData => {
+                lottieAnimation = lottie.loadAnimation({
+                  container: document.getElementById('lottieContainer'),
+                  renderer: 'svg',
+                  loop: true,
+                  autoplay: true,
+                  animationData: animationData
+                });
+
+                console.log('✅ Lottie animation loaded successfully');
+              })
+              .catch(error => {
+                console.error('❌ Error loading Lottie animation:', error);
+                // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+                document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+              });
+          } else {
+            lottieAnimation.play();
+          }
+        } else {
+          if (lottieAnimation) {
+            lottieAnimation.pause();
+          }
+          loader.classList.remove('animate__fadeIn');
+          loader.classList.add('animate__fadeOut');
+          setTimeout(() => { loader.style.display = 'none'; }, 600);
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        showLoading(true);
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...',
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default'
+
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+        setTimeout(() => showLoading(false), 800);
+      }});
+      
+      try {
+        // Initialize event listeners
+        initEventListeners();
+
+        // Load branch info
+        loadBranchInfo();
+
+        // Set today's date as default for date inputs'
+        setDefaultDates();
+        
+        // Load initial data
+        loadCreditNotes();
+
+        // ตรวจสอบว่ามี depositReceipt parameter หรือไม่
+        const depositReceiptNumberFromUrl = urlParams.get('depositReceipt');
+
+        if (depositReceiptNumberFromUrl) {
+          // เปิด modal สร้างใบลดหนี้
+          openNewCreditNoteModal();
+          
+          // กรอกเลขที่ใบรับเงินมัดจำ
+          document.getElementById('depositReceiptNumber').value = depositReceiptNumberFromUrl;
+          
+          // โหลดข้อมูลใบรับเงินมัดจำอัตโนมัติ
+          // Use a small delay to ensure modal is fully rendered and elements are ready
+          setTimeout(() => {
+            const btnLoad = document.getElementById('btnLoadDepositReceipt');
+            if (btnLoad) {
+              btnLoad.click();
+            }
+          }, 500);
+        }
+      });
+
+      function setDefaultDates() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        
+        // Set date range to current month
+        const firstDay = new Date(year, today.getMonth(), 1);
+        const firstDayStr = `${year}-${month}-01`;
+        
+        document.getElementById('startDate').value = firstDayStr;
+        document.getElementById('endDate').value = todayStr;
+        document.getElementById('creditNoteDate').value = todayStr;
+      }
+
+      function initEventListeners() {
+        
+        // Search button
+        document.getElementById('btnSearch').addEventListener('click', searchCreditNotes);
+        
+        // Select all checkbox
+        document.getElementById('selectAll').addEventListener('change', function() {'
+          const isChecked = this.checked;
+          document.querySelectorAll('.select-item').forEach(checkbox => {'
+            checkbox.checked = isChecked;
+          });
+        });
+        
+        // New credit note button
+        document.getElementById('btnNewCreditNote').addEventListener('click', openNewCreditNoteModal);
+        
+        // Close modal buttons
+        document.querySelectorAll('.close-modal').forEach(button => {'
+          button.addEventListener('click', closeModal);
+        });
+        
+        // Load deposit receipt button
+        document.getElementById('btnLoadDepositReceipt').addEventListener('click', loadDepositReceiptData);
+        
+        // Add new item button
+        document.getElementById('btnAddItem').addEventListener('click', addNewCreditNoteItem);
+        
+        // Save credit note button
+        document.getElementById('btnSaveCreditNote').addEventListener('click', saveCreditNote);
+        
+        // Add event listeners to recalculate totals when inputs change
+        document.getElementById('creditNoteItems').addEventListener('input', recalculateTotals);
+        document.getElementById('vatType').addEventListener('change', recalculateTotals);
+        
+        // Modal backdrop click
+        document.getElementById('modalBackdrop').addEventListener('click', closeModal);
+
+        // Add event listener for refundMethod
+        document.getElementById('refundMethod').addEventListener('change', function() {'
+          if (this.value === '') {'
+            // ถ้าเลือก "ไม่มีการคืนเงิน" ให้ตั้งค่า refundAmount เป็น 0
+            document.getElementById('refundAmount').value = '0.00';
+            document.getElementById('refundDate').value = '';
+            document.getElementById('refundEvidence').value = '';
+          }
+        });
+
+        // Add event listener for initial remove button
+        document.querySelector('.remove-item')?.addEventListener('click', function() {'
+          const tbody = document.getElementById('creditNoteItems');
+          const rows = tbody.querySelectorAll('tr');
+          if (rows.length > 1) {
+            this.closest('tr').remove();
+            recalculateTotals();
+            // Renumber rows
+            // Query again inside the handler as `rows` might be stale
+            const currentRows = tbody.querySelectorAll('tr');
+            currentRows.forEach((row, index) => {
+              row.querySelector('td:first-child').textContent = index + 1;
+            });
+          } else {
+            // If it's the last row, clear its inputs instead of removing'
+            const lastRow = rows[0];
+            if (lastRow) {
+                lastRow.querySelector('.item-code').value = '';
+                lastRow.querySelector('.item-name').value = '';
+                lastRow.querySelector('.item-quantity').value = '1';
+                lastRow.querySelector('.item-price').value = '0.00';
+                lastRow.querySelector('.item-discount').value = '0';
+                lastRow.querySelector('.item-amount').textContent = '0.00';
+                recalculateTotals();
+            }
+          }
+        });
+      }
+
+      function openNewCreditNoteModal() {
+        // Generate credit note number
+        generateCreditNoteNumber();
+        
+        // Show modal
+        document.getElementById('newCreditNoteModal').style.display = 'block';
+        document.getElementById('modalBackdrop').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal() {
+        document.getElementById('newCreditNoteModal').style.display = 'none';
+        document.getElementById('modalBackdrop').style.display = 'none';
+        document.body.style.overflow = 'auto';
+        
+        // Reset form
+        resetCreditNoteForm();
+      }
+
+      function resetCreditNoteForm() {
+        // Reset all inputs
+        document.getElementById('depositReceiptNumber').value = '';
+        document.getElementById('creditNoteReason').value = '';
+        document.getElementById('reasonDetail').value = '';
+        document.getElementById('customerName').value = '';
+        document.getElementById('customerTaxId').value = '';
+        document.getElementById('customerAddress').value = '';
+        document.getElementById('customerPhone').value = '';
+        document.getElementById('creditNoteNotes').value = '';
+        document.getElementById('refundMethod').value = '';
+        document.getElementById('refundDate').value = '';
+        document.getElementById('refundAmount').value = '0.00';
+        document.getElementById('refundEvidence').value = '';
+        
+        // Hide deposit receipt info
+        document.getElementById('depositReceiptInfo').classList.add('hidden');
+        
+        // Reset items table to one row
+        const tbody = document.getElementById('creditNoteItems');
+        tbody.innerHTML = `
+          <tr>
+            <td>1</td>
+            <td><input type="text" class="input input-bordered input-sm w-full item-code" placeholder="รหัสสินค้า" /></td>
+            <td><input type="text" class="input input-bordered input-sm w-full item-name" placeholder="รายการสินค้า" /></td>
+            <td><input type="number" class="input input-bordered input-sm w-20 item-quantity" min="1" value="1" /></td>
+            <td>
+              <select class="select select-bordered select-sm w-full item-unit">
+                <option value="ชิ้น">ชิ้น</option>
+                <option value="กล่อง">กล่อง</option>
+                <option value="ชุด">ชุด</option>
+                <option value="เครื่อง">เครื่อง</option>
+              </select>
+            </td>
+            <td><input type="number" class="input input-bordered input-sm w-32 item-price" value="0.00" step="0.01" /></td>
+            <td><input type="number" class="input input-bordered input-sm w-20 item-discount" value="0" min="0" max="100" /></td>
+            <td class="item-amount">0.00</td>
+            <td>
+              <button class="btn btn-sm btn-error remove-item">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+        
+        // Recalculate totals
+        recalculateTotals();
+      }
+
+      async function generateCreditNoteNumber() {
+        // This would normally be generated by the backend
+        // For now, we'll show a placeholder'
+        const now = new Date();
+        const buddhistYear = now.getFullYear() + 543;
+        const YY = String(buddhistYear).slice(-2); // เอาแค่ 2 หลักท้าย
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${YY}${month}${day}`;
+        
+        document.getElementById('creditNoteNumber').value = `CN-${dateStr}XXXX`;
+      }
+
+      async function loadCreditNotes(searchType = '', searchTerm = '') {'
+        const tbody = document.getElementById('creditNoteTableBody');
+        const emptyState = document.getElementById('emptyState');
+        
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4"><div class="loader mx-auto"></div> กำลังโหลดข้อมูล...</td></tr>';
+        emptyState.classList.add('hidden');
+        
+        const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+        
+        try {
+          const startDate = document.getElementById('startDate').value;
+          const endDate = document.getElementById('endDate').value;
+          const token = localStorage.getItem('authToken');
+          
+          let url = `/api/credit-notes?branch_code=${BRANCH_CODE}&startDate=${startDate}&endDate=${endDate}`;
+
+          if (searchType && searchTerm) {
+            url += `&searchType=${searchType}&searchTerm=${encodeURIComponent(searchTerm)}`;
+          }
+          
+          const response = await fetch(url, {
+            headers: {
+              'Authorization': 'Bearer ' + token'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          
+          tbody.innerHTML = ''; // เคลียร์ loader ก่อน'
+          
+          if (!result.success || !result.data || result.data.length === 0) {
+            emptyState.classList.remove('hidden');
+            updatePagination(0);
+            return;
+          }
+          
+          currentCreditNotes = result.data;
+          
+          result.data.forEach((cn, index) => {
+            const tr = document.createElement('tr');
+            tr.classList.add('hover:bg-gray-50', 'dark:hover:bg-gray-800', 'border-b', 'dark:border-gray-700');
+            
+            let statusBadge = '';
+            if (cn.status === 'draft') {'
+              statusBadge = '<span class="badge badge-warning">ฉบับร่าง</span>';
+            } else if (cn.status === 'approved') {'
+              statusBadge = '<span class="badge badge-success">อนุมัติแล้ว</span>';
+            } else if (cn.status === 'completed') {'
+              statusBadge = '<span class="badge badge-info">เสร็จสิ้น</span>';
+            } else if (cn.status === 'cancelled') {'
+              statusBadge = '<span class="badge badge-error">ยกเลิก</span>';
+            }
+            
+            let reasonText = '';
+            switch(cn.reason) {
+              case 'cancel_deposit': reasonText = 'ยกเลิกมัดจำ'; break;
+              case 'partial_refund': reasonText = 'คืนบางส่วน'; break;
+              case 'change_product': reasonText = 'เปลี่ยนสินค้า'; break;
+              case 'cancelled_order': reasonText = 'ยกเลิกการสั่งซื้อ'; break;
+              case 'defective_product': reasonText = 'สินค้าชำรุด'; break;
+              case 'wrong_product': reasonText = 'ส่งสินค้าผิด'; break;
+              case 'price_adjustment': reasonText = 'ปรับปรุงราคา'; break;
+              case 'other': reasonText = cn.reasonDetail || 'อื่นๆ'; break;
+              default: reasonText = cn.reason || 'N/A';
+            }
+            
+            const creditNoteDate = cn.creditNoteDate ? new Date(cn.creditNoteDate).toLocaleDateString('th-TH') : 'N/A';
+            
+            tr.innerHTML = `
+              <td class="p-3 text-center">
+                <input type="checkbox" class="checkbox select-item" data-id="${cn._id}" />
+              </td>
+              <td class="p-3">${cn.creditNoteNumber || 'N/A'}</td>'
+              <td class="p-3">${statusBadge}</td>
+              <td class="p-3">${creditNoteDate}</td>
+              <td class="p-3">${cn.depositReceiptNumber || 'N/A'}</td>'
+              <td class="p-3">${cn.customerName || 'N/A'}</td>'
+              <td class="p-3">${reasonText}</td>
+              <td class="p-3 text-right">฿${(cn.subtotal || 0).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>'
+              <td class="p-3 text-right">฿${(cn.totalAmount || 0).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>'
+              <td class="p-3">
+                <div class="flex space-x-2">
+                  <button class="btn btn-sm btn-ghost download-doc" data-id="${cn._id}" title="ดาวน์โหลด">
+                    <i class="bi bi-download"></i>
+                  </button>
+                  ${cn.status === 'draft' ? `'
+                    <button class="btn btn-sm btn-ghost text-success approve-doc" data-id="${cn._id}" title="อนุมัติ">
+                      <i class="bi bi-check-circle"></i>
+                    </button>
+                  ` : ''}'
+                  ${cn.status !== 'cancelled' ? `'
+                    <button class="btn btn-sm btn-ghost text-warning cancel-doc" data-id="${cn._id}" title="ยกเลิก">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  ` : ''}'
+                  <button class="btn btn-sm btn-ghost text-error delete-doc" data-id="${cn._id}" title="ลบ">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+          
+          // Add event listeners to action buttons
+          addActionButtonListeners();
+          
+          // Update pagination
+          updatePagination(result.data.length);
+          
+        } catch (error) {
+          console.error('Failed to load credit notes:', error);
+          tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
+        } finally {
+          LoadingSystem.hide(loaderId);
+        }
+      }
+
+      function addActionButtonListeners() {
+        // Download buttons
+        document.querySelectorAll('.download-doc').forEach(btn => {'
+          btn.addEventListener('click', async function() {'
+            const id = this.dataset.id;
+            const btn = this; // Changed: Use 'this' directly for the button'
+            const originalHTML = btn.innerHTML;
+            
+            try {
+              const token = localStorage.getItem('authToken');
+              
+              // แสดง loading
+              btn.disabled = true;
+              btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+              
+              // ใช้ fetch API พร้อมส่ง token ใน header
+              const response = await fetch(`/api/credit-notes/${id}/download`, {
+                method: 'GET','
+                headers: {
+                  'Authorization': 'Bearer ' + token'
+                }
+              });
+              
+              if (!response.ok) {
+                // Try to parse error message from server if available
+                let errorMsg = 'Download failed';
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorData.message || `HTTP error ${response.status}`;
+                } catch (e) {
+                    // If response is not JSON, use status text
+                    errorMsg = response.statusText || `HTTP error ${response.status}`;
+                }
+                throw new Error(errorMsg);
+              }
+              
+              // รับ blob data
+              const blob = await response.blob();
+              
+              // ดึงชื่อไฟล์จาก header
+              const contentDisposition = response.headers.get('Content-Disposition');
+              let filename = `CN-${id}.pdf`; // Default filename
+              if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                  filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+              }
+              
+              // สร้าง download link
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.style.display = 'none';
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              
+              // Clean up
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+              
+              // คืนค่าปุ่ม
+              btn.disabled = false;
+              btn.innerHTML = originalHTML;
+              
+            } catch (error) {
+              console.error('Error downloading document:', error);
+              alert('ไม่สามารถดาวน์โหลดเอกสารได้: ' + error.message);
+              
+              // คืนค่าปุ่มเมื่อเกิด error
+              btn.disabled = false;
+              btn.innerHTML = originalHTML;
+            }
+          });
+        });
+        
+        // Approve buttons
+        document.querySelectorAll('.approve-doc').forEach(btn => {'
+          btn.addEventListener('click', async function() {'
+            const id = this.dataset.id;
+            if (confirm('คุณต้องการอนุมัติใบลดหนี้นี้หรือไม่?')) {'
+              try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/api/credit-notes/${id}/approve`, {
+                  method: 'PUT','
+                  headers: {
+                    'Authorization': 'Bearer ' + token'
+                  }
+                });
+                if (response.ok) {
+                  alert('อนุมัติใบลดหนี้เรียบร้อยแล้ว');
+                  await loadCreditNotes();
+                } else {
+                  const error = await response.json();
+                  alert('ไม่สามารถอนุมัติใบลดหนี้ได้: ' + (error.error || response.statusText));
+                }
+              } catch (error) {
+                console.error('Error approving document:', error);
+                alert('เกิดข้อผิดพลาดในการอนุมัติเอกสาร');
+              }
+            }
+          });
+        });
+        
+        // Cancel buttons
+        document.querySelectorAll('.cancel-doc').forEach(btn => {'
+          btn.addEventListener('click', async function() {'
+            const id = this.dataset.id;
+            const reason = prompt('กรุณาระบุเหตุผลในการยกเลิก:');
+            if (reason) {
+              try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/api/credit-notes/${id}/cancel`, {
+                  method: 'PUT','
+                  headers: {
+                    'Content-Type': 'application/json','
+                    'Authorization': 'Bearer ' + token'
+                  },
+                  body: JSON.stringify({ reason })
+                });
+                if (response.ok) {
+                  alert('ยกเลิกใบลดหนี้เรียบร้อยแล้ว');
+                  await loadCreditNotes();
+                } else {
+                  const error = await response.json();
+                  alert('ไม่สามารถยกเลิกใบลดหนี้ได้: ' + (error.error || response.statusText));
+                }
+              } catch (error) {
+                console.error('Error cancelling document:', error);
+                alert('เกิดข้อผิดพลาดในการยกเลิกเอกสาร');
+              }
+            }
+          });
+        });
+        
+        // Delete buttons
+        document.querySelectorAll('.delete-doc').forEach(btn => {'
+          btn.addEventListener('click', async function() {'
+            const id = this.dataset.id;
+            if (confirm('คุณต้องการลบใบลดหนี้นี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้')) {'
+              try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/api/credit-notes/${id}`, {
+                  method: 'DELETE','
+                  headers: {
+                    'Authorization': 'Bearer ' + token'
+                  }
+                });
+                if (response.ok) {
+                  alert('ลบใบลดหนี้เรียบร้อยแล้ว');
+                  await loadCreditNotes();
+                } else {
+                  const error = await response.json();
+                  alert('ไม่สามารถลบใบลดหนี้ได้: ' + (error.error || response.statusText));
+                }
+              } catch (error) {
+                console.error('Error deleting document:', error);
+                alert('เกิดข้อผิดพลาดในการลบเอกสาร');
+              }
+            }
+          });
+        });
+      }
+
+      function updatePagination(totalRecords) {
+        document.getElementById('currentRange').textContent = totalRecords > 0 ? `1-${Math.min(10, totalRecords)}` : '0';
+        document.getElementById('totalRecords').textContent = totalRecords;
+      }
+
+      async function searchCreditNotes() {
+        const searchType = document.getElementById('searchType').value;
+        const searchTerm = document.getElementById('searchTerm').value;
+        
+        const tbody = document.getElementById('creditNoteTableBody');
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4"><div class="loader mx-auto"></div> กำลังค้นหา...</td></tr>';
+        
+        await loadCreditNotes(searchType, searchTerm);
+      }
+
+      function addNewCreditNoteItem() {
+        const itemsTable = document.getElementById('creditNoteItems');
+        const rowCount = itemsTable.querySelectorAll('tr').length;
+        
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+          <td>${rowCount + 1}</td>
+          <td><input type="text" class="input input-bordered input-sm w-full item-code" placeholder="รหัสสินค้า" /></td>
+          <td><input type="text" class="input input-bordered input-sm w-full item-name" placeholder="รายการสินค้า" /></td>
+          <td><input type="number" class="input input-bordered input-sm w-20 item-quantity" min="1" value="1" /></td>
+          <td>
+            <select class="select select-bordered select-sm w-full item-unit">
+              <option value="ชิ้น">ชิ้น</option>
+              <option value="กล่อง">กล่อง</option>
+              <option value="ชุด">ชุด</option>
+              <option value="เครื่อง">เครื่อง</option>
+            </select>
+          </td>
+          <td><input type="number" class="input input-bordered input-sm w-32 item-price" value="0.00" step="0.01" /></td>
+          <td><input type="number" class="input input-bordered input-sm w-20 item-discount" value="0" min="0" max="100" /></td>
+          <td class="item-amount">0.00</td>
+          <td>
+            <button class="btn btn-sm btn-error remove-item">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+        
+        itemsTable.appendChild(newRow);
+        
+        // Add event listener to the remove button
+        newRow.querySelector('.remove-item').addEventListener('click', function() {'
+          itemsTable.removeChild(newRow);
+          recalculateTotals();
+          // Renumber rows
+          const rows = itemsTable.querySelectorAll('tr');
+          rows.forEach((row, index) => {
+            row.querySelector('td:first-child').textContent = index + 1;
+          });
+        });
+      }
+
+      function recalculateTotals() {
+        let subtotal = 0;
+        let totalDiscount = 0;
+        const rows = document.querySelectorAll('#creditNoteItems tr');
+        
+        rows.forEach(row => {
+          const quantity = parseFloat(row.querySelector('.item-quantity')?.value) || 0;
+          const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+          const discount = parseFloat(row.querySelector('.item-discount')?.value) || 0;
+          
+          const lineTotal = quantity * price;
+          const discountAmount = lineTotal * (discount / 100);
+          const rowTotal = lineTotal - discountAmount;
+          
+          row.querySelector('.item-amount').textContent = rowTotal.toFixed(2);
+          
+          subtotal += lineTotal;
+          totalDiscount += discountAmount;
+        });
+        
+        // Update totals in the UI
+        document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+        document.getElementById('discount').textContent = totalDiscount.toFixed(2);
+        
+        const afterDiscount = subtotal - totalDiscount;
+        document.getElementById('afterDiscount').textContent = afterDiscount.toFixed(2);
+        
+        const vatType = document.getElementById('vatType').value;
+        let vat = 0;
+        
+        if (vatType === 'exclusive') {'
+          vat = afterDiscount * 0.07;
+        } else if (vatType === 'inclusive') {'
+          vat = afterDiscount - (afterDiscount / 1.07);
+        }
+        
+        document.getElementById('vat').textContent = vat.toFixed(2);
+        
+        const total = vatType === 'exclusive' ? afterDiscount + vat : afterDiscount;
+        document.getElementById('total').textContent = total.toFixed(2);
+        
+        // Update refund amount if it matches total AND refund method is selected
+        const refundAmount = document.getElementById('refundAmount');
+        const refundMethod = document.getElementById('refundMethod').value;
+        if (parseFloat(refundAmount.value) === 0 && refundMethod !== '') {'
+          refundAmount.value = total.toFixed(2);
+        }
+      }
+
+      async function loadDepositReceiptData() {
+        const depositReceiptNumber = document.getElementById('depositReceiptNumber').value.trim();
+        
+        if (!depositReceiptNumber) {
+          alert('กรุณาระบุเลขที่ใบรับเงินมัดจำ');
+          return;
+        }
+        
+        // Show loading
+        const btnLoad = document.getElementById('btnLoadDepositReceipt');
+        const originalText = btnLoad.innerHTML;
+        btnLoad.disabled = true;
+        btnLoad.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังค้นหา...';
+        const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+        
+        try {
+          const token = localStorage.getItem('authToken');
+          // ค้นหาใบรับเงินมัดจำทั้งหมดแล้วกรองด้วย receiptNumber
+          const response = await fetch(`/api/deposit-receipts?branch_code=${BRANCH_CODE}`, {
+            headers: {
+              'Authorization': 'Bearer ' + token'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          
+          if (result.success && result.data && result.data.length > 0) {
+            // กรองหาใบรับเงินมัดจำที่ตรงกับเลขที่
+            const depositReceipt = result.data.find(dr => dr.receiptNumber === depositReceiptNumber);
+            
+            if (!depositReceipt) {
+              alert('ไม่พบใบรับเงินมัดจำที่ระบุ');
+              return;
+            }
+            
+            // Check status
+            if (depositReceipt.status === 'cancelled') {'
+              alert('ใบรับเงินมัดจำนี้ถูกยกเลิกแล้ว ไม่สามารถสร้างใบลดหนี้ได้');
+              return;
+            }
+            
+            // Show deposit receipt info
+            document.getElementById('depositReceiptInfo').classList.remove('hidden');
+            document.getElementById('depositDate').textContent = new Date(depositReceipt.receiptDate).toLocaleDateString('th-TH');
+            document.getElementById('depositType').textContent = depositReceipt.depositType === 'preorder' ? 'Pre-order' : 'มัดจำออนไลน์';
+            document.getElementById('depositProduct').textContent = depositReceipt.productName || 'N/A';
+            document.getElementById('depositAmount').textContent = '฿' + (depositReceipt.depositAmount || 0).toLocaleString('th-TH', {minimumFractionDigits: 2});
+            document.getElementById('depositTotalAmount').textContent = '฿' + (depositReceipt.totalAmount || 0).toLocaleString('th-TH', {minimumFractionDigits: 2});
+            document.getElementById('depositStatus').textContent = depositReceipt.status === 'active' ? 'ใช้งาน' : depositReceipt.status;
+            
+            // Fill customer data
+            document.getElementById('customerName').value = depositReceipt.customerName || '';
+            document.getElementById('customerAddress').value = depositReceipt.customerAddress || '';
+            document.getElementById('customerPhone').value = depositReceipt.customerPhone || '';
+            document.getElementById('customerTaxId').value = depositReceipt.customerTaxId || '';
+            
+            // Add product to items table if not already there
+            const tbody = document.getElementById('creditNoteItems');
+            const firstRow = tbody.querySelector('tr');
+            if (firstRow && !firstRow.querySelector('.item-name').value) {'
+              // Fill first row with product data
+              firstRow.querySelector('.item-code').value = depositReceipt.productId || '';
+              firstRow.querySelector('.item-name').value = depositReceipt.productName || '';
+              firstRow.querySelector('.item-quantity').value = 1;
+              firstRow.querySelector('.item-price').value = depositReceipt.productPrice || depositReceipt.subtotal || 0;
+              
+              // Set VAT type based on deposit receipt
+              if (depositReceipt.vatType) {
+                document.getElementById('vatType').value = depositReceipt.vatType;
+              }
+              
+              // Recalculate
+              recalculateTotals();
+              
+              // Set refund amount to deposit amount by default
+              document.getElementById('refundAmount').value = (depositReceipt.depositAmount || 0).toFixed(2);
+            }
+            
+          } else {
+            alert('ไม่พบข้อมูลใบรับเงินมัดจำในระบบ');
+          }
+          
+        } catch (error) {
+          console.error('Error loading deposit receipt:', error);
+          alert('เกิดข้อผิดพลาดในการค้นหาใบรับเงินมัดจำ');
+        } finally {
+          btnLoad.disabled = false;
+          btnLoad.innerHTML = originalText;
+          LoadingSystem.hide(loaderId);
+        }
+      }
+
+      async function saveCreditNote() {
+        // Validate required fields
+        const depositReceiptNumber = document.getElementById('depositReceiptNumber').value.trim();
+        const reason = document.getElementById('creditNoteReason').value;
+        const customerName = document.getElementById('customerName').value.trim();
+        
+        if (!depositReceiptNumber || !reason || !customerName) {
+          alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+          return;
+        }
+        
+        // Collect items data
+        const items = [];
+        document.querySelectorAll('#creditNoteItems tr').forEach(row => {'
+          const quantity = parseFloat(row.querySelector('.item-quantity')?.value) || 0;
+          const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+          
+          if (quantity > 0 && price > 0) {
+            items.push({
+              productCode: row.querySelector('.item-code')?.value || '','
+              productName: row.querySelector('.item-name')?.value || '','
+              quantity: quantity,
+              unit: row.querySelector('.item-unit')?.value || 'ชิ้น','
+              pricePerUnit: price,
+              discount: parseFloat(row.querySelector('.item-discount')?.value) || 0,'
+              amount: parseFloat(row.querySelector('.item-amount')?.textContent) || 0'
+            });
+          }
+        });
+        
+        if (items.length === 0) {
+          alert('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ');
+          return;
+        }
+        
+        // Get refund data
+        const refundMethod = document.getElementById('refundMethod').value;
+        const refundAmount = parseFloat(document.getElementById('refundAmount').value) || 0;
+        
+        // ตรวจสอบว่ามีการคืนเงินหรือไม่
+        if (refundMethod !== '' && refundAmount <= 0) {'
+          alert('กรุณาระบุจำนวนเงินที่คืน');
+          return;
+        }
+        
+        // Prepare data
+        const creditNoteData = {
+          creditNoteDate: document.getElementById('creditNoteDate').value,'
+          depositReceiptNumber: depositReceiptNumber,
+          reason: reason,
+          reasonDetail: document.getElementById('reasonDetail').value,'
+          
+          customerName: customerName,
+          customerAddress: document.getElementById('customerAddress').value || '','
+          customerPhone: document.getElementById('customerPhone').value || '','
+          customerTaxId: document.getElementById('customerTaxId').value || '','
+          
+          items: items,
+          
+          subtotal: parseFloat(document.getElementById('subtotal').textContent) || 0,'
+          discountAmount: parseFloat(document.getElementById('discount').textContent) || 0,'
+          afterDiscount: parseFloat(document.getElementById('afterDiscount').textContent) || 0,'
+          vatType: document.getElementById('vatType').value,'
+          vatRate: document.getElementById('vatType').value === 'none' ? 0 : 7,'
+          vatAmount: parseFloat(document.getElementById('vat').textContent) || 0,'
+          totalAmount: parseFloat(document.getElementById('total').textContent) || 0,'
+          
+          notes: document.getElementById('creditNoteNotes').value,'
+          
+          branch_code: BRANCH_CODE,
+          createdBy: localStorage.getItem('userId'),'
+          status: 'approved''
+        };
+        
+        // เพิ่มข้อมูลการคืนเงินเฉพาะเมื่อมีการคืนเงินจริง
+        if (refundAmount > 0 && refundMethod) {
+          creditNoteData.refundMethod = refundMethod;
+          creditNoteData.refundDate = document.getElementById('refundDate').value || new Date().toISOString().split('T')[0];
+
+          creditNoteData.refundAmount = refundAmount;
+          creditNoteData.refundEvidence = document.getElementById('refundEvidence').value || '';
+        }
+        
+        // Show loading
+        const saveButton = document.getElementById('btnSaveCreditNote');
+        const originalText = saveButton.textContent;
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังบันทึก...';
+        const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+        
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await fetch('/api/credit-notes', {'
+            method: 'POST','
+            headers: {
+              'Content-Type': 'application/json','
+              'Authorization': 'Bearer ' + token'
+            },
+            body: JSON.stringify(creditNoteData)
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok || !result.success) {
+            throw new Error(result.error || result.message || 'Failed to save credit note');
+          }
+          
+          alert('บันทึกใบลดหนี้เรียบร้อยแล้ว\nเลขที่: ' + (result.data?.creditNoteNumber || ''));
+          closeModal();
+          await loadCreditNotes();
+          
+        } catch (error) {
+          console.error('Error saving credit note:', error);
+          alert('ไม่สามารถบันทึกใบลดหนี้ได้\n' + error.message);
+        } finally {
+          saveButton.disabled = false;
+          saveButton.textContent = originalText;
+          LoadingSystem.hide(loaderId);
+        }
+      }
+      
+      // เพิ่มฟังก์ชัน loadBranchInfo
+      async function loadBranchInfo() {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const branchCode = urlParams.get('branch') || localStorage.getItem('activeBranch');
+          const token = localStorage.getItem("authToken") || "";
+          
+          // เรียก /api/branch เพื่อดึง list สาขา
+          const res = await fetch(`/api/branch`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const js = await res.json();
+          if (res.ok && js.success) {
+            // หา record ที่ตรงกับ branch_code
+            const branch = js.data.find(b => b.branch_code === branchCode);
+            if (branch) {
+              document.getElementById("branchInfo").textContent =
+                `${branch.name} — ${branch.address}`;
+              // อัพเดท title ของหน้าด้วยชื่อสาขาจริง
+              document.title = `ใบลดหนี้ - ${branch.name}`;
+              document.getElementById("pageTitle").textContent = `ใบลดหนี้ - ${branch.name}`;
+              return;
+            }
+          }
+          throw new Error("ไม่พบข้อมูลสาขา");
+        } catch (err) {
+          console.warn("loadBranchInfo error:", err);
+          document.getElementById("branchInfo").textContent =
+            "สาขา: (ไม่พบข้อมูล)";
+        }
+      }
+      
+      // อัพเดท toggleSidebar เพื่อจัดการ header margin
+      toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const header = document.getElementById('mainHeader');
+        const toggleIcon = document.querySelector('#btnToggleMenu i');
+        
+        sidebar.classList.toggle('-translate-x-full');
+        
+        if (sidebar.classList.contains('-translate-x-full')) {'
+          mainContent.style.marginLeft = '0';
+          mainContent.classList.remove('ml-56');
+          mainContent.classList.add('ml-0');
+          header.classList.remove('ml-56');
+          header.classList.add('ml-0');
+          toggleIcon.classList.replace('bi-chevron-left', 'bi-chevron-right');
+        } else {
+          mainContent.style.marginLeft = '14rem';
+          mainContent.classList.remove('ml-0');
+          mainContent.classList.add('ml-56');
+          header.classList.remove('ml-0');
+          header.classList.add('ml-56');
+          toggleIcon.classList.replace('bi-chevron-right', 'bi-chevron-left');
+        }
+        
+        // Save state
+        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('-translate-x-full'));
+      };
+
+      // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+      window.addEventListener('beforeunload', () => {
+        if (lottieAnimation) {
+          lottieAnimation.destroy();
+          lottieAnimation = null;
+        }
+      });
+
+}</script>
+  </body>
+</html>

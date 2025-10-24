@@ -1,0 +1,2647 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จัดการคำขอเข้าสู่ระบบ - Login Request Management</title>
+  
+  <!-- Favicon -->  
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+  
+  <!-- Google Fonts - Prompt (Thai) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase Realtime Database Enhanced -->
+  <script type="module">
+    // Import Firebase SDK
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+    import { getDatabase, ref, onValue, set, push, serverTimestamp, onDisconnect, remove } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
+    
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCv4EBbKN8Kr4IMRqszJGBWTSoMihtYLo",
+      authDomain: "pheenongacc.firebaseapp.com",
+      databaseURL: "https://pheenongacc-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pheenongacc",
+      storageBucket: "pheenongacc.appspot.com",
+      messagingSenderId: "158417807357",
+      appId: "1:158417807357:web:4a9c78f7aea793dc7d64494",
+      measurementId: "G-F7DPQ7XG9K"
+    };
+    
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    // ข้อมูล session ปัจจุบัน
+    const currentSession = {
+      branchCode: 'LOGIN_MANAGEMENT',
+      sessionId: 'LOGIN_MGT_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      staffId: localStorage.getItem('userId'),
+      staffName: localStorage.getItem('userName'),
+      timestamp: Date.now(),
+      userRole: 'admin'
+    };
+
+    // Firebase References
+    const sessionRef = ref(database, `sessions/login_management/${currentSession.sessionId}`);
+    const notificationsRef = ref(database, 'notifications/login_management');
+    const onlineUsersRef = ref(database, 'onlineUsers/login_management');
+    const loginRequestsRef = ref(database, 'loginRequests/realtime');
+    const systemStatsRef = ref(database, 'systemStats/login_management');
+    
+    // ตัวแปรเก็บสถานะ
+    let isFirebaseConnected = false;
+    let lastNotificationTime = 0;
+
+    // ตรวจสอบการเชื่อมต่อ Firebase
+    const connectedRef = ref(database, '.info/connected');
+    onValue(connectedRef, (snapshot) => {
+      isFirebaseConnected = snapshot.val() === true;
+      window.isFirebaseConnected = isFirebaseConnected;
+      console.log('🔥 Firebase connection status:', isFirebaseConnected ? 'Connected' : 'Disconnected');
+      
+      if (isFirebaseConnected) {
+        registerSession();
+        setupOnDisconnect();
+        
+        if (typeof showToast === 'function') {
+          showToast('🔥 เชื่อมต่อ Firebase สำเร็จ', 'success');
+        }
+        
+        // อัปเดตสถานะ Firebase
+        updateFirebaseStatus(true);
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('⚠️ การเชื่อมต่อ Firebase ขัดข้อง', 'warning');
+        }
+        
+        // อัปเดตสถานะ Firebase
+        updateFirebaseStatus(false);
+      }
+    });
+
+    // ลงทะเบียน session
+    async function registerSession() {
+      try {
+        await set(sessionRef, {
+          ...currentSession,
+          status: 'online',
+          lastActivity: serverTimestamp(),
+          userAgent: navigator.userAgent,
+          connectedAt: serverTimestamp(),
+          page: 'login_management'
+        });
+        
+        // เพิ่มผู้ใช้ online
+        await set(ref(database, `onlineUsers/login_management/${currentSession.sessionId}`), {
+          staffId: currentSession.staffId,
+          staffName: currentSession.staffName,
+          sessionId: currentSession.sessionId,
+          userRole: 'admin',
+          connectedAt: serverTimestamp()
+        });
+        
+        console.log('✅ Login Management session registered to Firebase');
+      } catch (error) {
+        console.error('❌ Failed to register session:', error);
+      }
+    }
+
+    // ตั้งค่า onDisconnect
+    function setupOnDisconnect() {
+      onDisconnect(sessionRef).set({
+        ...currentSession,
+        status: 'offline',
+        lastActivity: serverTimestamp(),
+        disconnectedAt: serverTimestamp()
+      });
+      
+      onDisconnect(ref(database, `onlineUsers/login_management/${currentSession.sessionId}`)).remove();
+    }
+
+    // ฟังการแจ้งเตือนจากระบบ
+    onValue(notificationsRef, (snapshot) => {
+      const notifications = snapshot.val();
+      if (notifications) {
+        Object.entries(notifications).forEach(([key, notification]) => {
+          // แสดงเฉพาะการแจ้งเตือนใหม่ (ใน 2 นาทีล่าสุด)
+          if (notification.timestamp > (Date.now() - 120000) && notification.timestamp > lastNotificationTime) {
+            if (typeof showToast === 'function') {
+              showToast(`${notification.title}: ${notification.message}`, notification.type || 'info');
+            }
+            
+            lastNotificationTime = notification.timestamp;
+          }
+        });
+      }
+    });
+
+    // ฟังคำขอ login แบบ real-time
+    onValue(loginRequestsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.newRequest) {
+        console.log('🔔 New login request detected via Firebase:', data);
+        
+        // รีโหลดข้อมูลคำขอ
+        if (typeof loadPendingRequests === 'function') {
+          setTimeout(() => {
+            loadPendingRequests();
+          }, 500);
+        }
+        
+        // แสดงการแจ้งเตือน
+        if (typeof showToast === 'function') {
+          showToast(`📝 มีคำขอเข้าสู่ระบบใหม่จาก ${data.employeeName || data.username}`, 'info');
+        }
+        
+        // เล่นเสียงแจ้งเตือน
+        if (typeof playNotificationSound === 'function') {
+          playNotificationSound();
+        }
+      }
+    });
+
+    // ฟังสถิติระบบ
+    onValue(systemStatsRef, (snapshot) => {
+      const stats = snapshot.val();
+      if (stats) {
+        updateDashboardStats(stats);
+      }
+    });
+
+    // ฟังผู้ใช้ออนไลน์
+    onValue(onlineUsersRef, (snapshot) => {
+      const users = snapshot.val() || {};
+      const onlineCount = Object.keys(users).length;
+      console.log(`👥 Login Management online users: ${onlineCount}`);
+      
+      // อัปเดต UI ถ้ามี element
+      const onlineCountEl = document.getElementById('onlineUserCount');
+      if (onlineCountEl) {
+        onlineCountEl.textContent = onlineCount;
+      }
+    });
+
+    // ฟังก์ชันส่งการแจ้งเตือน
+    window.sendNotificationToFirebase = function (notification) {
+      if (!isFirebaseConnected) return;
+
+      const notifRef = push(notificationsRef);
+      set(notifRef, {
+        ...notification,
+        sessionId: currentSession.sessionId,
+        timestamp: Date.now(),
+        createdAt: serverTimestamp(),
+        source: 'login_management'
+      }).then(() => {
+        console.log('✅ Notification sent to Firebase');
+      }).catch(err => {
+        console.error('❌ Failed to send notification:', err);
+      });
+    };
+
+    // ฟังก์ชันอัปเดต Activity
+    window.updateLoginManagementActivity = function (activity) {
+      if (!isFirebaseConnected) return;
+      
+      set(ref(database, `sessions/login_management/${currentSession.sessionId}/lastActivity`), serverTimestamp());
+      set(ref(database, `sessions/login_management/${currentSession.sessionId}/currentActivity`), activity);
+    };
+
+    // ฟังก์ชันส่งการอัปเดตสถิติ
+    window.updateLoginStatsToFirebase = function (stats) {
+      if (!isFirebaseConnected) return;
+
+      set(systemStatsRef, {
+        ...stats,
+        lastUpdated: serverTimestamp(),
+        sessionId: currentSession.sessionId,
+        timestamp: Date.now()
+      }).then(() => {
+        console.log('✅ Stats updated to Firebase');
+      }).catch(err => {
+        console.error('❌ Failed to update stats:', err);
+      });
+    };
+
+    // ฟังก์ชันส่งคำขอ login ใหม่
+    window.sendLoginRequestToFirebase = function (requestData) {
+      if (!isFirebaseConnected) return;
+
+      set(loginRequestsRef, {
+        newRequest: true,
+        ...requestData,
+        timestamp: Date.now(),
+        sessionId: currentSession.sessionId
+      }).then(() => {
+        console.log('✅ Login request sent to Firebase');
+      }).catch(err => {
+        console.error('❌ Failed to send login request:', err);
+      });
+    };
+
+    // Heartbeat เพื่อรักษา session
+    setInterval(() => {
+      if (isFirebaseConnected) {
+        set(ref(database, `sessions/login_management/${currentSession.sessionId}/lastHeartbeat`), serverTimestamp());
+      }
+    }, 30000); // ทุก 30 วินาที
+
+    // Cleanup เมื่อปิดหน้า
+    window.addEventListener('beforeunload', () => {
+      if (isFirebaseConnected) {
+        set(ref(database, `sessions/login_management/${currentSession.sessionId}/status`), 'offline');
+        remove(ref(database, `onlineUsers/login_management/${currentSession.sessionId}`));
+      }
+    });
+
+    // ฟังก์ชันอัปเดตสถานะการเชื่อมต่อ Firebase
+    function updateFirebaseStatus(connected) {
+      const statusEl = document.getElementById('firebaseStatus');
+      if (statusEl) {
+        statusEl.className = connected ? 
+          'w-2 h-2 rounded-full connected' : 
+          'w-2 h-2 rounded-full disconnected';
+        statusEl.title = connected ? 
+          'Firebase: เชื่อมต่อแล้ว' : 
+          'Firebase: ขัดข้อง';
+      }
+      
+      // อัปเดตสถานะรวม
+      if (typeof updateConnectionStatus === 'function') {
+        updateConnectionStatus();
+      }
+    }
+
+    // ฟังก์ชันอัปเดตสถิติ Dashboard
+    function updateDashboardStats(stats) {
+      console.log('📊 Updating login management stats:', stats);
+      
+      try {
+        if (stats.pending !== undefined) {
+          const pendingEl = document.getElementById('pendingCount');
+          if (pendingEl) pendingEl.textContent = stats.pending;
+        }
+        
+        if (stats.today) {
+          if (stats.today.approved !== undefined) {
+            const approvedEl = document.getElementById('approvedToday');
+            if (approvedEl) approvedEl.textContent = stats.today.approved;
+          }
+          
+          if (stats.today.rejected !== undefined) {
+            const rejectedEl = document.getElementById('rejectedToday');
+            if (rejectedEl) rejectedEl.textContent = stats.today.rejected;
+          }
+          
+          if (stats.today.total !== undefined) {
+            const totalEl = document.getElementById('totalToday');
+            if (totalEl) totalEl.textContent = stats.today.total;
+          }
+        }
+        
+        console.log('✅ Dashboard stats updated successfully');
+      } catch (error) {
+        console.error('❌ Error updating dashboard stats:', error);
+      }
+    }
+
+    // Export functions
+    window.updateFirebaseStatus = updateFirebaseStatus;
+    window.currentSession = currentSession;
+    window.isFirebaseConnected = isFirebaseConnected;
+
+    console.log('🔥 Firebase Realtime Database initialized for Login Management');
+    console.log('📱 Session ID:', currentSession.sessionId);
+  </script>
+
+  <!-- Socket.IO Client Enhanced -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif']
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    
+    .pulse-badge {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    
+    .slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+    }
+
+        .loading-spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 3px solid white;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Connection Status Styles */
+    .connected {
+      background-color: #10b981 !important;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+    
+    .disconnected {
+      background-color: #ef4444 !important;
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+    }
+    
+    .connecting {
+      background-color: #f59e0b !important;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+      }
+    }
+  </style>
+
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 10001;
+      pointer-events: auto;
+    }
+
+    .loading-overlay.loading-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-overlay.loading-hiding {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loading-content {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      min-width: 250px;
+      max-width: 90vw;
+    }
+
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e0e0e0;
+      border-top-color: #0d6efd;
+      border-radius: 50%;
+      animation: loading-spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-message {
+      color: #333333;
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+
+    .loading-progress {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .loading-progress-fill {
+      height: 100%;
+      background: #0d6efd;
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    /* Theme Variants */
+    .loading-success .loading-spinner { border-top-color: #10b981; }
+    .loading-success .loading-progress-fill { background: #10b981; }
+
+    .loading-warning .loading-spinner { border-top-color: #f59e0b; }
+    .loading-warning .loading-progress-fill { background: #f59e0b; }
+
+    .loading-error .loading-spinner { border-top-color: #ef4444; }
+    .loading-error .loading-progress-fill { background: #ef4444; }
+
+    @keyframes loading-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Dark mode support */
+    [data-theme="dark"] .loading-content {
+      background: #2a2a2a;
+      color: #ffffff;
+    }
+
+    [data-theme="dark"] .loading-message {
+      color: #ffffff;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .loading-content {
+        padding: 1.5rem;
+        margin: 1rem;
+      }
+    }
+  </style>
+
+  <script>
+    // LoadingSystem v2.0.0 - Inline Version
+    (function(window) {
+      'use strict';
+
+      console.log('🚀 LoadingSystem v2.0.0 (Inline) initializing...');
+
+      let activeLoaders = new Map();
+      let loaderCounter = 0;
+      let defaultContainer = null;
+
+      function createDefaultContainer() {
+        if (defaultContainer && document.body.contains(defaultContainer)) {
+          return defaultContainer;
+        }
+        defaultContainer = document.createElement('div');
+        defaultContainer.id = 'loading-system-container';
+        defaultContainer.className = 'loading-system-container';
+        document.body.appendChild(defaultContainer);
+        return defaultContainer;
+      }
+
+      function generateLoaderId() {
+        return `loader-${Date.now()}-${++loaderCounter}`;
+      }
+
+      function createLoadingOverlay(options = {}) {
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+    
+        const content = document.createElement('div');
+        content.className = 'loading-content';
+    
+        const spinner = document.createElement('div');
+        spinner.className = 'loading-spinner';
+    
+        const message = document.createElement('div');
+        message.className = 'loading-message';
+        message.textContent = options.message || 'กำลังโหลด...';
+    
+        let progressBar = null;
+        if (options.showProgress) {
+          progressBar = document.createElement('div');
+          progressBar.className = 'loading-progress';
+    
+          const progressFill = document.createElement('div');
+          progressFill.className = 'loading-progress-fill';
+          progressBar.appendChild(progressFill);
+        }
+    
+        content.appendChild(spinner);
+        content.appendChild(message);
+        if (progressBar) {
+          content.appendChild(progressBar);
+        }
+        overlay.appendChild(content);
+    
+        return { overlay, progressBar };
+      }
+
+      function updateProgress(loaderId, progress) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (loaderData && loaderData.progressBar) {
+          const fill = loaderData.progressBar.querySelector('.loading-progress-fill');
+          if (fill) {
+            fill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+          }
+        }
+      }
+
+      function startAutoProgress(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData || !loaderData.autoProgress) return;
+
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 15;
+          if (progress >= 95) {
+            progress = 95;
+            clearInterval(interval);
+          }
+          updateProgress(loaderId, progress);
+        }, 200);
+
+        loaderData.progressInterval = interval;
+      }
+
+      const LoadingSystem = {
+        show: function(options = {}) {
+          try {
+            const loaderId = generateLoaderId();
+            const container = createDefaultContainer();
+    
+            const { overlay, progressBar } = createLoadingOverlay(options);
+            overlay.setAttribute('data-loader-id', loaderId);
+    
+            if (options.type && options.type !== 'default') {
+              overlay.classList.add(`loading-${options.type}`);
+            }
+    
+            container.appendChild(overlay);
+    
+            const loaderData = {
+              overlay: overlay,
+              progressBar: progressBar,
+              options: options,
+              createdAt: Date.now(),
+              autoProgress: options.autoProgress,
+              progressInterval: null,
+              timeout: null
+            };
+    
+            activeLoaders.set(loaderId, loaderData);
+    
+            if (options.autoProgress && progressBar) {
+              startAutoProgress(loaderId);
+            }
+    
+            if (options.timeout && options.timeout > 0) {
+              loaderData.timeout = setTimeout(() => {
+                this.hide(loaderId);
+              }, options.timeout);
+            }
+    
+            requestAnimationFrame(() => {
+              overlay.classList.add('loading-visible');
+            });
+    
+            console.log(`✅ LoadingSystem.show() - ID: ${loaderId}`);
+            return loaderId;
+    
+          } catch (error) {
+            console.error('❌ LoadingSystem.show() error:', error);
+            return null;
+          }
+        },
+    
+        hide: function(loaderId) {
+          try {
+            if (!loaderId) return;
+    
+            const loaderData = activeLoaders.get(loaderId);
+            if (!loaderData) return;
+    
+            if (loaderData.progressBar) {
+              updateProgress(loaderId, 100);
+            }
+    
+            if (loaderData.progressInterval) {
+              clearInterval(loaderData.progressInterval);
+            }
+    
+            if (loaderData.timeout) {
+              clearTimeout(loaderData.timeout);
+            }
+    
+            loaderData.overlay.classList.remove('loading-visible');
+            loaderData.overlay.classList.add('loading-hiding');
+    
+            setTimeout(() => {
+              if (loaderData.overlay && loaderData.overlay.parentNode) {
+                loaderData.overlay.parentNode.removeChild(loaderData.overlay);
+              }
+              activeLoaders.delete(loaderId);
+            }, 300);
+    
+            console.log(`✅ LoadingSystem.hide() - ID: ${loaderId}`);
+    
+          } catch (error) {
+            console.error('❌ LoadingSystem.hide() error:', error);
+          }
+        },
+    
+        hideAll: function() {
+          try {
+            const loaderIds = Array.from(activeLoaders.keys());
+            loaderIds.forEach(loaderId => this.hide(loaderId));
+            console.log(`✅ LoadingSystem.hideAll() - ซ่อน ${loaderIds.length} loaders`);
+          } catch (error) {
+            console.error('❌ LoadingSystem.hideAll() error:', error);
+          }
+        },
+
+        updateProgress: function(loaderId, progress) {
+          updateProgress(loaderId, progress);
+        },
+
+        completeProgress: function(loaderId = null) {
+          if (loaderId) {
+            updateProgress(loaderId, 100);
+            setTimeout(() => this.hide(loaderId), 500);
+          } else {
+            activeLoaders.forEach((loaderData, id) => {
+              if (loaderData.progressBar) {
+                updateProgress(id, 100);
+                setTimeout(() => this.hide(id), 500);
+              }
+            });
+          }
+        },
+
+        updateMessage: function(loaderId, message) {
+          try {
+            const loaderData = activeLoaders.get(loaderId);
+            if (loaderData) {
+              const messageEl = loaderData.overlay.querySelector('.loading-message');
+              if (messageEl) {
+                messageEl.textContent = message;
+              }
+            }
+          } catch (error) {
+            console.error('❌ LoadingSystem.updateMessage() error:', error);
+          }
+        },
+
+        isActive: function(loaderId) {
+          return activeLoaders.has(loaderId);
+        },
+
+        getActiveCount: function() {
+          return activeLoaders.size;
+        },
+
+        cleanup: function() {
+          this.hideAll();
+          if (defaultContainer && document.body.contains(defaultContainer)) {
+            document.body.removeChild(defaultContainer);
+            defaultContainer = null;
+          }
+          activeLoaders.clear();
+          loaderCounter = 0;
+          console.log('🧹 LoadingSystem.cleanup() - ล้างข้อมูลทั้งหมดแล้ว');
+        },
+
+        debug: function() {
+          return {
+            activeLoaders: activeLoaders.size,
+            loaderIds: Array.from(activeLoaders.keys()),
+            containerExists: !!defaultContainer,
+            version: '2.0.0-inline'
+          };
+        }
+      };
+
+      // Export LoadingSystem to global scope
+      window.LoadingSystem = LoadingSystem;
+
+      // Auto cleanup เมื่อออกจากหน้า
+      window.addEventListener('beforeunload', () => {
+        LoadingSystem.cleanup();
+      });
+
+      console.log('✅ LoadingSystem v2.0.0 (Inline) initialized successfully');
+
+    })(window);
+  </script>
+
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 dark:text-white min-h-screen">
+
+    </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Header -->
+  <div class="bg-white dark:bg-gray-800 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center py-4">
+        <div class="flex items-center space-x-4">
+          <a href="/" class="text-gray-600 dark:text-gray-300 hover:text-primary-600">
+            <i class="bi bi-arrow-left text-xl"></i>
+          </a>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">คำขอเข้าสู่ระบบ</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">จัดการคำขอการเข้าสู่ระบบของพนักงาน</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <!-- Connection Status Indicator -->
+          <div class="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
+            <div id="firebaseStatus" class="w-2 h-2 rounded-full bg-gray-400" title="Firebase: ไม่ทราบสถานะ"></div>
+            <div id="socketStatus" class="w-2 h-2 rounded-full bg-gray-400" title="Socket.IO: ไม่ทราบสถานะ"></div>
+            <span id="connectionStatus" class="text-xs text-gray-600 dark:text-gray-300">เชื่อมต่อ...</span>
+          </div>
+          
+          <button id="autoApproveToggle" class="flex items-center space-x-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition" 
+                  title="เปิด/ปิดระบบอนุมัติอัตโนมัติ - เมื่อเปิดใช้งานจะอนุมัติคำขอทั้งหมดที่รออนุมัติทันที">
+            <i class="bi bi-robot"></i>
+            <span>อนุมัติอัตโนมัติ: <span id="autoApproveStatus">ปิด</span></span>
+            <i id="autoApproveIcon" class="bi bi-toggle-off text-lg"></i>
+          </button>
+          <button id="refreshBtn" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
+            <i class="bi bi-arrow-clockwise"></i>
+            รีเฟรช
+          </button>
+          <button id="darkModeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <i class="bi bi-moon-fill dark:hidden"></i>
+            <i class="bi bi-sun-fill hidden dark:block"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">รออนุมัติ</p>
+            <p id="pendingCount" class="text-3xl font-bold text-yellow-600">0</p>
+          </div>
+          <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-hourglass-split text-yellow-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">อนุมัติแล้ววันนี้</p>
+            <p id="approvedToday" class="text-3xl font-bold text-green-600">0</p>
+          </div>
+          <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-check-circle-fill text-green-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">ปฏิเสธวันนี้</p>
+            <p id="rejectedToday" class="text-3xl font-bold text-red-600">0</p>
+          </div>
+          <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-x-circle-fill text-red-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">ทั้งหมดวันนี้</p>
+            <p id="totalToday" class="text-3xl font-bold text-blue-600">0</p>
+          </div>
+          <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-calendar-check text-blue-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium">สถานะ:</label>
+          <select id="statusFilter" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700">
+            <option value="">ทั้งหมด</option>
+            <option value="pending">รออนุมัติ</option>
+            <option value="approved">อนุมัติแล้ว</option>
+            <option value="rejected">ปฏิเสธแล้ว</option>
+          </select>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium">วันที่:</label>
+          <input type="date" id="dateFilter" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700">
+        </div>
+        
+        <div class="flex-1">
+          <input type="text" id="searchInput" placeholder="ค้นหาชื่อหรือ username..." 
+                 class="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700">
+        </div>
+        
+        <button id="clearFilters" class="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">
+          <i class="bi bi-x-lg mr-1"></i>
+          ล้างตัวกรอง
+        </button>
+      </div>
+    </div>
+
+    <!-- Pending Requests -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold flex items-center gap-2">
+            <span id="pendingBadge" class="w-3 h-3 bg-yellow-500 rounded-full pulse-badge"></span>
+            คำขอที่รออนุมัติ
+          </h2>
+          <div class="flex items-center gap-2">
+            <button id="approveAllBtn" class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center gap-1">
+              <i class="bi bi-check-all"></i>
+              อนุมัติทั้งหมด
+            </button>
+            <button id="rejectAllBtn" class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm flex items-center gap-1">
+              <i class="bi bi-x-lg"></i>
+              ปฏิเสธทั้งหมด
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <input type="checkbox" id="selectAllPending" class="rounded">
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้ขอ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เวลาที่ขอ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เหตุผล</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">อุปกรณ์/IP</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="pendingRequestsTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- Dynamic content -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Request History -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-semibold">ประวัติคำขอ</h2>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้ขอ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เวลาที่ขอ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">สถานะ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้อนุมัติ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เวลาดำเนินการ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">หมายเหตุ</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- Dynamic content -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Pagination -->
+      <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+          แสดง <span id="showingCount">0</span> จาก <span id="totalCount">0</span> รายการ
+        </div>
+        <div class="flex gap-2">
+          <button id="prevPage" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button id="nextPage" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approve/Reject Modal -->
+  <div id="actionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <h3 id="modalTitle" class="text-lg font-semibold">ดำเนินการคำขอ</h3>
+      </div>
+      <div class="p-6">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">หมายเหตุ/เหตุผล</label>
+          <textarea id="actionNote" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700" 
+                    placeholder="ระบุหมายเหตุหรือเหตุผล..."></textarea>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button onclick="closeActionModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+            ยกเลิก
+          </button>
+          <button id="confirmActionBtn" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+            ยืนยัน
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Sound -->
+  <audio id="notificationSound" preload="auto">
+    <source src="/sounds/notification.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    // Global variables
+    let pendingRequests = [];
+    let historyRequests = [];
+    let selectedRequests = new Set();
+    let currentPage = 1;
+    const pageSize = 10;
+    let autoApproveEnabled = false;
+    let refreshInterval = null;
+    let currentActionCallback = null;
+    let socket = null;
+    
+    // Auth error handling
+    function handleApiError(error, response) {
+      if (response && response.status === 401) {
+        const errorCode = error.code || '';
+        switch (errorCode) {
+          case 'TOKEN_EXPIRED':
+            alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+            clearAuthAndRedirect();
+            break;
+    
+          case 'TOKEN_REVOKED':
+            alert('มีการเข้าสู่ระบบจากที่อื่น กรุณาเข้าสู่ระบบใหม่');
+            clearAuthAndRedirect();
+            break;
+    
+          case 'SESSION_EXPIRED':
+            alert('เซสชันหมดอายุหรือถูกยุติ กรุณาเข้าสู่ระบบใหม่');
+            clearAuthAndRedirect();
+            break;
+    
+          case 'USER_NOT_FOUND':
+            alert('ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ');
+            clearAuthAndRedirect();
+            break;
+    
+          case 'NO_TOKEN':
+          case 'INVALID_TOKEN':
+          case 'INVALID_TOKEN_FORMAT':
+          case 'INCOMPLETE_TOKEN_DATA':
+            alert('การยืนยันตัวตนไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่');
+            clearAuthAndRedirect();
+            break;
+    
+          default:
+            alert(error.error || 'เกิดข้อผิดพลาดในการยืนยันตัวตน');
+            clearAuthAndRedirect();
+        }
+      } else if (response && response.status === 403) {
+        if (error.code === 'ACCOUNT_BLOCKED') {
+          alert(`บัญชีถูกบล็อก: ${error.reason || 'ไม่ระบุเหตุผล'}`);
+          clearAuthAndRedirect();
+        } else {
+          alert('คุณไม่มีสิทธิ์เข้าถึงส่วนนี้');
+        }
+      }
+    }
+    
+    // Clear auth data and redirect
+    function clearAuthAndRedirect() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('allowedPages');
+      localStorage.removeItem('selectedBranch');
+      localStorage.removeItem('defaultBranch');
+      sessionStorage.clear();
+      window.location.href = '/login.html';
+    }
+    
+    // Fetch wrapper with auth
+    async function fetchWithAuth(url, options = {}) {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        clearAuthAndRedirect();
+        return;
+      }
+
+      const defaultOptions = {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      };
+
+      try {
+        const response = await fetch(url, { ...options, ...defaultOptions });
+    
+        if (!response.ok) {
+          // ตรวจสอบว่า response เป็น JSON หรือไม่
+          const contentType = response.headers.get('content-type');
+          let errorData;
+    
+          if (contentType && contentType.includes('application/json')) {
+            try {
+              errorData = await response.json();
+            } catch (parseError) {
+              errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+            }
+          } else {
+            // ถ้าไม่ใช่ JSON (เช่น HTML error page)
+            errorData = {
+              error: `HTTP ${response.status}: ${response.statusText}`,
+              details: 'Server returned non-JSON response'
+            };
+          }
+    
+          handleApiError(errorData, response);
+    
+          if (response.status === 401 || response.status === 403) {
+            throw new Error('Authentication failed');
+          }
+    
+          throw new Error(errorData.error || 'Request failed');
+        }
+    
+        return response;
+      } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+      }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const pageLoaderId = LoadingSystem.show({
+          message: 'กำลังโหลดหน้าเว็บ...',
+          showProgress: true,
+          autoProgress: true,
+          spinnerType: 'default'
+        });
+    
+        checkAuth();
+        setupEventListeners();
+        setupSocketIO();
+        loadData();
+        startAutoRefresh();
+        setupDarkMode();
+        loadAutoApprovalSettings();
+    
+        LoadingSystem.completeProgress();
+    
+        // แจ้งเตือนเมื่อระบบพร้อม
+        setTimeout(() => {
+          if (window.isFirebaseConnected && socket && socket.connected) {
+            showToast('🚀 ระบบ Login Management พร้อมทำงานแล้ว (Firebase + Socket.IO)', 'success');
+          } else if (window.isFirebaseConnected || (socket && socket.connected)) {
+            showToast('⚡ ระบบ Login Management พร้อมทำงาน (บางส่วน)', 'info');
+          } else {
+            showToast('⚠️ ระบบ Login Management เริ่มทำงาน (โหมดออฟไลน์)', 'warning');
+          }
+    
+          console.log('🎉 Login Management System fully loaded!');
+          console.log('📊 Connection status:', {
+            firebase: window.isFirebaseConnected,
+            socket: socket && socket.connected,
+            sessionId: window.currentSession?.sessionId
+          });
+        }, 2000);
+    
+      } catch (error) {
+        console.error('Page loading error:', error);
+        showToast('❌ เกิดข้อผิดพลาดในการโหลดระบบ', 'error');
+      } finally {
+        LoadingSystem.completeProgress();
+      }
+    });
+    
+    // Check authentication
+    function checkAuth() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+    
+      // Check permissions
+      const userRole = localStorage.getItem('userRole');
+      const allowedPages = JSON.parse(localStorage.getItem('allowedPages') || '[]');
+      if (userRole !== 'admin' && !allowedPages.includes('hr') && !allowedPages.includes('*')) {
+        alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+        window.location.href = '/';
+        return;
+      }
+    }
+    
+    // Setup Socket.IO Enhanced
+    function setupSocketIO() {
+      if (typeof io !== 'undefined') {
+        socket = io({
+          timeout: 10000,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          auth: {
+            token: localStorage.getItem('authToken')
+          }
+        });
+    
+        // Connection Events
+        socket.on('connect', () => {
+          console.log('✅ Socket.IO connected:', socket.id);
+          updateSocketStatus(true);
+    
+          // Join login management room
+          socket.emit('join_login_management', {
+            sessionId: window.currentSession?.sessionId,
+            userRole: 'admin',
+            userName: localStorage.getItem('userName')
+          });
+    
+          showToast('🔌 เชื่อมต่อระบบ Real-time สำเร็จ', 'success');
+        });
+    
+        socket.on('disconnect', (reason) => {
+          console.log('❌ Socket.IO disconnected:', reason);
+          updateSocketStatus(false);
+          showToast('⚠️ การเชื่อมต่อระบบ Real-time ขัดข้อง', 'warning');
+        });
+    
+        socket.on('reconnect', (attemptNumber) => {
+          console.log('🔄 Socket.IO reconnected after', attemptNumber, 'attempts');
+          updateSocketStatus(true);
+          showToast('🔄 เชื่อมต่อระบบ Real-time สำเร็จอีกครั้ง', 'success');
+        });
+    
+        socket.on('reconnect_error', (error) => {
+          console.error('🔄❌ Reconnection failed:', error);
+          updateSocketStatus(false);
+        });
+    
+        // Login Request Events
+        socket.on('loginRequestCreated', (data) => {
+          console.log('🔔 New login request via Socket:', data);
+          showToast(`📝 มีคำขอเข้าสู่ระบบใหม่จาก ${data.employeeName || data.username}`, 'info');
+          playNotificationSound();
+          loadPendingRequests();
+    
+          // ส่งไปยัง Firebase
+          if (typeof sendNotificationToFirebase === 'function') {
+            sendNotificationToFirebase({
+              type: 'info',
+              title: 'คำขอเข้าสู่ระบบใหม่',
+              message: `${data.employeeName || data.username} ขอเข้าสู่ระบบ`,
+              data: data
+            });
+          }
+    
+          // ส่งไปยัง Firebase Real-time
+          if (typeof sendLoginRequestToFirebase === 'function') {
+            sendLoginRequestToFirebase(data);
+          }
+        });
+    
+        socket.on('loginRequestUpdated', (data) => {
+          console.log('📝 Login request updated:', data);
+          loadData();
+          showToast(`สถานะคำขอถูกอัปเดต: ${data.status}`, 'info');
+        });
+    
+        socket.on('loginRequestApproved', (data) => {
+          console.log('✅ Login request approved:', data);
+          loadData();
+          showToast(`✅ คำขอของ ${data.employeeName || data.username} ได้รับการอนุมัติ`, 'success');
+        });
+    
+        socket.on('loginRequestRejected', (data) => {
+          console.log('❌ Login request rejected:', data);
+          loadData();
+          showToast(`❌ คำขอของ ${data.employeeName || data.username} ถูกปฏิเสธ`, 'error');
+        });
+    
+        // Auto Approval Events
+        socket.on('autoApprovalStatusChanged', (data) => {
+          console.log('🤖 Auto approval status changed via Socket:', data);
+    
+          // อัปเดต UI
+          updateAutoApprovalUI(data.enabled);
+    
+          // แสดงข้อความแจ้งเตือน
+          const message = data.enabled ?
+            `🤖 เปิดระบบอนุมัติอัตโนมัติ ${data.changedBy ? `โดย ${data.changedBy}` : ''}` :
+            `🤖 ปิดระบบอนุมัติอัตโนมัติ ${data.changedBy ? `โดย ${data.changedBy}` : ''}`;
+    
+          showToast(message, 'info');
+        });
+    
+        socket.on('autoApprovalExecuted', (data) => {
+          console.log('🤖 Auto approval executed via Socket:', data);
+    
+          // รีโหลดข้อมูล
+          loadData();
+    
+          // แสดงผลลัพธ์
+          if (data.approvedCount > 0) {
+            const message = `🤖 ระบบอนุมัติอัตโนมัติ: อนุมัติ ${data.approvedCount} คำขอสำเร็จ`;
+            showToast(message, 'success');
+    
+            // เล่นเสียงแจ้งเตือน
+            playNotificationSound();
+          }
+        });
+    
+        // รับการแจ้งเตือนเมื่อมีคนอื่น toggle auto-approval
+        socket.on('autoApprovalToggled', (data) => {
+          console.log('🔄 Auto approval toggled by another user:', data);
+    
+          // อัปเดต UI ถ้าไม่ใช่การเปลี่ยนแปลงจากตัวเอง
+          const currentUser = localStorage.getItem('userName');
+          if (data.changedBy && data.changedBy !== currentUser) {
+            updateAutoApprovalUI(data.enabled);
+    
+            const message = `🔄 ${data.changedBy} ${data.enabled ? 'เปิด' : 'ปิด'}การอนุมัติอัตโนมัติ`;
+            showToast(message, 'info');
+          }
+        });
+    
+        // System Stats Events
+        socket.on('loginStatsUpdated', (data) => {
+          console.log('📊 Login stats updated via Socket:', data);
+          updateStatsFromAPI(data);
+    
+          // ส่งไปยัง Firebase
+          if (typeof updateLoginStatsToFirebase === 'function') {
+            updateLoginStatsToFirebase(data);
+          }
+        });
+    
+        // Error Handling
+        socket.on('connect_error', (error) => {
+          console.error('❌ Socket connection error:', error);
+          updateSocketStatus(false);
+    
+          if (error.type === 'TransportError' && error.message.includes('401')) {
+            showToast('🔐 การยืนยันตัวตนหมดอายุ กำลังรีเฟรช...', 'warning');
+            setTimeout(() => location.reload(), 2000);
+          } else {
+            showToast('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+          }
+        });
+    
+        socket.on('error', (error) => {
+          console.error('❌ Socket error:', error);
+          showToast('❌ เกิดข้อผิดพลาดในระบบ Real-time', 'error');
+        });
+    
+        // Heartbeat
+        setInterval(() => {
+          if (socket && socket.connected) {
+            socket.emit('heartbeat', {
+              sessionId: window.currentSession?.sessionId,
+              timestamp: Date.now(),
+              page: 'login_management'
+            });
+          }
+        }, 30000); // ทุก 30 วินาที
+      }
+    }
+    
+    // Setup event listeners
+    function setupEventListeners() {
+      document.getElementById('refreshBtn').addEventListener('click', loadData);
+      document.getElementById('statusFilter').addEventListener('change', filterRequests);
+      document.getElementById('dateFilter').addEventListener('change', filterRequests);
+      document.getElementById('searchInput').addEventListener('input', filterRequests);
+      document.getElementById('clearFilters').addEventListener('click', clearFilters);
+      document.getElementById('selectAllPending').addEventListener('change', toggleSelectAll);
+      document.getElementById('approveAllBtn').addEventListener('click', approveSelected);
+      document.getElementById('rejectAllBtn').addEventListener('click', rejectSelected);
+      document.getElementById('autoApproveToggle').addEventListener('click', toggleAutoApproval);
+      document.getElementById('prevPage').addEventListener('click', () => changePage(-1));
+      document.getElementById('nextPage').addEventListener('click', () => changePage(1));
+    }
+    
+    // Dark mode setup
+    function setupDarkMode() {
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      if (localStorage.getItem('darkMode') === 'true') {
+        document.documentElement.classList.add('dark');
+      }
+    
+      darkModeToggle.addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+      });
+    }
+    
+    // Load all data
+    async function loadData() {
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...',
+        showProgress: true,
+        autoProgress: true
+      });
+      try {
+        await Promise.all([
+          loadPendingRequests(),
+          loadRequestHistory()
+        ]);
+        updateStats();
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+    
+    // Load pending requests
+    async function loadPendingRequests() {
+      try {
+        const response = await fetchWithAuth('/api/users/login-requests');
+        const data = await response.json();
+    
+        if (data.success) {
+          const oldCount = pendingRequests.length;
+    
+          // Map the data properly to match what createPendingRequestRow expects
+          pendingRequests = (data.data || []).map(req => ({
+            requestId: req.requestId,
+            username: req.username,
+            employeeName: req.employeeName,
+            reason: req.reason,
+            createdAt: req.createdAt,
+            expiresAt: req.expiresAt,
+            photoUrl: req.photoUrl,
+            device: req.device || 'Unknown',
+            ipAddress: req.ipAddress || req.ip || '-',
+            status: req.status
+          }));
+    
+          // Play sound if new requests arrived
+          if (pendingRequests.length > oldCount && oldCount > 0) {
+            playNotificationSound();
+            showToast(`มีคำขอใหม่ ${pendingRequests.length - oldCount} รายการ`, 'info');
+          }
+    
+          renderPendingRequests();
+    
+          // ✅ ระบบอนุมัติอัตโนมัติทำงานใน backend แล้ว - ไม่ต้องเช็คใน frontend
+          console.log('📋 Pending requests loaded. Auto-approval running in backend.');
+        }
+      } catch (error) {
+        console.error('Error loading pending requests:', error);
+        if (error.message !== 'Authentication failed') {
+          showToast('เกิดข้อผิดพลาดในการโหลดคำขอ', 'error');
+        }
+      }
+    }
+    
+    // Load request history - ดึงจากฐานข้อมูลจริง
+    async function loadRequestHistory() {
+      try {
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: pageSize
+        });
+    
+        // เพิ่ม filter parameters
+        const statusFilter = document.getElementById('statusFilter').value;
+        const dateFilter = document.getElementById('dateFilter').value;
+        const searchInput = document.getElementById('searchInput').value;
+        if (statusFilter && statusFilter !== '') {
+          params.append('status', statusFilter);
+        }
+    
+        if (dateFilter) {
+          params.append('startDate', dateFilter);
+          params.append('endDate', dateFilter);
+        }
+    
+        if (searchInput.trim()) {
+          params.append('search', searchInput.trim());
+        }
+    
+        const response = await fetchWithAuth(`/api/users/login-requests/history?${params}`);
+        const data = await response.json();
+    
+        if (data.success) {
+          historyRequests = data.data || [];
+    
+          // อัปเดตสถิติจากข้อมูลที่ได้รับ
+          if (data.stats) {
+            updateStatsFromAPI(data.stats);
+          }
+    
+          // อัปเดต pagination
+          if (data.pagination) {
+            updatePaginationFromAPI(data.pagination);
+          }
+    
+        renderRequestHistory();
+        } else {
+          throw new Error(data.error || 'เกิดข้อผิดพลาดในการดึงประวัติ');
+        }
+      } catch (error) {
+        console.error('Error loading request history:', error);
+        if (error.message !== 'Authentication failed') {
+        showToast('เกิดข้อผิดพลาดในการโหลดประวัติ', 'error');
+        }
+        historyRequests = [];
+        renderRequestHistory();
+      }
+    }
+    
+    // Render pending requests
+    function renderPendingRequests() {
+      const tbody = document.getElementById('pendingRequestsTableBody');
+      tbody.innerHTML = '';
+      if (pendingRequests.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+              ไม่มีคำขอที่รออนุมัติ
+            </td>
+          </tr>
+        `;
+        document.getElementById('pendingBadge').classList.add('hidden');
+        return;
+      }
+    
+      document.getElementById('pendingBadge').classList.remove('hidden');
+      pendingRequests.forEach(request => {
+        const row = createPendingRequestRow(request);
+        tbody.appendChild(row);
+      });
+    }
+    
+    // Create pending request row
+    function createPendingRequestRow(request) {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors slide-in';
+      // Get device and IP from request
+      const device = request.device || 'Unknown';
+      const ipAddress = request.ipAddress || request.ip || '-';
+      tr.innerHTML = `
+        <td class="px-6 py-4">
+          <input type="checkbox" class="request-checkbox rounded" data-id="${request.requestId}" 
+                 onchange="toggleRequestSelection('${request.requestId}')">
+        </td>
+        <td class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="relative">
+              ${request.photoUrl ?
+                `<img src="${request.photoUrl}" alt="${request.employeeName}" class="w-10 h-10 rounded-full" onerror="this.onerror=null; this.src='/images/default-avatar.png'">` :
+                `<div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-600 dark:text-primary-300 font-medium">
+                  ${(request.employeeName || request.username).charAt(0).toUpperCase()}
+                </div>`
+              }
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">${request.employeeName || request.username}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">${request.username}</p>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          <div>${formatDateTime(new Date(request.createdAt))}</div>
+          <div class="text-xs">${getTimeAgo(new Date(request.createdAt))}</div>
+        </td>
+        <td class="px-6 py-4 text-sm">
+          ${request.reason || '<span class="text-gray-400">ไม่ระบุ</span>'}
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          <div class="flex items-center gap-1">
+            <i class="bi bi-${device === 'Mobile' ? 'phone' : 'laptop'}"></i>
+            ${device}
+          </div>
+          <div class="text-xs">${ipAddress}</div>
+        </td>
+        <td class="px-6 py-4 text-sm">
+          <div class="flex items-center gap-2">
+            <button onclick="approveRequest('${request.requestId}')" 
+                    class="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium flex items-center gap-1">
+              <i class="bi bi-check-circle"></i>
+              อนุมัติ
+            </button>
+            <button onclick="rejectRequest('${request.requestId}')" 
+                    class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium flex items-center gap-1">
+              <i class="bi bi-x-circle"></i>
+              ปฏิเสธ
+            </button>
+          </div>
+        </td>
+      `;
+    
+      return tr;
+    }
+    
+    // Render request history
+    function renderRequestHistory() {
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = '';
+      if (historyRequests.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+              ไม่พบประวัติคำขอ
+            </td>
+          </tr>
+        `;
+        return;
+      }
+    
+      historyRequests.forEach(request => {
+        const row = createHistoryRow(request);
+        tbody.appendChild(row);
+      });
+    }
+    
+    // Create history row
+    function createHistoryRow(request) {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors fade-in';
+      const statusBadge = getStatusBadge(request.status);
+    
+      // จัดรูปแบบข้อมูลผู้อนุมัติ
+      const approverInfo = request.approver ?
+        `${request.approver.name || request.approver.username}` :
+        (request.approverName || '-');
+      // จัดรูปแบบเวลาที่ดำเนินการ
+      const processedTime = request.processedAt ?
+        formatDateTime(new Date(request.processedAt)) :
+        (request.approvedAt ? formatDateTime(new Date(request.approvedAt)) : '-');
+      // แสดงข้อมูลเพิ่มเติม
+      const additionalInfo = [];
+      if (request.device) additionalInfo.push(`อุปกรณ์: ${request.device}`);
+      if (request.ipAddress) additionalInfo.push(`IP: ${request.ipAddress}`);
+      if (request.usageCount > 0) additionalInfo.push(`ใช้งาน: ${request.usageCount} ครั้ง`);
+    
+      tr.innerHTML = `
+        <td class="px-6 py-4">
+          <div class="flex items-center">
+            ${request.photoUrl ?
+              `<img src="${request.photoUrl}" alt="${request.employeeName}" class="w-8 h-8 rounded-full mr-3" onerror="this.style.display='none'">` :
+              `<div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-600 dark:text-primary-300 font-medium mr-3 text-sm">
+                ${(request.employeeName || request.username).charAt(0).toUpperCase()}
+              </div>`
+            }
+            <div>
+              <p class="text-sm font-medium text-gray-900 dark:text-white">${request.employeeName || request.username}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">${request.username}</p>
+              ${additionalInfo.length > 0 ? `<p class="text-xs text-gray-400">${additionalInfo.join(' • ')}</p>` : ''}
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          <div>${formatDateTime(new Date(request.createdAt))}</div>
+          <div class="text-xs">${getTimeAgo(new Date(request.createdAt))}</div>
+        </td>
+        <td class="px-6 py-4">
+          ${statusBadge}
+          ${request.status === 'used' && request.loginSuccessAt ?
+            `<div class="text-xs text-green-600 mt-1">เข้าสู่ระบบ: ${formatDateTime(new Date(request.loginSuccessAt))}</div>` : ''}
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          ${approverInfo}
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          ${processedTime}
+        </td>
+        <td class="px-6 py-4 text-sm">
+          <div class="max-w-xs">
+            ${request.approverNote || request.reason || '-'}
+            ${request.auditLog && request.auditLog.length > 0 ?
+              `<button onclick="showAuditLog('${request.requestId}')" class="text-blue-600 hover:text-blue-700 text-xs block mt-1">
+                <i class="bi bi-clock-history mr-1"></i>ประวัติ (${request.auditLog.length})
+              </button>` : ''}
+          </div>
+        </td>
+      `;
+    
+      return tr;
+    }
+    
+    // Get status badge
+    function getStatusBadge(status) {
+      const badges = {
+        pending: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"><i class="bi bi-hourglass-split mr-1"></i>รออนุมัติ</span>',
+        approved: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"><i class="bi bi-check-circle mr-1"></i>อนุมัติแล้ว</span>',
+        rejected: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"><i class="bi bi-x-circle mr-1"></i>ปฏิเสธแล้ว</span>',
+        expired: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"><i class="bi bi-clock-history mr-1"></i>หมดอายุ</span>',
+        used: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"><i class="bi bi-check2-all mr-1"></i>ใช้แล้ว</span>'
+      };
+      return badges[status] || status;
+    }
+    
+    // Update statistics
+    function updateStats() {
+      const today = new Date().toDateString();
+      const todayRequests = [...pendingRequests, ...historyRequests].filter(
+        req => new Date(req.createdAt).toDateString() === today
+      );
+    
+      const approvedToday = todayRequests.filter(req => req.status === 'approved').length;
+      const rejectedToday = todayRequests.filter(req => req.status === 'rejected').length;
+      document.getElementById('pendingCount').textContent = pendingRequests.length;
+      document.getElementById('approvedToday').textContent = approvedToday;
+      document.getElementById('rejectedToday').textContent = rejectedToday;
+      document.getElementById('totalToday').textContent = todayRequests.length;
+    }
+    
+    // Update statistics from API
+    function updateStatsFromAPI(stats) {
+      document.getElementById('pendingCount').textContent = stats.pending || 0;
+      document.getElementById('approvedToday').textContent = stats.today.approved || 0;
+      document.getElementById('rejectedToday').textContent = stats.today.rejected || 0;
+      document.getElementById('totalToday').textContent = stats.today.total || 0;
+    }
+    
+    // Update pagination from API
+    function updatePaginationFromAPI(pagination) {
+      document.getElementById('showingCount').textContent = pagination.itemsPerPage;
+      document.getElementById('totalCount').textContent = pagination.totalItems;
+      document.getElementById('prevPage').disabled = pagination.currentPage === 1;
+      document.getElementById('nextPage').disabled = pagination.currentPage >= pagination.totalPages;
+      currentPage = pagination.currentPage;
+    }
+    
+    // Request actions
+    async function approveRequest(requestId) {
+      showActionModal('อนุมัติคำขอเข้าสู่ระบบ', async (note) => {
+        await processRequest(requestId, true, note);
+      });
+    }
+    
+    async function rejectRequest(requestId) {
+      showActionModal('ปฏิเสธคำขอเข้าสู่ระบบ', async (note) => {
+        if (!note) {
+          showToast('กรุณาระบุเหตุผลในการปฏิเสธ', 'error');
+          return false;
+        }
+        await processRequest(requestId, false, note);
+        return true;
+      }, true);
+    }
+    
+    async function processRequest(requestId, approved, note) {
+      try {
+        const response = await fetchWithAuth(`/api/users/login-request/${requestId}/approve`, {
+          method: 'POST',
+          body: JSON.stringify({ approved, approverNote: note })
+        });
+    
+        const data = await response.json();
+    
+        if (data.success) {
+          showToast(`${approved ? 'อนุมัติ' : 'ปฏิเสธ'}คำขอเรียบร้อยแล้ว`, 'success');
+          loadData();
+          closeActionModal();
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Process request error:', error);
+        if (error.message !== 'Authentication failed') {
+          showToast('เกิดข้อผิดพลาดในการดำเนินการ', 'error');
+        }
+      }
+    }
+    
+    // Bulk actions
+    function toggleSelectAll() {
+      const selectAll = document.getElementById('selectAllPending');
+      const checkboxes = document.querySelectorAll('.request-checkbox');
+      checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+        if (selectAll.checked) {
+          selectedRequests.add(cb.dataset.id);
+        } else {
+          selectedRequests.delete(cb.dataset.id);
+        }
+      });
+    }
+    
+    window.toggleRequestSelection = function(requestId) {
+      if (selectedRequests.has(requestId)) {
+        selectedRequests.delete(requestId);
+      } else {
+        selectedRequests.add(requestId);
+      }
+    };
+    
+    async function approveSelected() {
+      if (selectedRequests.size === 0) {
+        showToast('กรุณาเลือกคำขอที่ต้องการอนุมัติ', 'error');
+        return;
+      }
+    
+      if (!confirm(`ต้องการอนุมัติคำขอ ${selectedRequests.size} รายการใช่หรือไม่?`)) return;
+    
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...',
+        showProgress: true,
+        autoProgress: true
+      });
+    
+      try {
+        for (const requestId of selectedRequests) {
+          await processRequest(requestId, true, 'อนุมัติแบบกลุ่ม');
+        }
+    
+        selectedRequests.clear();
+        document.getElementById('selectAllPending').checked = false;
+      } catch (error) {
+        console.error('Error approving requests:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+    
+    async function rejectSelected() {
+      if (selectedRequests.size === 0) {
+        showToast('กรุณาเลือกคำขอที่ต้องการปฏิเสธ', 'error');
+        return;
+      }
+    
+      const reason = prompt('กรุณาระบุเหตุผลในการปฏิเสธ:');
+      if (!reason) return;
+    
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...',
+        showProgress: true,
+        autoProgress: true
+      });
+    
+      try {
+        for (const requestId of selectedRequests) {
+          await processRequest(requestId, false, reason);
+        }
+    
+        selectedRequests.clear();
+        document.getElementById('selectAllPending').checked = false;
+      } catch (error) {
+        console.error('Error rejecting requests:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+    
+    // Auto-approval toggle functionality
+    async function toggleAutoApproval() {
+      const status = document.getElementById('autoApproveStatus');
+      const icon = document.getElementById('autoApproveIcon');
+      if (!status || !icon) {
+        console.error('Auto-approval elements not found');
+        return;
+      }
+    
+      // เก็บสถานะปัจจุบันก่อนเปลี่ยนแปลง
+      const currentlyEnabled = status.textContent.trim() === 'เปิด';
+      const newEnabled = !currentlyEnabled;
+    
+      console.log(`🤖 Toggling auto-approval: ${currentlyEnabled} -> ${newEnabled}`);
+    
+      try {
+        // แสดง loading state
+        const loaderId = LoadingSystem.show({
+          message: 'กำลังเปลี่ยนแปลงการตั้งค่า...',
+          showProgress: true,
+          autoProgress: true
+        });
+    
+        // Update UI first for better UX
+        status.textContent = newEnabled ? 'เปิด' : 'ปิด';
+        icon.className = newEnabled ? 'bi bi-toggle-on text-lg text-green-500' : 'bi bi-toggle-off text-lg';
+        autoApproveEnabled = newEnabled; // อัปเดตตัวแปร global
+    
+        // Call API to toggle auto-approval
+        const response = await fetchWithAuth('/api/users/auto-approval/toggle', {
+          method: 'POST',
+          body: JSON.stringify({ enabled: newEnabled })
+        });
+    
+        const result = await response.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || result.message || 'เกิดข้อผิดพลาดในการเปลี่ยนแปลงการตั้งค่า');
+        }
+    
+        // แสดงข้อความสำเร็จ
+        showToast(
+          newEnabled ? '✅ เปิดใช้งานการอนุมัติอัตโนมัติแล้ว' : '❌ ปิดการอนุมัติอัตโนมัติแล้ว',
+          'success'
+        );
+    
+        // ส่งการแจ้งเตือนไปยัง Firebase
+        if (typeof sendNotificationToFirebase === 'function') {
+          sendNotificationToFirebase({
+            type: 'info',
+            title: 'การตั้งค่าอนุมัติอัตโนมัติ',
+            message: `${newEnabled ? 'เปิด' : 'ปิด'}ใช้งานการอนุมัติอัตโนมัติ`,
+            data: { enabled: newEnabled, changedBy: localStorage.getItem('userName') }
+          });
+        }
+    
+        // ส่งข้อมูลผ่าน Socket.IO
+        if (socket && socket.connected) {
+          socket.emit('autoApprovalToggled', {
+            enabled: newEnabled,
+            changedBy: localStorage.getItem('userName'),
+            timestamp: Date.now()
+          });
+        }
+    
+        // If enabled, refresh data to see changes
+        if (newEnabled) {
+          console.log('🔄 Auto-approval enabled, refreshing data...');
+          setTimeout(() => loadData(), 1000);
+        }
+    
+        console.log(`✅ Auto-approval successfully ${newEnabled ? 'enabled' : 'disabled'}`);
+    
+      } catch (error) {
+        console.error('❌ Error toggling auto-approval:', error);
+    
+        // Revert UI state on error (แก้ไขตรรกะการ revert)
+        status.textContent = currentlyEnabled ? 'เปิด' : 'ปิด';
+        icon.className = currentlyEnabled ? 'bi bi-toggle-on text-lg text-green-500' : 'bi bi-toggle-off text-lg';
+        autoApproveEnabled = currentlyEnabled; // คืนค่าตัวแปร global
+    
+        // แสดงข้อผิดพลาด
+        const errorMessage = error.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
+        showToast('❌ เกิดข้อผิดพลาด: ' + errorMessage, 'error');
+    
+      } finally {
+        // ซ่อน loading state
+        LoadingSystem.hideAll();
+      }
+    }
+    
+    // Manual auto-approval trigger
+    async function runAutoApproval() {
+      console.log('🤖 Running manual auto-approval...');
+    
+      try {
+        const loaderId = LoadingSystem.show({
+          message: 'กำลังดำเนินการอนุมัติอัตโนมัติ...',
+          showProgress: true,
+          autoProgress: true
+        });
+    
+        const response = await fetchWithAuth('/api/users/auto-approval/run', {
+          method: 'POST'
+        });
+    
+        const result = await response.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || result.message || 'เกิดข้อผิดพลาดในการรันการอนุมัติอัตโนมัติ');
+        }
+    
+        // แสดงผลลัพธ์
+        if (result.approvedCount > 0) {
+          showToast(`🤖 อนุมัติอัตโนมัติแล้ว ${result.approvedCount} คำขอ`, 'success');
+    
+          // ส่งการแจ้งเตือนไปยัง Firebase
+          if (typeof sendNotificationToFirebase === 'function') {
+            sendNotificationToFirebase({
+              type: 'success',
+              title: 'การอนุมัติอัตโนมัติ',
+              message: `อนุมัติอัตโนมัติแล้ว ${result.approvedCount} คำขอ`,
+              data: { approvedCount: result.approvedCount, triggeredBy: localStorage.getItem('userName') }
+            });
+          }
+    
+          // รีโหลดข้อมูล
+          setTimeout(() => loadData(), 500);
+    
+        } else {
+          showToast('ℹ️ ไม่มีคำขอที่ต้องอนุมัติอัตโนมัติในขณะนี้', 'info');
+        }
+    
+        console.log(`✅ Manual auto-approval completed. Approved: ${result.approvedCount || 0} requests`);
+    
+      } catch (error) {
+        console.error('❌ Error running auto-approval:', error);
+        const errorMessage = error.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
+        showToast('❌ เกิดข้อผิดพลาด: ' + errorMessage, 'error');
+    
+      } finally {
+        LoadingSystem.hideAll();
+      }
+    }
+    
+    // Helper function to update auto-approval UI status
+    function updateAutoApprovalUI(enabled) {
+      const status = document.getElementById('autoApproveStatus');
+      const icon = document.getElementById('autoApproveIcon');
+    
+      if (status && icon) {
+        status.textContent = enabled ? 'เปิด' : 'ปิด';
+        icon.className = enabled ? 'bi bi-toggle-on text-lg text-green-500' : 'bi bi-toggle-off text-lg';
+        autoApproveEnabled = enabled;
+    
+        console.log(`🎛️ Auto-approval UI updated: ${enabled ? 'enabled' : 'disabled'}`);
+      }
+    }
+    
+    // Helper function to get current auto-approval status
+    function getCurrentAutoApprovalStatus() {
+      const status = document.getElementById('autoApproveStatus');
+      return status ? status.textContent.trim() === 'เปิด' : false;
+    }
+    
+    // Load auto-approval settings on page load
+    async function loadAutoApprovalSettings() {
+      console.log('🔄 Loading auto-approval settings...');
+    
+      try {
+        const response = await fetchWithAuth('/api/users/auto-approval/settings');
+        const settings = await response.json();
+    
+        if (settings.success && settings.data) {
+          const isEnabled = settings.data.enabled || false;
+          const status = document.getElementById('autoApproveStatus');
+          const icon = document.getElementById('autoApproveIcon');
+    
+          if (status && icon) {
+            status.textContent = isEnabled ? 'เปิด' : 'ปิด';
+            icon.className = isEnabled ? 'bi bi-toggle-on text-lg text-green-500' : 'bi bi-toggle-off text-lg';
+            autoApproveEnabled = isEnabled; // อัปเดตตัวแปร global
+    
+            console.log(`✅ Auto-approval settings loaded: ${isEnabled ? 'enabled' : 'disabled'}`);
+          }
+    
+          // แสดงข้อมูลเพิ่มเติมถ้ามี
+          if (settings.data.lastChanged) {
+            console.log(`📅 Last changed: ${new Date(settings.data.lastChanged).toLocaleString('th-TH')}`);
+          }
+    
+        } else {
+          throw new Error(settings.error || settings.message || 'ไม่สามารถโหลดการตั้งค่าได้');
+        }
+    
+      } catch (error) {
+        console.error('❌ Error loading auto-approval settings:', error);
+    
+        // Set default UI state on error
+        const status = document.getElementById('autoApproveStatus');
+        const icon = document.getElementById('autoApproveIcon');
+    
+        if (status) {
+          status.textContent = 'ปิด';
+        }
+        if (icon) {
+          icon.className = 'bi bi-toggle-off text-lg';
+        }
+    
+        autoApproveEnabled = false; // ตั้งค่าเริ่มต้น
+    
+        // แสดงข้อผิดพลาดแต่ไม่ให้รบกวนผู้ใช้มาก
+        if (error.message !== 'Authentication failed') {
+          console.warn('⚠️ Cannot load auto-approval settings, using default (disabled)');
+        }
+      }
+    }
+    
+    // Filter functions
+    function filterRequests() {
+      currentPage = 1; // รีเซ็ตหน้าเมื่อมีการกรอง
+      loadRequestHistory(); // โหลดข้อมูลใหม่ด้วย filter
+    }
+    
+    function clearFilters() {
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('dateFilter').value = '';
+      document.getElementById('searchInput').value = '';
+      currentPage = 1;
+      loadRequestHistory(); // โหลดข้อมูลใหม่หลังล้าง filter
+    }
+    
+    // Show audit log modal
+    window.showAuditLog = function(requestId) {
+      const request = historyRequests.find(r => r.requestId === requestId);
+      if (!request || !request.auditLog) return;
+    
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+      modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full mx-4 max-h-96 overflow-hidden">
+          <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold">ประวัติการดำเนินการ - ${requestId}</h3>
+          </div>
+          <div class="p-6 overflow-y-auto max-h-80">
+            <div class="space-y-3">
+              ${request.auditLog.map(log => `
+                <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div class="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                      <span class="font-medium text-sm">${getActionText(log.action)}</span>
+                      <span class="text-xs text-gray-500">${formatDateTime(new Date(log.performedAt))}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${log.details || '-'}</p>
+                    <div class="text-xs text-gray-500 mt-1">
+                      โดย: ${log.performedBy === 'system' ? 'ระบบ' : log.performedBy}
+                      ${log.ipAddress ? ` • IP: ${log.ipAddress}` : ''}
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+            <button onclick="this.closest('.fixed').remove()" 
+                    class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+              ปิด
+            </button>
+          </div>
+        </div>
+      `;
+    
+      document.body.appendChild(modal);
+    
+      // Close on backdrop click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    };
+    
+    // Get action text in Thai
+    function getActionText(action) {
+      const actions = {
+        'created': 'สร้างคำขอ',
+        'approved': 'อนุมัติ',
+        'rejected': 'ปฏิเสธ',
+        'expired': 'หมดอายุ',
+        'used': 'ใช้งาน',
+        'token_created': 'สร้าง Token',
+        'login_success': 'เข้าสู่ระบบสำเร็จ',
+        'logout': 'ออกจากระบบ'
+      };
+      return actions[action] || action;
+    }
+    
+    // Pagination
+    function changePage(direction) {
+      currentPage += direction;
+      loadRequestHistory(); // โหลดข้อมูลหน้าใหม่
+    }
+    
+    // Modal functions
+    function showActionModal(title, onConfirm, requireNote = false) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('actionNote').value = '';
+      document.getElementById('actionNote').required = requireNote;
+      document.getElementById('actionModal').classList.remove('hidden');
+      currentActionCallback = onConfirm;
+    
+      const confirmBtn = document.getElementById('confirmActionBtn');
+      confirmBtn.onclick = async () => {
+        const note = document.getElementById('actionNote').value;
+        const result = await currentActionCallback(note);
+        if (result !== false) {
+          closeActionModal();
+        }
+      };
+    }
+    
+    window.closeActionModal = function() {
+      document.getElementById('actionModal').classList.add('hidden');
+      currentActionCallback = null;
+    };
+    
+    // Utility functions
+    function formatDateTime(date) {
+      return date.toLocaleString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    function getTimeAgo(date) {
+      const diff = Date.now() - date;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+    
+      if (days > 0) return `${days} วันที่แล้ว`;
+      if (hours > 0) return `${hours} ชั่วโมงที่แล้ว`;
+      if (minutes > 0) return `${minutes} นาทีที่แล้ว`;
+      return 'เมื่อสักครู่';
+    }
+    
+    function playNotificationSound() {
+      try {
+        const audio = document.getElementById('notificationSound');
+        if (audio) {
+          audio.play().catch(() => {});
+        }
+      } catch (error) {
+        console.error('Error playing sound:', error);
+      }
+    }
+    
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-green-100 text-green-800 border-green-500',
+        error: 'bg-red-100 text-red-800 border-red-500',
+        info: 'bg-blue-100 text-blue-800 border-blue-500',
+        warning: 'bg-yellow-100 text-yellow-800 border-yellow-500'
+      };
+    
+      const icons = {
+        success: 'bi-check-circle-fill',
+        error: 'bi-x-circle-fill',
+        info: 'bi-info-circle-fill',
+        warning: 'bi-exclamation-triangle-fill'
+      };
+    
+      toast.className = `px-4 py-3 rounded-lg shadow-lg mb-3 flex items-center border-l-4 ${colors[type]} fade-in`;
+      toast.innerHTML = `
+        <i class="bi ${icons[type]} mr-2"></i>
+        <span>${message}</span>
+      `;
+    
+      container.appendChild(toast);
+    
+      setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s ease-out forwards';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+    
+    function hideLoading() {
+      // Check if loadingOverlay element exists (fallback for compatibility)
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.classList.add('hidden');
+      }
+    
+      // Use LoadingSystem to hide loading if available
+      if (typeof LoadingSystem !== 'undefined' && LoadingSystem.hide) {
+        LoadingSystem.hide();
+      }
+    }
+    
+    // Enhanced Auto refresh with Firebase and Socket.IO integration
+    function startAutoRefresh() {
+      refreshInterval = setInterval(async () => {
+        try {
+          await loadPendingRequests();
+    
+          // Update activity
+          trackActivity('auto_refresh');
+    
+          // Send heartbeat to Firebase and Socket.IO
+          if (window.isFirebaseConnected) {
+            if (typeof updateLoginManagementActivity === 'function') {
+              updateLoginManagementActivity({
+                type: 'heartbeat',
+                timestamp: Date.now()
+              });
+            }
+          }
+    
+          if (socket && socket.connected) {
+            socket.emit('heartbeat', {
+              sessionId: window.currentSession?.sessionId,
+              timestamp: Date.now(),
+              page: 'login_management'
+            });
+          }
+    
+          console.log('🔄 Enhanced auto refresh completed with Firebase/Socket.IO sync');
+        } catch (error) {
+          console.error('Auto refresh error:', error);
+          // Don't show error toast for auto refresh failures
+        }
+      }, 15000); // Refresh every 15 seconds
+    }
+    
+    // Enhanced Cleanup for Firebase and Socket.IO
+    window.addEventListener('beforeunload', () => {
+      console.log('🧹 Cleaning up Login Management resources...');
+    
+      // Track page unload
+      trackActivity('page_unloaded');
+    
+      // Clear intervals
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    
+      // Firebase cleanup
+      if (window.isFirebaseConnected && window.currentSession) {
+        try {
+          // Send offline status to Firebase
+          if (typeof updateLoginManagementActivity === 'function') {
+            updateLoginManagementActivity({
+              type: 'session_ended',
+              timestamp: Date.now()
+            });
+          }
+    
+          console.log('✅ Firebase cleanup completed');
+        } catch (error) {
+          console.error('❌ Firebase cleanup error:', error);
+        }
+      }
+    
+      // Socket.IO cleanup
+      if (socket) {
+        try {
+          // Send goodbye message
+          socket.emit('leave_login_management', {
+            sessionId: window.currentSession?.sessionId,
+            timestamp: Date.now()
+          });
+    
+          // Disconnect socket
+          socket.disconnect();
+          console.log('✅ Socket.IO cleanup completed');
+        } catch (error) {
+          console.error('❌ Socket.IO cleanup error:', error);
+        }
+      }
+    
+      console.log('🧹 Login Management cleanup completed');
+    });
+    
+    // Enhanced page visibility handling
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ Page became visible - resuming operations');
+        trackActivity('page_visible');
+    
+        // Reconnect if needed
+        if (socket && !socket.connected) {
+          socket.connect();
+        }
+    
+        // Refresh data
+        setTimeout(() => {
+          loadData();
+        }, 1000);
+      } else {
+        console.log('👁️ Page became hidden - reducing operations');
+        trackActivity('page_hidden');
+      }
+    });
+    
+    // Connection monitoring
+    window.addEventListener('online', () => {
+      console.log('🌐 Network came online');
+      showToast('🌐 เชื่อมต่ออินเทอร์เน็ตแล้ว', 'success');
+      trackActivity('network_online');
+    
+      // Reconnect services
+      setTimeout(() => {
+        if (socket && !socket.connected) {
+          socket.connect();
+        }
+        loadData();
+      }, 2000);
+    });
+    
+    window.addEventListener('offline', () => {
+      console.log('🌐 Network went offline');
+      showToast('⚠️ ไม่มีการเชื่อมต่ออินเทอร์เน็ต', 'warning');
+      trackActivity('network_offline');
+      updateConnectionStatus();
+    });
+    
+    // Global functions for onclick
+    // Update Socket.IO Status
+    function updateSocketStatus(connected) {
+      const statusEl = document.getElementById('socketStatus');
+      if (statusEl) {
+        statusEl.className = connected ?
+          'w-2 h-2 rounded-full connected' :
+          'w-2 h-2 rounded-full disconnected';
+        statusEl.title = connected ?
+          'Socket.IO: เชื่อมต่อแล้ว' :
+          'Socket.IO: ขัดข้อง';
+      }
+    
+      // Update overall connection status
+      updateConnectionStatus();
+    }
+    
+    // Update overall connection status
+    function updateConnectionStatus() {
+      const connectionStatusEl = document.getElementById('connectionStatus');
+      if (!connectionStatusEl) return;
+    
+      const firebaseConnected = window.isFirebaseConnected || false;
+      const socketConnected = socket && socket.connected;
+    
+      if (firebaseConnected && socketConnected) {
+        connectionStatusEl.textContent = 'เชื่อมต่อสมบูรณ์';
+        connectionStatusEl.className = 'text-xs text-green-600 dark:text-green-400';
+      } else if (firebaseConnected || socketConnected) {
+        connectionStatusEl.textContent = 'เชื่อมต่อบางส่วน';
+        connectionStatusEl.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+      } else {
+        connectionStatusEl.textContent = 'ไม่เชื่อมต่อ';
+        connectionStatusEl.className = 'text-xs text-red-600 dark:text-red-400';
+      }
+    }
+    
+    // Enhanced activity tracking
+    function trackActivity(activityType, details = {}) {
+      const activity = {
+        type: activityType,
+        details: details,
+        timestamp: Date.now(),
+        sessionId: window.currentSession?.sessionId,
+        page: 'login_management'
+      };
+    
+      // Send to Firebase
+      if (typeof updateLoginManagementActivity === 'function') {
+        updateLoginManagementActivity(activity);
+      }
+    
+      // Send via Socket.IO
+      if (socket && socket.connected) {
+        socket.emit('login_management_activity', activity);
+      }
+    
+      console.log('📊 Activity tracked:', activity);
+    }
+    
+    // Emit login management activities
+    window.emitLoginActivity = function(activityData) {
+      if (socket && socket.connected) {
+        socket.emit('login_activity', {
+          sessionId: window.currentSession?.sessionId,
+          activity: activityData,
+          timestamp: Date.now(),
+          source: 'login_management'
+        });
+      }
+    };
+    
+    // Emit system commands
+    window.emitSystemCommand = function(commandData) {
+      if (socket && socket.connected) {
+        socket.emit('system_command', {
+          sessionId: window.currentSession?.sessionId,
+          command: commandData,
+          timestamp: Date.now(),
+          source: 'login_management'
+        });
+      }
+    };
+    
+    // Enhanced versions of existing functions with tracking
+    const originalProcessRequest = processRequest;
+    
+    // Override processRequest to include tracking
+    window.processRequest = async function(requestId, approved, note) {
+      const action = approved ? 'approve_request' : 'reject_request';
+      trackActivity(action, { requestId, note });
+      return originalProcessRequest(requestId, approved, note);
+    };
+    
+    // Override toggleAutoApproval with tracking
+    const originalToggleAutoApproval = toggleAutoApproval;
+    toggleAutoApproval = async function() {
+      trackActivity('toggle_auto_approval');
+      return originalToggleAutoApproval();
+    };
+    
+    // Track page activities
+    window.addEventListener('load', () => {
+      trackActivity('page_loaded');
+    });
+    
+    // Track filter changes
+    document.getElementById('statusFilter')?.addEventListener('change', (e) => {
+      trackActivity('filter_changed', { filter: 'status', value: e.target.value });
+    });
+    
+    document.getElementById('dateFilter')?.addEventListener('change', (e) => {
+      trackActivity('filter_changed', { filter: 'date', value: e.target.value });
+    });
+    
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+      if (e.target.value.length > 2) {
+        trackActivity('search_performed', { query: e.target.value });
+      }
+    });
+    
+    // Global functions for onclick
+    window.approveRequest = approveRequest;
+    window.rejectRequest = rejectRequest;
+    window.updateSocketStatus = updateSocketStatus;
+    window.updateConnectionStatus = updateConnectionStatus;
+    window.trackActivity = trackActivity;
+    
+    // Additional utility functions for auto-approval
+    window.toggleAutoApproval = toggleAutoApproval;
+    window.runAutoApproval = runAutoApproval;
+    window.updateAutoApprovalUI = updateAutoApprovalUI;
+    window.getCurrentAutoApprovalStatus = getCurrentAutoApprovalStatus;
+    
+    // Enhanced auto-approval status check
+    function checkAutoApprovalStatus() {
+      return new Promise((resolve) => {
+        const status = getCurrentAutoApprovalStatus();
+        const isSystemReady = window.isFirebaseConnected && socket && socket.connected;
+    
+        resolve({
+          enabled: status,
+          systemReady: isSystemReady,
+          lastChecked: new Date().toISOString()
+        });
+      });
+    }
+    
+    // Auto-approval monitoring function
+    function startAutoApprovalMonitoring() {
+      // ตรวจสอบสถานะทุก 5 นาที
+      setInterval(async () => {
+        try {
+          const statusCheck = await checkAutoApprovalStatus();
+          console.log('🔍 Auto-approval status check:', statusCheck);
+    
+          // ถ้าระบบพร้อมและเปิดใช้งาน auto-approval
+          if (statusCheck.enabled && statusCheck.systemReady) {
+            console.log('✅ Auto-approval system is active and ready');
+          }
+    
+        } catch (error) {
+          console.error('❌ Auto-approval monitoring error:', error);
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+    }
+    
+    // เริ่มต้น monitoring เมื่อระบบพร้อม
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        if (typeof startAutoApprovalMonitoring === 'function') {
+          startAutoApprovalMonitoring();
+          console.log('🚀 Auto-approval monitoring started');
+        }
+      }, 10000); // เริ่มหลัง 10 วินาที
+    });
+    
+    // Debug function for auto-approval (ใช้ใน console)
+    window.debugAutoApproval = function() {
+      console.log('🐛 Auto-Approval Debug Info:');
+      console.log('- Enabled:', getCurrentAutoApprovalStatus());
+      console.log('- Global Variable:', autoApproveEnabled);
+      console.log('- Firebase Connected:', window.isFirebaseConnected);
+      console.log('- Socket Connected:', socket && socket.connected);
+      console.log('- Status Element:', document.getElementById('autoApproveStatus')?.textContent);
+      console.log('- Icon Element:', document.getElementById('autoApproveIcon')?.className);
+    };
+    
+    console.log('🎯 Auto-approval system enhanced and ready!');
+  </script>
+</body>
+</html>

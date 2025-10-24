@@ -1,0 +1,585 @@
+// controllers/depositReceiptController.js
+const DepositReceipt = require('../../models/POS/DepositReceipt');
+const Customer = require('../../models/Customer/Customer');
+const BranchStock = require('../../models/POS/BranchStock');
+
+// ฟังก์ชันสร้างเลขที่ใบรับเงินมัดจำ
+async function getNextReceiptNumber() {
+  try {
+    const count = await DepositReceipt.countDocuments();
+    const nextNumber = count + 1;
+    return `DEP${String(nextNumber).padStart(5, '0')}`;
+  } catch (error) {
+    console.error('Error generating receipt number:', error);
+    return `DEP${String(Date.now()).substr(-5)}`;
+  }
+}
+
+// สร้างใบรับเงินมัดจำใหม่ (POST /api/deposit-receipts)
+exports.createDepositReceipt = async (req, res) => {
+  const io = req.app.get('io');
+  try {
+    console.log('📝 Creating deposit receipt with data:', req.body);
+
+    // รองรับทั้งรูปแบบเก่าและใหม่
+    const {
+      // รูปแบบเก่าจาก deposits.html
+      receiptNumber,
+      receiptDate,
+      customerId,
+      productId,
+      depositAmount,
+      paymentMethod,
+      notes,
+      branchId,
+      
+      // รูปแบบใหม่จาก DepositReceipt.html
+      branchCode,
+      branchName,
+      depositType,
+      saleType,
+      depositDate,
+      customer,
+      product,
+      amounts,
+      salesperson,
+      documents,
+      expectedDeliveryDate,
+      preorderNote
+    } = req.body;
+
+    // ใช้ข้อมูลจากรูปแบบใหม่หากมี ไม่งั้นใช้รูปแบบเก่า
+    const finalDepositDate = depositDate || receiptDate;
+    const finalDepositAmount = amounts?.depositAmount || depositAmount;
+    const finalBranchCode = branchCode || branchId;
+
+    // ตรวจสอบข้อมูลที่จำเป็น
+    if (!finalDepositDate || !finalDepositAmount || finalDepositAmount <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'กรุณากรอกวันที่และจำนวนเงินมัดจำ' 
+      });
+    }
+
+    // สร้างเลขที่ใบรับหากไม่มี
+    const finalReceiptNumber = receiptNumber || await getNextReceiptNumber();
+
+    // ตรวจสอบเลขที่ใบรับซ้ำ
+    const existingReceipt = await DepositReceipt.findOne({ receiptNumber: finalReceiptNumber });
+    if (existingReceipt) {
+      return res.status(400).json({
+        success: false,
+        error: 'เลขที่ใบรับเงินมัดจำนี้มีอยู่แล้ว'
+      });
+    }
+
+    // ดึงข้อมูลลูกค้า - รองรับทั้งรูปแบบเก่าและใหม่
+    let customerData = {};
+    if (customer) {
+      // รูปแบบใหม่
+      customerData = {
+        customerId: null, // จะไม่เชื่อมโยงกับ Customer collection
+        customerName: customer.name,
+        customerAddress: customer.address || '',
+        customerPhone: customer.phone || '',
+        customerTaxId: customer.taxId || ''
+      };
+    } else if (customerId) {
+      // รูปแบบเก่า
+      const customerRecord = await Customer.findById(customerId).lean();
+      if (customerRecord) {
+        if (customerRecord.customerType === 'individual') {
+          customerData = {
+            customerId: customerRecord._id,
+            customerName: `${customerRecord.individual?.firstName || ''} ${customerRecord.individual?.lastName || ''}`.trim(),
+            customerAddress: customerRecord.individual?.address || '',
+            customerPhone: customerRecord.individual?.phone || '',
+            customerTaxId: customerRecord.individual?.taxId || ''
+          };
+        } else {
+          customerData = {
+            customerId: customerRecord._id,
+            customerName: customerRecord.corporate?.companyName || '',
+            customerAddress: customerRecord.corporate?.companyAddress || '',
+            customerPhone: customerRecord.corporate?.corporatePhone || '',
+            customerTaxId: customerRecord.corporate?.companyTaxId || ''
+          };
+        }
+      }
+    }
+
+    // ดึงข้อมูลสินค้า - รองรับทั้งรูปแบบเก่าและใหม่
+    let productData = {};
+    if (product) {
+      // รูปแบบใหม่
+      productData = {
+        productId: product.id,
+        productName: product.name,
+        productBrand: product.brand,
+        productModel: product.model,
+        productIMEI: product.imei,
+        productPrice: product.price || 0,
+        productImage: product.image,
+        downAmount: product.downAmount || 0,
+        downInstallment: product.downInstallment || 0,
+        downInstallmentCount: product.downInstallmentCount || 0,
+        inStock: product.inStock || false,
+        isPreorder: product.isPreorder || false
+      };
+    } else if (productId) {
+      // รูปแบบเก่า
+      const productRecord = await BranchStock.findById(productId).lean();
+      if (productRecord) {
+        productData = {
+          productId: productRecord._id,
+          productName: productRecord.name,
+          productPrice: productRecord.price || 0
+        };
+      }
+    }
+
+    // สร้าง deposit receipt data
+    const depositReceiptData = {
+      receiptNumber: finalReceiptNumber,
+      documentNumber: finalReceiptNumber, // เพิ่มสำหรับใหม่
+      receiptDate: new Date(finalDepositDate),
+      depositDate: new Date(finalDepositDate), // เพิ่มสำหรับใหม่
+      depositType: depositType || 'preorder',
+      saleType: saleType || 'cash',
+      ...customerData,
+      ...productData,
+      
+      // ข้อมูลจำนวนเงิน
+      subtotal: amounts?.totalAmount || finalDepositAmount,
+      depositAmount: finalDepositAmount,
+      totalAmount: amounts?.totalAmount || finalDepositAmount,
+      remainingAmount: amounts?.remainingAmount || 0,
+      shippingCost: amounts?.shippingCost || 0,
+      
+      // ข้อมูลการชำระเงิน
+      paymentType: paymentMethod || 'cash',
+      paymentDate: new Date(finalDepositDate),
+      paymentAmount: finalDepositAmount,
+      
+      // ข้อมูลทั่วไป
+      status: 'pending',
+      progress: {
+        stockAvailable: !product?.isPreorder && product?.inStock,
+        proceedToCash: false,
+        proceedToInstallment: false
+      },
+      
+      // ข้อมูลสาขาและพนักงาน
+      branch_code: finalBranchCode || req.user?.branch || 'MAIN',
+      branchName: branchName || 'สาขาหลัก',
+      createdBy: salesperson?.id || req.user?.id || req.user?._id,
+      salespersonName: salesperson?.name || req.user?.name,
+      
+      // ข้อมูลเอกสาร
+      documents: {
+        documentChoice: documents?.documentChoice || 'both',
+        receiptGenerated: false,
+        taxInvoiceGenerated: false
+      },
+      
+      // หมายเหตุ
+      notes: notes || preorderNote || '',
+      expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null
+    };
+
+    console.log('💾 Saving deposit receipt with processed data:', depositReceiptData);
+
+    const newReceipt = new DepositReceipt(depositReceiptData);
+    const createdReceipt = await newReceipt.save();
+
+    // ส่ง Socket.IO event
+    if (io) {
+      io.emit('newreceiptCreated', {
+        id: createdReceipt._id,
+        data: createdReceipt
+      });
+    }
+
+    console.log('✅ Deposit receipt created successfully:', createdReceipt._id);
+
+    return res.status(201).json({
+      success: true,
+      data: createdReceipt,
+      message: 'สร้างใบรับเงินมัดจำเรียบร้อย'
+    });
+  } catch (err) {
+    console.error('❌ Error creating deposit receipt:', err);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'เกิดข้อผิดพลาดในการสร้างใบรับเงินมัดจำ: ' + err.message 
+    });
+  }
+};
+
+// ดึงใบรับเงินมัดจำทั้งหมด (GET /api/deposit-receipts)
+exports.getAllDepositReceipts = async (req, res) => {
+  try {
+    const { 
+      startDate, 
+      endDate, 
+      status, 
+      branchCode,  // เปลี่ยนจาก branchId เป็น branchCode
+      search,
+      page = 1, 
+      limit = 50 
+    } = req.query;
+
+    console.log('🔍 Getting deposit receipts with filters:', req.query);
+
+    // สร้าง filter
+    const filter = {};
+    
+    // กรองตามวันที่ - รองรับทั้ง receiptDate และ depositDate
+    if (startDate || endDate) {
+      const dateFilter = {};
+      if (startDate) {
+        dateFilter.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        dateFilter.$lte = endDateObj;
+      }
+      // ค้นหาจากทั้ง receiptDate และ depositDate
+      filter.$or = [
+        { receiptDate: dateFilter },
+        { depositDate: dateFilter }
+      ];
+    }
+
+    // กรองตามสถานะ
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    // กรองตามสาขา
+    if (branchCode && branchCode !== 'all') {
+      filter.branch_code = branchCode;
+    }
+
+    // กรองตามการค้นหา
+    if (search) {
+      const searchFilter = [
+        { receiptNumber: { $regex: search, $options: 'i' } },
+        { documentNumber: { $regex: search, $options: 'i' } },
+        { customerName: { $regex: search, $options: 'i' } },
+        { productName: { $regex: search, $options: 'i' } },
+        { productBrand: { $regex: search, $options: 'i' } },
+        { productModel: { $regex: search, $options: 'i' } }
+      ];
+      
+      if (filter.$or) {
+        // ถ้ามี date filter แล้ว ให้รวมกับ search filter
+        filter.$and = [
+          { $or: filter.$or },
+          { $or: searchFilter }
+        ];
+        delete filter.$or;
+      } else {
+        filter.$or = searchFilter;
+      }
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const receipts = await DepositReceipt.find(filter)
+      .populate('customerId', 'individual corporate customerType')
+      .populate('productId', 'name price model brand')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await DepositReceipt.countDocuments(filter);
+
+    // แปลงข้อมูลให้เข้ากับ frontend
+    const processedReceipts = receipts.map(receipt => {
+      const processedReceipt = {
+        _id: receipt._id,
+        documentNumber: receipt.documentNumber || receipt.receiptNumber,
+        receiptNumber: receipt.receiptNumber,
+        depositDate: receipt.depositDate || receipt.receiptDate,
+        documentDate: receipt.receiptDate,
+        depositType: receipt.depositType,
+        saleType: receipt.saleType || receipt.purchaseType || 'cash',
+        status: receipt.status,
+        
+        // ข้อมูลลูกค้า
+        customer: {
+          id: receipt.customerId?._id,
+          name: receipt.customerName,
+          address: receipt.customerAddress,
+          phone: receipt.customerPhone,
+          taxId: receipt.customerTaxId
+        },
+        
+        // ข้อมูลสินค้า
+        product: {
+          id: receipt.productId?._id,
+          name: receipt.productName,
+          brand: receipt.productBrand,
+          model: receipt.productModel,
+          imei: receipt.productIMEI,
+          price: receipt.productPrice,
+          image: receipt.productImage,
+          downAmount: receipt.downAmount,
+          downInstallment: receipt.downInstallment,
+          downInstallmentCount: receipt.downInstallmentCount
+        },
+        
+        // ข้อมูลจำนวนเงิน
+        amounts: {
+          totalAmount: receipt.totalAmount,
+          depositAmount: receipt.depositAmount,
+          remainingAmount: receipt.remainingAmount || (receipt.totalAmount - receipt.depositAmount),
+          shippingCost: receipt.shippingCost || 0
+        },
+        
+        // ข้อมูลสาขาและพนักงาน
+        branchCode: receipt.branch_code,
+        branchName: receipt.branchName,
+        salespersonName: receipt.salespersonName,
+        
+        // สถานะและความคืบหน้า
+        progress: receipt.progress || {
+          stockAvailable: receipt.inStock || false,
+          proceedToCash: false,
+          proceedToInstallment: false
+        },
+        
+        // ข้อมูลเอกสาร
+        documents: receipt.documents || {
+          documentChoice: 'both',
+          receiptGenerated: false,
+          taxInvoiceGenerated: false
+        },
+        
+        // หมายเหตุ
+        notes: receipt.notes,
+        expectedDeliveryDate: receipt.expectedDeliveryDate,
+        
+        // timestamps
+        createdAt: receipt.createdAt,
+        updatedAt: receipt.updatedAt
+      };
+      
+      return processedReceipt;
+    });
+
+    console.log(`✅ Found ${total} deposit receipts, returning ${processedReceipts.length} items`);
+
+    return res.json({
+      success: true,
+      data: processedReceipts,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error getting deposit receipts:', err);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูลใบรับเงินมัดจำ: ' + err.message 
+    });
+  }
+};
+
+    // แปลงข้อมูลให้เหมาะกับ frontend
+    const processedReceipts = receipts.map(receipt => ({
+      _id: receipt._id,
+      receiptNumber: receipt.receiptNumber,
+      receiptDate: receipt.receiptDate,
+      customerName: receipt.customerName || 'ไม่ระบุ',
+      productName: receipt.productName || 'ไม่ระบุ',
+      totalAmount: receipt.totalAmount || receipt.depositAmount || 0,
+      branchName: receipt.branch_code || 'ไม่ระบุ',
+      status: receipt.status,
+      createdAt: receipt.createdAt
+    }));
+
+    console.log(`✅ Retrieved ${processedReceipts.length} deposit receipts`);
+
+    return res.json({ 
+      success: true, 
+      data: processedReceipts,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error fetching deposit receipts:', err);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูล: ' + err.message 
+    });
+  }
+};
+
+// ดึงใบรับเงินมัดจำตาม ID (GET /api/deposit-receipts/:id)
+exports.getDepositReceiptById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const receipt = await DepositReceipt.findById(id)
+      .populate('customerId', 'individual corporate customerType')
+      .populate('productId', 'name price model brand')
+      .populate('createdBy', 'name email')
+      .lean();
+
+    if (!receipt) {
+      return res.status(404).json({
+        success: false,
+        error: 'ไม่พบใบรับเงินมัดจำ'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: receipt
+    });
+  } catch (err) {
+    console.error('❌ Error getting deposit receipt by ID:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูล: ' + err.message
+    });
+  }
+};
+
+// อัปเดตใบรับเงินมัดจำ (PUT /api/deposit-receipts/:id)
+exports.updateDepositReceipt = async (req, res) => {
+  const io = req.app.get('io');
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // ลบ fields ที่ไม่ควรอัปเดต
+    delete updateData._id;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
+
+    const updatedReceipt = await DepositReceipt.findByIdAndUpdate(
+      id, 
+      updateData, 
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedReceipt) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'ไม่พบใบรับเงินมัดจำ' 
+      });
+    }
+
+    // ส่ง Socket.IO event
+    if (io) {
+      io.emit('depositreceiptUpdated', {
+        id: updatedReceipt._id,
+        data: updatedReceipt
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      data: updatedReceipt, 
+      message: 'อัปเดตใบรับเงินมัดจำเรียบร้อย' 
+    });
+  } catch (err) {
+    console.error('❌ Error updating deposit receipt:', err);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล: ' + err.message 
+    });
+  }
+};
+
+// ลบใบรับเงินมัดจำ (DELETE /api/deposit-receipts/:id)
+exports.deleteDepositReceipt = async (req, res) => {
+  const io = req.app.get('io');
+  try {
+    const { id } = req.params;
+    
+    const receipt = await DepositReceipt.findById(id);
+    if (!receipt) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'ไม่พบใบรับเงินมัดจำ' 
+      });
+    }
+
+    // ตรวจสอบว่าสามารถลบได้หรือไม่
+    if (receipt.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        error: 'ไม่สามารถลบใบรับเงินมัดจำที่เสร็จสิ้นแล้ว'
+      });
+    }
+
+    const deletedReceipt = await DepositReceipt.findByIdAndDelete(id);
+
+    // ส่ง Socket.IO event
+    if (io) {
+      io.emit('depositreceiptDeleted', {
+        id: deletedReceipt._id,
+        data: deletedReceipt
+      });
+    }
+
+    console.log('✅ Deposit receipt deleted successfully:', id);
+
+    return res.json({ 
+      success: true, 
+      data: deletedReceipt, 
+      message: 'ลบใบรับเงินมัดจำเรียบร้อย' 
+    });
+  } catch (err) {
+    console.error('❌ Error deleting deposit receipt:', err);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'เกิดข้อผิดพลาดในการลบข้อมูล: ' + err.message 
+    });
+  }
+};
+
+// ดาวน์โหลดใบรับเงินมัดจำ PDF (GET /api/deposit-receipts/:id/pdf)
+exports.downloadDepositReceiptPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const receipt = await DepositReceipt.findById(id)
+      .populate('customerId', 'individual corporate customerType')
+      .populate('productId', 'name price model brand')
+      .lean();
+
+    if (!receipt) {
+      return res.status(404).json({
+        success: false,
+        error: 'ไม่พบใบรับเงินมัดจำ'
+      });
+    }
+
+    // สำหรับตอนนี้ให้ redirect ไปยัง print view
+    // ในอนาคตสามารถสร้าง PDF จริงได้
+    const printUrl = `/loan/deposits/${id}/print`;
+    return res.redirect(printUrl);
+
+  } catch (err) {
+    console.error('❌ Error generating PDF:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'เกิดข้อผิดพลาดในการสร้าง PDF: ' + err.message
+    });
+  }
+};

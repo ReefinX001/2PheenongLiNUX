@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ต้นทุนและค่าใช้จ่าย</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Thai and Inter Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Sarabun', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            thai: ['Prompt', 'Sarabun', 'sans-serif'],
+            display: ['Prompt', 'Inter', 'sans-serif']
+          },
+        },
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Day.js with Thai locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  <script>dayjs.locale('th');</script>
+
+  <!-- Chart.js for charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Utility Functions -->
+  <script>
+    // Input sanitization function to prevent XSS
+    function sanitizeInput(input) {
+      if (typeof input !== 'string') return input;
+      return input
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;')
+        .replace(/\//g, '&#x2F;')
+        .trim();
+    }
+
+    // Validate numeric input
+    function validateNumericInput(value, min = 0, max = Number.MAX_SAFE_INTEGER) {
+      const num = Number(value);
+      if (isNaN(num) || num < min || num > max) {
+        return 0;
+      }
+      return Number(num.toFixed(2));
+    }
+
+    // Retry function for failed API calls
+    async function retryApiCall(apiFunction, maxRetries = 3, delay = 1000) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await apiFunction();
+          return result;
+        } catch (error) {
+          console.warn(`API call attempt ${attempt} failed:`, error.message);
+
+          if (attempt === maxRetries) {
+            throw new Error(`API call failed after ${maxRetries} attempts: ${error.message}`);
+          }
+
+          // Wait before retrying with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        }
+      }
+    }
+
+    // Network status detector
+    function checkNetworkStatus() {
+      return navigator.onLine;
+    }
+
+    // Enhanced error handler
+    function handleError(error, context = 'Operation', showUser = true) {
+      console.error(`Error in ${context}:`, error);
+
+      let userMessage = 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
+
+      if (!checkNetworkStatus()) {
+        userMessage = 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบการเชื่อมต่อ';
+      } else if (error.message.includes('404')) {
+        userMessage = 'ไม่พบข้อมูลที่ต้องการ';
+      } else if (error.message.includes('500')) {
+        userMessage = 'เกิดข้อผิดพลาดในเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง';
+      } else if (error.message.includes('timeout')) {
+        userMessage = 'การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง';
+      }
+
+      if (showUser) {
+        showNotification('ข้อผิดพลาด', userMessage, 'error');
+      }
+
+      return { error: true, message: userMessage, originalError: error };
+    }
+
+    // Validate date input
+    function validateDateInput(dateString) {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return new Date();
+      }
+      return date;
+    }
+
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${sanitizeInput(message)}`);
+      if (typeof Swal !== 'undefined') {
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info', title: sanitizeInput(message) });
+      }
+    }
+    // Load centralized loading manager
+    const loadingScript = document.createElement('script');
+    loadingScript.src = '/js/loading-manager.js';
+    document.head.appendChild(loadingScript);
+
+    // Use centralized loading manager
+    function showLoading(show = true, message = 'กำลังประมวลผล...') {
+      if (show) {
+        window.LoadingManager?.show('costs-page', message);
+      } else {
+        window.LoadingManager?.hide('costs-page');
+      }
+    }
+    function formatCurrency(amount) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount || 0); }
+    function formatDate(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY'); }
+    function formatDateTime(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY HH:mm'); }
+    window.showToast = showToast; window.showLoading = showLoading; window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate; window.formatDateTime = formatDateTime;
+  </script>
+
+  <!-- Duplicate libraries removed - already loaded above -->
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Avatar Utils -->
+  <script src="/js/avatar-utils.js"></script>
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Prompt', 'Sarabun', 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-font-feature-settings: "liga", "kern";
+      font-feature-settings: "liga", "kern";
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Thai text optimization */
+    .thai-text {
+      font-family: 'Prompt', 'Sarabun', sans-serif;
+      line-height: 1.6;
+    }
+
+    /* Ensure proper Thai character rendering */
+    input, textarea, select {
+      font-family: 'Prompt', 'Sarabun', 'Inter', sans-serif;
+    }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    aside.collapsed { width: 5rem; }
+    aside.collapsed .ml-3 { display: none; }
+    @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .Logo { max-width:100%;height:auto; }
+    
+    /* Minimal button styles */
+    .btn-minimal {
+      @apply btn btn-sm border-gray-300 bg-white hover:bg-gray-50 text-gray-700;
+    }
+    .btn-minimal-primary {
+      @apply btn btn-primary btn-sm;
+    }
+    .btn-minimal-secondary {
+      @apply btn btn-secondary btn-sm;
+    }
+    
+    /* Note: Sidebar styles are now handled by /views/pattani/sidebar/sidebar.css */
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+
+
+
+</head>
+
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container - จะถูกเติมด้วย loan-sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <!-- Main Content -->
+  <div id="mainContent" class="flex-1 flex flex-col ml-64 transition-all duration-300 ease-in-out">
+    <main class="p-6 overflow-y-auto space-y-6">
+     <!-- Page Header -->
+     <div class="flex flex-wrap items-center justify-between mb-6">
+       <div>
+         <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">ต้นทุนและค่าใช้จ่าย</h1>
+         <p class="text-gray-500 dark:text-gray-400 mt-1">จัดการข้อมูลต้นทุนและค่าใช้จ่ายต่างๆ</p>
+       </div>
+       
+        <div class="flex space-x-2">
+         <button id="btnAddNewCost" class="btn btn-primary">
+           <i class="bi bi-plus-circle"></i> เพิ่มรายการใหม่
+         </button>
+
+         <button id="btnDebtCollection" class="btn btn-info">
+           <i class="bi bi-exclamation-triangle"></i> ติดตามหนี้
+         </button>
+
+         <button id="btnContractCosts" class="btn btn-warning">
+           <i class="bi bi-file-text"></i> ต้นทุนสัญญา
+         </button>
+
+         <button id="btnExportReport" class="btn btn-secondary">
+           <i class="bi bi-file-earmark-excel"></i> ส่งออกรายงาน
+         </button>
+
+         <!-- เพิ่มปุ่ม ภาษี -->
+         <a href="tax" id="btnTax" class="btn">
+           <i class="bi bi-percent"></i> ภาษี
+         </a>
+       </div>
+     </div>
+     
+     <!-- Dashboard Stats -->
+     <div class="stats stats-vertical sm:stats-horizontal shadow-sm mb-8 w-full">
+       <div class="stat">
+         <div class="stat-figure text-primary">
+           <i class="bi bi-wallet2 text-2xl"></i>
+         </div>
+         <div class="stat-title">เงินดาวน์/จอง/มัดจำ</div>
+         <div class="stat-value text-primary" id="downPaymentTotal">฿0.00</div>
+         <div class="stat-desc">+3.2% จากเดือนที่แล้ว</div>
+       </div>
+       
+       <div class="stat">
+         <div class="stat-figure text-secondary">
+           <i class="bi bi-bank text-2xl"></i>
+         </div>
+         <div class="stat-title">ต้นทุนทางการเงิน</div>
+         <div class="stat-value text-secondary" id="financialCostTotal">฿0.00</div>
+         <div class="stat-desc">-1.8% จากเดือนที่แล้ว</div>
+       </div>
+       
+       <div class="stat">
+         <div class="stat-figure text-success">
+           <i class="bi bi-cash-coin text-2xl"></i>
+         </div>
+         <div class="stat-title">ต้นทุนขายผ่อนชำระ</div>
+         <div class="stat-value text-success" id="installmentCostTotal">฿0.00</div>
+         <div class="stat-desc">+2.5% จากเดือนที่แล้ว</div>
+       </div>
+       
+       <div class="stat">
+         <div class="stat-figure text-warning">
+           <i class="bi bi-receipt-cutoff text-2xl"></i>
+         </div>
+         <div class="stat-title">ภาษีขายยังไม่ถึงกำหนด</div>
+         <div class="stat-value text-warning" id="undueTaxTotal">฿0.00</div>
+         <div class="stat-desc">-0.7% จากเดือนที่แล้ว</div>
+       </div>
+
+       <div class="stat">
+         <div class="stat-figure text-error">
+           <i class="bi bi-exclamation-triangle text-2xl"></i>
+         </div>
+         <div class="stat-title">ต้นทุนติดตามหนี้</div>
+         <div class="stat-value text-error" id="debtCollectionTotal">฿0.00</div>
+         <div class="stat-desc">+5.2% จากเดือนที่แล้ว</div>
+       </div>
+
+       <div class="stat">
+         <div class="stat-figure text-info">
+           <i class="bi bi-file-text text-2xl"></i>
+         </div>
+         <div class="stat-title">ต้นทุนดำเนินการ</div>
+         <div class="stat-value text-info" id="administrativeTotal">฿0.00</div>
+         <div class="stat-desc">+1.5% จากเดือนที่แล้ว</div>
+       </div>
+     </div>
+     
+     <!-- Filter and Search -->
+     <div class="bg-white dark:bg-gray-700 rounded-xl shadow-sm p-4 mb-8">
+       <div class="flex flex-wrap gap-4">
+         <div class="flex-1 min-w-[200px]">
+           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภทค่าใช้จ่าย</label>
+           <select id="costTypeFilter" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+             <option value="all">ทั้งหมด</option>
+             <option value="downpayment">เงินดาวน์/จอง/มัดจำ</option>
+             <option value="financial">ต้นทุนทางการเงิน</option>
+             <option value="installment">ต้นทุนขายผ่อนชำระ</option>
+             <option value="tax">ภาษีขายยังไม่ถึงกำหนด</option>
+             <option value="debt_collection">ต้นทุนการติดตามหนี้</option>
+             <option value="debt_recovery">ต้นทุนการชำระหนี้คืน</option>
+             <option value="legal_fee">ค่าใช้จ่ายทางกฎหมาย</option>
+             <option value="collection_agency">ค่าบริษัทติดตามหนี้</option>
+             <option value="administrative">ค่าใช้จ่ายดำเนินการ</option>
+           </select>
+         </div>
+         
+         <div class="flex-1 min-w-[200px]">
+           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ช่วงวันที่</label>
+           <div class="flex gap-2">
+             <input type="date" id="dateFrom" class="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+             <input type="date" id="dateTo" class="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+           </div>
+         </div>
+         
+         <div class="flex-1 min-w-[200px]">
+           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ค้นหา</label>
+           <div class="relative">
+             <input type="text" id="searchInput" placeholder="ค้นหารายการ..." 
+                    class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+             <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+           </div>
+         </div>
+         
+         <div class="self-end">
+           <button id="btnApplyFilter" class="btn btn-primary h-[40px]">
+             <i class="bi bi-funnel"></i> กรอง
+           </button>
+         </div>
+       </div>
+     </div>
+     
+     <!-- Costs and Expenses Table -->
+     <div class="bg-white dark:bg-gray-700 rounded-xl shadow-sm overflow-hidden mb-8">
+       <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-600">
+         <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">รายการต้นทุนและค่าใช้จ่าย</h2>
+         <div class="text-gray-500 dark:text-gray-400">
+           <span id="totalRecords">0</span> รายการ
+         </div>
+       </div>
+       
+       <div class="table-container">
+         <table class="costs-table w-full">
+           <thead class="bg-gray-50 dark:bg-gray-600">
+             <tr class="text-left text-gray-700 dark:text-gray-300">
+               <th class="px-4 py-3 border-b border-gray-200 dark:border-gray-600 font-semibold">วันที่</th>
+               <th class="px-4 py-3 border-b border-gray-200 dark:border-gray-600 font-semibold">รายการ</th>
+               <th class="px-4 py-3 border-b border-gray-200 dark:border-gray-600 font-semibold">ประเภท</th>
+               <th class="px-4 py-3 border-b border-gray-200 dark:border-gray-600 font-semibold">จำนวนเงิน</th>
+               <th class="px-4 py-3 border-b border-gray-200 dark:border-gray-600 font-semibold">หมายเหตุ</th>
+               <th class="px-4 py-3 border-b border-gray-200 dark:border-gray-600 font-semibold">การจัดการ</th>
+             </tr>
+           </thead>
+           <tbody id="costsTableBody">
+             <!-- ข้อมูลจะถูกเติมด้วย JavaScript -->
+           </tbody>
+         </table>
+       </div>
+       
+       <!-- Pagination -->
+       <div class="flex justify-between items-center p-4 border-t border-gray-200 dark:border-gray-600">
+         <div>
+           <span class="text-sm text-gray-600 dark:text-gray-400">แสดง <span id="pageStart">1</span>-<span id="pageEnd">4</span> จาก <span id="totalItems">4</span> รายการ</span>
+         </div>
+         <div class="flex space-x-1">
+           <button class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                   disabled>
+             <i class="bi bi-chevron-left"></i>
+           </button>
+           <button class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">1</button>
+           <button class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                   disabled>
+             <i class="bi bi-chevron-right"></i>
+           </button>
+         </div>
+       </div>
+     </div>
+     
+     <!-- Charts Section -->
+     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+       <!-- Chart: ต้นทุนและค่าใช้จ่ายตามประเภท -->
+       <div class="bg-white dark:bg-gray-700 rounded-xl shadow-sm overflow-hidden">
+         <div class="p-4 border-b border-gray-200 dark:border-gray-600">
+           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">ต้นทุนและค่าใช้จ่ายตามประเภท</h2>
+         </div>
+         <div class="p-4">
+           <!-- เพิ่มความสูงให้เห็นกราฟชัดขึ้น -->
+           <div class="chart-container h-64">
+             <canvas id="costTypeChart"></canvas>
+           </div>
+         </div>
+       </div>
+       
+       <!-- Chart: ต้นทุนและค่าใช้จ่ายตามเดือน -->
+       <div class="bg-white dark:bg-gray-700 rounded-xl shadow-sm overflow-hidden">
+         <div class="p-4 border-b border-gray-200 dark:border-gray-600">
+           <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">ต้นทุนและค่าใช้จ่ายตามเดือน</h2>
+         </div>
+         <div class="p-4">
+           <!-- เพิ่มความสูงให้เห็นกราฟชัดขึ้น -->
+           <div class="chart-container h-64">
+             <canvas id="costMonthlyChart"></canvas>
+           </div>
+         </div>
+       </div>
+     </div>
+   </main>
+  </div>
+
+   <!-- Add New Cost Modal -->
+   <div id="addCostModal" class="fixed inset-0 z-50 flex items-center justify-center hidden animate-fadeIn">
+     <div class="absolute inset-0 bg-black bg-opacity-50" id="modalOverlay"></div>
+     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 relative z-10">
+       <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+         <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">เพิ่มรายการต้นทุนและค่าใช้จ่าย</h3>
+         <button id="btnCloseModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+           <i class="bi bi-x-lg"></i>
+         </button>
+       </div>
+       <div class="p-4">
+         <form id="addCostForm">
+           <div class="space-y-4">
+             <div>
+               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภทรายการ</label>
+               <select id="costType" name="costType" required
+                      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 <option value="">-- เลือกประเภท --</option>
+                 <option value="downpayment">เงินดาวน์/จอง/มัดจำ</option>
+                 <option value="financial">ต้นทุนทางการเงิน (ค่าธรรมเนียมธนาคาร)</option>
+                 <option value="installment_start">ต้นทุนขายผ่อนชำระ - ต้นงวด</option>
+                 <option value="installment_end">ต้นทุนขายผ่อนชำระ - ปลายงวด</option>
+                 <option value="tax">ภาษีขายยังไม่ถึงกำหนดชำระ</option>
+                 <option value="debt_collection">ต้นทุนการติดตามหนี้</option>
+                 <option value="debt_recovery">ต้นทุนการชำระหนี้คืน</option>
+                 <option value="legal_fee">ค่าใช้จ่ายทางกฎหมาย</option>
+                 <option value="collection_agency">ค่าบริษัทติดตามหนี้</option>
+                 <option value="asset_recovery">ต้นทุนการกู้คืนสินทรัพย์</option>
+                 <option value="administrative">ค่าใช้จ่ายดำเนินการ</option>
+                 <option value="contract_processing">ค่าประมวลผลสัญญา</option>
+               </select>
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รายละเอียด</label>
+               <input type="text" id="costDescription" name="costDescription" required
+                     class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     placeholder="รายละเอียดรายการ">
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">จำนวนเงิน</label>
+               <div class="relative">
+                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">฿</span>
+                 <input type="number" step="0.01" id="costAmount" name="costAmount" required
+                       class="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-8 pr-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="0.00">
+               </div>
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันที่</label>
+               <input type="text" id="costDate" name="costDate" required placeholder="เลือกวันที่"
+                     class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หมายเหตุ</label>
+               <textarea id="costNote" name="costNote" rows="3"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+             </div>
+
+             <!-- Contract Integration Fields -->
+             <div id="contractFields" class="space-y-4 border-t border-gray-200 dark:border-gray-600 pt-4" style="display: none;">
+               <h4 class="text-lg font-medium text-gray-800 dark:text-gray-100">ข้อมูลเกี่ยวกับสัญญา</h4>
+
+               <div>
+                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เลขที่สัญญา</label>
+                 <input type="text" id="contractNo" name="contractNo"
+                       class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="ระบุเลขที่สัญญา">
+               </div>
+
+               <div>
+                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ขั้นตอนการติดตามหนี้</label>
+                 <select id="debtCollectionStage" name="debtCollectionStage"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                   <option value="">-- เลือกขั้นตอน --</option>
+                   <option value="early_reminder">แจ้งเตือนเบื้องต้น</option>
+                   <option value="formal_notice">หนังสือแจ้งอย่างเป็นทางการ</option>
+                   <option value="legal_action">ดำเนินการทางกฎหมาย</option>
+                   <option value="recovery_process">กระบวนการกู้คืน</option>
+                   <option value="write_off">ตัดหนี้สูญ</option>
+                 </select>
+               </div>
+             </div>
+
+             <!-- Collection Agency Fields -->
+             <div id="collectionAgencyFields" class="space-y-4 border-t border-gray-200 dark:border-gray-600 pt-4" style="display: none;">
+               <h4 class="text-lg font-medium text-gray-800 dark:text-gray-100">ข้อมูลบริษัทติดตามหนี้</h4>
+
+               <div>
+                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อบริษัท</label>
+                 <input type="text" id="agencyName" name="agencyName"
+                       class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="ชื่อบริษัทติดตามหนี้">
+               </div>
+
+               <div class="grid grid-cols-2 gap-4">
+                 <div>
+                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ค่าธรรมเนียม (บาท)</label>
+                   <input type="number" step="0.01" id="agencyFee" name="agencyFee"
+                         class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                         placeholder="0.00">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เปอร์เซ็นต์</label>
+                   <input type="number" step="0.01" min="0" max="100" id="agencyPercentage" name="agencyPercentage"
+                         class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                         placeholder="0.00">
+                 </div>
+               </div>
+             </div>
+           </div>
+           
+           <div class="mt-6 flex justify-end space-x-3">
+             <button type="button" id="btnCancelAddCost" class="btn">
+               ยกเลิก
+             </button>
+             <button type="submit" class="btn btn-primary">
+               บันทึก
+             </button>
+           </div>
+         </form>
+       </div>
+     </div>
+   </div>
+   
+   <!-- Edit Cost Modal (Similar structure to Add Modal but with pre-filled fields) -->
+   <div id="editCostModal" class="fixed inset-0 z-50 flex items-center justify-center hidden animate-fadeIn">
+     <!-- Similar structure to Add Modal -->
+   </div>
+
+   <!-- JavaScript for functionality -->
+   <script>
+     document.addEventListener('DOMContentLoaded', function() {
+      showLoading(true);
+
+      try {
+         // Initialize loan sidebar first
+         if (typeof initializeLoanSidebar === 'function') {
+           initializeLoanSidebar();
+         }
+
+         // Authentication check
+         const authToken = localStorage.getItem('authToken');
+         if (!authToken) {
+           window.location.href = '/login';
+           return;
+         }
+     
+         const headers = {
+           'Content-Type': 'application/json',
+           'Authorization': `Bearer ${authToken}`
+         };
+     
+         // Loading state management removed
+     
+       // Global variables for costs data
+       let costsData = [];
+       let filteredData = [];
+       let currentPage = 1;
+       let totalPages = 1;
+       const itemsPerPage = 10;
+
+       // Filter and search functionality
+       function applyFilters() {
+         const typeFilter = document.getElementById('costTypeFilter').value;
+         const searchQuery = sanitizeInput(document.getElementById('searchInput').value.toLowerCase());
+         const dateFrom = document.getElementById('dateFrom').value;
+         const dateTo = document.getElementById('dateTo').value;
+
+         filteredData = costsData.filter(item => {
+           // Type filter
+           if (typeFilter !== 'all' && item.type !== typeFilter) {
+             return false;
+           }
+
+           // Search filter
+           if (searchQuery && !item.description.toLowerCase().includes(searchQuery) &&
+               !item.note.toLowerCase().includes(searchQuery) &&
+               !(item.contractNo && item.contractNo.toLowerCase().includes(searchQuery))) {
+             return false;
+           }
+
+           // Date range filter
+           if (dateFrom || dateTo) {
+             const itemDate = new Date(item.date);
+             if (dateFrom && itemDate < new Date(dateFrom)) {
+               return false;
+             }
+             if (dateTo && itemDate > new Date(dateTo)) {
+               return false;
+             }
+           }
+
+           return true;
+         });
+
+         // Reset to first page when filters change
+         currentPage = 1;
+         renderCostsTable(filteredData);
+         updateSummaryCards(filteredData);
+       }
+     
+       // Note: Sidebar functionality, dark mode, logout, and employee profile
+       // are now handled by loan-sidebar.js
+     
+       // Modal handling
+       const addCostModal = document.getElementById('addCostModal');
+       const btnAddNewCost = document.getElementById('btnAddNewCost');
+       const btnCloseModal = document.getElementById('btnCloseModal');
+       const btnCancelAddCost = document.getElementById('btnCancelAddCost');
+       const modalOverlay = document.getElementById('modalOverlay');
+     
+       btnAddNewCost.addEventListener('click', function() {
+         addCostModal.classList.remove('hidden');
+       });
+     
+       function closeModal() {
+         addCostModal.classList.add('hidden');
+         document.getElementById('addCostForm').reset();
+       }
+     
+       btnCloseModal.addEventListener('click', closeModal);
+       btnCancelAddCost.addEventListener('click', closeModal);
+       modalOverlay.addEventListener('click', closeModal);
+
+       // Handle cost type change to show/hide additional fields
+       document.getElementById('costType').addEventListener('change', function() {
+         const costType = this.value;
+         const contractFields = document.getElementById('contractFields');
+         const collectionAgencyFields = document.getElementById('collectionAgencyFields');
+
+         // Hide all additional fields by default
+         contractFields.style.display = 'none';
+         collectionAgencyFields.style.display = 'none';
+
+         // Show relevant fields based on cost type
+         const debtRelatedTypes = ['debt_collection', 'debt_recovery', 'legal_fee', 'asset_recovery'];
+         if (debtRelatedTypes.includes(costType)) {
+           contractFields.style.display = 'block';
+         }
+
+         if (costType === 'collection_agency') {
+           contractFields.style.display = 'block';
+           collectionAgencyFields.style.display = 'block';
+         }
+       });
+     
+       // Form submission
+       const addCostForm = document.getElementById('addCostForm');
+     
+      addCostForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+     
+        // Validate and sanitize form data
+        const costType = sanitizeInput(document.getElementById('costType').value);
+        const costDescription = sanitizeInput(document.getElementById('costDescription').value);
+        const costAmount = document.getElementById('costAmount').value;
+        const costDate = document.getElementById('costDate').value;
+
+        if (!costType || !costDescription || !costAmount || !costDate) {
+          showNotification('ข้อผิดพลาด', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+          return;
+        }
+
+        // Additional validation
+        const validatedAmount = validateNumericInput(costAmount, 0, 999999999);
+        const validatedDate = validateDateInput(costDate);
+
+        if (validatedAmount <= 0) {
+          showNotification('ข้อผิดพลาด', 'กรุณาระบุจำนวนเงินที่ถูกต้อง', 'error');
+          return;
+        }
+
+        // Get sanitized form data
+        const formData = {
+          type: costType,
+          description: costDescription,
+          amount: validatedAmount,
+          date: validatedDate.toISOString().split('T')[0],
+          note: sanitizeInput(document.getElementById('costNote').value) || ''
+        };
+
+        // Add contract-related fields if applicable with sanitization
+        const debtRelatedTypes = ['debt_collection', 'debt_recovery', 'legal_fee', 'asset_recovery', 'collection_agency'];
+        if (debtRelatedTypes.includes(costType)) {
+          const contractNo = sanitizeInput(document.getElementById('contractNo').value);
+          const debtCollectionStage = sanitizeInput(document.getElementById('debtCollectionStage').value);
+
+          if (contractNo) {
+            formData.contractNo = contractNo;
+          }
+          if (debtCollectionStage) {
+            formData.debtCollectionStage = debtCollectionStage;
+          }
+
+          // Add collection agency details if applicable
+          if (costType === 'collection_agency') {
+            const agencyName = sanitizeInput(document.getElementById('agencyName').value);
+            const agencyFee = document.getElementById('agencyFee').value;
+            const agencyPercentage = document.getElementById('agencyPercentage').value;
+
+            if (agencyName || agencyFee || agencyPercentage) {
+              formData.collectionAgency = {
+                name: agencyName || '',
+                fee: validateNumericInput(agencyFee, 0),
+                percentage: validateNumericInput(agencyPercentage, 0, 100)
+              };
+            }
+          }
+        }
+     
+        console.log('📝 Submitting form data:', formData);
+     
+        try {
+          const response = await fetch('/api/costs-expenses', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(formData)
+          });
+     
+          console.log('📡 Form submission response status:', response.status);
+     
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Form submission error response:', errorText);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+     
+          const data = await response.json();
+          console.log('📊 Form submission response data:', data);
+     
+          if (data.success) {
+            showNotification('สำเร็จ', 'บันทึกข้อมูลสำเร็จ!', 'success');
+            closeModal();
+            await loadCostsData(); // Reload data
+          } else {
+            throw new Error(data.error || data.message || 'ไม่สามารถบันทึกข้อมูลได้');
+          }
+        } catch (error) {
+          console.error('❌ Form submission error:', error.message);
+     
+          // Show error notification when API fails
+          showNotification('ข้อผิดพลาด', `ไม่สามารถบันทึกข้อมูลได้: ${error.message}`, 'error');
+        }
+      });
+
+      // Load costs data from API with retry logic
+      async function loadCostsData() {
+        try {
+          showLoading(true, 'กำลังโหลดข้อมูลต้นทุน...');
+
+          const apiCall = async () => {
+            console.log('🔄 Loading costs data from API...');
+            const response = await fetch('/api/costs-expenses', {
+              headers,
+              signal: AbortSignal.timeout(30000) // 30 second timeout
+            });
+
+            console.log('📡 API Response status:', response.status);
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error('❌ API Error Response:', errorText);
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+          };
+
+          const data = await retryApiCall(apiCall, 3, 1000);
+          console.log('📊 API Response data:', data);
+     
+          // Debug: Show sample raw data structure
+          if (data.success && data.data && data.data.length > 0) {
+            console.log('🔍 Sample raw data item:', JSON.stringify(data.data[0], null, 2));
+          }
+     
+          if (data.success && data.data) {
+            // Transform API data to match frontend expectations with proper validation
+            costsData = data.data.map(item => {
+              // Extract amount from various possible fields with proper validation
+              let amount = 0;
+              if (typeof item.totalNet === 'number' && item.totalNet >= 0) {
+                amount = item.totalNet;
+              } else if (typeof item.totalBeforeTax === 'number' && item.totalBeforeTax >= 0) {
+                amount = item.totalBeforeTax;
+              } else if (item.items && Array.isArray(item.items) && item.items[0] && typeof item.items[0].unitPrice === 'number') {
+                amount = item.items[0].unitPrice;
+              } else if (typeof item.amount === 'number' && item.amount >= 0) {
+                amount = item.amount;
+              }
+
+              // Extract description with proper sanitization
+              let description = 'ไม่ระบุ';
+              if (item.items && Array.isArray(item.items) && item.items[0] && typeof item.items[0].description === 'string') {
+                description = sanitizeInput(item.items[0].description);
+              } else if (item.supplier && typeof item.supplier.name === 'string') {
+                description = sanitizeInput(item.supplier.name);
+              } else if (typeof item.description === 'string') {
+                description = sanitizeInput(item.description);
+              }
+
+              // Extract type with validation
+              const validTypes = ['downpayment', 'financial', 'installment_start', 'installment_end', 'tax', 'debt_collection', 'debt_recovery', 'legal_fee', 'collection_agency', 'asset_recovery', 'administrative', 'contract_processing'];
+              const type = validTypes.includes(item.type) ? item.type : 'administrative';
+
+              const transformedItem = {
+                _id: item._id,
+                type: type,
+                description: description,
+                amount: Number((amount || 0).toFixed(2)), // Proper decimal handling
+                date: item.date,
+                note: sanitizeInput(item.note || ''),
+                createdAt: item.date,
+                contractNo: sanitizeInput(item.contractNo || ''),
+                orderId: item.orderId
+              };
+
+              return transformedItem;
+            });
+     
+            // Debug transformation results
+            console.log(`✅ Loaded ${costsData.length} cost records from API`);
+            console.log('📊 Sample transformed data:', costsData.slice(0, 2));
+     
+            // Debug amounts specifically
+            const amounts = costsData.map(item => ({ id: item._id, amount: item.amount, desc: item.description }));
+            console.log('💰 Amount check:', amounts.slice(0, 5));
+            updateSummaryCards(costsData);
+            renderCostsTable(costsData);
+            updateCharts(costsData);
+          } else if (data.success && Array.isArray(data)) {
+            // Handle case where data is directly an array
+            costsData = data.map(item => {
+              // Extract amount from various possible fields
+              let amount = 0;
+              if (item.totalNet) amount = item.totalNet;
+              else if (item.totalBeforeTax) amount = item.totalBeforeTax;
+              else if (item.items && item.items[0] && item.items[0].unitPrice) amount = item.items[0].unitPrice;
+              else if (item.amount) amount = item.amount;
+     
+              // Extract description from various possible fields
+              let description = 'ไม่ระบุ';
+              if (item.items && item.items[0] && item.items[0].description) {
+                description = item.items[0].description;
+              } else if (item.supplier && item.supplier.name) {
+                description = item.supplier.name;
+              } else if (item.description) {
+                description = item.description;
+              }
+     
+              return {
+                _id: item._id,
+                type: item.type,
+                description: description,
+                amount: Math.max(0, parseFloat(amount) || 0),
+                date: item.date,
+                note: item.note || '',
+                createdAt: item.date
+              };
+            });
+            console.log(`✅ Loaded ${costsData.length} cost records from API (direct array)`);
+            console.log('📊 Sample transformed data:', costsData.slice(0, 2));
+            updateSummaryCards(costsData);
+            renderCostsTable(costsData);
+            updateCharts(costsData);
+          } else {
+            console.warn('⚠️ API returned success but no data:', data);
+            // Show empty state with message
+            costsData = [];
+            updateSummaryCards(costsData);
+            renderCostsTable(costsData);
+            updateCharts(costsData);
+            showNotification('ข้อมูล', 'ยังไม่มีข้อมูลต้นทุนและค่าใช้จ่าย', 'info');
+          }
+        } catch (error) {
+          const errorResult = handleError(error, 'loadCostsData', false);
+
+          // Show empty state instead of sample data
+          costsData = [];
+          updateSummaryCards(costsData);
+          renderCostsTable(costsData);
+          updateCharts(costsData);
+
+          // Show error notification with retry option
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'ข้อผิดพลาด',
+              text: errorResult.message,
+              icon: 'error',
+              showCancelButton: true,
+              confirmButtonText: 'ลองใหม่',
+              cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+              if (result.isConfirmed) {
+                loadCostsData(); // Retry
+              }
+            });
+          } else {
+            showNotification('ข้อผิดพลาด', errorResult.message, 'error');
+          }
+        } finally {
+          // Always hide loading overlay
+          showLoading(false);
+        }
+      }
+
+       // Show notification to user
+       function showNotification(title, message, type = 'info') {
+         if (typeof Swal !== 'undefined') {
+           const Toast = Swal.mixin({
+             toast: true,
+             position: 'top-end',
+             showConfirmButton: false,
+             timer: 3000,
+             timerProgressBar: true
+           });
+     
+           Toast.fire({
+             icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+             title: title,
+             text: message
+           });
+         } else {
+           // Fallback to alert if SweetAlert2 is not available
+           alert(`${title}: ${message}`);
+         }
+       }
+     
+       // Show loading state for summary cards
+       function showLoadingState() {
+         showLoading(true, 'กำลังคำนวณยอดรวม...');
+         // Update summary cards with loading indicators
+         document.getElementById('downPaymentTotal').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+         document.getElementById('financialCostTotal').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+         document.getElementById('installmentCostTotal').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+         document.getElementById('undueTaxTotal').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+       }
+     
+       // Update summary cards with real data
+       function updateSummaryCards(data) {
+         // Calculate totals by type
+         const totals = {
+           downpayment: 0,
+           financial: 0,
+           installment_start: 0,
+           installment_end: 0,
+           tax: 0,
+           debt_collection: 0,
+           debt_recovery: 0,
+           legal_fee: 0,
+           collection_agency: 0,
+           asset_recovery: 0,
+           administrative: 0,
+           contract_processing: 0
+         };
+
+         data.forEach(item => {
+           if (totals.hasOwnProperty(item.type)) {
+             // Use proper decimal arithmetic to avoid floating point errors
+             const amount = Number((item.amount || 0).toFixed(2));
+             totals[item.type] = Number((totals[item.type] + amount).toFixed(2));
+           }
+         });
+
+         // Calculate grouped totals with proper decimal handling
+         const debtCollectionTotal = Number((totals.debt_collection + totals.debt_recovery + totals.legal_fee + totals.collection_agency + totals.asset_recovery).toFixed(2));
+         const administrativeTotal = Number((totals.administrative + totals.contract_processing).toFixed(2));
+
+         // Update UI with proper financial formatting
+         document.getElementById('downPaymentTotal').textContent = formatCurrency(Math.max(0, totals.downpayment));
+         document.getElementById('financialCostTotal').textContent = formatCurrency(Math.max(0, totals.financial));
+         document.getElementById('installmentCostTotal').textContent = formatCurrency(Math.max(0, Number((totals.installment_start + totals.installment_end).toFixed(2))));
+         document.getElementById('undueTaxTotal').textContent = formatCurrency(Math.max(0, totals.tax));
+         document.getElementById('debtCollectionTotal').textContent = formatCurrency(Math.max(0, debtCollectionTotal));
+         document.getElementById('administrativeTotal').textContent = formatCurrency(Math.max(0, administrativeTotal));
+
+         document.getElementById('totalRecords').textContent = data.length;
+       }
+     
+      // Render costs table
+      function renderCostsTable(data) {
+        const tbody = document.querySelector('#costsTableBody');
+        if (!tbody) {
+          console.warn('Table body element not found');
+          return;
+        }
+     
+        tbody.innerHTML = '';
+     
+        // Show empty state if no data
+        if (!data || data.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" class="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                <div class="flex flex-col items-center">
+                  <i class="bi bi-inbox text-4xl mb-4 text-gray-300"></i>
+                  <h3 class="text-lg font-medium mb-2">ยังไม่มีข้อมูลต้นทุนและค่าใช้จ่าย</h3>
+                  <p class="text-sm">เริ่มต้นโดยการเพิ่มรายการใหม่</p>
+                  <button onclick="document.getElementById('btnAddNewCost').click()" 
+                          class="mt-4 btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle mr-1"></i>
+                    เพิ่มรายการแรก
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+          updatePagination(0);
+          return;
+        }
+     
+        // Paginate data
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedData = data.slice(startIndex, endIndex);
+     
+        paginatedData.forEach(item => {
+          const row = document.createElement('tr');
+          row.className = 'border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750';
+     
+          const typeLabel = getTypeLabel(item.type);
+          const typeClass = getTypeClass(item.type);
+     
+          // Handle different date formats
+          const itemDate = item.date || item.createdAt || new Date();
+     
+          row.innerHTML = `
+            <td class="px-4 py-3 text-gray-800 dark:text-gray-200">${formatDate(itemDate)}</td>
+            <td class="px-4 py-3 text-gray-800 dark:text-gray-200">${item.description || 'ไม่ระบุ'}</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs ${typeClass}">${typeLabel}</span></td>
+            <td class="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">${formatCurrency(Math.max(0, item.amount || 0))}</td>
+            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">${item.note || '-'}</td>
+            <td class="px-4 py-3">
+              <div class="flex space-x-2">
+                <button class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" 
+                        onclick="editCost('${item._id || item.id}')" 
+                        title="แก้ไข">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" 
+                        onclick="deleteCost('${item._id || item.id}')"
+                        title="ลบ">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+     
+          tbody.appendChild(row);
+        });
+     
+        // Update pagination
+        updatePagination(data.length);
+      }
+     
+       // Get type label
+       function getTypeLabel(type) {
+         const labels = {
+           downpayment: 'เงินดาวน์/จอง/มัดจำ',
+           financial: 'ต้นทุนทางการเงิน',
+           installment_start: 'ต้นทุนขายผ่อน',
+           installment_end: 'ต้นทุนขายผ่อน',
+           tax: 'ภาษีขาย',
+           debt_collection: 'ต้นทุนการติดตามหนี้',
+           debt_recovery: 'ต้นทุนการชำระหนี้คืน',
+           legal_fee: 'ค่าใช้จ่ายทางกฎหมาย',
+           collection_agency: 'ค่าบริษัทติดตามหนี้',
+           asset_recovery: 'ต้นทุนการกู้คืนสินทรัพย์',
+           administrative: 'ค่าใช้จ่ายดำเนินการ',
+           contract_processing: 'ค่าประมวลผลสัญญา',
+           bad_debt_provision: 'สำรองหนี้สงสัย'
+         };
+         return labels[type] || type;
+       }
+     
+       // Get type CSS class
+       function getTypeClass(type) {
+         // Use minimal gray styling for all types
+         return 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200';
+       }
+     
+       // Format date
+       function formatDate(dateString) {
+         const date = new Date(dateString);
+         return date.toLocaleDateString('th-TH', {
+           day: '2-digit',
+           month: '2-digit',
+           year: 'numeric'
+         });
+       }
+     
+       // Update pagination with functional controls
+       function updatePagination(totalItems) {
+         totalPages = Math.ceil(totalItems / itemsPerPage);
+         const startItem = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+         const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+         document.getElementById('pageStart').textContent = startItem;
+         document.getElementById('pageEnd').textContent = endItem;
+         document.getElementById('totalItems').textContent = totalItems;
+
+         // Update pagination controls
+         renderPaginationControls(totalItems);
+       }
+
+       // Render functional pagination controls
+       function renderPaginationControls(totalItems) {
+         const paginationContainer = document.querySelector('.flex.space-x-1');
+         if (!paginationContainer) return;
+
+         paginationContainer.innerHTML = '';
+
+         // Previous button
+         const prevBtn = document.createElement('button');
+         prevBtn.className = `px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${currentPage <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`;
+         prevBtn.disabled = currentPage <= 1;
+         prevBtn.innerHTML = '<i class="bi bi-chevron-left"></i>';
+         prevBtn.onclick = () => {
+           if (currentPage > 1) {
+             currentPage--;
+             renderCostsTable(costsData);
+           }
+         };
+         paginationContainer.appendChild(prevBtn);
+
+         // Page numbers
+         const maxVisiblePages = 5;
+         let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+         let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+         // Adjust start page if we're near the end
+         if (endPage - startPage + 1 < maxVisiblePages) {
+           startPage = Math.max(1, endPage - maxVisiblePages + 1);
+         }
+
+         // Add first page and ellipsis if needed
+         if (startPage > 1) {
+           const firstPageBtn = createPageButton(1);
+           paginationContainer.appendChild(firstPageBtn);
+
+           if (startPage > 2) {
+             const ellipsis = document.createElement('span');
+             ellipsis.className = 'px-3 py-1 text-gray-500';
+             ellipsis.textContent = '...';
+             paginationContainer.appendChild(ellipsis);
+           }
+         }
+
+         // Add visible page numbers
+         for (let i = startPage; i <= endPage; i++) {
+           const pageBtn = createPageButton(i);
+           paginationContainer.appendChild(pageBtn);
+         }
+
+         // Add ellipsis and last page if needed
+         if (endPage < totalPages) {
+           if (endPage < totalPages - 1) {
+             const ellipsis = document.createElement('span');
+             ellipsis.className = 'px-3 py-1 text-gray-500';
+             ellipsis.textContent = '...';
+             paginationContainer.appendChild(ellipsis);
+           }
+
+           const lastPageBtn = createPageButton(totalPages);
+           paginationContainer.appendChild(lastPageBtn);
+         }
+
+         // Next button
+         const nextBtn = document.createElement('button');
+         nextBtn.className = `px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : ''}`;
+         nextBtn.disabled = currentPage >= totalPages;
+         nextBtn.innerHTML = '<i class="bi bi-chevron-right"></i>';
+         nextBtn.onclick = () => {
+           if (currentPage < totalPages) {
+             currentPage++;
+             renderCostsTable(costsData);
+           }
+         };
+         paginationContainer.appendChild(nextBtn);
+       }
+
+       // Create page button
+       function createPageButton(pageNum) {
+         const btn = document.createElement('button');
+         const isCurrentPage = pageNum === currentPage;
+         btn.className = `px-3 py-1 rounded border border-gray-300 dark:border-gray-600 ${
+           isCurrentPage
+             ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
+             : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+         }`;
+         btn.textContent = pageNum;
+         btn.onclick = () => {
+           currentPage = pageNum;
+           renderCostsTable(costsData);
+         };
+         return btn;
+       }
+     
+       // Initialize charts
+       let typeChart, monthlyChart;
+     
+       function initCharts() {
+         // Type Chart
+         const typeChartEl = document.getElementById('costTypeChart');
+         if (typeChartEl) {
+           typeChart = new Chart(typeChartEl, {
+             type: 'doughnut',
+             data: {
+               labels: [],
+               datasets: [{
+                 data: [],
+                 backgroundColor: [
+                   'rgba(20,184,166,0.7)','rgba(59,130,246,0.7)',
+                   'rgba(168,85,247,0.7)','rgba(249,115,22,0.7)'
+                 ],
+                 borderColor: [
+                   'rgba(20,184,166,1)','rgba(59,130,246,1)',
+                   'rgba(168,85,247,1)','rgba(249,115,22,1)'
+                 ],
+                 borderWidth: 1
+               }]
+             },
+             options: {
+               responsive: true,
+               maintainAspectRatio: false,
+               plugins: {
+                 legend: {
+                   position: 'right',
+                   labels: {
+                     font: {
+                       family: 'Prompt, sans-serif'
+                     },
+                     color: document.documentElement.classList.contains('dark') ? 'white' : 'rgb(55, 65, 81)'
+                   }
+                 },
+                 tooltip: {
+                   callbacks: {
+                     label: function(context) {
+                       let label = context.label || '';
+                       if (label) {
+                         label += ': ';
+                       }
+                       label += new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(context.raw);
+                       return label;
+                     }
+                   }
+                 }
+               }
+             }
+           });
+         }
+     
+         // Monthly Chart
+         const monthlyChartEl = document.getElementById('costMonthlyChart');
+         if (monthlyChartEl) {
+           monthlyChart = new Chart(monthlyChartEl, {
+             type: 'bar',
+             data: {
+               labels: [],
+               datasets: []
+             },
+             options: {
+               responsive: true,
+               maintainAspectRatio: false,
+               interaction: {
+                 mode: 'index',
+                 intersect: false
+               },
+               scales: {
+                 x: {
+                   stacked: true,
+                   ticks: {
+                     color: document.documentElement.classList.contains('dark') ? 'white' : 'rgb(55, 65, 81)',
+                     font: {
+                       size: 12
+                     }
+                   },
+                   grid: {
+                     color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                     display: false
+                   }
+                 },
+                 y: {
+                   stacked: true,
+                   beginAtZero: true,
+                   ticks: {
+                     color: document.documentElement.classList.contains('dark') ? 'white' : 'rgb(55, 65, 81)',
+                     font: {
+                       size: 11
+                     },
+                     callback: function(value) {
+                       if (value === 0) return '฿0';
+                       if (value >= 1000000) {
+                         return '฿' + (value / 1000000).toFixed(1) + 'M';
+                       } else if (value >= 1000) {
+                         return '฿' + (value / 1000).toFixed(0) + 'K';
+                       }
+                       return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(value);
+                     }
+                   },
+                   grid: {
+                     color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                   }
+                 }
+               },
+               plugins: {
+                 legend: {
+                   position: 'top',
+                   align: 'end',
+                   labels: {
+                     font: {
+                       family: 'Inter, sans-serif',
+                       size: 12
+                     },
+                     color: document.documentElement.classList.contains('dark') ? 'white' : 'rgb(55, 65, 81)',
+                     usePointStyle: true,
+                     pointStyle: 'rect',
+                     padding: 15
+                   }
+                 },
+                 tooltip: {
+                   backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                   titleColor: 'white',
+                   bodyColor: 'white',
+                   borderColor: 'rgba(255, 255, 255, 0.1)',
+                   borderWidth: 1,
+                   cornerRadius: 8,
+                   displayColors: true,
+                   callbacks: {
+                     title: function(context) {
+                       return 'เดือน ' + context[0].label;
+                     },
+                     label: function(context) {
+                       let label = context.dataset.label || '';
+                       if (label) {
+                         label += ': ';
+                       }
+                       label += new Intl.NumberFormat('th-TH', {
+                         style: 'currency',
+                         currency: 'THB',
+                         minimumFractionDigits: 0,
+                         maximumFractionDigits: 0
+                       }).format(context.raw);
+                       return label;
+                     },
+                     afterBody: function(context) {
+                       const total = context.reduce((sum, item) => sum + item.raw, 0);
+                       return 'รวม: ' + new Intl.NumberFormat('th-TH', {
+                         style: 'currency',
+                         currency: 'THB',
+                         minimumFractionDigits: 0,
+                         maximumFractionDigits: 0
+                       }).format(total);
+                     }
+                   }
+                 }
+               }
+             }
+           });
+         }
+       }
+     
+      // Update charts with real data
+      function updateCharts(data) {
+        // Handle empty data
+        if (!data || data.length === 0) {
+          // Update type chart with empty state
+          if (typeChart) {
+            typeChart.data.labels = ['ไม่มีข้อมูล'];
+            typeChart.data.datasets[0].data = [1];
+            typeChart.data.datasets[0].backgroundColor = ['rgba(156,163,175,0.3)'];
+            typeChart.update();
+          }
+     
+          // Update monthly chart with empty state
+          if (monthlyChart) {
+            monthlyChart.data.labels = [];
+            monthlyChart.data.datasets = [];
+            monthlyChart.update();
+          }
+          return;
+        }
+     
+        // Calculate totals by type for pie chart
+        const typeData = {};
+        data.forEach(item => {
+          const label = getTypeLabel(item.type);
+          typeData[label] = (typeData[label] || 0) + Math.max(0, item.amount || 0);
+        });
+     
+        // Update type chart
+        if (typeChart && Object.keys(typeData).length > 0) {
+          typeChart.data.labels = Object.keys(typeData);
+          typeChart.data.datasets[0].data = Object.values(typeData);
+          typeChart.data.datasets[0].backgroundColor = [
+            'rgba(20,184,166,0.7)', 'rgba(59,130,246,0.7)',
+            'rgba(168,85,247,0.7)', 'rgba(249,115,22,0.7)',
+            'rgba(34,197,94,0.7)', 'rgba(239,68,68,0.7)'
+          ];
+          typeChart.update();
+        }
+     
+        // Calculate monthly data for bar chart
+        const monthlyData = {};
+        const allTypes = new Set();
+     
+        // Process each item to group by month and type
+        data.forEach(item => {
+          // Handle different date formats
+          const itemDate = item.date || item.createdAt || new Date();
+          const date = new Date(itemDate);
+     
+          // Check if date is valid
+          if (isNaN(date.getTime())) {
+            console.warn('Invalid date found:', itemDate);
+            return;
+          }
+     
+          // Create month key in format "YYYY-MM" for proper sorting
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+          const monthLabel = date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short' });
+     
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = {
+              label: monthLabel,
+              data: {}
+            };
+          }
+     
+          const typeLabel = getTypeLabel(item.type);
+          allTypes.add(typeLabel);
+     
+          if (!monthlyData[monthKey].data[typeLabel]) {
+            monthlyData[monthKey].data[typeLabel] = 0;
+          }
+     
+          monthlyData[monthKey].data[typeLabel] += Math.max(0, item.amount || 0);
+        });
+     
+        // Sort months chronologically
+        const sortedMonths = Object.keys(monthlyData).sort();
+        const monthLabels = sortedMonths.map(key => monthlyData[key].label);
+     
+        // Prepare datasets for each type
+        const datasets = [];
+        const colors = {
+          'เงินดาวน์/จอง/มัดจำ': 'rgba(20,184,166,0.8)',
+          'ต้นทุนทางการเงิน': 'rgba(59,130,246,0.8)',
+          'ต้นทุนขายผ่อน': 'rgba(168,85,247,0.8)',
+          'ภาษีขาย': 'rgba(249,115,22,0.8)'
+        };
+     
+        // Create dataset for each type
+        Array.from(allTypes).forEach((type, index) => {
+          const chartData = sortedMonths.map(monthKey =>
+            monthlyData[monthKey].data[type] || 0
+          );
+     
+          // Only add dataset if it has data
+          const hasData = chartData.some(value => value > 0);
+          if (hasData) {
+            datasets.push({
+              label: type,
+              data: chartData,
+              backgroundColor: colors[type] || `rgba(${100 + index * 50}, ${150 + index * 30}, ${200 + index * 20}, 0.8)`,
+              borderColor: colors[type]?.replace('0.8', '1') || `rgba(${100 + index * 50}, ${150 + index * 30}, ${200 + index * 20}, 1)`,
+              borderWidth: 1,
+              borderRadius: 4,
+              borderSkipped: false
+            });
+          }
+        });
+     
+        console.log('📊 Monthly chart data:', {
+          labels: monthLabels,
+          datasets: datasets.map(d => ({ label: d.label, data: d.data }))
+        });
+     
+        // Update monthly chart
+        if (monthlyChart) {
+          monthlyChart.data.labels = monthLabels;
+          monthlyChart.data.datasets = datasets;
+          monthlyChart.update();
+        }
+      }
+     
+       // Delete cost function
+       window.deleteCost = async function(id) {
+         if (!confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) return;
+     
+         try {
+           const response = await fetch(`/api/costs-expenses/${id}`, {
+             method: 'DELETE',
+             headers
+           });
+     
+           if (!response.ok) {
+             throw new Error(`HTTP ${response.status}: API not available`);
+           }
+     
+           const data = await response.json();
+     
+           if (data.success) {
+             showNotification('สำเร็จ', 'ลบข้อมูลสำเร็จ', 'success');
+             await loadCostsData(); // Reload data
+           } else {
+             throw new Error(data.error || 'ไม่สามารถลบข้อมูลได้');
+           }
+         } catch (error) {
+           console.error('❌ Delete error:', error.message);
+     
+           // Show error notification when API fails
+           showNotification('ข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้ กรุณาลองใหม่อีกครั้ง', 'error');
+         }
+       };
+     
+      // Edit cost function (placeholder)
+      window.editCost = function(id) {
+        alert('ฟังก์ชันแก้ไขยังอยู่ระหว่างพัฒนา');
+        // TODO: Implement edit functionality
+      };
+     
+      // Add sample data for testing (development only)
+      function addSampleDataButton() {
+        const headerDiv = document.querySelector('.flex.space-x-2');
+        if (headerDiv) {
+          const sampleBtn = document.createElement('button');
+          sampleBtn.className = 'btn btn-outline btn-sm';
+          sampleBtn.innerHTML = '<i class="bi bi-database-add"></i> เพิ่มข้อมูลตัวอย่าง';
+          sampleBtn.onclick = generateSampleData;
+          headerDiv.appendChild(sampleBtn);
+        }
+      }
+     
+      // Generate sample data for testing
+      function generateSampleData() {
+        const sampleData = [];
+        const types = ['downpayment', 'financial', 'installment_start', 'tax'];
+        const descriptions = {
+          'downpayment': ['เงินดาวน์ลูกค้า A', 'เงินจองลูกค้า B', 'เงินมัดจำลูกค้า C'],
+          'financial': ['ค่าธรรมเนียมธนาคาร', 'ดอกเบี้ยเงินกู้', 'ค่าบริการทางการเงิน'],
+          'installment_start': ['ต้นทุนขายผ่อน Q1', 'ต้นทุนขายผ่อน Q2', 'ต้นทุนขายผ่อน Q3'],
+          'tax': ['ภาษีขายยังไม่ถึงกำหนด', 'ภาษีมูลค่าเพิ่ม', 'ภาษีหัก ณ ที่จ่าย']
+        };
+     
+        // Generate data for last 6 months
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date();
+          date.setMonth(date.getMonth() - i);
+     
+          types.forEach(type => {
+            const typeDescriptions = descriptions[type];
+            const randomDesc = typeDescriptions[Math.floor(Math.random() * typeDescriptions.length)];
+            const randomAmount = Math.floor(Math.random() * 100000) + 10000;
+     
+            sampleData.push({
+              _id: `sample_${type}_${i}_${Date.now()}`,
+              type: type,
+              description: randomDesc,
+              amount: randomAmount,
+              date: date.toISOString().split('T')[0],
+              note: 'ข้อมูลตัวอย่างสำหรับทดสอบ',
+              createdAt: date.toISOString()
+            });
+          });
+        }
+     
+        // Update UI with sample data
+        costsData = sampleData;
+        updateSummaryCards(costsData);
+        renderCostsTable(costsData);
+        updateCharts(costsData);
+     
+        showNotification('สำเร็จ', `เพิ่มข้อมูลตัวอย่าง ${sampleData.length} รายการ`, 'success');
+      }
+     
+
+     
+      // Add filter button event listener
+      document.getElementById('btnApplyFilter').addEventListener('click', applyFilters);
+
+      // Add real-time search
+      document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));
+      document.getElementById('costTypeFilter').addEventListener('change', applyFilters);
+      document.getElementById('dateFrom').addEventListener('change', applyFilters);
+      document.getElementById('dateTo').addEventListener('change', applyFilters);
+
+      // Debounce function for search input
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+
+      // Initialize everything
+      initCharts();
+      loadCostsData();
+
+      // Add sample data button for testing (always available for demo)
+      addSampleDataButton();
+     
+       // Set today's date as default for the form
+       const today = new Date().toISOString().split('T')[0];
+       document.getElementById('costDate').value = today;
+
+       // Debt Collection button handler
+       document.getElementById('btnDebtCollection').addEventListener('click', function() {
+         showDebtCollectionModal();
+       });
+
+       // Contract Costs button handler
+       document.getElementById('btnContractCosts').addEventListener('click', function() {
+         showContractCostsModal();
+       });
+       } catch (error) {
+         console.error('Error loading data:', error);
+         alert('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+       }
+     });
+     
+     // Note: Logout functionality is now handled by loan-sidebar.js
+     
+     // Export report functionality
+     document.getElementById('btnExportReport').addEventListener('click', async function() {
+       try {
+         const authToken = localStorage.getItem('authToken');
+         const response = await fetch('/api/costs-expenses/export', {
+           headers: {
+             'Authorization': `Bearer ${authToken}`
+           }
+         });
+     
+         if (response.ok) {
+           const blob = await response.blob();
+           const url = window.URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = `costs_expenses_${new Date().toISOString().split('T')[0]}.xlsx`;
+           document.body.appendChild(a);
+           a.click();
+           window.URL.revokeObjectURL(url);
+           document.body.removeChild(a);
+           showNotification('สำเร็จ', 'ส่งออกรายงานสำเร็จ', 'success');
+         } else {
+           throw new Error('Export API not available');
+         }
+       } catch (error) {
+         console.warn('⚠️ Export error:', error.message);
+     
+         // Generate CSV export as fallback
+         const csv = generateCSVExport(costsData);
+         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         a.download = `costs_expenses_${new Date().toISOString().split('T')[0]}.csv`;
+         document.body.appendChild(a);
+         a.click();
+         window.URL.revokeObjectURL(url);
+         document.body.removeChild(a);
+     
+         showNotification('ส่งออก CSV', 'ส่งออกข้อมูลเป็นไฟล์ CSV สำเร็จ (API ไม่พร้อมใช้งาน)', 'info');
+        }
+      });
+
+      // Generate CSV export
+      function generateCSVExport(data) {
+        const headers = ['วันที่', 'รายการ', 'ประเภท', 'จำนวนเงิน', 'หมายเหตุ'];
+        const csvContent = [
+          headers.join(','),
+          ...data.map(item => [
+            item.date,
+            `"${item.description}"`,
+            `"${getTypeLabel(item.type)}"`,
+            Math.max(0, item.amount || 0),
+            `"${item.note || '-'}"`
+          ].join(','))
+        ].join('\n');
+     
+        // Add BOM for UTF-8 CSV
+        return '\uFEFF' + csvContent;
+      }
+
+      // Functions for debt collection and contract costs integration
+      function showDebtCollectionModal() {
+        Swal.fire({
+          title: 'ต้นทุนการติดตามหนี้',
+          html: `
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">ประเภทการติดตามหนี้</label>
+                <select id="debtFilterType" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                  <option value="">ทั้งหมด</option>
+                  <option value="early_reminder">แจ้งเตือนเบื้องต้น</option>
+                  <option value="formal_notice">หนังสือแจ้งอย่างเป็นทางการ</option>
+                  <option value="legal_action">ดำเนินการทางกฎหมาย</option>
+                  <option value="recovery_process">กระบวนการกู้คืน</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">วันที่เริ่มต้น</label>
+                  <input type="date" id="debtStartDate" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">วันที่สิ้นสุด</label>
+                  <input type="date" id="debtEndDate" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                </div>
+              </div>
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: 'ดูรายงาน',
+          cancelButtonText: 'ยกเลิก',
+          preConfirm: () => {
+            const filterType = document.getElementById('debtFilterType').value;
+            const startDate = document.getElementById('debtStartDate').value;
+            const endDate = document.getElementById('debtEndDate').value;
+            return { filterType, startDate, endDate };
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            loadDebtCollectionCosts(result.value);
+          }
+        });
+      }
+
+      function showContractCostsModal() {
+        Swal.fire({
+          title: 'ต้นทุนตามสัญญา',
+          html: `
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">เลขที่สัญญา</label>
+                <input type="text" id="contractNoSearch" placeholder="กรอกเลขที่สัญญา"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">ประเภทต้นทุน</label>
+                <select id="contractCostType" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                  <option value="">ทั้งหมด</option>
+                  <option value="downpayment">เงินดาวน์</option>
+                  <option value="financial">ต้นทุนทางการเงิน</option>
+                  <option value="installment">ต้นทุนขายผ่อน</option>
+                  <option value="debt_collection">ต้นทุนติดตามหนี้</option>
+                </select>
+              </div>
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: 'ค้นหา',
+          cancelButtonText: 'ยกเลิก',
+          preConfirm: () => {
+            const contractNo = document.getElementById('contractNoSearch').value.trim();
+            const costType = document.getElementById('contractCostType').value;
+            return { contractNo, costType };
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            searchContractCosts(result.value);
+          }
+        });
+      }
+
+      async function loadDebtCollectionCosts(filters) {
+        try {
+          showLoading(true, 'กำลังโหลดข้อมูลต้นทุน...');
+          const params = new URLSearchParams();
+          if (filters.filterType) params.append('stage', filters.filterType);
+          if (filters.startDate) params.append('startDate', filters.startDate);
+          if (filters.endDate) params.append('endDate', filters.endDate);
+
+          const response = await fetch(`/api/costs-expenses/debt-collection?${params.toString()}`, { headers });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            displayDebtCollectionResults(data);
+          } else {
+            throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลติดตามหนี้ได้');
+          }
+        } catch (error) {
+          console.error('❌ Error loading debt collection costs:', error);
+          showNotification('ข้อผิดพลาด', `ไม่สามารถโหลดข้อมูลติดตามหนี้ได้: ${error.message}`, 'error');
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      async function searchContractCosts(filters) {
+        try {
+          showLoading(true, 'กำลังโหลดข้อมูลต้นทุน...');
+
+          if (!filters.contractNo) {
+            showNotification('ข้อผิดพลาด', 'กรุณาระบุเลขที่สัญญา', 'error');
+            return;
+          }
+
+          // Search for contract costs directly by contract number
+          const response = await fetch(`/api/costs-expenses?contractNo=${encodeURIComponent(filters.contractNo)}`, { headers });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            displayContractCostsResults(data, filters.costType);
+          } else {
+            throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลต้นทุนสัญญาได้');
+          }
+        } catch (error) {
+          console.error('❌ Error searching contract costs:', error);
+          showNotification('ข้อผิดพลาด', `ไม่สามารถค้นหาต้นทุนสัญญาได้: ${error.message}`, 'error');
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function displayDebtCollectionResults(data) {
+        const results = data.data;
+        const summary = data.summary;
+
+        let html = `
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="bg-red-50 p-4 rounded-lg">
+                <div class="text-sm text-red-600">จำนวนรายการ</div>
+                <div class="text-2xl font-bold text-red-700">${summary.totalRecords}</div>
+              </div>
+              <div class="bg-red-50 p-4 rounded-lg">
+                <div class="text-sm text-red-600">ยอดรวม</div>
+                <div class="text-2xl font-bold text-red-700">฿${summary.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
+              </div>
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-2 py-2 text-left">วันที่</th>
+                    <th class="px-2 py-2 text-left">รายการ</th>
+                    <th class="px-2 py-2 text-left">ขั้นตอน</th>
+                    <th class="px-2 py-2 text-right">จำนวน</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+
+        results.forEach(item => {
+          html += `
+            <tr class="border-b">
+              <td class="px-2 py-2">${formatDate(item.date)}</td>
+              <td class="px-2 py-2">${item.description}</td>
+              <td class="px-2 py-2">${item.debtCollectionStage || '-'}</td>
+              <td class="px-2 py-2 text-right">฿${item.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+
+        Swal.fire({
+          title: 'รายงานต้นทุนการติดตามหนี้',
+          html: html,
+          width: '800px',
+          confirmButtonText: 'ปิด'
+        });
+      }
+
+      function displayContractCostsResults(data, filterType) {
+        const costs = data.data;
+
+        // Filter costs by contract number and type
+        const filteredCosts = costs.filter(cost => {
+          if (filterType) {
+            return cost.type === filterType || cost.type.startsWith(filterType);
+          }
+          return true;
+        });
+
+        const totalAmount = filteredCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
+
+        let html = `
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <div class="text-sm text-blue-600">จำนวนรายการ</div>
+                <div class="text-2xl font-bold text-blue-700">${filteredCosts.length}</div>
+              </div>
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <div class="text-sm text-blue-600">ยอดรวม</div>
+                <div class="text-2xl font-bold text-blue-700">฿${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
+              </div>
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-2 py-2 text-left">วันที่</th>
+                    <th class="px-2 py-2 text-left">รายการ</th>
+                    <th class="px-2 py-2 text-left">ประเภท</th>
+                    <th class="px-2 py-2 text-right">จำนวน</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+
+        filteredCosts.forEach(item => {
+          html += `
+            <tr class="border-b">
+              <td class="px-2 py-2">${formatDate(item.date)}</td>
+              <td class="px-2 py-2">${item.description}</td>
+              <td class="px-2 py-2">${getTypeLabel(item.type)}</td>
+              <td class="px-2 py-2 text-right">฿${item.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+
+        Swal.fire({
+          title: 'รายงานต้นทุนตามสัญญา',
+          html: html,
+          width: '900px',
+          confirmButtonText: 'ปิด'
+        });
+      }
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+    </script>
+
+  </body>
+</html>

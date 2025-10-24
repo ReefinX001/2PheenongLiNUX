@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการ Popup โปรโมชั่น - Marketing Dashboard</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    
+    <!-- Tailwind + DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'Prompt', 'sans-serif'],
+              prompt: ['Prompt', 'sans-serif'],
+            },
+            boxShadow: {
+              'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+            }
+          },
+        },
+        daisyui: {
+          themes: ['luxury', 'dark', 'corporate'],
+        },
+      };
+    </script>
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Animate.css for fade animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+    <!-- Lottie for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    
+    <!-- Sidebar Scripts -->
+    <script src="/views/marketing/js/user-profile.js"></script>
+    <script src="/views/marketing/js/sidebar.js"></script>
+    
+    <style>
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(12px);
+        }
+
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .popup-preview {
+            transform: scale(0.7);
+            transform-origin: top left;
+            pointer-events: none;
+        }
+        
+        .image-upload-area {
+            transition: all 0.3s ease;
+        }
+
+        .image-upload-area:hover {
+            border-color: #3b82f6;
+        }
+
+        .image-upload-area.dragover {
+            border-color: #10b981;
+        }
+        
+        /* Banner Carousel Styles */
+        .banner-carousel {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .banner-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .banner-slide.active {
+            opacity: 1;
+        }
+        
+        .banner-content {
+            text-align: center;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 30px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .banner-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .banner-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        .banner-indicators {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .banner-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .banner-indicator.active {
+            background: white;
+            transform: scale(1.2);
+        }
+        
+        .banner-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .banner-nav:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: translateY(-50%) scale(1.1);
+        }
+        
+        .banner-nav.prev {
+            left: 20px;
+        }
+        
+        .banner-nav.next {
+            right: 20px;
+        }
+        
+        .banner-management-section {
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .no-banners-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .no-banners-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+    </style>
+
+    <script>
+        let lottieAnimation = null;
+    </script>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+        <div class="text-center">
+            <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+        </div>
+    </div>
+    <div class="min-h-screen flex" id="mainContainer">
+    <!-- Navigation Bar -->
+    <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 fixed top-0 left-0 right-0 z-50">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <button id="menuToggle" class="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <i class="bi bi-list text-xl"></i>
+                    </button>
+                    <div class="ml-4 flex items-center">
+                        <i class="bi bi-gift text-2xl text-purple-600 mr-3"></i>
+                        <h1 class="text-xl font-bold text-gray-900 dark:text-white">จัดการ Popup โปรโมชั่น</h1>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <button id="previewBtn" class="btn btn-outline btn-primary btn-sm">
+                        <i class="bi bi-eye mr-2"></i>ดูตัวอย่าง
+                    </button>
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+                            <div class="w-8 rounded-full">
+                                <i class="bi bi-person-circle text-2xl"></i>
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="/profile"><i class="bi bi-person mr-2"></i>โปรไฟล์</a></li>
+                            <li><a href="/marketing_dashboard"><i class="bi bi-house mr-2"></i>Dashboard</a></li>
+                            <li><a href="/login"><i class="bi bi-box-arrow-right mr-2"></i>ออกจากระบบ</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300 sticky top-0 h-screen overflow-y-auto">
+        <a href="marketing_dashboard">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+            </div>
+        </a>
+        <div class="flex-1 p-4">
+            <ul class="flex flex-col w-full space-y-1">
+                <li>
+                    <a href="marketing_dashboard" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="marketing_dashboard">
+                        <i class="bi bi-graph-up-arrow text-xl text-indigo-600 dark:text-indigo-400"></i>
+                        <span class="ml-3">แดชบอร์ด</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="campaigns" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="campaigns">
+                        <i class="bi bi-megaphone-fill text-xl text-orange-500 dark:text-orange-400"></i>
+                        <span class="ml-3">แคมเปญ</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="analytics" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="analytics">
+                        <i class="bi bi-bar-chart-line text-xl text-blue-500 dark:text-blue-400"></i>
+                        <span class="ml-3">วิเคราะห์ข้อมูล</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="content_management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="content_management">
+                        <i class="bi bi-file-earmark-richtext text-xl text-teal-500 dark:text-teal-400"></i>
+                        <span class="ml-3">จัดการเนื้อหา</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="social_media" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="social_media">
+                        <i class="bi bi-share-fill text-xl text-purple-500 dark:text-purple-400"></i>
+                        <span class="ml-3">สื่อสังคม</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="popup_management" class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700 transition" data-page="popup_management">
+                        <i class="bi bi-gift text-xl text-purple-500 dark:text-purple-400"></i>
+                        <span class="ml-3">Popup โปรโมชั่น</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="customer_data" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="customer_data">
+                        <i class="bi bi-people text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+                        <span>ข้อมูลลูกค้า</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="budget_reports" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="budget_reports">
+                        <i class="bi bi-cash-coin text-xl text-emerald-500 dark:text-emerald-400 mr-3"></i>
+                        <span>งบประมาณและรายงาน</span>
+                    </a>
+                </li>
+                <li class="mt-4">
+                    <a href="marketing_settings" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-page="marketing_settings">
+                        <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+                        <span class="ml-3">การตั้งค่า</span>
+                    </a>
+                </li>
+                <li class="mt-6">
+                    <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                        <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+                        <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+                    </button>
+                </li>
+                <li>
+                    <button id="btnLogoutSidebar" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                        <i class="bi bi-box-arrow-right text-xl"></i>
+                        <span class="ml-3">ออกจากระบบ</span>
+                    </button>
+                </li>
+                <li>
+                    <div id="profile" class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <img id="employeePhoto" src="https://ui-avatars.com/api/?name=User&size=36" alt="Employee Photo" class="w-10 h-10 rounded-full mr-3"/>
+                        <span id="employeeName">Loading...</span>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 pt-16 transition-all duration-300" id="mainContent">
+        <div class="p-6">
+            <!-- Header Section -->
+            <div class="mb-8">
+                <div class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 rounded-xl shadow-lg">
+                    <div class="flex flex-col md:flex-row justify-between items-center">
+                        <div>
+                            <h2 class="text-3xl font-bold mb-2">🎁 จัดการ Popup โปรโมชั่น</h2>
+                            <p class="text-purple-100">สร้างและจัดการ popup โปรโมชั่นที่แสดงให้ลูกค้า</p>
+                        </div>
+                        <div class="mt-4 md:mt-0 flex gap-3">
+                            <button id="btnOpenBannerModal" class="btn btn-info">
+                                <i class="bi bi-images mr-2"></i>จัดการ Banner
+                            </button>
+                            <button onclick="openCreateModal()" class="btn btn-success">
+                                <i class="bi bi-plus-circle mr-2"></i>สร้าง Popup ใหม่
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banner Carousel Section -->
+            <div class="banner-management-section bg-white dark:bg-gray-800">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">🎠 Banner Carousel</h3>
+                    <button id="btnAddBanner" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle mr-2"></i>เพิ่ม Banner
+                    </button>
+                </div>
+                
+                <div id="bannerCarouselContainer">
+                    <!-- Banner carousel will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                            <i class="bi bi-eye text-blue-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="totalViews">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                            <i class="bi bi-mouse text-green-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Clicks</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="totalClicks">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+                            <i class="bi bi-percent text-yellow-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">CTR</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="ctrRate">0%</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                            <i class="bi bi-gift text-purple-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Active Popups</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white" id="activePopups">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Popup List -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex flex-col md:flex-row justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">รายการ Popup</h3>
+                        <div class="flex space-x-2 mt-4 md:mt-0">
+                            <div class="form-control">
+                                <input type="text" id="searchInput" placeholder="ค้นหา popup..." 
+                                       class="input input-bordered input-sm w-full max-w-xs">
+                            </div>
+                            <select id="statusFilter" class="select select-bordered select-sm">
+                                <option value="">ทุกสถานะ</option>
+                                <option value="active">เปิดใช้งาน</option>
+                                <option value="inactive">ปิดใช้งาน</option>
+                                <option value="scheduled">กำหนดเวลา</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th>รูปภาพ</th>
+                                <th>ชื่อ Popup</th>
+                                <th>ขนาดภาพ</th>
+                                <th>สถานะ</th>
+                                <th>วันที่สร้าง</th>
+                                <th>Views</th>
+                                <th>Clicks</th>
+                                <th>การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="popupTableBody">
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create/Edit Popup Modal -->
+    <dialog id="popupModal" class="modal">
+        <div class="modal-box w-11/12 max-w-4xl" role="dialog" aria-labelledby="modalTitle">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="ปิด">✕</button>
+            </form>
+            
+            <h3 class="font-bold text-lg mb-4" id="modalTitle">สร้าง Popup ใหม่</h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Form Section -->
+                <div class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">ชื่อ Popup</span>
+                        </label>
+                        <input type="text" id="popupName" placeholder="เช่น: Welcome Promotion" 
+                               class="input input-bordered w-full">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">แสดงหลังจาก (วินาที)</span>
+                            </label>
+                            <input type="number" id="showDelay" value="2" min="0" max="60" 
+                                   class="input input-bordered w-full">
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">สถานะ</span>
+                            </label>
+                            <select id="popupStatus" class="select select-bordered w-full">
+                                <option value="active">เปิดใช้งาน</option>
+                                <option value="inactive">ปิดใช้งาน</option>
+                                <option value="scheduled">กำหนดเวลา</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Upload -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">รูปภาพ Popup</span>
+                        </label>
+                        <div id="imageUploadArea" class="image-upload-area p-6 rounded-lg text-center cursor-pointer border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <div id="uploadPlaceholder">
+                                <i class="bi bi-cloud-upload text-4xl text-gray-400 dark:text-gray-500 mb-2"></i>
+                                <p class="text-gray-600 dark:text-gray-300">คลิกหรือลากไฟล์มาวางที่นี่</p>
+                                <p class="text-sm text-gray-400 dark:text-gray-500">รองรับ JPG, PNG, GIF (ขนาดไม่เกิน 5MB)</p>
+                                <p class="text-xs text-blue-600 mt-2">ขนาดที่แนะนำ: 800x600 พิกเซล หรือ 4:3</p>
+                            </div>
+                            <div id="imagePreview" class="hidden">
+                                <img id="previewImage" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-lg mx-auto">
+                                <div id="imageDimensions" class="text-sm text-gray-600 dark:text-gray-300 mt-2"></div>
+                                <button type="button" onclick="removeImage()" class="btn btn-sm btn-error mt-2">
+                                    <i class="bi bi-trash mr-1"></i>ลบรูปภาพ
+                                </button>
+                            </div>
+                        </div>
+                        <input type="file" id="imageInput" accept="image/*" class="hidden">
+                    </div>
+                </div>
+                
+                <!-- Preview Section -->
+                <div class="space-y-4">
+                    <h4 class="font-semibold text-gray-900 dark:text-white">ตัวอย่าง Popup</h4>
+                    <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
+                        <div id="popupPreview" class="popup-preview">
+                            <!-- Preview will be generated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-action">
+                <button type="button" onclick="savePopup()" class="btn btn-primary">
+                    <i class="bi bi-save mr-2"></i>บันทึก
+                </button>
+                <button type="button" onclick="closeModal()" class="btn">ยกเลิก</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Preview Modal -->
+    <dialog id="previewModal" class="modal">
+        <div class="modal-box w-11/12 max-w-2xl" role="dialog" aria-labelledby="previewTitle">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="ปิด">✕</button>
+            </form>
+            
+            <h3 class="font-bold text-lg mb-4" id="previewTitle">ตัวอย่าง Popup แบบเต็มขนาด</h3>
+            
+            <div id="fullPreview" class="relative bg-gray-900 bg-opacity-50 p-8 rounded-lg min-h-96 flex items-center justify-center">
+                <!-- Full preview will be generated here -->
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Banner Management Modal -->
+    <dialog id="bannerModal" class="modal">
+        <div class="modal-box w-11/12 max-w-4xl" role="dialog" aria-labelledby="bannerModalTitle">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="ปิด">✕</button>
+            </form>
+            
+            <h3 class="font-bold text-lg mb-4" id="bannerModalTitle">จัดการ Banner</h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Form Section -->
+                <div class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">ชื่อ Banner</span>
+                        </label>
+                        <input type="text" id="bannerTitle" placeholder="เช่น: Welcome Banner" 
+                               class="input input-bordered w-full">
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">คำบรรยาย</span>
+                        </label>
+                        <input type="text" id="bannerSubtitle" placeholder="เช่น: ยินดีต้อนรับสู่เว็บไซต์ของเรา" 
+                               class="input input-bordered w-full">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">ลำดับการแสดง</span>
+                            </label>
+                            <input type="number" id="bannerOrder" value="0" min="0" 
+                                   class="input input-bordered w-full">
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">สถานะ</span>
+                            </label>
+                            <select id="bannerStatus" class="select select-bordered w-full">
+                                <option value="active">เปิดใช้งาน</option>
+                                <option value="inactive">ปิดใช้งาน</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">ลิงก์ (ไม่บังคับ)</span>
+                        </label>
+                        <input type="url" id="bannerLink" placeholder="https://example.com" 
+                               class="input input-bordered w-full">
+                    </div>
+                    
+                    <!-- Image Upload -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">รูปภาพ Banner</span>
+                        </label>
+                        <div id="bannerImageUploadArea" class="image-upload-area p-6 rounded-lg text-center cursor-pointer border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <div id="bannerUploadPlaceholder">
+                                <i class="bi bi-cloud-upload text-4xl text-gray-400 dark:text-gray-500 mb-2"></i>
+                                <p class="text-gray-600 dark:text-gray-300">คลิกหรือลากไฟล์มาวางที่นี่</p>
+                                <p class="text-sm text-gray-400 dark:text-gray-500">รองรับ JPG, PNG, GIF (ขนาดไม่เกิน 5MB)</p>
+                                <p class="text-xs text-blue-600 mt-2">ขนาดที่แนะนำ: 1200x400 พิกเซล หรือ 3:1</p>
+                            </div>
+                            <div id="bannerImagePreview" class="hidden">
+                                <img id="bannerPreviewImage" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-lg mx-auto">
+                                <button type="button" id="btnRemoveBannerImage" class="btn btn-sm btn-error mt-2">
+                                    <i class="bi bi-trash mr-1"></i>ลบรูปภาพ
+                                </button>
+                            </div>
+                        </div>
+                        <input type="file" id="bannerImageInput" accept="image/*" class="hidden">
+                    </div>
+                </div>
+                
+                <!-- Banner List Section -->
+                <div class="space-y-4">
+                    <h4 class="font-semibold text-gray-900 dark:text-white">รายการ Banner</h4>
+                    <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg max-h-96 overflow-y-auto">
+                        <div id="bannerList">
+                            <!-- Banner list will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-action">
+                <button type="button" id="btnSaveBanner" class="btn btn-primary">
+                    <i class="bi bi-save mr-2"></i>บันทึก
+                </button>
+                <button type="button" id="btnCloseBannerModal" class="btn">ยกเลิก</button>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        // Global variables
+        let currentPopupId = null;
+        let currentBannerId = null;
+        let popups = [];
+        let banners = [];
+        let bannerCarouselInterval = null;
+        let currentBannerIndex = 0;
+        
+        // Initialize
+        // Show/Hide Loading Function
+        function showLoading(show) {
+            const loader = document.getElementById('loadingOverlay');
+            if (show) {
+                loader.style.display = 'flex';
+                loader.classList.remove('animate__fadeOut');
+                loader.classList.add('animate__fadeIn');
+
+                // โหลดและเล่น Lottie animation
+                if (!lottieAnimation) {
+                    console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+                    fetch('/Loading/Loading.json')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(animationData => {
+                            lottieAnimation = lottie.loadAnimation({
+                                container: document.getElementById('lottieContainer'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                animationData: animationData
+                            });
+
+                            console.log('✅ Lottie animation loaded successfully');
+                        })
+                        .catch(error => {
+                            console.error('❌ Error loading Lottie animation:', error);
+                            // No fallback spinner - just show empty container
+                            document.getElementById('lottieContainer').innerHTML = '';
+                        });
+                } else {
+                    lottieAnimation.play();
+                }
+            } else {
+                if (lottieAnimation) {
+                    lottieAnimation.pause();
+                }
+                loader.classList.remove('animate__fadeIn');
+                loader.classList.add('animate__fadeOut');
+                setTimeout(() => { loader.style.display = 'none'; }, 600);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize sidebar directly since it's now inline
+            if (typeof initializeSidebar === 'function') {
+                initializeSidebar();
+            }
+        
+            // Initialize page
+            initializePage();
+            loadPopups();
+            loadBanners();
+            setupEventListeners();
+        });
+        
+        function initializePage() {
+            // Setup sidebar toggle
+            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+        
+            // Setup image upload
+            setupImageUpload();
+            setupBannerImageUpload();
+        
+            // Setup real-time preview
+            setupRealTimePreview();
+        }
+        
+        function setupEventListeners() {
+            // Search and filter
+            document.getElementById('searchInput').addEventListener('input', filterPopups);
+            document.getElementById('statusFilter').addEventListener('change', filterPopups);
+        
+            // Preview button
+            document.getElementById('previewBtn').addEventListener('click', showFullPreview);
+        
+            // Banner modal buttons
+            console.log('🎠 Setting up banner modal event listeners...');
+            const btnOpenBannerModal = document.getElementById('btnOpenBannerModal');
+            const btnAddBanner = document.getElementById('btnAddBanner');
+        
+            if (btnOpenBannerModal) {
+                btnOpenBannerModal.addEventListener('click', openBannerModal);
+                console.log('✅ btnOpenBannerModal event listener added');
+            } else {
+                console.error('❌ btnOpenBannerModal not found');
+            }
+        
+            if (btnAddBanner) {
+                btnAddBanner.addEventListener('click', openBannerModal);
+                console.log('✅ btnAddBanner event listener added');
+            } else {
+                console.error('❌ btnAddBanner not found');
+            }
+        
+            // Banner modal triggers (for dynamically created buttons)
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('banner-modal-trigger') ||
+                    e.target.closest('.banner-modal-trigger')) {
+                    openBannerModal();
+                }
+        
+                // Handle banner action buttons
+                if (e.target.classList.contains('banner-action-btn') ||
+                    e.target.closest('.banner-action-btn')) {
+                    const button = e.target.classList.contains('banner-action-btn') ?
+                                  e.target : e.target.closest('.banner-action-btn');
+                    const action = button.getAttribute('data-action');
+                    const bannerId = button.getAttribute('data-banner-id');
+        
+                    if (action === 'edit') {
+                        editBanner(bannerId);
+                    } else if (action === 'delete') {
+                        deleteBanner(bannerId);
+                    }
+                }
+        
+                // Handle carousel navigation
+                if (e.target.classList.contains('banner-nav') ||
+                    e.target.closest('.banner-nav')) {
+                    const button = e.target.classList.contains('banner-nav') ?
+                                  e.target : e.target.closest('.banner-nav');
+                    const action = button.getAttribute('data-action');
+        
+                    if (action === 'prev') {
+                        previousBanner();
+                    } else if (action === 'next') {
+                        nextBanner();
+                    }
+                }
+        
+                // Handle indicator clicks
+                if (e.target.classList.contains('banner-indicator')) {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    if (!isNaN(index)) {
+                        goToBanner(index);
+                    }
+                }
+            });
+        
+            // Modal close events
+            document.getElementById('popupModal').addEventListener('close', () => {
+                document.body.style.overflow = '';
+                document.getElementById('mainContainer').removeAttribute('inert');
+            });
+        
+            document.getElementById('previewModal').addEventListener('close', () => {
+                document.body.style.overflow = '';
+                document.getElementById('mainContainer').removeAttribute('inert');
+            });
+        
+            document.getElementById('bannerModal').addEventListener('close', () => {
+                document.body.style.overflow = '';
+                document.getElementById('mainContainer').removeAttribute('inert');
+            });
+        
+            // Banner modal action buttons
+            console.log('🎠 Setting up banner modal action buttons...');
+            const btnSaveBanner = document.getElementById('btnSaveBanner');
+            const btnCloseBannerModal = document.getElementById('btnCloseBannerModal');
+            const btnRemoveBannerImage = document.getElementById('btnRemoveBannerImage');
+        
+            if (btnSaveBanner) {
+                btnSaveBanner.addEventListener('click', saveBanner);
+                console.log('✅ btnSaveBanner event listener added');
+            } else {
+                console.error('❌ btnSaveBanner not found');
+            }
+        
+            if (btnCloseBannerModal) {
+                btnCloseBannerModal.addEventListener('click', closeBannerModal);
+                console.log('✅ btnCloseBannerModal event listener added');
+            } else {
+                console.error('❌ btnCloseBannerModal not found');
+            }
+        
+            if (btnRemoveBannerImage) {
+                btnRemoveBannerImage.addEventListener('click', removeBannerImage);
+                console.log('✅ btnRemoveBannerImage event listener added');
+            } else {
+                console.error('❌ btnRemoveBannerImage not found');
+            }
+        }
+        
+        // Use the toggleSidebar function from sidebar.js
+        // function toggleSidebar() is now handled by sidebar.js
+        
+        function setupImageUpload() {
+            const uploadArea = document.getElementById('imageUploadArea');
+            const imageInput = document.getElementById('imageInput');
+        
+            uploadArea.addEventListener('click', () => imageInput.click());
+        
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+        
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+        
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+        
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleImageUpload(files[0]);
+                }
+            });
+        
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleImageUpload(e.target.files[0]);
+                }
+            });
+        }
+        
+        function handleImageUpload(file) {
+            if (!file.type.startsWith('image/')) {
+                Swal.fire('ข้อผิดพลาด', 'กรุณาเลือกไฟล์รูปภาพ', 'error');
+                return;
+            }
+        
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire('ข้อผิดพลาด', 'ขนาดไฟล์ต้องไม่เกิน 5MB', 'error');
+                return;
+            }
+        
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = function() {
+                    // แสดงขนาดภาพ
+                    const dimensions = `${this.width} x ${this.height} พิกเซล (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    document.getElementById('imageDimensions').textContent = dimensions;
+        
+                    // แสดง preview
+                    document.getElementById('uploadPlaceholder').classList.add('hidden');
+                    document.getElementById('imagePreview').classList.remove('hidden');
+                    document.getElementById('previewImage').src = e.target.result;
+                    updatePreview();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removeImage() {
+            document.getElementById('uploadPlaceholder').classList.remove('hidden');
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('previewImage').src = '';
+            document.getElementById('imageInput').value = '';
+            updatePreview();
+        }
+        
+        function setupRealTimePreview() {
+            // เนื่องจากเอาฟิลด์อื่นออกแล้ว จึงไม่ต้องมี real-time preview สำหรับ text fields
+            // แค่ update preview เมื่อมีการอัปโหลดภาพ
+        }
+        
+        function updatePreview() {
+            const imageSrc = document.getElementById('previewImage').src;
+        
+            const preview = document.getElementById('popupPreview');
+            preview.innerHTML = generatePopupHTML(imageSrc, true);
+        }
+        
+        function generatePopupHTML(imageSrc, isPreview = false) {
+            const scaleClass = isPreview ? 'scale-75' : '';
+        
+            if (imageSrc) {
+                return `
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-md mx-auto overflow-hidden ${scaleClass}">
+                        <img src="${imageSrc}" alt="Popup Promotion" class="w-full h-auto object-cover">
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="bg-gray-200 dark:bg-gray-600 rounded-2xl shadow-2xl max-w-md mx-auto p-8 ${scaleClass}">
+                        <div class="text-center text-gray-500 dark:text-gray-400">
+                            <i class="bi bi-image text-6xl mb-4 block"></i>
+                            <p>อัปโหลดรูปภาพเพื่อดูตัวอย่าง</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadPopups() {
+            try {
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                const response = await fetch('/api/popups', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+        
+                if (data.success) {
+                    popups = data.data;
+                    displayPopups(popups);
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('Error loading popups:', error);
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูล popup ได้', 'error');
+            }
+        }
+        
+        function displayPopups(popupsToShow) {
+            const tbody = document.getElementById('popupTableBody');
+        
+            if (popupsToShow.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <i class="bi bi-gift text-4xl mb-2 block"></i>
+                            ยังไม่มี popup โปรโมชั่น
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+        
+            tbody.innerHTML = popupsToShow.map(popup => `
+                <tr>
+                    <td>
+                        ${popup.image ?
+                            `<img src="${popup.image}" alt="${popup.name}" class="w-16 h-12 object-cover rounded-lg">` :
+                            `<div class="w-16 h-12 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                                <i class="bi bi-image text-gray-400 dark:text-gray-500"></i>
+                            </div>`
+                        }
+                    </td>
+                    <td>
+                        <div class="font-semibold text-gray-900 dark:text-white">${popup.name || 'ไม่มีชื่อ'}</div>
+                    </td>
+                    <td>
+                        <div class="text-sm text-gray-600 dark:text-gray-300">
+                            ${popup.imageDimensions || 'ไม่ทราบขนาด'}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge ${getStatusBadgeClass(popup.status)}">${getStatusText(popup.status)}</span>
+                    </td>
+                    <td>${new Date(popup.createdAt).toLocaleDateString('th-TH')}</td>
+                    <td>${popup.views || 0}</td>
+                    <td>${popup.clicks || 0}</td>
+                    <td>
+                        <div class="flex space-x-2">
+                            <button onclick="editPopup('${popup._id}')" class="btn btn-sm btn-primary">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button onclick="togglePopupStatus('${popup._id}')" class="btn btn-sm ${popup.status === 'active' ? 'btn-warning' : 'btn-success'}">
+                                <i class="bi bi-${popup.status === 'active' ? 'pause' : 'play'}"></i>
+                            </button>
+                            <button onclick="deletePopup('${popup._id}')" class="btn btn-sm btn-error">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'active': return 'badge-success';
+                case 'inactive': return 'badge-error';
+                case 'scheduled': return 'badge-warning';
+                default: return 'badge-ghost';
+            }
+        }
+        
+        function getStatusText(status) {
+            switch (status) {
+                case 'active': return 'เปิดใช้งาน';
+                case 'inactive': return 'ปิดใช้งาน';
+                case 'scheduled': return 'กำหนดเวลา';
+                default: return 'ไม่ทราบ';
+            }
+        }
+        
+        function updateStats() {
+            const totalViews = popups.reduce((sum, popup) => sum + (popup.views || 0), 0);
+            const totalClicks = popups.reduce((sum, popup) => sum + (popup.clicks || 0), 0);
+            const activeCount = popups.filter(popup => popup.status === 'active').length;
+            const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : 0;
+        
+            document.getElementById('totalViews').textContent = totalViews.toLocaleString();
+            document.getElementById('totalClicks').textContent = totalClicks.toLocaleString();
+            document.getElementById('activePopups').textContent = activeCount;
+            document.getElementById('ctrRate').textContent = ctr + '%';
+        }
+        
+        function filterPopups() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+        
+            const filtered = popups.filter(popup => {
+                const matchesSearch = popup.name.toLowerCase().includes(searchTerm) ||
+                                    popup.title.toLowerCase().includes(searchTerm) ||
+                                    popup.couponCode.toLowerCase().includes(searchTerm);
+                const matchesStatus = !statusFilter || popup.status === statusFilter;
+        
+                return matchesSearch && matchesStatus;
+            });
+        
+            displayPopups(filtered);
+        }
+        
+        function openCreateModal() {
+            currentPopupId = null;
+            document.getElementById('modalTitle').textContent = 'สร้าง Popup ใหม่';
+            clearForm();
+            updatePreview();
+        
+            // Prevent background scrolling and add inert to main content
+            document.body.style.overflow = 'hidden';
+            document.getElementById('mainContainer').setAttribute('inert', '');
+        
+            document.getElementById('popupModal').showModal();
+        }
+        
+        function editPopup(id) {
+            const popup = popups.find(p => p._id === id);
+            if (!popup) return;
+        
+            currentPopupId = id;
+            document.getElementById('modalTitle').textContent = 'แก้ไข Popup';
+        
+            // Fill form with popup data
+            document.getElementById('popupName').value = popup.name || '';
+            document.getElementById('showDelay').value = popup.showDelay || 2;
+            document.getElementById('popupStatus').value = popup.status || 'active';
+        
+            if (popup.image) {
+                document.getElementById('uploadPlaceholder').classList.add('hidden');
+                document.getElementById('imagePreview').classList.remove('hidden');
+                document.getElementById('previewImage').src = popup.image;
+        
+                // แสดงขนาดภาพ (ถ้ามีข้อมูล)
+                if (popup.imageDimensions) {
+                    document.getElementById('imageDimensions').textContent = popup.imageDimensions;
+                }
+            }
+        
+            // Prevent background scrolling and add inert to main content
+            document.body.style.overflow = 'hidden';
+            document.getElementById('mainContainer').setAttribute('inert', '');
+        
+            updatePreview();
+            document.getElementById('popupModal').showModal();
+        }
+        
+        function clearForm() {
+            document.getElementById('popupName').value = '';
+            document.getElementById('showDelay').value = '2';
+            document.getElementById('popupStatus').value = 'active';
+        
+            removeImage();
+        }
+        
+        async function savePopup() {
+            // Validate required fields
+            const name = document.getElementById('popupName').value.trim();
+            if (!name) {
+                Swal.fire('ข้อผิดพลาด', 'กรุณากรอกชื่อ popup', 'error');
+                return;
+            }
+        
+            const imageInput = document.getElementById('imageInput');
+            const previewImage = document.getElementById('previewImage').src;
+        
+            // Check if image is required for new popup
+            if (!currentPopupId && imageInput.files.length === 0 && !previewImage) {
+                Swal.fire('ข้อผิดพลาด', 'กรุณาอัปโหลดรูปภาพ', 'error');
+                return;
+            }
+        
+            const formData = new FormData();
+        
+            // Get form data
+            formData.append('name', name);
+            formData.append('showDelay', document.getElementById('showDelay').value);
+            formData.append('status', document.getElementById('popupStatus').value);
+        
+            // Add image if selected
+            if (imageInput.files.length > 0) {
+                formData.append('image', imageInput.files[0]);
+            }
+        
+            try {
+                const url = currentPopupId ? `/api/popups/${currentPopupId}` : '/api/popups';
+                const method = currentPopupId ? 'PUT' : 'POST';
+        
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: formData
+                });
+        
+                const data = await response.json();
+        
+                if (data.success) {
+                    Swal.fire('สำเร็จ', 'บันทึก popup เรียบร้อยแล้ว', 'success');
+                    closeModal();
+                    loadPopups();
+                } else {
+                    Swal.fire('ข้อผิดพลาด', data.message || 'ไม่สามารถบันทึกได้', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving popup:', error);
+                Swal.fire('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึก', 'error');
+            }
+        }
+        
+        async function togglePopupStatus(id) {
+            const popup = popups.find(p => p._id === id);
+            if (!popup) return;
+        
+            const newStatus = popup.status === 'active' ? 'inactive' : 'active';
+        
+            try {
+                const response = await fetch(`/api/popups/${id}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+        
+                const data = await response.json();
+        
+                if (data.success) {
+                    Swal.fire('สำเร็จ', 'เปลี่ยนสถานะเรียบร้อยแล้ว', 'success');
+                    loadPopups();
+                } else {
+                    Swal.fire('ข้อผิดพลาด', data.message || 'ไม่สามารถเปลี่ยนสถานะได้', 'error');
+                }
+            } catch (error) {
+                console.error('Error toggling status:', error);
+                Swal.fire('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ', 'error');
+            }
+        }
+        
+        async function deletePopup(id) {
+            const result = await Swal.fire({
+                title: 'ยืนยันการลบ',
+                text: 'คุณต้องการลบ popup นี้หรือไม่?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ลบ',
+                cancelButtonText: 'ยกเลิก'
+            });
+        
+            if (result.isConfirmed) {
+                try {
+                    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                    const response = await fetch(`/api/popups/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer ' + token,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+        
+                    const data = await response.json();
+        
+                    if (data.success) {
+                        Swal.fire('สำเร็จ', 'ลบ popup เรียบร้อยแล้ว', 'success');
+                        loadPopups();
+                    } else {
+                        Swal.fire('ข้อผิดพลาด', data.message || 'ไม่สามารถลบได้', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting popup:', error);
+                    Swal.fire('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการลบ', 'error');
+                }
+            }
+        }
+        
+        function showFullPreview() {
+            const imageSrc = document.getElementById('previewImage').src;
+        
+            const fullPreview = document.getElementById('fullPreview');
+            fullPreview.innerHTML = generatePopupHTML(imageSrc, false);
+        
+            // Prevent background scrolling and add inert to main content
+            document.body.style.overflow = 'hidden';
+            document.getElementById('mainContainer').setAttribute('inert', '');
+        
+            document.getElementById('previewModal').showModal();
+        }
+        
+        function closeModal() {
+            // Restore background scrolling and remove inert
+            document.body.style.overflow = '';
+            document.getElementById('mainContainer').removeAttribute('inert');
+        
+            document.getElementById('popupModal').close();
+        }
+        
+        // ==================== BANNER MANAGEMENT FUNCTIONS ====================
+        
+        // Make functions globally accessible for debugging
+        window.openBannerModal = openBannerModal;
+        window.closeBannerModal = closeBannerModal;
+        window.saveBanner = saveBanner;
+        window.editBanner = editBanner;
+        window.deleteBanner = deleteBanner;
+        window.removeBannerImage = removeBannerImage;
+        window.nextBanner = nextBanner;
+        window.previousBanner = previousBanner;
+        window.goToBanner = goToBanner;
+        
+        async function loadBanners() {
+            try {
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                const response = await fetch('/api/banners', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+        
+                if (data.success) {
+                    banners = data.data;
+                    displayBannerCarousel();
+                    displayBannerList();
+                }
+            } catch (error) {
+                console.error('Error loading banners:', error);
+            }
+        }
+        
+        function displayBannerCarousel() {
+            const container = document.getElementById('bannerCarouselContainer');
+        
+            if (banners.length === 0) {
+                container.innerHTML = `
+                    <div class="no-banners-state text-gray-500 dark:text-gray-400">
+                        <i class="bi bi-images"></i>
+                        <h4 class="text-xl font-semibold mb-2">ยังไม่มี Banner</h4>
+                        <p class="mb-4">สร้าง Banner เพื่อแสดงในหน้าแรกของแอปพลิเคชัน</p>
+                        <button class="btn btn-primary banner-modal-trigger">
+                            <i class="bi bi-plus-circle mr-2"></i>สร้าง Banner แรก
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+        
+            // Filter active banners
+            const activeBanners = banners.filter(banner => banner.status === 'active');
+        
+            if (activeBanners.length === 0) {
+                container.innerHTML = `
+                    <div class="no-banners-state text-gray-500 dark:text-gray-400">
+                        <i class="bi bi-eye-slash"></i>
+                        <h4 class="text-xl font-semibold mb-2">ไม่มี Banner ที่เปิดใช้งาน</h4>
+                        <p class="mb-4">เปิดใช้งาน Banner หรือสร้าง Banner ใหม่</p>
+                        <button class="btn btn-primary banner-modal-trigger">
+                            <i class="bi bi-plus-circle mr-2"></i>จัดการ Banner
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+        
+            let carouselHTML = `
+                <div class="banner-carousel">
+            `;
+        
+            activeBanners.forEach((banner, index) => {
+                const isActive = index === 0 ? 'active' : '';
+                const imageUrl = banner.imageUrl || banner.image;
+        
+                carouselHTML += `
+                    <div class="banner-slide ${isActive}" style="background-image: url('${imageUrl}')">
+                        <div class="banner-content">
+                            <h2 class="banner-title">${banner.title}</h2>
+                            ${banner.subtitle ? `<p class="banner-subtitle">${banner.subtitle}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        
+            // Add navigation if more than 1 banner
+            if (activeBanners.length > 1) {
+                carouselHTML += `
+                    <button class="banner-nav prev" data-action="prev">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <button class="banner-nav next" data-action="next">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                    
+                    <div class="banner-indicators">
+                `;
+        
+                activeBanners.forEach((_, index) => {
+                    const isActive = index === 0 ? 'active' : '';
+                    carouselHTML += `
+                        <div class="banner-indicator ${isActive}" data-index="${index}"></div>
+                    `;
+                });
+        
+                carouselHTML += `</div>`;
+            }
+        
+            carouselHTML += `</div>`;
+        
+            container.innerHTML = carouselHTML;
+        
+            // Start auto-rotation if more than 1 banner
+            if (activeBanners.length > 1) {
+                startBannerCarousel();
+            }
+        }
+        
+        function startBannerCarousel() {
+            // Clear existing interval
+            if (bannerCarouselInterval) {
+                clearInterval(bannerCarouselInterval);
+            }
+        
+            const activeBanners = banners.filter(banner => banner.status === 'active');
+        
+            bannerCarouselInterval = setInterval(() => {
+                currentBannerIndex = (currentBannerIndex + 1) % activeBanners.length;
+                showBannerSlide(currentBannerIndex);
+            }, 3000); // Change every 3 seconds
+        }
+        
+        function showBannerSlide(index) {
+            const slides = document.querySelectorAll('.banner-slide');
+            const indicators = document.querySelectorAll('.banner-indicator');
+        
+            // Remove active class from all
+            slides.forEach(slide => slide.classList.remove('active'));
+            indicators.forEach(indicator => indicator.classList.remove('active'));
+        
+            // Add active class to current
+            if (slides[index]) slides[index].classList.add('active');
+            if (indicators[index]) indicators[index].classList.add('active');
+        
+            currentBannerIndex = index;
+        }
+        
+        function nextBanner() {
+            const activeBanners = banners.filter(banner => banner.status === 'active');
+            currentBannerIndex = (currentBannerIndex + 1) % activeBanners.length;
+            showBannerSlide(currentBannerIndex);
+        }
+        
+        function previousBanner() {
+            const activeBanners = banners.filter(banner => banner.status === 'active');
+            currentBannerIndex = (currentBannerIndex - 1 + activeBanners.length) % activeBanners.length;
+            showBannerSlide(currentBannerIndex);
+        }
+        
+        function goToBanner(index) {
+            showBannerSlide(index);
+        }
+        
+        function openBannerModal() {
+            console.log('🎠 Opening banner modal...');
+            currentBannerId = null;
+            document.getElementById('bannerModalTitle').textContent = 'จัดการ Banner';
+            clearBannerForm();
+            displayBannerList();
+        
+            // Prevent background scrolling
+            document.body.style.overflow = 'hidden';
+            document.getElementById('mainContainer').setAttribute('inert', '');
+        
+            document.getElementById('bannerModal').showModal();
+            console.log('🎠 Banner modal opened successfully');
+        }
+        
+        function closeBannerModal() {
+            // Restore background scrolling
+            document.body.style.overflow = '';
+            document.getElementById('mainContainer').removeAttribute('inert');
+        
+            document.getElementById('bannerModal').close();
+        }
+        
+        function clearBannerForm() {
+            document.getElementById('bannerTitle').value = '';
+            document.getElementById('bannerSubtitle').value = '';
+            document.getElementById('bannerOrder').value = '0';
+            document.getElementById('bannerStatus').value = 'active';
+            document.getElementById('bannerLink').value = '';
+        
+            removeBannerImage();
+        }
+        
+        function setupBannerImageUpload() {
+            const uploadArea = document.getElementById('bannerImageUploadArea');
+            const imageInput = document.getElementById('bannerImageInput');
+        
+            uploadArea.addEventListener('click', () => imageInput.click());
+        
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+        
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+        
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+        
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleBannerImageUpload(files[0]);
+                }
+            });
+        
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleBannerImageUpload(e.target.files[0]);
+                }
+            });
+        }
+        
+        function handleBannerImageUpload(file) {
+            if (!file.type.startsWith('image/')) {
+                Swal.fire('ข้อผิดพลาด', 'กรุณาเลือกไฟล์รูปภาพ', 'error');
+                return;
+            }
+        
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire('ข้อผิดพลาด', 'ขนาดไฟล์ต้องไม่เกิน 5MB', 'error');
+                return;
+            }
+        
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('bannerUploadPlaceholder').classList.add('hidden');
+                document.getElementById('bannerImagePreview').classList.remove('hidden');
+                document.getElementById('bannerPreviewImage').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removeBannerImage() {
+            document.getElementById('bannerUploadPlaceholder').classList.remove('hidden');
+            document.getElementById('bannerImagePreview').classList.add('hidden');
+            document.getElementById('bannerPreviewImage').src = '';
+            document.getElementById('bannerImageInput').value = '';
+        }
+        
+        async function saveBanner() {
+            const title = document.getElementById('bannerTitle').value.trim();
+            if (!title) {
+                Swal.fire('ข้อผิดพลาด', 'กรุณากรอกชื่อ banner', 'error');
+                return;
+            }
+        
+            const imageInput = document.getElementById('bannerImageInput');
+            const previewImage = document.getElementById('bannerPreviewImage').src;
+        
+            if (!currentBannerId && imageInput.files.length === 0 && !previewImage) {
+                Swal.fire('ข้อผิดพลาด', 'กรุณาอัปโหลดรูปภาพ', 'error');
+                return;
+            }
+        
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('subtitle', document.getElementById('bannerSubtitle').value);
+            formData.append('order', document.getElementById('bannerOrder').value);
+            formData.append('status', document.getElementById('bannerStatus').value);
+            formData.append('link', document.getElementById('bannerLink').value);
+        
+            if (imageInput.files.length > 0) {
+                formData.append('image', imageInput.files[0]);
+            }
+        
+            try {
+                const url = currentBannerId ? `/api/banners/${currentBannerId}` : '/api/banners';
+                const method = currentBannerId ? 'PUT' : 'POST';
+        
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: formData
+                });
+        
+                const data = await response.json();
+        
+                if (data.success) {
+                    Swal.fire('สำเร็จ', 'บันทึก banner เรียบร้อยแล้ว', 'success');
+                    clearBannerForm();
+                    loadBanners();
+                } else {
+                    Swal.fire('ข้อผิดพลาด', data.message || 'ไม่สามารถบันทึกได้', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving banner:', error);
+                Swal.fire('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึก', 'error');
+            }
+        }
+        
+        function displayBannerList() {
+            const bannerList = document.getElementById('bannerList');
+        
+            if (banners.length === 0) {
+                bannerList.innerHTML = `
+                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
+                        <p>ยังไม่มี banner</p>
+                    </div>
+                `;
+                return;
+            }
+        
+            bannerList.innerHTML = banners.map(banner => `
+                <div class="flex items-center justify-between p-3 bg-white dark:bg-gray-600 rounded-lg mb-2">
+                    <div class="flex items-center space-x-3">
+                        <img src="${banner.imageUrl || banner.image}" alt="${banner.title}" class="w-12 h-8 object-cover rounded">
+                        <div>
+                            <div class="font-semibold text-sm text-gray-900 dark:text-white">${banner.title}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                <span class="badge ${banner.status === 'active' ? 'badge-success' : 'badge-error'} badge-xs">
+                                    ${banner.status === 'active' ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button data-action="edit" data-banner-id="${banner._id}" class="btn btn-xs btn-primary banner-action-btn">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button data-action="delete" data-banner-id="${banner._id}" class="btn btn-xs btn-error banner-action-btn">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function editBanner(id) {
+            const banner = banners.find(b => b._id === id);
+            if (!banner) return;
+        
+            currentBannerId = id;
+        
+            document.getElementById('bannerTitle').value = banner.title || '';
+            document.getElementById('bannerSubtitle').value = banner.subtitle || '';
+            document.getElementById('bannerOrder').value = banner.order || 0;
+            document.getElementById('bannerStatus').value = banner.status || 'active';
+            document.getElementById('bannerLink').value = banner.link || '';
+        
+            if (banner.imageUrl || banner.image) {
+                document.getElementById('bannerUploadPlaceholder').classList.add('hidden');
+                document.getElementById('bannerImagePreview').classList.remove('hidden');
+                document.getElementById('bannerPreviewImage').src = banner.imageUrl || banner.image;
+            }
+        }
+        
+        async function deleteBanner(id) {
+            const result = await Swal.fire({
+                title: 'ยืนยันการลบ',
+                text: 'คุณต้องการลบ banner นี้หรือไม่?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ลบ',
+                cancelButtonText: 'ยกเลิก'
+            });
+        
+            if (result.isConfirmed) {
+                try {
+                    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                    const response = await fetch(`/api/banners/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer ' + token,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+        
+                    const data = await response.json();
+        
+                    if (data.success) {
+                        Swal.fire('สำเร็จ', 'ลบ banner เรียบร้อยแล้ว', 'success');
+                        loadBanners();
+                    } else {
+                        Swal.fire('ข้อผิดพลาด', data.message || 'ไม่สามารถลบได้', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting banner:', error);
+                    Swal.fire('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการลบ', 'error');
+                }
+            }
+        }
+    </script>
+    </div> <!-- Close min-h-screen flex -->
+</body>
+</html>

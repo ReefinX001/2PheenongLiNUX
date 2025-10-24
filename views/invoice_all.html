@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ใบแจ้งหนี้ - ระบบบัญชี (Tailwind + DaisyUI)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Font: Prompt -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind CSS + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Bootstrap Icons (เฉพาะไอคอน) -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Socket.IO (ไฟล์โลคัล) + Subresource Integrity (SRI) -->
+  <script
+    src="/socket.io.min.js"
+    integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+    crossorigin="anonymous"
+  ></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+    /* ตัวอย่าง style สำหรับ card */
+    .card-custom {
+      @apply bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4;
+    }
+    /* ตัวอย่าง style สำหรับ table */
+    table {
+      @apply w-full border border-gray-300 dark:border-gray-600 text-sm;
+    }
+    thead {
+      @apply bg-gray-100 dark:bg-gray-700;
+    }
+    th, td {
+      @apply border border-gray-200 dark:border-gray-600 px-2 py-2;
+    }
+    tbody tr:hover {
+      @apply bg-gray-50 dark:bg-gray-800;
+    }
+    /* ตัวอย่าง style สำหรับ badge */
+    .badge {
+      @apply ml-1 text-xs py-0.5 px-1 rounded bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-100;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+
+<!-- ตรวจสอบ Token ก่อนเข้าหน้า -->
+<script>
+  (function checkToken() {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      alert('กรุณาเข้าสู่ระบบก่อน');
+      window.location.href = '/login'; // เปลี่ยนเป็นหน้า login ของคุณ'
+    }
+  })();
+</script>
+
+<!-- Header / Navbar (ตัวอย่างเรียบง่าย) -->
+<div class="w-full bg-white dark:bg-gray-800 shadow mb-4">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <h1 class="text-lg font-bold">ใบแจ้งหนี้ - ระบบบัญชี (Tailwind + DaisyUI)</h1>
+    <button
+      id="btnLogout"
+      class="btn btn-sm btn-outline btn-error"
+    >
+      <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+    </button>
+  </div>
+</div>
+
+<!-- Container หลัก -->
+<div class="max-w-5xl mx-auto px-4">
+  <p class="text-sm text-gray-500 dark:text-gray-300 mb-4">
+    จัดการใบแจ้งหนี้ตามสถานะต่าง ๆ (ตัวอย่างการใช้ Tabs + DaisyUI)
+  </p>
+
+  <!-- Tabs (DaisyUI) -->
+  <div class="tabs tabs-boxed mb-4">
+    <a class="tab tab-active" data-tab="all" onclick="changeTab('all')">ทั้งหมด</a>'
+    <a class="tab" data-tab="draft" onclick="changeTab('draft')">ร่าง</a>'
+    <a class="tab" data-tab="pending-approval" onclick="changeTab('pending-approval')">'
+      รออนุมัติ <span class="badge" id="badge-pending-approval">0</span>
+    </a>
+    <a class="tab" data-tab="awaiting-payment" onclick="changeTab('awaiting-payment')">'
+      รอรับชำระ <span class="badge" id="badge-awaiting-payment">0</span>
+    </a>
+    <a class="tab" data-tab="overdue" onclick="changeTab('overdue')">'
+      เกินเวลารับชำระ <span class="badge" id="badge-overdue">0</span>
+    </a>
+    <a class="tab" data-tab="paid" onclick="changeTab('paid')">'
+      รับชำระแล้ว <span class="badge" id="badge-paid">0</span>
+    </a>
+    <a class="tab" data-tab="trash" onclick="changeTab('trash')">ถังขยะ</a>'
+    <a class="tab" data-tab="monthly" onclick="changeTab('monthly')">เอกสารรายเดือน</a>'
+  </div>
+
+  <!-- Tab Content: แต่ละส่วนจะมี table ของตัวเอง (ซ่อน/แสดงด้วย JS) -->
+  <!-- all -->
+  <div class="card-custom" id="content-all">
+    <h5 class="text-base font-semibold mb-2">ใบแจ้งหนี้ทั้งหมด</h5>
+    <div class="overflow-x-auto">
+      <table id="allInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่ใบแจ้งหนี้</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>วันครบกำหนด</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- draft -->
+  <div class="card-custom hidden" id="content-draft">
+    <h5 class="text-base font-semibold mb-2">ใบแจ้งหนี้ (ร่าง)</h5>
+    <div class="overflow-x-auto">
+      <table id="draftInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่ใบแจ้งหนี้</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>วันครบกำหนด</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- pending-approval -->
+  <div class="card-custom hidden" id="content-pending-approval">
+    <h5 class="text-base font-semibold mb-2">ใบแจ้งหนี้ (รออนุมัติ)</h5>
+    <div class="overflow-x-auto">
+      <table id="pendingApprovalInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่ใบแจ้งหนี้</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>วันครบกำหนด</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- awaiting-payment -->
+  <div class="card-custom hidden" id="content-awaiting-payment">
+    <h5 class="text-base font-semibold mb-2">ใบแจ้งหนี้ (รอรับชำระ)</h5>
+    <div class="overflow-x-auto">
+      <table id="awaitingPaymentInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่ใบแจ้งหนี้</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>วันครบกำหนด</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- overdue -->
+  <div class="card-custom hidden" id="content-overdue">
+    <h5 class="text-base font-semibold mb-2">ใบแจ้งหนี้ (เกินเวลารับชำระ)</h5>
+    <div class="overflow-x-auto">
+      <table id="overdueInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่ใบแจ้งหนี้</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>วันครบกำหนด</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- paid -->
+  <div class="card-custom hidden" id="content-paid">
+    <h5 class="text-base font-semibold mb-2">ใบแจ้งหนี้ (รับชำระแล้ว)</h5>
+    <div class="overflow-x-auto">
+      <table id="paidInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่ใบแจ้งหนี้</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>วันครบกำหนด</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- trash -->
+  <div class="card-custom hidden" id="content-trash">
+    <h5 class="text-base font-semibold mb-2">ถังขยะ</h5>
+    <div class="overflow-x-auto">
+      <table id="trashInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่ใบแจ้งหนี้</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>วันครบกำหนด</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- monthly -->
+  <div class="card-custom hidden" id="content-monthly">
+    <h5 class="text-base font-semibold mb-2">เอกสารรายเดือน</h5>
+    <div class="overflow-x-auto">
+      <table id="monthlyInvoiceTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>เลขที่เอกสาร</th>
+            <th>ยอดรวม</th>
+            <th>วันที่ออกบิล</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Footer -->
+<footer class="mt-6 text-center bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 py-3">
+  © 2025 ระบบบัญชี. สงวนลิขสิทธิ์.
+</footer>
+
+<!-- Script เชื่อมต่อ Socket.IO -->
+<script>
+  const socket = io(); // ใช้จากไฟล์ socket.io.min.js
+  socket.on('connect', () => {'
+    console.log('Socket.IO connected (Invoice Page).');'
+  });
+  socket.on('disconnect', () => {'
+    console.warn('Socket.IO disconnected.');
+  });
+  // ตัวอย่าง event
+  socket.on('invoiceUpdate', (payload) => {'
+    console.log('Realtime invoice update:', payload);
+    // สามารถ refresh หรืออัปเดต UI ได้ตามต้องการ
+  });
+</script>
+
+<script>
+  // ฟังก์ชันเปลี่ยนแท็บ (ดึง data-tab)
+  function changeTab(tabName) {
+    // เอาปุ่มทั้งหมดออกจาก active
+    document.querySelectorAll('.tabs-boxed .tab').forEach(tab => {'
+      tab.classList.remove('tab-active');
+    });
+    // เอา content ทั้งหมดซ่อน
+    document.querySelectorAll('[id^="content-"]').forEach(div => {'
+      div.classList.add('hidden');
+    });
+    // ใส่ active ให้ปุ่ม
+    const activeTabBtn = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    if (activeTabBtn) {
+      activeTabBtn.classList.add('tab-active');
+    }
+    // แสดง content
+    const activeContent = document.getElementById(`content-${tabName}`);
+    if (activeContent) {
+      activeContent.classList.remove('hidden');
+    }
+    // โหลดข้อมูล
+    loadInvoicesByStatus(tabName);
+  }
+
+  // โหลดใบแจ้งหนี้แต่ละสถานะ
+  async function loadInvoicesByStatus(status) {
+    // mapping: '' => all'
+    let query = status;
+    if (status === 'all') {
+      query = ''; // หรือ ?status=all'
+    }
+    try {
+      const res = await fetch(`/api/invoice?status=${query}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลใบแจ้งหนี้');'
+      }
+      renderInvoices(data.data, status);
+      // ถ้ามี counts => updateBadge(data.counts)
+    } catch (err) {
+      console.error(`Error loading invoices for status ${status}:`, err);
+    }
+  }
+
+  function renderInvoices(invoices, status) {
+    let tableId = '';'
+    switch (status) {
+      case 'draft': tableId = 'draftInvoiceTable'; break;'
+      case 'pending-approval': tableId = 'pendingApprovalInvoiceTable'; break;'
+      case 'awaiting-payment': tableId = 'awaitingPaymentInvoiceTable'; break;'
+      case 'overdue': tableId = 'overdueInvoiceTable'; break;'
+      case 'paid': tableId = 'paidInvoiceTable'; break;'
+      case 'trash': tableId = 'trashInvoiceTable'; break;'
+      case 'monthly': tableId = 'monthlyInvoiceTable'; break;'
+      case 'all':'
+      default:
+        tableId = 'allInvoiceTable';'
+        break;
+    }
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return;
+    tbody.innerHTML = '';'
+    invoices.forEach(inv => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${inv._id}</td>
+        <td>${inv.invoice_number}</td>
+        <td>${(inv.total_amount || 0).toLocaleString()} บาท</td>
+        <td>${inv.billing_date ? new Date(inv.billing_date).toLocaleDateString() : '-'}</td>'
+        <td>${inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '-'}</td>'
+        <td>${inv.status}</td>
+        <td>
+          <button class="btn btn-xs btn-warning mr-1" onclick="editInvoice('${inv._id}')">'
+            <i class="bi bi-pencil-square"></i>
+          </button>
+          <button class="btn btn-xs btn-error" onclick="deleteInvoice('${inv._id}')">'
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ตัวอย่างฟังก์ชันแก้ไข/ลบใบแจ้งหนี้
+  async function editInvoice(id) {
+    const newStatus = prompt('กรุณาใส่สถานะใหม่ (unpaid/paid/canceled):');
+    if (!newStatus) return;
+    try {
+      const res = await fetch(`/api/invoice/${id}`, {
+        method: 'PATCH','
+        headers: { 'Content-Type': 'application/json' },'
+        body: JSON.stringify({ status: newStatus })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Update failed');'
+      alert('อัปเดตใบแจ้งหนี้เรียบร้อย');'
+      // reload tab
+      const activeTab = document.querySelector('.tab.tab-active');
+      if (activeTab) {
+        changeTab(activeTab.getAttribute('data-tab'));'
+      }
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);'
+    }
+  }
+  async function deleteInvoice(id) {
+    if (!confirm('คุณต้องการลบใบแจ้งหนี้นี้หรือไม่?')) return;'
+    try {
+      const res = await fetch(`/api/invoice/${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Delete failed');'
+      alert('ลบใบแจ้งหนี้เรียบร้อย');'
+      const activeTab = document.querySelector('.tab.tab-active');
+      if (activeTab) {
+        changeTab(activeTab.getAttribute('data-tab'));'
+      }
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);'
+    }
+  }
+
+  // อัปเดต badge ถ้าฝั่ง API ส่งข้อมูล count มา
+  function updateBadge(counts) {
+    // ตัวอย่าง: counts = { 'pending-approval': 5, 'awaiting-payment': 2, 'overdue': 1, 'paid': 10 }'
+    for (const [key, val] of Object.entries(counts)) {
+      const badgeEl = document.getElementById(`badge-${key}`);
+      if (badgeEl) {
+        badgeEl.textContent = val;
+      }
+    }
+  }
+
+  // โหลดข้อมูล tab "all" เมื่อเข้าหน้า
+  document.addEventListener('DOMContentLoaded', () => {'
+    changeTab('all');'
+  });
+
+  // ปุ่ม Logout
+  document.getElementById('btnLogout').addEventListener('click', async () => {'
+    localStorage.removeItem('authToken');
+    window.location.href = '/login';'
+  });
+</script>
+</body>
+</html>

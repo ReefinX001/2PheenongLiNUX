@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Daily Expense Management (Tailwind + DaisyUI + Socket.IO)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+    <!-- ตัวอย่าง Content-Security-Policy (ปรับตามเซิร์ฟเวอร์จริง) -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content=""
+        default-src 'self';'
+        script-src 
+          'self''
+          https://cdn.tailwindcss.com
+          https://cdn.jsdelivr.net
+          https://cdn.socket.io
+          'unsafe-inline';'
+        style-src 
+          'self''
+          'unsafe-inline';'
+        connect-src
+          'self''
+          https://cdn.socket.io
+          wss://cdn.socket.io;"
+      "
+    />
+
+    <!-- ตั้งค่า Tailwind dark mode เป็น "class" ก่อนโหลด Tailwind CSS -->
+    <script>
+      window.tailwind = {
+        config: {
+          darkMode: 'class''
+        }
+      };
+    </script>
+
+    <!-- Tailwind CSS + DaisyUI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+
+    <!-- Socket.IO (ไฟล์โลคัล) + Subresource Integrity (SRI) -->
+    <script
+      src="/socket.io.min.js"
+      integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+      crossorigin="anonymous"
+    ></script>
+
+    <style>
+      body {
+        font-family: 'Prompt', sans-serif;'
+      }
+      /* ตัวอย่างการปรับ style เพิ่มเติม (สามารถปรับตามต้องการ) */
+      .card-custom {
+        @apply bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4;
+      }
+    </style>
+
+    <!-- ตรวจสอบ Token ก่อนเข้าหน้า -->
+    <script>
+      (function checkToken() {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          alert('กรุณาเข้าสู่ระบบก่อน');'
+          window.location.href = '/login'; // เปลี่ยนเป็นหน้า login ของคุณ'
+        }
+      })();
+    </script>
+  </head>
+
+  <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 p-4">
+    <div class="max-w-3xl mx-auto">
+      <h1 class="text-2xl font-bold mb-2">Daily Expense Management</h1>
+      <p class="text-sm text-gray-500 mb-4">
+        จัดการข้อมูลรายจ่ายรายวัน (API: <code>/api/expenses</code>)
+      </p>
+
+      <!-- ส่วนกรองข้อมูลรายจ่ายตามวันที่ -->
+      <div class="mb-3">
+        <label for="filterDate" class="block text-sm font-semibold mb-1">เลือกวันที่</label>
+        <input
+          type="date"
+          id="filterDate"
+          class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+        />
+      </div>
+
+      <!-- ฟอร์มเพิ่มรายจ่าย -->
+      <div class="card-custom">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label for="expenseAmount" class="block text-sm font-semibold mb-1"
+              >จำนวนเงิน</label
+            >
+            <input
+              type="number"
+              id="expenseAmount"
+              class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+            />
+          </div>
+          <div class="md:col-span-2">
+            <label for="expenseNote" class="block text-sm font-semibold mb-1"
+              >บันทึกช่วยจำ</label
+            >
+            <input
+              type="text"
+              id="expenseNote"
+              class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+            />
+          </div>
+          <div class="md:col-span-3 flex justify-end">
+            <button
+              id="btnSaveExpense"
+              class="btn btn-error btn-sm text-white mt-2"
+            >
+              <i class="bi bi-plus-circle mr-1"></i> บันทึก
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ตารางแสดงรายการรายจ่าย -->
+      <div class="overflow-x-auto mt-4">
+        <table class="w-full border border-gray-300 dark:border-gray-600 text-sm">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="px-2 py-1 border">วันที่</th>
+              <th class="px-2 py-1 border">จำนวนเงิน</th>
+              <th class="px-2 py-1 border">บันทึก</th>
+              <th class="px-2 py-1 border">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="expenseTableBody">
+            <!-- จะเติมข้อมูลด้วย JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {'
+        loadExpenses();
+
+        // เมื่อเปลี่ยนวันที่ filter
+        document.getElementById('filterDate').addEventListener('change', loadExpenses);'
+
+        // เมื่อกดปุ่มบันทึกค่าใช้จ่าย
+        document.getElementById('btnSaveExpense').addEventListener('click', async () => {'
+          const amount = Number(document.getElementById('expenseAmount').value);
+          const note = document.getElementById('expenseNote').value.trim();
+
+          if (!amount) {
+            alert('กรุณากรอกจำนวนเงิน');'
+            return;
+          }
+          try {
+            const token = localStorage.getItem('authToken') || '';
+            const res = await fetch('/api/expenses', {'
+              method: 'POST','
+              headers: {
+                'Content-Type': 'application/json','
+                'Authorization': 'Bearer ' + token'
+              },
+              body: JSON.stringify({ amount, note })
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+              throw new Error(json.error || 'Error create Expense');'
+            }
+            alert('บันทึกรายจ่ายสำเร็จ');'
+            document.getElementById('expenseAmount').value = '';'
+            document.getElementById('expenseNote').value = '';'
+            loadExpenses();
+          } catch (err) {
+            alert('เกิดข้อผิดพลาด: ' + err.message);'
+          }
+        });
+
+        // เชื่อมต่อ Socket.IO
+        const socket = io();
+        socket.on('connect', () => {'
+          console.log('Socket.IO connected (Expense page).');'
+        });
+        socket.on('disconnect', () => {'
+          console.warn('Socket.IO disconnected (Expense page).');'
+        });
+        socket.on('expenseUpdate', (payload) => {'
+          console.log('Realtime expense update:', payload);
+          // อาจ reload หรือเรียก loadExpenses()
+          // loadExpenses();
+        });
+      });
+
+      async function loadExpenses() {
+        try {
+          const token = localStorage.getItem('authToken') || '';
+          const res = await fetch('/api/expenses', {'
+            headers: {
+              'Authorization': 'Bearer ' + token'
+            }
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Cannot load expenses');'
+          }
+          let expenses = json.data;
+          const filterDate = document.getElementById('filterDate').value;
+          if (filterDate) {
+            expenses = expenses.filter(item => {
+              const itemDate = new Date(item.createdAt).toISOString().slice(0,10);
+              return itemDate === filterDate;
+            });
+          }
+          renderExpenses(expenses);
+        } catch (err) {
+          console.error(err);
+          alert('เกิดข้อผิดพลาดในการโหลดข้อมูลรายจ่าย');'
+        }
+      }
+
+      function renderExpenses(data) {
+        const tbody = document.getElementById('expenseTableBody');
+        tbody.innerHTML = '';'
+        data.forEach(item => {
+          const tr = document.createElement('tr');
+          const dateStr = new Date(item.createdAt).toLocaleString('th-TH');
+          tr.innerHTML = `
+            <td class="px-2 py-1 border">${dateStr}</td>
+            <td class="px-2 py-1 border">${item.amount.toLocaleString()}</td>
+            <td class="px-2 py-1 border">${item.note || ''}</td>'
+            <td class="px-2 py-1 border">
+              <button
+                class="btn btn-xs btn-error text-white"
+                onclick="deleteExpense('${item._id}')"
+              >
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function deleteExpense(id) {
+        if (!confirm('ยืนยันลบรายการนี้?')) return;'
+        try {
+          const token = localStorage.getItem('authToken') || '';
+          const res = await fetch('/api/expenses/' + id, {'
+            method: 'DELETE','
+            headers: {
+              'Authorization': 'Bearer ' + token'
+            }
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Delete fail');'
+          }
+          alert('ลบเรียบร้อย');'
+          loadExpenses();
+        } catch (err) {
+          console.error(err);
+          alert('ลบไม่สำเร็จ');'
+        }
+      }
+    </script>
+  </body>
+</html>

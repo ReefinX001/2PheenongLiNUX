@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>จัดการคำขอลา (Leave Management) - ฝ่าย HR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Fonts (Prompt) -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;'
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    .card {
+      @apply bg-white shadow rounded p-4 mb-4;
+    }
+  </style>
+
+  <!-- ตรวจสอบ Token ก่อนเข้าหน้า -->
+  <script>
+    (function checkToken() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('กรุณาเข้าสู่ระบบก่อน');
+        window.location.href = '/login'; // เปลี่ยนเป็นหน้า login ของคุณ'
+      }
+    })();
+  </script>
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+  <!-- Navbar (หรือเมนู) สำหรับ HR -->
+  <nav class="bg-white shadow p-4 mb-4 flex justify-between items-center">
+    <div>
+      <!-- ปุ่มกลับไปหน้า Dashboard -->
+      <a href="hr_dashboard.html" class="text-lg font-bold">
+        <i class="bi bi-arrow-left"></i> กลับไปหน้า Dashboard
+      </a>
+    </div>
+    <div>
+      <!-- ปุ่ม Logout -->
+      <button
+        class="bg-red-500 text-white px-3 py-1 rounded"
+        onclick="logout()"
+      >
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- ส่วนเนื้อหา Leave Management สำหรับ HR -->
+  <div class="container">
+    <h2 class="text-2xl font-bold mb-4">
+      <i class="bi bi-calendar3"></i> จัดการคำขอลา (สำหรับ HR)
+    </h2>
+
+    <!-- ตารางแสดงคำขอลา -->
+    <div class="card">
+      <h3 class="text-lg font-semibold mb-2">
+        <i class="bi bi-list-check"></i> รายการคำขอลาทั้งหมด
+      </h3>
+      <table class="table-auto w-full text-left border">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="p-2 border">ชื่อพนักงาน</th>
+            <th class="p-2 border">ประเภทการลา</th>
+            <th class="p-2 border">วันเริ่ม</th>
+            <th class="p-2 border">วันสิ้นสุด</th>
+            <th class="p-2 border">เหตุผล</th>
+            <th class="p-2 border">สถานะ</th>
+            <th class="p-2 border">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="leaveTableBody">
+          <!-- ข้อมูลการลาจะโหลดผ่าน JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // ฟังก์ชัน logout
+    function logout() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userInfo');
+      window.location.href = '/login';'
+    }
+
+    // ฟังก์ชันโหลดคำขอลาทั้งหมด (สำหรับ HR)
+    async function loadLeaves() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          alert('กรุณาเข้าสู่ระบบ');'
+          return;
+        }
+        const res = await fetch('/api/leaves', {'
+          headers: {
+            'Authorization': 'Bearer ' + token'
+          }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลการลา');'
+        }
+        const leaveTableBody = document.getElementById('leaveTableBody');
+        leaveTableBody.innerHTML = '';'
+        data.data.forEach(leave => {
+          // leave.user อาจ populate name, email มาด้วย
+          const employeeName = leave.user?.name || 'ไม่ทราบชื่อ';
+          const leaveType = leave.leaveType;
+          const start = new Date(leave.startDate).toLocaleDateString('th-TH');
+          const end = new Date(leave.endDate).toLocaleDateString('th-TH');
+          const reason = leave.reason || '-';
+          const status = leave.status;
+
+          const row = `
+            <tr class="border-b">
+              <td class="p-2 border">${employeeName}</td>
+              <td class="p-2 border">${leaveType}</td>
+              <td class="p-2 border">${start}</td>
+              <td class="p-2 border">${end}</td>
+              <td class="p-2 border">${reason}</td>
+              <td class="p-2 border">${status}</td>
+              <td class="p-2 border">
+                <button
+                  class="bg-green-500 text-white px-2 py-1 rounded text-xs mr-1"
+                  onclick="updateLeaveStatus('${leave._id}', 'approved')"
+                >
+                  อนุมัติ
+                </button>
+                <button
+                  class="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                  onclick="updateLeaveStatus('${leave._id}', 'rejected')"
+                >
+                  ปฏิเสธ
+                </button>
+              </td>
+            </tr>
+          `;
+          leaveTableBody.innerHTML += row;
+        });
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการโหลดคำขอลา: ' + err.message);'
+      }
+    }
+
+    // ฟังก์ชันอัปเดตสถานะการลา
+    async function updateLeaveStatus(leaveId, newStatus) {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          alert('กรุณาเข้าสู่ระบบ');'
+          return;
+        }
+        const payload = { status: newStatus };
+        const res = await fetch(`/api/leaves/${leaveId}`, {
+          method: 'PATCH','
+          headers: {
+            'Content-Type': 'application/json','
+            'Authorization': 'Bearer ' + token'
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถอัปเดตสถานะการลา');'
+        }
+        alert(`อัปเดตสถานะเป็น ${newStatus} เรียบร้อย`);
+        loadLeaves();
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);'
+      }
+    }
+
+    // เมื่อหน้าโหลด
+    document.addEventListener('DOMContentLoaded', () => {'
+      loadLeaves();
+    });
+  </script>
+</body>
+</html>

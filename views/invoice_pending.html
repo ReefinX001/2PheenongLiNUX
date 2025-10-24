@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ใบแจ้งหนี้ (Invoice) - ระบบบัญชี</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Font: Prompt -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind CSS + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Bootstrap Icons (เฉพาะไอคอน) -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Socket.IO (โลคัลไฟล์) + Subresource Integrity (SRI) -->
+  <script
+    src="/socket.io.min.js"
+    integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+    crossorigin="anonymous"
+  ></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+    /* card-custom */
+    .card-custom {
+      @apply bg-white dark:bg-gray-800 rounded-lg shadow p-4 transition-transform;
+    }
+    .card-custom:hover {
+      @apply -translate-y-1 shadow-lg;
+    }
+
+    /* Tab style with DaisyUI */
+    .tab-active {
+      @apply text-blue-500 border-b-2 border-blue-500;
+    }
+    .tab-badge {
+      @apply text-xs inline-block ml-1 bg-gray-500 text-white rounded-full px-2;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+
+  <!-- สคริปต์ตรวจสอบ Token ถ้าไม่มี -> redirect ไป login -->
+  <script>
+    (function checkToken() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('กรุณาเข้าสู่ระบบก่อน');
+        window.location.href = '/login'; // เปลี่ยนเป็นหน้า login ของคุณ'
+      }
+    })();
+  </script>
+
+  <!-- ส่วน Header -->
+  <div class="w-full bg-white dark:bg-gray-800 shadow mb-4">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <a href="accounting_dashboard.html" class="btn btn-sm btn-ghost">
+          <i class="bi bi-arrow-left mr-1"></i> กลับหน้า Dashboard
+        </a>
+        <h2 class="text-xl font-bold hidden md:block">
+          ใบแจ้งหนี้ (Invoice)
+        </h2>
+      </div>
+      <p class="text-sm text-gray-500 hidden md:block">
+        จัดการใบแจ้งหนี้ในระบบ
+      </p>
+    </div>
+  </div>
+
+  <!-- Container หลัก -->
+  <div class="max-w-5xl mx-auto px-4">
+    <!-- Navigation Tabs (ใช้ Tailwind + DaisyUI) -->
+    <div class="tabs mb-4 border-b border-gray-300 dark:border-gray-700">
+      <a class="tab tab-bordered tab-active" data-filter="all">ทั้งหมด</a>
+      <a class="tab tab-bordered" data-filter="draft">ร่าง</a>
+      <a class="tab tab-bordered" data-filter="pending-approval">
+        รออนุมัติ <span class="tab-badge" id="badge-pending-approval">0</span>
+      </a>
+      <a class="tab tab-bordered" data-filter="pending-payment">
+        รอรับชำระ <span class="tab-badge" id="badge-pending-payment">0</span>
+      </a>
+      <a class="tab tab-bordered" data-filter="overdue">
+        เกินเวลารับชำระ <span class="tab-badge" id="badge-overdue">0</span>
+      </a>
+      <a class="tab tab-bordered" data-filter="paid">
+        รับชำระแล้ว <span class="tab-badge" id="badge-paid">0</span>
+      </a>
+      <a class="tab tab-bordered" data-filter="trash">ถังขยะ</a>
+      <a class="tab tab-bordered" data-filter="monthly">เอกสารรายเดือน</a>
+    </div>
+
+    <!-- ตารางแสดงใบแจ้งหนี้ -->
+    <div class="card-custom">
+      <div class="overflow-x-auto">
+        <table class="min-w-full border border-gray-200 dark:border-gray-600">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="px-2 py-2 border">ID</th>
+              <th class="px-2 py-2 border">เลขที่ใบแจ้งหนี้</th>
+              <th class="px-2 py-2 border">ยอดรวม</th>
+              <th class="px-2 py-2 border">วันที่ออกบิล</th>
+              <th class="px-2 py-2 border">วันครบกำหนด</th>
+              <th class="px-2 py-2 border">สถานะ</th>
+              <th class="px-2 py-2 border">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="invoiceTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- Render ด้วย JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-6 text-center bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 py-3">
+    <small>© 2025 ระบบบัญชี. สงวนลิขสิทธิ์.</small>
+  </footer>
+
+  <script>
+    // เชื่อมต่อ Socket.IO
+    const socket = io();
+    socket.on('connect', () => {'
+      console.log('Socket.IO connected (Invoice List Page).');'
+    });
+    socket.on('disconnect', () => {'
+      console.warn('Socket.IO disconnected.');
+    });
+    // ตัวอย่าง event
+    socket.on('invoiceUpdate', (payload) => {'
+      console.log('Realtime Invoice update:', payload);
+      // reload ถ้าต้องการ
+      // loadInvoices(currentFilter);
+    });
+
+    let currentFilter = 'all';'
+
+    document.addEventListener('DOMContentLoaded', () => {'
+      setupTabs();
+      loadInvoices('all'); // โหลดครั้งแรกเป็น all'
+    });
+
+    function setupTabs() {
+      const tabs = document.querySelectorAll('.tab[data-filter]');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {'
+          // เอา active ออกจากทุก tab
+          tabs.forEach(t => t.classList.remove('tab-active'));'
+          // ใส่ active ให้ tab ที่คลิก
+          tab.classList.add('tab-active');
+          const filter = tab.getAttribute('data-filter');
+          currentFilter = filter;
+          loadInvoices(filter);
+        });
+      });
+    }
+
+    async function loadInvoices(filter) {
+      try {
+        // เรียก /api/invoice?filter=xxx
+        const res = await fetch('/api/invoice?filter=' + filter);
+        const data = await res.json();
+        if (!res.ok || !data.success) {''
+          throw new Error(data.error || 'ไม่สามารถโหลดใบแจ้งหนี้ได้');'
+        }
+        renderInvoices(data.data);
+        updateBadges(data.counts || {});
+      } catch (err) {
+        console.error('Load Invoices Error:', err);
+        alert('เกิดข้อผิดพลาดในการโหลดใบแจ้งหนี้');'
+      }
+    }
+
+    function renderInvoices(invoices) {
+      const tbody = document.getElementById('invoiceTableBody');
+      tbody.innerHTML = '';'
+      invoices.forEach(inv => {
+        const tr = document.createElement('tr');
+        const total = inv.total_amount ? inv.total_amount.toLocaleString() + ' บาท' : '0 บาท';
+        const billingDate = inv.billing_date ? new Date(inv.billing_date).toLocaleDateString('th-TH') : '-';
+        const dueDate = inv.due_date ? new Date(inv.due_date).toLocaleDateString('th-TH') : '-';
+
+        tr.innerHTML = `
+          <td class="px-2 py-1 border">${inv._id}</td>
+          <td class="px-2 py-1 border">${inv.invoice_number || '-'}</td>'
+          <td class="px-2 py-1 border">${total}</td>
+          <td class="px-2 py-1 border">${billingDate}</td>
+          <td class="px-2 py-1 border">${dueDate}</td>
+          <td class="px-2 py-1 border">${inv.status || 'Draft'}</td>'
+          <td class="px-2 py-1 border">
+            <div class="flex gap-2">
+              <button
+                class="btn btn-sm btn-warning"
+                onclick="editInvoice('${inv._id}')"
+              >
+                <i class="bi bi-pencil-square"></i>
+              </button>
+              <button
+                class="btn btn-sm btn-error"
+                onclick="deleteInvoice('${inv._id}')"
+              >
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // อัปเดต badge (ถ้ามีข้อมูล count จาก API)
+    function updateBadges(counts) {
+      // counts เช่น { pendingApproval: 2, pendingPayment: 5, overdue: 1, paid: 10 }
+      const map = {
+        'pending-approval': counts.pendingApproval || 0,'
+        'pending-payment': counts.pendingPayment || 0,'
+        'overdue': counts.overdue || 0,'
+        'paid': counts.paid || 0'
+      };
+      // หา tab + .tab-badge
+      for (const filter in map) {
+        const badgeValue = map[filter];
+        const tabEl = document.querySelector(`.tab[data-filter="${filter}"]`);
+        if (tabEl) {
+          const badgeEl = tabEl.querySelector('.tab-badge');
+          if (badgeEl) {
+            badgeEl.textContent = badgeValue;
+          }
+        }
+      }
+    }
+
+    async function editInvoice(id) {
+      const newStatus = prompt('กรุณาใส่สถานะใหม่ (unpaid/paid/canceled):');
+      if (!newStatus) return;
+      try {
+        const res = await fetch(`/api/invoice/${id}`, {
+          method: 'PATCH','
+          headers: { 'Content-Type': 'application/json' },'
+          body: JSON.stringify({ status: newStatus })
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Update failed');'
+        alert('อัปเดตใบแจ้งหนี้เรียบร้อย');'
+        loadInvoices(currentFilter);
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);'
+      }
+    }
+
+    async function deleteInvoice(id) {
+      if (!confirm('คุณต้องการลบใบแจ้งหนี้นี้หรือไม่?')) return;'
+      try {
+        const res = await fetch(`/api/invoice/${id}`, { method: 'DELETE' });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Delete failed');'
+        alert('ลบใบแจ้งหนี้เรียบร้อย');'
+        loadInvoices(currentFilter);
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);'
+      }
+    }
+  </script>
+</body>
+</html>

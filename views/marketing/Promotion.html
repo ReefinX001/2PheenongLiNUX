@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>แคมเปญการตลาด - ระบบการตลาด</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- User Profile Manager -->
+  <script src="/views/marketing/js/user-profile.js"></script>
+  <!-- Sidebar Manager -->
+  <script src="/views/marketing/js/sidebar.js"></script>
+  
+  <!-- Flatpickr for date/time picker -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Animate.css for fade animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* เพิ่ม CSS สำหรับความสวยงาม */
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background-color: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+
+    .calendar-day-holiday {
+      background-color: #fee2e2;
+      color: #ef4444;
+    }
+
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    #notificationBtn span.badge-notification { 
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .status-active {
+      background-color: #10b981;
+    }
+
+    .status-away {
+      background-color: #f59e0b;
+    }
+
+    .status-offline {
+      background-color: #6b7280;
+    }
+    
+    /* Dashboard specific styles */
+    .main-content {
+      flex: 1;
+      padding: 20px 30px;
+      overflow-y: auto;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    
+    .page-title h1 {
+      font-size: 1.8rem;
+      color: var(--dark-color);
+      margin-bottom: 5px;
+    }
+    
+    .page-title p {
+      color: var(--gray-color);
+      font-size: 0.9rem;
+    }
+    
+    .date-filter select {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      background-color: white;
+      font-size: 0.9rem;
+      color: #212529;
+      cursor: pointer;
+    }
+    
+    .dark .date-filter select {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+    
+    /* Summary Cards Styles */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    @media (max-width: 1200px) {
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .summary-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+    }
+    
+    .dark .card {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .card-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 1.8rem;
+      color: white;
+    }
+    
+    .sales-icon {
+      background-color: #4361ee;
+    }
+    
+    .customers-icon {
+      background-color: #4cc9f0;
+    }
+    
+    .conversion-icon {
+      background-color: #4caf50;
+    }
+    
+    .avg-sale-icon {
+      background-color: #ff9800;
+    }
+    
+    .card-info h3 {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-bottom: 5px;
+    }
+    
+    .dark .card-info h3 {
+      color: #9ca3af;
+    }
+    
+    .card-info h2 {
+      font-size: 1.5rem;
+      color: #212529;
+      margin-bottom: 5px;
+    }
+    
+    .dark .card-info h2 {
+      color: #f3f4f6;
+    }
+    
+    .trend {
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .trend i {
+      margin-right: 5px;
+    }
+    
+    .positive {
+      color: #4caf50;
+    }
+    
+    .negative {
+      color: #f44336;
+    }
+    
+    /* Charts Container Styles */
+    .charts-container {
+      margin-bottom: 30px;
+    }
+    
+    .chart-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    @media (max-width: 1200px) {
+      .chart-row {
+        flex-direction: column;
+      }
+    }
+    
+    .chart-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      flex: 1;
+    }
+    
+    .dark .chart-card {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .chart-card.large {
+      flex: 2;
+    }
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark .chart-header {
+      border-bottom-color: #4b5563;
+    }
+    
+    .chart-header h3 {
+      font-size: 1.1rem;
+      color: #212529;
+    }
+    
+    .dark .chart-header h3 {
+      color: #f3f4f6;
+    }
+    
+    .chart-actions button {
+      background: none;
+      border: none;
+      color: #6c757d;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    .dark .chart-actions button {
+      color: #9ca3af;
+    }
+    
+    .chart-content {
+      padding: 20px;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .map-container {
+      background-color: #f0f4f9;
+      background-image: url('https://via.placeholder.com/800x300/f0f4f9/a0aec0?text=Customer+Distribution+Map');'
+      background-size: cover;
+      background-position: center;
+    }
+    
+    .dark .map-container {
+      background-color: #374151;
+      background-image: url('https://via.placeholder.com/800x300/374151/6b7280?text=Customer+Distribution+Map');'
+    }
+    
+    /* Data Table Styles */
+    .data-table-section {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+    
+    .dark .data-table-section {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .data-table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark .data-table-header {
+      border-bottom-color: #4b5563;
+    }
+    
+    .data-table-header h3 {
+      font-size: 1.1rem;
+      color: #212529;
+    }
+    
+    .dark .data-table-header h3 {
+      color: #f3f4f6;
+    }
+    
+    .table-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .table-actions input {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .dark .table-actions input {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+    
+    .export-btn {
+      padding: 8px 16px;
+      background-color: #4361ee;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .data-table-container {
+      overflow-x: auto;
+      padding: 10px 20px;
+    }
+    
+    #salesTable {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    #salesTable th, #salesTable td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark #salesTable th, .dark #salesTable td {
+      border-bottom-color: #4b5563;
+    }
+    
+    #salesTable th {
+      font-weight: 600;
+      color: #6c757d;
+    }
+    
+    .dark #salesTable th {
+      color: #9ca3af;
+    }
+    
+    #salesTable tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .status-pill {
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    
+    .status-complete {
+      background-color: rgba(76, 175, 80, 0.15);
+      color: #4caf50;
+    }
+    
+    .dark .status-complete {
+      background-color: rgba(76, 175, 80, 0.3);
+    }
+    
+    .status-pending {
+      background-color: rgba(255, 152, 0, 0.15);
+      color: #ff9800;
+    }
+    
+    .dark .status-pending {
+      background-color: rgba(255, 152, 0, 0.3);
+    }
+    
+    .status-cancelled {
+      background-color: rgba(244, 67, 54, 0.15);
+      color: #f44336;
+    }
+    
+    .dark .status-cancelled {
+      background-color: rgba(244, 67, 54, 0.3);
+    }
+    
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .dark .pagination {
+      border-top-color: #4b5563;
+    }
+    
+    .pagination button {
+      background: none;
+      border: none;
+      color: #4361ee;
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+    
+    .dark .pagination button {
+      color: #93c5fd;
+    }
+    
+    .pagination button:disabled {
+      color: #e9ecef;
+      cursor: not-allowed;
+    }
+    
+    .dark .pagination button:disabled {
+      color: #4b5563;
+    }
+    
+    .pagination span {
+      margin: 0 15px;
+      color: #6c757d;
+    }
+    
+    .dark .pagination span {
+      color: #9ca3af;
+    }
+    
+    /* === Promotion page specific styles === */
+    body { font-family: 'Prompt', sans-serif; /* background moved to <body> */ }'
+    .promotion-card { transition: all 0.3s cubic-bezier(.25,.8,.25,1); }
+    .promotion-card:hover { transform: translateY(-4px) scale(1.025); box-shadow: 0 8px 24px rgba(0,0,0,0.11); }
+    .modal.modal-open { display: flex; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.18); align-items: center; justify-content: center; z-index: 50; }
+    .modal-box { background: #fff; border-radius: 1rem; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    .tab.tab-active { background: #facc15 !important; color: #1e293b !important; }
+    .tab { font-weight: 500; }
+    .fade-in { animation: fadein .25s ease; }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(16px);}
+      to { opacity: 1; transform: none;}
+    }
+    .shadow-card { box-shadow: 0 4px 20px rgba(0,0,0,0.06);}
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: #f59e42; box-shadow: 0 0 0 1px #f59e42;
+    }
+    .btn-primary { background: linear-gradient(90deg,#f59e42 0%,#fbbf24 100%); border: none; color: #fff;}
+    .btn-primary:hover { background: linear-gradient(90deg,#fb923c 0%,#facc15 100%);}
+    .btn-secondary { background: #fff7ed; border: 1px solid #f59e42; color: #f59e42;}
+    .btn-secondary:hover { background: #fef3c7;}
+    .badge-success { background: #d1fae5; color: #059669;}
+    .badge-warning { background: #fef9c3; color: #b45309;}
+    .badge-error { background: #fee2e2; color: #e11d48;}
+    .badge-ghost { background: #f3f4f6; color: #64748b;}
+    .modal-action .btn { min-width: 112px; }
+    .select, .input, .textarea { background: #f8fafc;}
+    /* Hide default number spinners */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0;}
+    input[type=number] { -moz-appearance: textfield;}
+    /* Responsive modal */
+    @media (max-width: 768px) {
+      .modal-box { max-width: 98vw; width: 98vw; padding: 1rem; }
+    }
+  </style>
+
+  <script>
+    let lottieAnimation = null;
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container">
+      <!-- Sidebar content will be loaded here -->
+    </div>
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="bg-white shadow-card border-b sticky top-0 z-40 fade-in">
+        <div class="container mx-auto px-4 py-4">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <i class="bi bi-megaphone-fill text-orange-500 text-3xl"></i>
+              จัดการโปรโมชั่น
+            </h1>
+            <button onclick="openCreateModal()" class="btn btn-primary flex items-center gap-2 shadow">
+              <i class="bi bi-plus-circle"></i>
+              สร้างโปรโมชั่นใหม่
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Filters -->
+      <section class="container mx-auto px-4 py-6 fade-in">
+        <div class="bg-white rounded-2xl shadow-card p-6">
+          <h3 class="text-lg font-semibold mb-4 text-orange-600 flex items-center gap-2"><i class="bi bi-funnel"></i> ตัวกรอง</h3>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="text-sm text-gray-600 font-semibold mb-1 block">สถานะ</label>
+              <select id="filterStatus" class="select select-bordered w-full">
+                <option value="all">ทั้งหมด</option>
+                <option value="active">กำลังใช้งาน</option>
+                <option value="upcoming">กำลังจะมา</option>
+                <option value="expired">หมดอายุแล้ว</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-gray-600 font-semibold mb-1 block">สาขา</label>
+              <select id="filterBranch" class="select select-bordered w-full">
+                <option value="all">ทุกสาขา</option>
+                <!-- will be populate -->
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-gray-600 font-semibold mb-1 block">ประเภท</label>
+              <select id="filterType" class="select select-bordered w-full">
+                <option value="all">ทุกประเภท</option>
+                <option value="discount_percentage">ส่วนลด %</option>
+                <option value="discount_amount">ส่วนลดเงิน</option>
+                <option value="special_price">ราคาพิเศษ</option>
+                <option value="buy_x_get_y">ซื้อ X แถม Y</option>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button onclick="applyFilters()" class="btn btn-secondary w-full flex items-center gap-2 shadow">
+                <i class="bi bi-funnel"></i> กรอง
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Summary Cards -->
+      <div class="summary-cards container mx-auto px-4 mb-6">
+        <div class="card">
+          <div class="card-icon bg-orange-500">
+            <i class="bi bi-megaphone"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">แคมเปญทั้งหมด</h3>
+            <h2 class="text-2xl font-semibold">18</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 3 แคมเปญใหม่</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-green-500">
+            <i class="bi bi-play-circle"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">กำลังดำเนินการ</h3>
+            <h2 class="text-2xl font-semibold">7</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 2 จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-blue-600">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">สิ้นสุดแล้ว</h3>
+            <h2 class="text-2xl font-semibold">8</h2>
+            <p class="trend negative"><i class="bi bi-arrow-down"></i> 1 จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-yellow-500">
+            <i class="bi bi-graph-up"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">อัตราการเข้าถึง</h3>
+            <h2 class="text-2xl font-semibold">75.4%</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 12.7% เพิ่มขึ้น</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Promotions List -->
+      <section class="container mx-auto px-4 pb-6 fade-in">
+        <div id="promotionsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+          <!-- Promotion cards will be inserted here -->
+        </div>
+      </section>
+
+      <!-- Campaign Cards -->
+      <div class="mb-6 container mx-auto px-4 fade-in">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">แคมเปญล่าสุด</h3>
+          <div class="flex space-x-4">
+            <div class="relative">
+              <input 
+                type="text" 
+                id="searchCampaign" 
+                placeholder="ค้นหาแคมเปญ..." 
+                class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md py-2 px-4 pl-10"
+              >
+              <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+            </div>
+            <select id="sortCampaign" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm">
+              <option value="newest">ล่าสุด</option>
+              <option value="oldest">เก่าสุด</option>
+              <option value="nameAZ">ชื่อ A-Z</option>
+              <option value="nameZA">ชื่อ Z-A</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Campaign cards... -->
+          <!-- (insert campaign-card blocks 1–6 here) -->
+        </div>
+      </div>
+
+      <!-- Campaigns Table -->
+      <div class="container mx-auto px-4 mb-6 fade-in">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 overflow-hidden">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-semibold">รายการแคมเปญทั้งหมด</h3>
+            <button class="flex items-center text-blue-600 dark:text-blue-400 hover:underline">
+              <i class="bi bi-file-earmark-arrow-down mr-2"></i> ส่งออกข้อมูล
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full">
+              <!-- (insert table head & rows here) -->
+            </table>
+          </div>
+          <div class="flex justify-between items-center mt-6">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              แสดง 1 - 5 จากทั้งหมด 18 แคมเปญ
+            </div>
+            <div class="flex space-x-1">
+              <!-- (pagination buttons) -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create/Edit Modal -->
+      <div id="promotionModal" class="modal">
+        <div class="modal-box w-11/12 max-w-3xl">
+          <h3 class="font-bold text-lg mb-4 flex gap-2 items-center" id="modalTitle">
+            <i class="bi bi-megaphone-fill text-orange-500"></i>
+            สร้างโปรโมชั่น
+          </h3>
+          <form id="promotionForm" class="space-y-4">
+            <!-- Basic Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">ชื่อโปรโมชั่น <span class="text-error">*</span></label>
+                <input type="text" name="name" required class="input input-bordered w-full" maxlength="64"/>
+              </div>
+              <div>
+                <label class="label">ประเภทโปรโมชั่น <span class="text-error">*</span></label>
+                <select name="type" required class="select select-bordered w-full" onchange="togglePromotionFields()">
+                  <option value="">เลือกประเภท</option>
+                  <option value="discount_percentage">ส่วนลด %</option>
+                  <option value="discount_amount">ส่วนลดเงิน</option>
+                  <option value="special_price">ราคาพิเศษ</option>
+                  <option value="buy_x_get_y">ซื้อ X แถม Y</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="label">รายละเอียด</label>
+              <textarea name="description" rows="2" class="textarea textarea-bordered w-full" maxlength="255"></textarea>
+            </div>
+            <!-- Type-specific fields -->
+            <div id="typeSpecificFields" class="space-y-4 hidden">
+              <div id="discountFields" class="hidden">
+                <label class="label">ส่วนลด</label>
+                <div class="flex gap-2">
+                  <input type="number" name="discountValue" min="0" class="input input-bordered flex-1" placeholder="เช่น 10"/>
+                  <span class="flex items-center px-4" id="discountUnit">%</span>
+                </div>
+              </div>
+              <div id="specialPriceField" class="hidden">
+                <label class="label">ราคาพิเศษ</label>
+                <input type="number" name="specialPrice" min="0" step="0.01" class="input input-bordered w-full" placeholder="เช่น 199.00"/>
+              </div>
+              <div id="buyGetFields" class="hidden grid grid-cols-2 gap-4">
+                <div>
+                  <label class="label">ซื้อ (จำนวน)</label>
+                  <input type="number" name="buyQuantity" min="1" class="input input-bordered w-full" />
+                </div>
+                <div>
+                  <label class="label">แถม (จำนวน)</label>
+                  <input type="number" name="getQuantity" min="1" class="input input-bordered w-full" />
+                </div>
+              </div>
+            </div>
+            <!-- Date Range -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">วันเวลาเริ่มต้น <span class="text-error">*</span></label>
+                <input type="text" id="startDate" name="startDate" required class="input input-bordered w-full" autocomplete="off" />
+              </div>
+              <div>
+                <label class="label">วันเวลาสิ้นสุด <span class="text-error">*</span></label>
+                <input type="text" id="endDate" name="endDate" required class="input input-bordered w-full" autocomplete="off" />
+              </div>
+            </div>
+            <!-- Applicable Items -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">สินค้าที่ร่วมโปรโมชั่น</label>
+                <div class="tabs tabs-boxed mb-2">
+                  <button type="button" class="tab tab-active" onclick="switchTab('all', this)">ทุกสินค้า</button>'
+                  <button type="button" class="tab" onclick="switchTab('category', this)">ตามหมวดหมู่</button>'
+                  <button type="button" class="tab" onclick="switchTab('specific', this)">เลือกสินค้า</button>'
+                </div>
+                <div id="productSelection">
+                  <div id="allProductsTab" class="text-center py-4 text-gray-500">
+                    <i class="bi bi-check-circle text-3xl text-green-500"></i>
+                    <p class="mt-2">โปรโมชั่นนี้ใช้ได้กับทุกสินค้า</p>
+                  </div>
+                  <div id="categoryTab" class="hidden">
+                    <div class="flex flex-wrap gap-2">
+                      <label class="cursor-pointer">
+                        <input type="checkbox" name="categories" value="mobile" class="checkbox checkbox-primary" />
+                        <span class="ml-2">มือถือ</span>
+                      </label>
+                      <label class="cursor-pointer">
+                        <input type="checkbox" name="categories" value="accessory" class="checkbox checkbox-primary" />
+                        <span class="ml-2">อุปกรณ์เสริม</span>
+                      </label>
+                      <label class="cursor-pointer">
+                        <input type="checkbox" name="categories" value="boxset" class="checkbox checkbox-primary" />
+                        <span class="ml-2">Boxset</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div id="specificTab" class="hidden">
+                    <input type="text" placeholder="ค้นหาสินค้า..." class="input input-bordered w-full mb-3" onkeyup="searchProducts(this.value)" />
+                    <div id="productList" class="max-h-44 overflow-y-auto space-y-2">
+                      <!-- Product checkboxes will be inserted here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="label">สาขาที่ร่วมโปรโมชั่น</label>
+                <div class="tabs tabs-boxed mb-2">
+                  <button type="button" class="tab tab-active" onclick="switchBranchTab('all', this)">ทุกสาขา</button>'
+                  <button type="button" class="tab" onclick="switchBranchTab('specific', this)">เลือกสาขา</button>'
+                </div>
+                <div id="branchSelection">
+                  <div id="allBranchesTab" class="text-center py-4 text-gray-500">
+                    <i class="bi bi-shop text-3xl text-blue-500"></i>
+                    <p class="mt-2">โปรโมชั่นนี้ใช้ได้กับทุกสาขา</p>
+                  </div>
+                  <div id="specificBranchesTab" class="hidden">
+                    <div id="branchList" class="max-h-32 overflow-y-auto space-y-2">
+                      <!-- Branch checkboxes will be inserted here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Additional Conditions -->
+            <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+              <input type="checkbox" id="additional-conditions-toggle" />
+              <div class="collapse-title text-lg font-medium">
+                <i class="bi bi-gear-wide mr-2"></i>เงื่อนไขเพิ่มเติม
+              </div>
+              <div class="collapse-content space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="label">ยอดซื้อขั้นต่ำ</label>
+                    <input type="number" name="minPurchaseAmount" min="0" class="input input-bordered w-full" />
+                  </div>
+                  <div>
+                    <label class="label">ส่วนลดสูงสุด (สำหรับ %)</label>
+                    <input type="number" name="maxDiscountAmount" min="0" class="input input-bordered w-full" />
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="label">จำกัดจำนวนการใช้</label>
+                    <input type="number" name="usageLimit" min="0" class="input input-bordered w-full" placeholder="ไม่จำกัด" />
+                  </div>
+                  <div>
+                    <label class="label">ลำดับความสำคัญ</label>
+                    <input type="number" name="priority" min="1" value="100" class="input input-bordered w-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-action flex justify-end gap-4">
+              <button type="button" onclick="closeModal()" class="btn btn-ghost">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary flex gap-2 items-center">
+                <i class="bi bi-save"></i> บันทึก
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const socket = io();
+    let editingPromotionId = null;
+    let allProducts = [];
+    let allBranches = [];
+    let promotionsRaw = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {'
+      await loadBranches();
+      await loadProducts();
+      await loadPromotions();
+      flatpickr("#startDate", { enableTime: true, dateFormat: "Y-m-d H:i", minDate: "today" });
+      flatpickr("#endDate", { enableTime: true, dateFormat: "Y-m-d H:i", minDate: "today" });
+      document.getElementById('promotionForm').addEventListener('submit', handleSubmit);'
+    });
+
+    // Socket events
+    socket.on('promotionCreated', () => loadPromotions());'
+    socket.on('promotionUpdated', () => loadPromotions());'
+    socket.on('promotionDeleted', () => loadPromotions());'
+
+    // Load functions
+    async function loadBranches() {
+      try {
+        const res = await fetch('/api/branch', {'
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }'
+        });
+        const data = await res.json();
+        allBranches = data.data || [];
+        // Populate branch filter
+        const branchFilter = document.getElementById('filterBranch');'
+        allBranches.forEach(branch => {
+          const option = document.createElement('option');'
+          option.value = branch.branch_code;
+          option.textContent = branch.name;
+          branchFilter.appendChild(option);
+        });
+        // Populate branch checkboxes
+        const branchList = document.getElementById('branchList');'
+        branchList.innerHTML = allBranches.map(branch => `
+          <label class="cursor-pointer flex items-center p-2 hover:bg-gray-50 rounded">
+            <input type="checkbox" name="branches" value="${branch.branch_code}" class="checkbox checkbox-sm" />
+            <span class="ml-2">${branch.name}</span>
+          </label>
+        `).join('');'
+      } catch (err) {
+        console.error('Error loading branches:', err);'
+      }
+    }
+
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/product-image', {'
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }'
+        });
+        const data = await res.json();
+        allProducts = data.data || [];
+        displayProductList();
+      } catch (err) {
+        console.error('Error loading products:', err);'
+      }
+    }
+
+    async function loadPromotions() {
+      try {
+        const res = await fetch('/api/promotion', {'
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }'
+        });
+        const data = await res.json();
+        promotionsRaw = data.data || [];
+        displayPromotions(promotionsRaw);
+      } catch (err) {
+        console.error('Error loading promotions:', err);'
+      }
+    }
+
+    // Filtering
+    function applyFilters() {
+      const status = document.getElementById('filterStatus').value;'
+      const branch = document.getElementById('filterBranch').value;'
+      const type = document.getElementById('filterType').value;'
+
+      const now = new Date();
+      let filtered = promotionsRaw;
+
+      if (status !== 'all') {'
+        filtered = filtered.filter(promo => {
+          const startDate = new Date(promo.startDate);
+          const endDate = new Date(promo.endDate);
+          if (status === 'active') return now >= startDate && now <= endDate && promo.isActive;'
+          if (status === 'upcoming') return now < startDate;'
+          if (status === 'expired') return now > endDate;'
+          return true;
+        });
+      }
+      if (branch !== 'all') {'
+        filtered = filtered.filter(promo => promo.applicableBranches?.includes(branch) || promo.applicableBranches?.length === 0);
+      }
+      if (type !== 'all') {'
+        filtered = filtered.filter(promo => promo.type === type);
+      }
+      displayPromotions(filtered);
+    }
+
+    // Display functions
+    function displayPromotions(promotions) {
+      const container = document.getElementById('promotionsList');'
+      if (promotions.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12 text-gray-500">
+            <i class="bi bi-megaphone text-6xl opacity-20"></i>
+            <p class="mt-4 text-lg">ยังไม่มีโปรโมชั่น</p>
+          </div>
+        `;
+        return;
+      }
+      container.innerHTML = promotions.map(promo => {
+        const now = new Date();
+        const startDate = new Date(promo.startDate);
+        const endDate = new Date(promo.endDate);
+        let status, statusColor, statusIcon;
+        if (now < startDate) {
+          status = 'กำลังจะมา'; statusColor = 'badge-warning'; statusIcon = 'bi-clock';'
+        } else if (now > endDate) {
+          status = 'หมดอายุแล้ว'; statusColor = 'badge-error'; statusIcon = 'bi-x-circle';'
+        } else if (!promo.isActive) {
+          status = 'ปิดใช้งาน'; statusColor = 'badge-ghost'; statusIcon = 'bi-pause-circle';'
+        } else {
+          status = 'กำลังใช้งาน'; statusColor = 'badge-success'; statusIcon = 'bi-check-circle';'
+        }
+
+        return `
+          <div class="promotion-card bg-white rounded-2xl shadow-card p-6 fade-in flex flex-col justify-between min-h-[260px]">
+            <div>
+              <div class="flex justify-between items-start mb-3">
+                <h3 class="text-lg font-bold text-gray-800">${promo.name}</h3>
+                <span class="badge ${statusColor} px-3 py-2 flex items-center gap-1 text-base">
+                  <i class="bi ${statusIcon} mr-1"></i>${status}
+                </span>
+              </div>
+              <p class="text-gray-600 text-sm mb-3 line-clamp-2">${promo.description || 'ไม่มีรายละเอียด'}</p>'
+              <div class="space-y-1 text-sm">
+                <div class="flex items-center text-gray-500">
+                  <i class="bi bi-tag-fill mr-2"></i>
+                  ${getPromotionTypeLabel(promo.type)}
+                </div>
+                <div class="flex items-center text-gray-500">
+                  <i class="bi bi-calendar-range mr-2"></i>
+                  ${formatDate(promo.startDate)} - ${formatDate(promo.endDate)}
+                </div>
+                ${promo.usageLimit ? `
+                <div class="flex items-center text-gray-500">
+                  <i class="bi bi-people-fill mr-2"></i>
+                  ใช้แล้ว ${promo.usageCount || 0} / ${promo.usageLimit} ครั้ง
+                </div>
+                ` : ''}'
+              </div>
+            </div>
+            <div class="mt-4 flex gap-2 justify-end">
+              <button title="แก้ไข" onclick="editPromotion('${promo._id}')" class="btn btn-sm btn-ghost rounded-full shadow">'
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button title="เปิด/ปิด" onclick="togglePromotion('${promo._id}', ${promo.isActive})" class="btn btn-sm btn-ghost rounded-full shadow">'
+                <i class="bi ${promo.isActive ? 'bi-pause' : 'bi-play'}"></i>'
+              </button>
+              <button title="ลบ" onclick="deletePromotion('${promo._id}')" class="btn btn-sm btn-ghost rounded-full text-error shadow">'
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');'
+    }
+
+    function displayProductList(products = allProducts) {
+      const container = document.getElementById('productList');'
+      container.innerHTML = products.map(product => `
+        <label class="cursor-pointer flex items-center p-2 hover:bg-gray-50 rounded">
+          <input type="checkbox" name="products" value="${product._id}" class="checkbox checkbox-sm" />
+          <span class="ml-2">${product.name}</span>
+          <span class="ml-auto text-xs text-gray-400">${product.productType}</span>
+        </label>
+      `).join('');'
+    }
+
+    // Modal functions
+    function openCreateModal() {
+      editingPromotionId = null;
+      document.getElementById('modalTitle').innerHTML = '<i class="bi bi-megaphone-fill text-orange-500"></i> สร้างโปรโมชั่น';'
+      document.getElementById('promotionForm').reset();'
+      // Reset tabs
+      document.querySelectorAll('.tabs .tab').forEach((t,i) => t.classList.toggle('tab-active', i===0));'
+      document.getElementById('allProductsTab').classList.remove('hidden');'
+      document.getElementById('categoryTab').classList.add('hidden');'
+      document.getElementById('specificTab').classList.add('hidden');'
+      document.getElementById('allBranchesTab').classList.remove('hidden');'
+      document.getElementById('specificBranchesTab').classList.add('hidden');'
+      // Hide type-specific
+      document.getElementById('typeSpecificFields').classList.add('hidden');'
+      document.querySelectorAll('#discountFields, #specialPriceField, #buyGetFields').forEach(el => el.classList.add('hidden'));'
+      document.getElementById('promotionModal').classList.add('modal-open');'
+    }
+
+    function closeModal() {
+      document.getElementById('promotionModal').classList.remove('modal-open');'
+    }
+
+    // Form handling
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      // Process checkboxes
+      data.applicableCategories = [...formData.getAll('categories')];'
+      data.applicableProducts = [...formData.getAll('products')];'
+      data.applicableBranches = [...formData.getAll('branches')];'
+      // Process conditions
+      data.conditions = {
+        minPurchaseAmount: data.minPurchaseAmount || 0,
+        maxDiscountAmount: data.maxDiscountAmount || null
+      };
+      // Clean up data
+      delete data.categories;
+      delete data.products;
+      delete data.branches;
+      delete data.minPurchaseAmount;
+      delete data.maxDiscountAmount;
+
+      try {
+        const url = editingPromotionId 
+          ? `/api/promotion/${editingPromotionId}`
+          : '/api/promotion';'
+        const method = editingPromotionId ? 'PATCH' : 'POST';'
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('authToken'),'
+            'Content-Type': 'application/json''
+          },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          closeModal();
+          loadPromotions();
+        } else {
+          const error = await res.json();
+          alert(error.message || 'เกิดข้อผิดพลาด');'
+        }
+      } catch (err) {
+        console.error('Error saving promotion:', err);'
+        alert('เกิดข้อผิดพลาด');'
+      }
+    }
+
+    // Helper functions
+    function togglePromotionFields() {
+      const type = document.querySelector('[name="type"]').value;'
+      const container = document.getElementById('typeSpecificFields');'
+      document.querySelectorAll('#discountFields, #specialPriceField, #buyGetFields').forEach(el => {'
+        el.classList.add('hidden');'
+      });
+      if (type) {
+        container.classList.remove('hidden');'
+        switch(type) {
+          case 'discount_percentage':'
+            document.getElementById('discountFields').classList.remove('hidden');'
+            document.getElementById('discountUnit').textContent = '%';'
+            break;
+          case 'discount_amount':'
+            document.getElementById('discountFields').classList.remove('hidden');'
+            document.getElementById('discountUnit').textContent = 'บาท';'
+            break;
+          case 'special_price':'
+            document.getElementById('specialPriceField').classList.remove('hidden');'
+            break;
+          case 'buy_x_get_y':'
+            document.getElementById('buyGetFields').classList.remove('hidden');'
+            break;
+        }
+      } else {
+        container.classList.add('hidden');'
+      }
+    }
+
+    function switchTab(tab, el) {
+      document.querySelectorAll('#productSelection .tab').forEach(t => t.classList.remove('tab-active'));'
+      el.classList.add('tab-active');'
+      document.getElementById('allProductsTab').classList.add('hidden');'
+      document.getElementById('categoryTab').classList.add('hidden');'
+      document.getElementById('specificTab').classList.add('hidden');'
+      if(tab === 'all') document.getElementById('allProductsTab').classList.remove('hidden');'
+      if(tab === 'category') document.getElementById('categoryTab').classList.remove('hidden');'
+      if(tab === 'specific') document.getElementById('specificTab').classList.remove('hidden');'
+    }
+
+    function switchBranchTab(tab, el) {
+      document.querySelectorAll('#branchSelection .tab').forEach(t => t.classList.remove('tab-active'));'
+      el.classList.add('tab-active');'
+      document.getElementById('allBranchesTab').classList.toggle('hidden', tab !== 'all');'
+      document.getElementById('specificBranchesTab').classList.toggle('hidden', tab === 'all');'
+    }
+
+    function searchProducts(query) {
+      const filtered = allProducts.filter(p => 
+        p.name.toLowerCase().includes(query.toLowerCase())
+      );
+      displayProductList(filtered);
+    }
+
+    function getPromotionTypeLabel(type) {
+      const labels = {
+        'discount_percentage': 'ส่วนลด %','
+        'discount_amount': 'ส่วนลดเงิน','
+        'special_price': 'ราคาพิเศษ','
+        'buy_x_get_y': 'ซื้อ X แถม Y''
+      };
+      return labels[type] || type;
+    }
+
+    function formatDate(dateString) {
+      return new Date(dateString).toLocaleString('th-TH', {'
+        day: '2-digit','
+        month: '2-digit','
+        year: 'numeric','
+        hour: '2-digit','
+        minute: '2-digit''
+      });
+    }
+
+    async function deletePromotion(id) {
+      if (!confirm('ยืนยันการลบโปรโมชั่น?')) return;'
+      try {
+        const res = await fetch(`/api/promotion/${id}`, {
+          method: 'DELETE','
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }'
+        });
+        if (res.ok) loadPromotions();
+      } catch (err) {
+        console.error('Error deleting promotion:', err);'
+      }
+    }
+
+    async function togglePromotion(id, currentStatus) {
+      try {
+        const res = await fetch(`/api/promotion/${id}`, {
+          method: 'PATCH','
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('authToken'),'
+            'Content-Type': 'application/json''
+          },
+          body: JSON.stringify({ isActive: !currentStatus })
+        });
+        if (res.ok) loadPromotions();
+      } catch (err) {
+        console.error('Error toggling promotion:', err);'
+      }
+    }
+
+    // For edit functionality (not present in original, but for completeness)
+    async function editPromotion(id) {
+      const promo = promotionsRaw.find(p=>p._id===id);
+      if (!promo) return;
+      editingPromotionId = id;
+      // Open modal and fill data
+      document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil-square text-orange-500"></i> แก้ไขโปรโมชั่น';'
+      document.getElementById('promotionForm').reset();'
+      openCreateModal();
+      // Set fields
+      document.querySelector('[name="name"]').value = promo.name || '';'
+      document.querySelector('[name="type"]').value = promo.type || '';'
+      togglePromotionFields();
+      document.querySelector('[name="description"]').value = promo.description || '';'
+      document.getElementById('startDate').value = formatInputDate(promo.startDate);'
+      document.getElementById('endDate').value = formatInputDate(promo.endDate);'
+
+      // Type-specific
+      if (promo.type === 'discount_percentage' || promo.type === 'discount_amount')'
+        document.querySelector('[name="discountValue"]').value = promo.discountValue || '';'
+      if (promo.type === 'special_price')'
+        document.querySelector('[name="specialPrice"]').value = promo.specialPrice || '';'
+      if (promo.type === 'buy_x_get_y') {'
+        document.querySelector('[name="buyQuantity"]').value = promo.buyQuantity || '';'
+        document.querySelector('[name="getQuantity"]').value = promo.getQuantity || '';'
+      }
+
+      // Products/branch tabs
+      if (promo.applicableCategories && promo.applicableCategories.length) {
+        switchTab('category', document.querySelectorAll('#productSelection .tab')[1]);'
+        promo.applicableCategories.forEach(val => {
+          document.querySelector(`#categoryTab [value="${val}"]`).checked = true;
+        });
+      } else if (promo.applicableProducts && promo.applicableProducts.length) {
+        switchTab('specific', document.querySelectorAll('#productSelection .tab')[2]);'
+        setTimeout(()=>{
+          promo.applicableProducts.forEach(val => {
+            let el = document.querySelector(`#productList [value="${val}"]`);
+            if (el) el.checked = true;
+          });
+        }, 100);
+      } else {
+        switchTab('all', document.querySelectorAll('#productSelection .tab')[0]);'
+      }
+
+      if (promo.applicableBranches && promo.applicableBranches.length) {
+        switchBranchTab('specific', document.querySelectorAll('#branchSelection .tab')[1]);'
+        promo.applicableBranches.forEach(val => {
+          let el = document.querySelector(`#branchList [value="${val}"]`);
+          if (el) el.checked = true;
+        });
+      } else {
+        switchBranchTab('all', document.querySelectorAll('#branchSelection .tab')[0]);'
+      }
+
+      // Additional
+      document.querySelector('[name="minPurchaseAmount"]').value = promo.conditions?.minPurchaseAmount || '';'
+      document.querySelector('[name="maxDiscountAmount"]').value = promo.conditions?.maxDiscountAmount || '';'
+      document.querySelector('[name="usageLimit"]').value = promo.usageLimit || '';'
+      document.querySelector('[name="priority"]').value = promo.priority || '100';'
+    }
+
+    function formatInputDate(date) {
+      // For flatpickr
+      const d = new Date(date);
+      if (isNaN(d)) return '';'
+      const pad = n => n<10 ? '0'+n : n;'
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // Show/Hide Loading Function
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // No fallback spinner - just show empty container
+              document.getElementById('lottieContainer').innerHTML = '';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // ฟังก์ชันโหลดข้อมูลผู้ใช้ (ใช้ API เดียวกับ PO.html)
+    async function loadUserProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          console.warn('No auth token found');
+          return;
+        }
+        
+        const response = await fetch('/api/users/me', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'Load profile failed');
+        
+        const user = result.data;
+        
+        // Update ชื่อผู้ใช้
+        const employeeNameElement = document.getElementById('employeeName');
+        if (employeeNameElement) {
+          employeeNameElement.textContent = user.name || '(ไม่พบชื่อ)';
+        }
+        
+        // Update รูปผู้ใช้
+        const employeePhotoElement = document.getElementById('employeePhoto');
+        if (employeePhotoElement) {
+          let url = user.photoUrl || '';
+          if (url && !url.startsWith('/') && !/^https?:\/\//.test(url)) url = '/' + url;
+          employeePhotoElement.src = url;
+        }
+        
+      } catch (error) {
+        console.error('loadUserProfile error:', error);
+        // Fallback: ใช้ข้อมูลจาก localStorage
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        const employeeNameElement = document.getElementById('employeeName');
+        if (employeeNameElement) {
+          employeeNameElement.textContent = userInfo.name || userInfo.fullName || 'ผู้ใช้';
+        }
+      }
+    }
+
+    // เรียกใช้เมื่อโหลดหน้า
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadUserProfile();
+      
+      // Load sidebar HTML
+      fetch('/views/marketing/includes/sidebar.html')
+        .then(response => response.text())
+        .then(html => {
+          const sidebarContainer = document.getElementById('sidebar-container');
+          if (sidebarContainer) {
+            sidebarContainer.innerHTML = html;
+            // Initialize sidebar after loading
+            if (typeof initializeSidebar === 'function') {
+              initializeSidebar();
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error loading sidebar:', error);
+          // Fallback: show basic sidebar structure
+          const sidebarContainer = document.getElementById('sidebar-container');
+          if (sidebarContainer) {
+            sidebarContainer.innerHTML = '<aside class="w-64 bg-white dark:bg-gray-800"><div class="p-4">Sidebar Loading Error</div></aside>';
+          }
+        });
+    });
+  </script>
+</body>
+</html>

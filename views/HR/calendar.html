@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <title>ปฏิทินเหตุการณ์</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt','sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: #f8f9fa;
+    }
+    .calendar-container {
+      max-width: 1100px;
+      margin: 2rem auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+    }
+    .fc-event {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .fc-event:hover {
+      transform: translateY(-2px);
+    }
+    .fc-daygrid-day {
+      transition: background-color 0.2s;
+    }
+    .fc-daygrid-day:hover {
+      background-color: #f0f4ff;
+      cursor: pointer;
+    }
+    .fc-toolbar-title {
+      font-family: 'Prompt', sans-serif;
+      font-weight: 500;
+    }
+    .fc-button-primary {
+      background: #5a23c8 !important;
+      border-color: #5a23c8 !important;
+    }
+    .fc-button-primary:hover {
+      background: #4a1ba8 !important;
+      border-color: #4a1ba8 !important;
+    }
+    .type-badge {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .event-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    #notification-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 50;
+    }
+    .notification {
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="bg-white shadow-sm py-3 px-4 mb-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <h1 class="text-xl font-semibold text-primary flex items-center">
+        <i class="fas fa-calendar-alt mr-2"></i> ปฏิทินเหตุการณ์
+      </h1>
+      <div class="flex items-center gap-2">
+        <button id="view-selector" class="btn btn-sm btn-outline">
+          <i class="fas fa-th mr-1"></i> มุมมอง
+          <i class="fas fa-chevron-down ml-1"></i>
+        </button>
+        <button id="add-event-btn" class="btn btn-sm btn-primary">
+          <i class="fas fa-plus mr-1"></i> เพิ่มเหตุการณ์
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- Left Sidebar -->
+      <div class="bg-white p-4 rounded-lg shadow-sm">
+        <h3 class="font-medium text-lg mb-3">ตัวกรอง</h3>
+        
+        <div class="divider my-2"></div>
+        
+        <h4 class="font-medium mb-2">ประเภทเหตุการณ์</h4>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-type="holiday" checked />
+            <span class="type-badge ml-2" style="background-color: #FF4C4C;"></span>
+            <span class="label-text ml-1">วันหยุด</span>
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-type="labor" checked />
+            <span class="type-badge ml-2" style="background-color: #4C6EFF;"></span>
+            <span class="label-text ml-1">งานแรงงาน</span>
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-type="meeting" checked />
+            <span class="type-badge ml-2" style="background-color: #9C27B0;"></span>
+            <span class="label-text ml-1">ประชุม</span>
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-type="training" checked />
+            <span class="type-badge ml-2" style="background-color: #FF9800;"></span>
+            <span class="label-text ml-1">อบรม</span>
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-type="social" checked />
+            <span class="type-badge ml-2" style="background-color: #4CAF50;"></span>
+            <span class="label-text ml-1">กิจกรรมสังคม</span>
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-type="other" checked />
+            <span class="type-badge ml-2" style="background-color: #FFA500;"></span>
+            <span class="label-text ml-1">อื่นๆ</span>
+          </label>
+        </div>
+        
+        <div class="divider my-2"></div>
+        
+        <h4 class="font-medium mb-2">เหตุการณ์ที่กำลังจะมาถึง</h4>
+        <div class="event-list">
+          <div class="text-gray-400 text-sm text-center py-2">กำลังโหลดข้อมูล...</div>
+        </div>
+      </div>
+      
+      <!-- Calendar -->
+      <div class="lg:col-span-3">
+        <div class="calendar-container">
+          <div id="calendar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Event Modal -->
+  <div id="add-event-modal" class="modal">
+    <div class="modal-box">
+      <h3 id="modal-title" class="font-bold text-lg mb-4">เพิ่มเหตุการณ์ใหม่</h3>
+      <form id="event-form">
+        <input type="hidden" id="event-id" />
+        <div class="form-control mb-3">
+          <label class="label">
+            <span class="label-text">ชื่อเหตุการณ์</span>
+          </label>
+          <input type="text" id="event-title" placeholder="ระบุชื่อเหตุการณ์" class="input input-bordered w-full" required />
+        </div>
+
+        <div class="form-control mb-3">
+          <label class="label">
+            <span class="label-text">วันที่</span>
+          </label>
+          <input type="date" id="event-date" class="input input-bordered w-full" required />
+        </div>
+
+        <div class="form-control mb-3">
+          <label class="label">
+            <span class="label-text">ประเภทเหตุการณ์</span>
+          </label>
+          <select id="event-type" class="select select-bordered w-full">
+            <option value="holiday">วันหยุด</option>
+            <option value="labor">งานแรงงาน</option>
+            <option value="other">อื่นๆ</option>
+            <option value="meeting">ประชุม</option>
+            <option value="training">อบรม</option>
+            <option value="social">กิจกรรมสังคม</option>
+          </select>
+        </div>
+
+        <div class="form-control mb-3">
+          <label class="label">
+            <span class="label-text">รายละเอียด (ถ้ามี)</span>
+          </label>
+          <textarea id="event-description" class="textarea textarea-bordered" placeholder="รายละเอียดเพิ่มเติม"></textarea>
+        </div>
+
+        <div class="modal-action">
+          <button type="button" class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+          <button type="submit" id="submit-btn" class="btn btn-primary">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">ยืนยันการลบ</h3>
+      <p>คุณต้องการลบเหตุการณ์ "<span id="delete-event-title"></span>" หรือไม่?</p>
+      <input type="hidden" id="delete-event-id">
+      <div class="modal-action">
+        <button class="btn btn-outline" onclick="closeDeleteModal()">ยกเลิก</button>
+        <button class="btn btn-error" onclick="confirmDelete()">ลบ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Container -->
+  <div id="notification-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <script>
+    // Global variables
+    let calendar;
+    let selectedDate = '';
+    let editingEventId = null;
+    const colorMap = {
+      holiday: '#FF4C4C',
+      labor: '#4C6EFF',
+      other: '#FFA500',
+      meeting: '#9C27B0',
+      training: '#FF9800',
+      social: '#4CAF50'
+    };
+    let allEvents = [];
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+      const container = document.getElementById('notification-container');
+      const notification = document.createElement('div');
+    
+      let bgColor = 'bg-blue-500';
+      if (type === 'success') bgColor = 'bg-green-500';
+      if (type === 'error') bgColor = 'bg-red-500';
+    
+      notification.className = `notification ${bgColor} text-white`;
+      notification.innerHTML = `
+        <div class="flex items-center">
+          <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-2"></i>
+          <span>${message}</span>
+        </div>
+      `;
+    
+      container.appendChild(notification);
+    
+      setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      }, 3000);
+    }
+
+    // Open add event modal
+    function openModal(date, eventData = null) {
+      if (eventData) {
+        // Edit mode
+        editingEventId = eventData.id;
+        document.getElementById('modal-title').textContent = 'แก้ไขเหตุการณ์';
+        document.getElementById('submit-btn').textContent = 'อัปเดต';
+        document.getElementById('event-id').value = eventData.id;
+        document.getElementById('event-title').value = eventData.title;
+        document.getElementById('event-date').value = eventData.start.split('T')[0];
+        document.getElementById('event-type').value = eventData.extendedProps?.type || 'other';
+        document.getElementById('event-description').value = eventData.extendedProps?.description || '';
+      } else {
+        // Add mode
+        editingEventId = null;
+        document.getElementById('modal-title').textContent = 'เพิ่มเหตุการณ์ใหม่';
+        document.getElementById('submit-btn').textContent = 'บันทึก';
+        document.getElementById('event-form').reset();
+        document.getElementById('event-date').value = date;
+      }
+      selectedDate = date;
+      document.getElementById('add-event-modal').classList.add('modal-open');
+    }
+
+    // Close add event modal
+    function closeModal() {
+      document.getElementById('add-event-modal').classList.remove('modal-open');
+      document.getElementById('event-form').reset();
+      editingEventId = null;
+    }
+
+    // Open delete modal
+    function openDeleteModal(eventId, title) {
+      document.getElementById('delete-event-id').value = eventId;
+      document.getElementById('delete-event-title').textContent = title;
+      document.getElementById('delete-modal').classList.add('modal-open');
+    }
+
+    // Close delete modal
+    function closeDeleteModal() {
+      document.getElementById('delete-modal').classList.remove('modal-open');
+    }
+
+    // Show event action menu
+    function showEventActionMenu(event, jsEvent) {
+      // Remove any existing menu
+      const existingMenu = document.querySelector('.event-action-menu');
+      if (existingMenu) existingMenu.remove();
+
+      // Create menu
+      const menu = document.createElement('div');
+      menu.className = 'event-action-menu fixed bg-white shadow-lg rounded-lg border z-50 p-2';
+      menu.style.left = jsEvent.pageX + 'px';
+      menu.style.top = jsEvent.pageY + 'px';
+
+      menu.innerHTML = `
+        <div class="flex flex-col gap-1">
+          <button onclick="editEvent('${event.id}')" class="btn btn-sm btn-ghost justify-start">
+            <i class="fas fa-edit mr-2"></i> แก้ไข
+          </button>
+          <button onclick="openDeleteModal('${event.id}', '${event.title.replace(/'/g, '&apos;')}')" class="btn btn-sm btn-ghost justify-start text-red-500">
+            <i class="fas fa-trash mr-2"></i> ลบ
+          </button>
+          <button onclick="closeEventMenu()" class="btn btn-sm btn-outline">
+            <i class="fas fa-times mr-2"></i> ปิด
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(menu);
+
+      // Close menu when clicking outside
+      document.addEventListener('click', closeEventMenuOnOutsideClick);
+      jsEvent.stopPropagation();
+    }
+
+    // Edit event function
+    function editEvent(eventId) {
+      const event = calendar.getEventById(eventId);
+      if (event) {
+        openModal('', event);
+      }
+      closeEventMenu();
+    }
+
+    // Close event menu
+    function closeEventMenu() {
+      const menu = document.querySelector('.event-action-menu');
+      if (menu) menu.remove();
+      document.removeEventListener('click', closeEventMenuOnOutsideClick);
+    }
+
+    // Close menu on outside click
+    function closeEventMenuOnOutsideClick(e) {
+      if (!e.target.closest('.event-action-menu')) {
+        closeEventMenu();
+      }
+    }
+
+    // Confirm delete
+    async function confirmDelete() {
+      const eventId = document.getElementById('delete-event-id').value;
+    
+      try {
+        const res = await fetch(`/api/events/${eventId}`, { method: 'DELETE' });
+    
+        if (!res.ok) throw new Error('การลบเหตุการณ์ล้มเหลว');
+    
+        // Remove from calendar
+        const event = calendar.getEventById(eventId);
+        if (event) event.remove();
+    
+        // Update upcoming events
+        updateUpcomingEvents();
+    
+        showNotification('ลบเหตุการณ์เรียบร้อยแล้ว', 'success');
+      } catch (err) {
+        console.error(err);
+        showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    
+      closeDeleteModal();
+    }
+
+    // Update upcoming events sidebar
+    function updateUpcomingEvents() {
+      const container = document.querySelector('.event-list');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+    
+      // Filter upcoming events
+      const upcoming = allEvents
+        .filter(e => new Date(e.date) >= today)
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 5);
+    
+      if (upcoming.length === 0) {
+        container.innerHTML = '<div class="text-gray-400 text-sm text-center py-2">ไม่มีเหตุการณ์ที่กำลังจะมาถึง</div>';
+        return;
+      }
+    
+      let html = '';
+      upcoming.forEach(event => {
+        const eventDate = new Date(event.date);
+        const formattedDate = eventDate.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+    
+        html += `
+          <div class="mb-2 p-2 border-l-4" style="border-color: ${event.color}">
+            <div class="font-medium">${event.title}</div>
+            <div class="text-xs text-gray-500">${formattedDate}</div>
+          </div>
+        `;
+      });
+    
+      container.innerHTML = html;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Initialize calendar
+      try {
+        // Load events from API
+        const res = await fetch('/api/events');
+        if (!res.ok) throw new Error('Failed to fetch events');
+        const { data: events } = await res.json();
+        allEvents = events;
+    
+        // Initialize calendar
+        const calendarEl = document.getElementById('calendar');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+          initialView: 'dayGridMonth',
+          locale: 'th',
+          headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+          },
+          events: events.map(e => ({
+            id: e._id,
+            title: e.title,
+            start: e.date,
+            color: e.color,
+            extendedProps: {
+              description: e.description,
+              type: e.type
+            }
+          })),
+          dateClick: info => {
+            openModal(info.dateStr);
+          },
+          eventClick: info => {
+            showEventActionMenu(info.event, info.jsEvent);
+          }
+        });
+    
+        calendar.render();
+    
+        // Update upcoming events
+        updateUpcomingEvents();
+    
+        // Add/Edit event form submission
+        document.getElementById('event-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const title = document.getElementById('event-title').value.trim();
+          const date = document.getElementById('event-date').value;
+          const type = document.getElementById('event-type').value;
+          const description = document.getElementById('event-description').value.trim();
+
+          if (!title || !date) {
+            showNotification('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+            return;
+          }
+
+          const eventData = {
+            title,
+            date,
+            type,
+            description,
+            color: colorMap[type] || '#FFA500'
+          };
+
+          try {
+            let resp;
+            let successMessage;
+
+            if (editingEventId) {
+              // Update existing event
+              console.log('🔄 Updating event:', editingEventId, eventData);
+              resp = await fetch(`/api/events/${editingEventId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(eventData)
+              });
+              successMessage = 'แก้ไขเหตุการณ์เรียบร้อยแล้ว';
+            } else {
+              // Create new event
+              console.log('📝 Creating new event:', eventData);
+              resp = await fetch('/api/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(eventData)
+              });
+              successMessage = 'เพิ่มเหตุการณ์เรียบร้อยแล้ว';
+            }
+
+            if (!resp.ok) {
+              let errorMessage = editingEventId ? 'การแก้ไขเหตุการณ์ล้มเหลว' : 'การสร้างเหตุการณ์ล้มเหลว';
+              try {
+                const errorData = await resp.json();
+                errorMessage = errorData.error || errorData.message || errorMessage;
+                console.error('❌ Server error response:', errorData);
+              } catch (e) {
+                console.error('❌ Could not parse error response');
+              }
+              throw new Error(errorMessage);
+            }
+
+            const { data: savedEvent } = await resp.json();
+
+            if (editingEventId) {
+              // Update existing event in calendar
+              const existingEvent = calendar.getEventById(editingEventId);
+              if (existingEvent) {
+                existingEvent.setProp('title', savedEvent.title);
+                existingEvent.setStart(savedEvent.date);
+                existingEvent.setProp('color', savedEvent.color);
+                existingEvent.setExtendedProp('description', savedEvent.description);
+                existingEvent.setExtendedProp('type', savedEvent.type);
+              }
+
+              // Update in allEvents array
+              const eventIndex = allEvents.findIndex(e => e._id === editingEventId);
+              if (eventIndex !== -1) {
+                allEvents[eventIndex] = savedEvent;
+              }
+            } else {
+              // Add new event to calendar
+              calendar.addEvent({
+                id: savedEvent._id,
+                title: savedEvent.title,
+                start: savedEvent.date,
+                color: savedEvent.color,
+                extendedProps: {
+                  description: savedEvent.description,
+                  type: savedEvent.type
+                }
+              });
+
+              // Add to allEvents array
+              allEvents.push(savedEvent);
+            }
+
+            // Update upcoming events sidebar
+            updateUpcomingEvents();
+
+            showNotification(successMessage, 'success');
+            closeModal();
+          } catch (err) {
+            console.error(err);
+            showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');
+          }
+        });
+    
+        // Add event button click
+        document.getElementById('add-event-btn').addEventListener('click', () => {
+          // Set default to today
+          const today = new Date();
+          const year = today.getFullYear();
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const day = String(today.getDate()).padStart(2, '0');
+          const formattedDate = `${year}-${month}-${day}`;
+    
+          openModal(formattedDate);
+        });
+    
+        // Filter events
+        document.querySelectorAll('input[type="checkbox"][data-type]').forEach(checkbox => {
+          checkbox.addEventListener('change', () => {
+            const checkedTypes = Array.from(document.querySelectorAll('input[type="checkbox"][data-type]:checked'))
+              .map(cb => cb.dataset.type);
+
+            calendar.getEvents().forEach(event => {
+              const type = event.extendedProps?.type || 'other';
+              if (checkedTypes.includes(type)) {
+                event.setProp('display', 'auto');
+              } else {
+                event.setProp('display', 'none');
+              }
+            });
+          });
+        });
+    
+      } catch (err) {
+        console.error(err);
+        showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Management - สรุปกราฟสต๊อก</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <!-- Flatpickr CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script src="/js/activity-tracker.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Tailwind Configuration (prevents "tailwind is not defined" error) -->
+<script>
+
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'Prompt', 'sans-serif'],
+          prompt: ['Prompt', 'sans-serif'],
+        },
+        boxShadow: {
+          'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+        }
+      },
+    },
+    daisyui: {
+      themes: ['luxury', 'dark', 'corporate'],
+    },
+  };
+</script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Firebase SDK with Feature Flag -->
+  <script type="module">
+    // ==========================================
+    // Firebase Feature Flag Configuration
+    // ==========================================
+    
+    // Set this to true ONLY when you have valid Firebase configuration
+    const ENABLE_FIREBASE = true;
+    
+    // Firebase configuration from activity-tracker.js
+    const firebaseConfig = {
+      apiKey: "AIzaSyCv4EBbKN8Kr4IMRqszJGBWTSoMihtYLo",
+      authDomain: "pheenongacc.firebaseapp.com",
+      databaseURL: "https://pheenongacc-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pheenongacc",
+      storageBucket: "pheenongacc.appspot.com",
+      messagingSenderId: "158417807357",
+      appId: "1:158417807357:web:4a9c78f7aea793dc7d64494",
+      measurementId: "G-F7DPQ7XG9K"
+    };
+    
+    // Initialize Firebase only if enabled
+    if (ENABLE_FIREBASE) {
+      try {
+        console.log('🔥 Firebase: Initializing...');
+        
+        // Dynamic imports only when Firebase is enabled
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+        const { getDatabase, ref, onValue, set, push, serverTimestamp, onDisconnect, remove } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js');
+        const { getAuth, signInAnonymously } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const auth = getAuth(app);
+        
+        window.firebase = { 
+          database, 
+          auth, 
+          ref, 
+          onValue, 
+          set, 
+          push, 
+          serverTimestamp, 
+          onDisconnect, 
+          remove, 
+          signInAnonymously,
+          enabled: true
+        };
+        
+        console.log('🔥 Firebase: Successfully initialized');
+        
+      } catch (error) {
+        console.error('🔥 Firebase: Initialization failed:', error.message);
+        console.error('🔥 Firebase: Error details:', error);
+        window.firebase = { enabled: false, error: error.message };
+      }
+    } else {
+      console.log('🔥 Firebase: Disabled by feature flag');
+      window.firebase = { enabled: false, reason: 'Feature flag disabled' };
+    }
+  </script>
+
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+    /* Connection Status Styles */
+    .status-connected { background-color: #4ade80 !important; }
+    .status-connecting { background-color: #fbbf24 !important; }
+    .status-disconnected { background-color: #f87171 !important; }
+    .status-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    /* Spinner Animation */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e2e8f0;
+      border-top: 2px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200 transition-colors">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button
+    id="btnToggleMenu"
+    title="Toggle Menu"
+    aria-label="Toggle Menu"
+    class="fixed left-0 top-4 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-10 hover:bg-blue-700 transition"
+  >
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Layout หลัก: Sidebar - Main Content -->
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+       class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+              transform transition-transform duration-300 translate-x-0 z-20">
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-hidden">
+        <ul class="flex flex-col w-full space-y-1">
+
+          <li class="my-px">
+            <a href="branch_stock_overview"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                <i class="bi bi-grid text-xl"></i>
+              </span>
+              <span class="ml-3">สต๊อกคงเหลือ</span>
+            </a>
+          </li>
+
+
+          <!-- เมนู: ตรวจสินค้า/อนุมัติ -->
+          <li class="my-px">
+            <a href="inventory_dashboard"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+                <i class="bi bi-clipboard-check text-xl"></i>
+              </span>
+              <span class="ml-3">ตรวจสินค้า/อนุมัติ</span>
+            </a>
+          </li>
+
+          <!-- เมนู:PO -->
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+                <i class="bi bi-file-earmark-text text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+          <!-- เมนู: Quotation -->
+          <li class="my-px">
+            <a href="quotation_Stock"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+                <i class="bi bi-file-earmark-richtext text-xl"></i>
+              </span>
+              <span class="ml-3">สร้างใบเสนอราคา</span>
+            </a>
+          </li>
+          <!-- เมนู: Transfer -->
+          <li class="my-px">
+            <a href="Transfer"
+               class="flex flex-row items-center h-12 px-4 rounded-lg
+            text-gray-600 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-700 transition-all sidebar-link">
+              <span class="flex items-center justify-center text-lg text-primary-500 dark:text-primary-400">
+                <i class="bi bi-truck text-xl"></i>
+              </span>
+              <span class="ml-3">ย้ายสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="product_Image"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-yellow-500 dark:text-yellow-400">
+                <i class="bi bi-upc-scan text-xl"></i>
+              </span>
+              <span class="ml-3">ลงทะเบียนสินค้า</span>
+            </a>
+          </li>
+
+          <!-- เมนู: เพิ่มเติม -->
+          <li class="my-px">
+            <a href="StockAdditional"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-three-dots text-xl"></i>
+              </span>
+              <span class="ml-3">เพิ่มเติม</span>
+            </a>
+          </li>
+
+          
+          <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <!-- Dark Mode Toggle -->
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+                <i class="bi bi-moon-stars text-xl"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+                <i class="bi bi-box-arrow-right text-xl"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px mt-2">
+            <div id="profile"
+                 class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+              <div class="avatar mr-3">
+                <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+                  <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium" id="employeeName">Loading...</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ส่วนเนื้อหา (Main Content) -->
+    <div class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="p-4 bg-white dark:bg-gray-800 shadow flex justify-between items-center transition-colors">
+        <h1 class="text-xl font-bold" id="pageTitle">Dashboard สรุปสต๊อก</h1>
+        
+        <!-- Connection Status Indicator -->
+        <div class="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
+          <div id="firebaseStatus" class="w-2 h-2 rounded-full bg-gray-400"></div>
+          <span class="text-xs text-gray-600 dark:text-gray-300">FB</span>
+          <div id="socketStatus" class="w-2 h-2 rounded-full bg-gray-400"></div>
+          <span class="text-xs text-gray-600 dark:text-gray-300">IO</span>
+          <span id="connectionStatus" class="text-xs text-gray-600 dark:text-gray-300">เชื่อมต่อ...</span>
+        </div>
+      </header>
+
+      <!-- Main Content ของหน้า -->
+      <main id="mainContent"
+      class="flex-1 ml-56 p-6 space-y-6 transition-all duration-300 ease-in-out">
+        <!-- การ์ดสรุปยอด (3 ใบ) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn mb-6">
+          <!-- สินค้าคงคลัง -->
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center min-h-[80px] transition hover:shadow-lg">
+            <i class="bi bi-box-seam text-3xl text-blue-500"></i>
+            <div class="ml-3">
+              <p class="text-sm text-gray-500 dark:text-gray-400">สินค้าคงคลัง</p>
+              <p class="text-xl font-bold" id="inventoryCount">- ชิ้น</p>
+            </div>
+          </div>
+          <!-- สินค้านำเข้า-ส่งออก -->
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center min-h-[80px] transition hover:shadow-lg">
+            <i class="bi bi-arrow-left-right text-3xl text-green-500"></i>
+            <div class="ml-3">
+              <p class="text-sm text-gray-500 dark:text-gray-400">สินค้านำเข้า-ส่งออก</p>
+              <p class="text-xl font-bold" id="inOutCount">- รายการ</p>
+            </div>
+          </div>
+          <!-- Supplier -->
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center min-h-[80px] transition hover:shadow-lg">
+            <i class="bi bi-truck text-3xl text-orange-500"></i>
+            <div class="ml-3">
+              <p class="text-sm text-gray-500 dark:text-gray-400">Supplier</p>
+              <p class="text-xl font-bold" id="supplierCount">- ราย</p>
+            </div>
+          </div>
+        </div>
+
+<!-- เลือกช่วงเวลาและตัวเลือก -->
+<div class="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6 mb-6 animate-fadeIn">
+  <!-- หัวเรื่อง -->
+  <div class="flex items-center mb-4">
+    <i class="bi bi-calendar-range text-blue-500 text-2xl mr-2"></i>
+    <h5 class="text-2xl font-semibold dark:text-gray-100">เลือกช่วงเวลาอิสระ</h5>
+  </div>
+  <p id="selectedRange" class="mb-6 text-gray-600 dark:text-gray-400">ยังไม่เลือกช่วงวันที่</p>
+
+  <!-- สร้าง Grid 2 คอลัมน์: ฝั่งซ้าย=Calendar, ฝั่งขว=Filters -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- ปฏิทิน + ปุ่ม ยืนยัน/ล้าง -->
+    <div class="space-y-4">
+      <div id="calendarInline" class="w-full rounded-lg border border-gray-200 dark:border-gray-600 p-4 bg-white dark:bg-gray-800"></div>
+      <div class="flex justify-end items-center gap-3">
+        <button
+          id="btnClear"
+          class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600"
+        >ล้าง</button>
+        <button
+          id="btnApply"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600"
+        >ยืนยัน</button>
+      </div>
+    </div>
+
+    <!-- Filters Panel -->
+    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 space-y-4">
+      <div>
+        <label for="branchSelect" class="block text-sm font-medium dark:text-gray-100 mb-1">สาขา</label>
+        <select id="branchSelect" class="w-full p-2 rounded-md bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500">
+          <option value="all">-- รวมทุกสาขา --</option>
+        </select>
+      </div>
+      <div>
+        <label for="chartMode" class="block text-sm font-medium dark:text-gray-100 mb-1">รูปแบบ</label>
+        <select id="chartMode" class="w-full p-2 rounded-md bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500">
+          <option value="combine">รวมเข้า‑ออก</option>
+          <option value="inOnly">เฉพาะเข้า</option>
+          <option value="outOnly">เฉพาะออก</option>
+        </select>
+      </div>
+      <div>
+        <label for="GrupSelect" class="block text-sm font-medium dark:text-gray-100 mb-1">หมวดหมู่สินค้า</label>
+        <select id="GrupSelect" class="w-full p-2 rounded-md bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500">
+          <option value="all">-- หมวดหมู่ --</option>
+        </select>
+      </div>
+      <button
+        id="btnCustomSearch"
+        class="w-full mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <i class="bi bi-search mr-1"></i> ค้นหา
+      </button>
+    </div>
+  </div>
+
+  <!-- เก็บค่าวันที่จริง -->
+  <input type="hidden" id="startDate" />
+  <input type="hidden" id="endDate" />
+
+  <!-- Loading Message -->
+  <div id="loadingMessage" class="hidden flex items-center justify-center space-x-2 text-gray-500 dark:text-gray-300 mt-6">
+    <div class="spinner"></div>
+    <span>กำลังโหลดข้อมูล...</span>
+  </div>
+</div>
+
+
+          <!-- ส่วนแสดงกราฟ 3 แบบ (Bar, Line, Pie) -->
+          <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 animate-fadeIn mt-4">
+            <h5 class="text-lg font-medium flex items-center mb-2 dark:text-gray-100">
+              <i class="bi bi-bar-chart-fill mr-2"></i> กราฟสรุปสต๊อก (3 รูปแบบ)
+            </h5>
+            <!-- Grid สำหรับวาง 3 Canvas -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Bar Chart -->
+              <div class="min-h-[250px] flex flex-col">
+                <p class="text-sm font-semibold dark:text-gray-300 mb-1">Bar Chart</p>
+                <div class="flex-1">
+                  <canvas id="barCanvas" class="w-full h-full"></canvas>
+                </div>
+              </div>
+              <!-- Line Chart -->
+              <div class="min-h-[250px] flex flex-col">
+                <p class="text-sm font-semibold dark:text-gray-300 mb-1">Line Chart</p>
+                <div class="flex-1">
+                  <canvas id="lineCanvas" class="w-full h-full"></canvas>
+                </div>
+              </div>
+              <!-- Pie Chart -->
+              <div class="min-h-[250px] flex flex-col">
+                <p class="text-sm font-semibold dark:text-gray-300 mb-1">Pie Chart</p>
+                <div class="flex-1">
+                  <canvas id="pieCanvas" class="w-full h-full"></canvas>
+                </div>
+              </div>
+            </div>
+            <p id="noDataMessage" class="text-center text-gray-400 dark:text-gray-400 mt-3 hidden">
+              ไม่พบข้อมูลสต๊อกสำหรับช่วงเวลาที่เลือก
+            </p>
+          </div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ด้านล่างสุดก่อน </body> -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
+  <script>
+    // Flatpickr setup
+    const fp = flatpickr('#calendarInline', {
+      inline: true,
+      mode: 'range',
+      dateFormat: 'd/m/Y',
+      locale: { firstDayOfWeek: 1 },
+      onChange: (selectedDates, dateStr) => {
+        const [start, end] = selectedDates;
+        const text = dateStr || 'ยังไม่เลือกช่วงวันที่';
+        document.getElementById('selectedRange').textContent = text;
+        document.getElementById('startDate').value = start ? fp.formatDate(start, 'Y-m-d') : '';
+        document.getElementById('endDate').value   = end   ? fp.formatDate(end,   'Y-m-d') : '';
+      }
+    });
+
+    // ปุ่มล้าง
+    document.getElementById('btnClear').addEventListener('click', () => {
+      fp.clear();
+      document.getElementById('selectedRange').textContent = 'ยังไม่เลือกช่วงวันที่';
+    });
+
+    // ปุ่มยืนยัน (ถ้าต้องการให้คลิกแล้วกดค้นหาอัตโนมัติ)
+    document.getElementById('btnApply').addEventListener('click', () => {
+      // ใส่ logic เรียกค้น หรือ document.getElementById('btnCustomSearch').click();
+    });
+  </script>
+  <!-- Hidden input สำหรับยิงบาร์โค้ด (ถ้าต้องการใช้งาน) -->
+  <input type="text" id="barcodeInput" autofocus class="absolute top-0 left-0 w-px h-px opacity-0 border-0" />
+
+  <!-- JavaScript ส่วนหลัก -->
+  <script>
+    // 1) Dark Mode Toggle
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const darkModeEnabled = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', darkModeEnabled);
+      document.getElementById('darkModeLabel').textContent = darkModeEnabled ? 'Light Mode' : 'Dark Mode';
+    }
+    function loadDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+    // 2) โหลดข้อมูลโปรไฟล์พนักงาน
+async function loadEmployeeProfile() {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+
+    const res = await fetch('/api/users/me', {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+    });
+    const result = await res.json();
+    if (!res.ok || !result.success) {
+      throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');
+    }
+
+    const user = result.data;
+    // ชื่อ
+    document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+
+    // รูป
+    let photoUrl = user.photoUrl || '';
+    // ถ้าไม่มี slash หน้า ให้เติม
+    if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+      photoUrl = '/' + photoUrl;
+    }
+    document.getElementById('employeePhoto').src = photoUrl;
+  } catch (err) {
+    console.error('Load Employee Profile Error:', err);
+  }
+}
+
+    // 3) ฟังก์ชันสรุปการ์ด (สินค้า, ประวัติ, supplier)
+    function toggleLoading(show) {
+      const loadingEl = document.getElementById('loadingMessage');
+      if (!loadingEl) return;
+      loadingEl.classList.toggle('hidden', !show);
+    }
+    async function loadSummaryCards() {
+      try {
+        toggleLoading(true);
+        const token = localStorage.getItem('authToken') || '';
+        // โหลดจำนวน supplier
+        let supplierRes = await fetch('/api/supplier', {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        let supplierJson = await supplierRes.json();
+        if (!supplierRes.ok || !supplierJson.success) throw new Error(supplierJson.error || 'ไม่สามารถโหลด Supplier');
+        const supplierCount = supplierJson.data.length;
+        // โหลดสินค้าคงคลัง
+        let stockRes = await fetch('/api/branch-stock', {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        let stockJson = await stockRes.json();
+        if (!stockRes.ok || !stockJson.success) throw new Error(stockJson.error || 'ไม่สามารถโหลด branch-stock');
+        let inventoryCount = 0;
+        stockJson.data.forEach((st) => { inventoryCount += st.stock_value || 0; });
+        // โหลดประวัติสินค้านำเข้า-ส่งออก (ของเดือนปัจจุบัน)
+        let historyRes = await fetch('/api/branch-stock-history', {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        let historyJson = await historyRes.json();
+        if (!historyRes.ok || !historyJson.success) throw new Error(historyJson.error || 'ไม่สามารถโหลด branch-stock-history');
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+        const monthlyRecords = historyJson.data.filter(record => {
+          const recordDate = new Date(record.createdAt);
+          return recordDate.getFullYear() === currentYear && recordDate.getMonth() === currentMonth;
+        });
+        const inOutCount = monthlyRecords.length;
+        document.getElementById('supplierCount').textContent = supplierCount + ' ราย';
+        document.getElementById('inventoryCount').textContent = inventoryCount + ' ชิ้น';
+        document.getElementById('inOutCount').textContent = inOutCount + ' รายการ';
+        toggleLoading(false);
+      } catch (err) {
+        toggleLoading(false);
+        console.error('Error loadSummaryCards:', err);
+      }
+    }
+    // 4) โหลดรายชื่อสาขา (branch)
+    let allBranches = [];
+    async function loadBranches() {
+      const token = localStorage.getItem('authToken') || '';
+      try {
+        const res = await fetch('/api/branch', { headers: { Authorization: 'Bearer ' + token } });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'ไม่สามารถโหลดสาขา');
+        allBranches = data.data;
+        const sel = document.getElementById('branchSelect');
+        sel.innerHTML = '<option value="all">-- รวมทุกสาขา --</option>';
+        allBranches.forEach((b) => {
+          const opt = document.createElement('option');
+          opt.value = b._id;
+          opt.textContent = `[${b.code}] ${b.name}`;
+          sel.appendChild(opt);
+        });
+      } catch (err) {
+        alert('Error loadBranches: ' + err.message);
+      }
+    }
+    // 5) โหลดรายชื่อหมวดหมู่
+    let allGrup = [];
+    async function loadGrup() {
+      const token = localStorage.getItem('authToken') || '';
+      try {
+        const res = await fetch('/api/category-group', { headers: { Authorization: 'Bearer ' + token } });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'ไม่สามารถโหลดหมวดหมู่');
+        allGrup = data.data;
+        const sel = document.getElementById('GrupSelect');
+        sel.innerHTML = '<option value="all">-- หมวดหมู่ --</option>';
+        allGrup.forEach((b) => {
+          const opt = document.createElement('option');
+          opt.value = b._id;
+          opt.textContent = `[${b.code}] ${b.name}`;
+          sel.appendChild(opt);
+        });
+      } catch (err) {
+        alert('Error loadGrup: ' + err.message);
+      }
+    }
+    // 6) ฟังก์ชันดึงข้อมูล chart
+    async function fetchChartData(start, end, branchId, chartMode) {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('❌ ไม่พบ token กรุณาเข้าสู่ระบบใหม่');
+        window.location.href = '/login';
+        return null;
+      }
+      const url = `/api/branch-stock-history/stock-summary?start=${start}&end=${end}&branch_id=${branchId}&mode=${chartMode}`;
+      const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลสรุปสต๊อกได้');
+      return data.data;
+    }
+    // 7) แสดง Chart (Bar, Line, Pie)
+    let barChart, lineChart, pieChart;
+    function renderAllCharts(stockData) {
+      if (barChart) barChart.destroy();
+      if (lineChart) lineChart.destroy();
+      if (pieChart) pieChart.destroy();
+      // Bar Chart
+      const barCtx = document.getElementById('barCanvas').getContext('2d');
+      barChart = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: ['สต๊อกเข้า', 'สต๊อกออก'],
+          datasets: [{
+            label: 'จำนวนสินค้า',
+            data: [stockData.stock_in, stockData.stock_out],
+            backgroundColor: ['#4CAF50', '#F44336'],
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'Bar Chart' },
+          },
+        },
+      });
+      // Line Chart
+      const lineCtx = document.getElementById('lineCanvas').getContext('2d');
+      const gradient = lineCtx.createLinearGradient(0, 0, 0, 250);
+      gradient.addColorStop(0, 'rgba(76, 175, 80, 0.5)');
+      gradient.addColorStop(1, 'rgba(76, 175, 80, 0)');
+      lineChart = new Chart(lineCtx, {
+        type: 'line',
+        data: {
+          labels: ['สต๊อกเข้า', 'สต๊อกออก'],
+          datasets: [{
+            label: 'จำนวนสินค้า',
+            data: [stockData.stock_in, stockData.stock_out],
+            borderColor: '#4CAF50',
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 5,
+            pointBackgroundColor: '#4CAF50'
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'Line Chart' },
+          },
+        },
+      });
+      // Pie Chart
+      const pieCtx = document.getElementById('pieCanvas').getContext('2d');
+      pieChart = new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+          labels: ['สต๊อกเข้า', 'สต๊อกออก'],
+          datasets: [{
+            data: [stockData.stock_in, stockData.stock_out],
+            backgroundColor: ['#4CAF50', '#F44336'],
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'Pie Chart' },
+          },
+        },
+      });
+    }
+    // 8) Toggle Sidebar
+    function toggleMenu() {
+      const sidebar = document.querySelector('aside');
+      sidebar.classList.toggle('collapsed');
+      const icon = document.querySelector('#btnToggleMenu i');
+      if (sidebar.classList.contains('collapsed')) {
+        icon.classList.remove('bi-chevron-left');
+        icon.classList.add('bi-chevron-right');
+      } else {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-left');
+      }
+    }
+    // 9) updateChart() เรียก fetchChartData() + renderAllCharts()
+    async function updateChartOriginal() {
+      try {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        const branchId = document.getElementById('branchSelect').value;
+        const chartMode = document.getElementById('chartMode').value;
+        if (!start || !end) {
+          alert('กรุณาเลือกวันเริ่มต้นและวันสิ้นสุด');
+          return;
+        }
+        toggleLoading(true);
+        const noDataEl = document.getElementById('noDataMessage');
+        noDataEl.classList.add('hidden');
+        const data = await fetchChartData(start, end, branchId, chartMode);
+        toggleLoading(false);
+        if (!data) return;
+        if (data.stock_in + data.stock_out === 0) {
+          noDataEl.classList.remove('hidden');
+          if (barChart) barChart.destroy();
+          if (lineChart) lineChart.destroy();
+          if (pieChart) pieChart.destroy();
+          return;
+        }
+        renderAllCharts(data);
+      } catch (err) {
+        toggleLoading(false);
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // =============================================================================
+    // Show/Hide Loading with Lottie animation
+    let lottieAnimation = null;
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+    // Make showLoading function globally accessible
+    window.showLoading = showLoading;
+
+    // =============================================================================
+    // Firebase & Socket.IO Enhanced Integration
+    // =============================================================================
+    
+    // Firebase & Socket.IO status management
+    let firebaseConnected = false;
+    let socketConnected = false;
+    let currentUserId = null;
+    let sessionId = null;
+    
+    // Helper Functions
+    function updateFirebaseStatus(connected) {
+      firebaseConnected = connected;
+      const indicator = document.getElementById('firebaseStatus');
+      if (indicator) {
+        indicator.className = 'w-2 h-2 rounded-full ' +
+          (connected ? 'status-connected' : 'status-disconnected status-pulse');
+      }
+      updateConnectionStatus();
+    }
+    
+    function updateSocketStatus(connected) {
+      socketConnected = connected;
+      const indicator = document.getElementById('socketStatus');
+      if (indicator) {
+        indicator.className = 'w-2 h-2 rounded-full ' +
+          (connected ? 'status-connected' : 'status-disconnected status-pulse');
+      }
+      updateConnectionStatus();
+    }
+    
+    function updateConnectionStatus() {
+      const statusEl = document.getElementById('connectionStatus');
+      if (!statusEl) return;
+    
+      const firebaseEnabled = window.firebase && window.firebase.enabled !== false;
+    
+      if (firebaseConnected && socketConnected) {
+        statusEl.textContent = 'เชื่อมต่อแล้ว';
+        statusEl.className = 'text-xs text-green-600 dark:text-green-400';
+      } else if (firebaseConnected || socketConnected) {
+        if (!firebaseEnabled && socketConnected) {
+          statusEl.textContent = 'Socket.IO เท่านั้น';
+        } else {
+          statusEl.textContent = 'เชื่อมต่อบางส่วน';
+        }
+        statusEl.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+      } else {
+        if (!firebaseEnabled) {
+          statusEl.textContent = 'Firebase ปิดใช้งาน';
+          statusEl.className = 'text-xs text-gray-600 dark:text-gray-400';
+        } else {
+          statusEl.textContent = 'ขัดข้อง';
+          statusEl.className = 'text-xs text-red-600 dark:text-red-400';
+        }
+      }
+    }
+    
+    // Firebase Connection & Session Management
+    async function initializeFirebase() {
+      try {
+        if (!window.firebase) {
+          console.error('Firebase not loaded');
+          updateFirebaseStatus(false);
+          return;
+        }
+    
+        if (!window.firebase.enabled) {
+          console.log('🔥 Firebase: Disabled -', window.firebase.reason || window.firebase.error);
+          updateFirebaseStatus(false);
+          return;
+        }
+    
+        const { database, auth, ref, onValue, set, serverTimestamp, onDisconnect, signInAnonymously } = window.firebase;
+    
+        // Skip authentication - use database directly
+        console.log('🔥 Firebase: Skipping authentication, using database directly');
+    
+        // Get current user info
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          try {
+            const userRes = await fetch('/api/users/me', {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const userData = await userRes.json();
+            if (userData.success) {
+              currentUserId = userData.data._id || 'STOCK_' + Date.now();
+            }
+          } catch (err) {
+            console.log('Could not fetch user info, using fallback ID');
+            currentUserId = 'STOCK_' + Date.now();
+          }
+        } else {
+          currentUserId = 'STOCK_' + Date.now();
+        }
+    
+        sessionId = currentUserId + '_' + Date.now();
+    
+        // Connection status monitoring with error handling
+        try {
+          const connectedRef = ref(database, '.info/connected');
+          onValue(connectedRef, (snapshot) => {
+            const connected = snapshot.val();
+            updateFirebaseStatus(connected);
+    
+            if (connected) {
+              console.log('🔥 Firebase: Connected to database');
+    
+              // Test database write permission first
+              const testRef = ref(database, `test/connection_${Date.now()}`);
+              set(testRef, { timestamp: serverTimestamp() })
+                .then(() => {
+                  console.log('🔥 Firebase: Database write test successful');
+    
+                  // Set session with error handling
+                  try {
+                    const sessionRef = ref(database, `sessions/stock/${sessionId}`);
+                    set(sessionRef, {
+                      userId: currentUserId,
+                      page: 'Stock Management',
+                      timestamp: serverTimestamp(),
+                      userAgent: navigator.userAgent.substring(0, 100),
+                      status: 'active'
+                    }).catch(err => console.warn('Session set error:', err.message));
+    
+                    // Handle disconnect
+                    onDisconnect(sessionRef).set({
+                      userId: currentUserId,
+                      page: 'Stock Management',
+                      timestamp: serverTimestamp(),
+                      userAgent: navigator.userAgent.substring(0, 100),
+                      status: 'disconnected'
+                    }).catch(err => console.warn('Disconnect handler error:', err.message));
+                  } catch (sessionError) {
+                    console.warn('Session management error:', sessionError.message);
+                  }
+    
+                  // Set online status with error handling
+                  try {
+                    const onlineRef = ref(database, `onlineUsers/stock/${currentUserId}`);
+                    set(onlineRef, {
+                      name: document.getElementById('employeeName')?.textContent || 'Stock User',
+                      page: 'Stock Management',
+                      timestamp: serverTimestamp(),
+                      sessionId: sessionId
+                    }).catch(err => console.warn('Online status error:', err.message));
+    
+                    onDisconnect(onlineRef).remove().catch(err => console.warn('Online disconnect error:', err.message));
+                  } catch (onlineError) {
+                    console.warn('Online status management error:', onlineError.message);
+                  }
+    
+                  // Start heartbeat
+                  startFirebaseHeartbeat();
+    
+                  // Listen for stock activity updates with error handling
+                  try {
+                    const stockActivityRef = ref(database, 'activities/stock');
+                    onValue(stockActivityRef, (snapshot) => {
+                      const activities = snapshot.val();
+                      if (activities) {
+                        console.log('📦 Stock activity update:', activities);
+                        // Refresh data when activity detected (use original function to avoid tracking loop)
+                        if (typeof updateChartOriginal === 'function') {
+                          updateChartOriginal();
+                        }
+                        if (typeof loadSummaryCards === 'function') {
+                          loadSummaryCards();
+                        }
+                      }
+                    }, (error) => {
+                      console.warn('Activity listener error:', error.message);
+                    });
+                  } catch (activityError) {
+                    console.warn('Activity listener setup error:', activityError.message);
+                  }
+    
+                })
+                .catch(err => {
+                  console.warn('🔥 Firebase: Database write test failed:', err.message);
+                  console.warn('🔥 Firebase: Running in read-only mode');
+                });
+    
+            } else {
+              console.log('🔥 Firebase: Disconnected');
+            }
+          }, (error) => {
+            console.warn('Connection listener error:', error.message);
+            updateFirebaseStatus(false);
+          });
+        } catch (connectionError) {
+          console.warn('Connection setup error:', connectionError.message);
+          updateFirebaseStatus(false);
+        }
+    
+      } catch (error) {
+        console.error('Firebase initialization error:', error);
+        updateFirebaseStatus(false);
+      }
+    }
+    
+    // Firebase heartbeat system
+    function startFirebaseHeartbeat() {
+      const heartbeatInterval = setInterval(() => {
+        if (firebaseConnected && window.firebase && window.firebase.enabled) {
+          try {
+            const { database, ref, set, serverTimestamp } = window.firebase;
+            const heartbeatRef = ref(database, `heartbeat/stock/${currentUserId}`);
+            set(heartbeatRef, {
+              timestamp: serverTimestamp(),
+              page: 'Stock Management',
+              sessionId: sessionId,
+              status: 'active'
+            })
+            .then(() => console.log('💓 Heartbeat sent'))
+            .catch(err => {
+              console.warn('Heartbeat error:', err.message);
+              // Stop heartbeat if consistently failing
+              if (err.code === 'PERMISSION_DENIED') {
+                console.warn('Stopping heartbeat due to permission error');
+                clearInterval(heartbeatInterval);
+              }
+            });
+          } catch (error) {
+            console.warn('Heartbeat system error:', error.message);
+          }
+        }
+      }, 30000); // 30 seconds
+    
+      // Store interval ID for cleanup
+      window.stockHeartbeatInterval = heartbeatInterval;
+    }
+    
+    // Send stock activity to Firebase
+    function sendStockActivityToFirebase(activity) {
+      if (firebaseConnected && window.firebase && window.firebase.enabled) {
+        try {
+          const { database, ref, push, serverTimestamp } = window.firebase;
+          const activityRef = ref(database, 'activities/stock');
+    
+          // Create clean activity data
+          const cleanActivity = {
+            action: activity.action || 'unknown',
+            module: activity.module || 'stock_management',
+            details: activity.details || '',
+            userId: currentUserId,
+            sessionId: sessionId,
+            timestamp: serverTimestamp(),
+            page: 'Stock Management'
+          };
+    
+          // Only include data if it's simple and serializable
+          if (activity.data && typeof activity.data === 'object') {
+            try {
+              JSON.stringify(activity.data);
+              cleanActivity.data = activity.data;
+            } catch (serializeError) {
+              console.warn('Cannot serialize activity data, skipping...');
+            }
+          }
+    
+          push(activityRef, cleanActivity)
+            .then(() => console.log('📊 Activity logged to Firebase'))
+            .catch(err => console.warn('Firebase activity log error:', err.message));
+    
+        } catch (error) {
+          console.warn('Firebase activity error:', error.message);
+        }
+      } else {
+        console.log('📊 Activity tracked locally (Firebase not available)');
+      }
+    }
+    
+    // Enhanced Socket.IO with configuration
+    const socket = io({
+      timeout: 10000,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      forceNew: true,
+      transports: ['websocket', 'polling']
+    });
+    
+    // Socket.IO event listeners
+    socket.on('connect', () => {
+      console.log('🔌 Socket.IO: Connected');
+      updateSocketStatus(true);
+    
+      // Join stock management room
+      socket.emit('join_stock_room', {
+        userId: currentUserId,
+        sessionId: sessionId,
+        page: 'Stock Management'
+      });
+    
+      // Send connection activity
+      emitStockActivity({
+        action: 'connected',
+        module: 'stock_management',
+        details: 'User connected to stock dashboard'
+      });
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('🔌 Socket.IO: Disconnected -', reason);
+      updateSocketStatus(false);
+    });
+    
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('🔌 Socket.IO: Reconnected after', attemptNumber, 'attempts');
+      updateSocketStatus(true);
+    });
+    
+    socket.on('reconnect_error', (error) => {
+      console.error('🔌 Socket.IO: Reconnection error:', error);
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.error('🔌 Socket.IO: Connection error:', error);
+      updateSocketStatus(false);
+    });
+    
+         // Stock-specific Socket.IO events
+     socket.on('stockUpdate', (data) => {
+       console.log('📦 Real-time stock update:', data);
+    
+       // Send to Firebase
+       sendStockActivityToFirebase({
+         action: 'stock_update',
+         module: 'stock_management',
+         data: data,
+         details: 'Stock data updated'
+       });
+    
+       // Refresh charts and summaries (use original function to avoid tracking loop)
+       if (typeof updateChartOriginal === 'function') {
+         updateChartOriginal();
+       }
+       if (typeof loadSummaryCards === 'function') {
+         loadSummaryCards();
+       }
+     });
+    
+    socket.on('inventoryUpdate', (data) => {
+      console.log('📦 Inventory update:', data);
+      sendStockActivityToFirebase({
+        action: 'inventory_update',
+        module: 'stock_management',
+        data: data,
+        details: 'Inventory updated'
+      });
+    });
+    
+    socket.on('supplierUpdate', (data) => {
+      console.log('🚚 Supplier update:', data);
+      sendStockActivityToFirebase({
+        action: 'supplier_update',
+        module: 'stock_management',
+        data: data,
+        details: 'Supplier information updated'
+      });
+    });
+    
+    // Enhanced activity tracking with data sanitization
+    function emitStockActivity(activityData) {
+      try {
+        // Create clean activity data without circular references
+        const activity = {
+          action: activityData.action || 'unknown',
+          module: activityData.module || 'stock_management',
+          details: activityData.details || '',
+          userId: currentUserId,
+          sessionId: sessionId,
+          timestamp: new Date().toISOString(),
+          page: 'Stock Management',
+          userAgent: activityData.userAgent ? activityData.userAgent.substring(0, 100) : navigator.userAgent.substring(0, 100)
+        };
+    
+        // Only include data if it's a simple object
+        if (activityData.data && typeof activityData.data === 'object') {
+          try {
+            // Test if data can be serialized
+            JSON.stringify(activityData.data);
+            activity.data = activityData.data;
+          } catch (serializeError) {
+            console.warn('Cannot serialize activity data:', serializeError.message);
+            activity.data = { error: 'Data too complex to serialize' };
+          }
+        }
+    
+        // Send via Socket.IO with error handling
+        if (socket && socket.connected) {
+          socket.emit('stock_activity', activity);
+        }
+    
+        // Send to Firebase with error handling
+        sendStockActivityToFirebase(activity);
+    
+      } catch (error) {
+        console.warn('Error emitting stock activity:', error.message);
+      }
+    }
+    
+    // Track user interactions with throttling to prevent loops
+    let lastTrackTime = 0;
+    const trackThrottleMs = 1000; // 1 second throttle
+    
+    function trackStockInteraction(action, details) {
+      const now = Date.now();
+      if (now - lastTrackTime < trackThrottleMs && action === 'chart_update') {
+        return; // Skip if too frequent
+      }
+      lastTrackTime = now;
+    
+      emitStockActivity({
+        action: action,
+        module: 'stock_management',
+        details: details,
+        userAgent: navigator.userAgent
+      });
+    }
+    
+    // Enhanced updateChart with tracking
+    async function updateChart() {
+      trackStockInteraction('chart_update', 'Stock charts refreshed');
+      return await updateChartOriginal();
+    }
+    
+    // Monitor filter changes
+    document.addEventListener('change', (e) => {
+      if (e.target.id === 'branchSelect') {
+        trackStockInteraction('filter_change', `Branch filter changed to: ${e.target.value}`);
+      } else if (e.target.id === 'chartMode') {
+        trackStockInteraction('filter_change', `Chart mode changed to: ${e.target.value}`);
+      } else if (e.target.id === 'GrupSelect') {
+        trackStockInteraction('filter_change', `Category filter changed to: ${e.target.value}`);
+      }
+    });
+    
+    // Initialize on page load
+    function initializeEnhancedConnections() {
+      console.log('🚀 Initializing Enhanced Stock Management Connections...');
+    
+      // Set initial status
+      updateFirebaseStatus(false);
+      updateSocketStatus(false);
+    
+      // Check if Firebase is enabled
+      if (window.firebase && window.firebase.enabled === false) {
+        console.log('🔥 Firebase: Feature disabled, using Socket.IO only');
+        updateFirebaseStatus(false);
+      } else {
+        // Initialize Firebase after a short delay
+        setTimeout(initializeFirebase, 1000);
+      }
+    
+      // Track page load (will fallback to Socket.IO if Firebase fails)
+      setTimeout(() => {
+        trackStockInteraction('page_load', 'Stock Management dashboard loaded');
+      }, 2000);
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      // Clear heartbeat interval
+      if (window.stockHeartbeatInterval) {
+        clearInterval(window.stockHeartbeatInterval);
+      }
+
+      // Clean up Lottie animation
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    
+      // Send final activity
+      emitStockActivity({
+        action: 'page_unload',
+        module: 'stock_management',
+        details: 'User leaving stock management page'
+      });
+    
+      // Try to update Firebase status if possible
+      if (firebaseConnected && window.firebase && window.firebase.enabled) {
+        try {
+          const { database, ref, set, serverTimestamp } = window.firebase;
+          const sessionRef = ref(database, `sessions/stock/${sessionId}`);
+          set(sessionRef, {
+            userId: currentUserId,
+            page: 'Stock Management',
+            timestamp: serverTimestamp(),
+            status: 'disconnected'
+          }).catch(() => {}); // Silent fail on page unload
+        } catch (error) {
+          // Silent fail
+        }
+      }
+    });
+
+    // เมื่อหน้าโหลด
+    document.addEventListener('DOMContentLoaded', async () => {
+      showLoading(true);
+      loadDarkMode();
+      document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userId');
+        window.location.href = '/login';
+      });
+      document.getElementById('btnToggleMenu').addEventListener('click', toggleMenu);
+      // Initialize enhanced connections first
+      initializeEnhancedConnections();
+    
+      await loadEmployeeProfile();
+      await loadBranches();
+      await loadGrup();
+      loadSummaryCards();
+      // ตั้งค่าเริ่มต้นของช่วงวันที่ (ย้อนหลัง 7 วัน)
+      const today = new Date();
+      const weekAgo = new Date();
+      weekAgo.setDate(today.getDate() - 7);
+      const toIso = (d) => d.toISOString().split('T')[0];
+      document.getElementById('startDate').value = toIso(weekAgo);
+      document.getElementById('endDate').value = toIso(today);
+
+      // Set calendar display text (using vanilla JS instead of jQuery)
+      const calendarTextEl = document.getElementById('calendarText');
+      if (calendarTextEl) {
+        calendarTextEl.textContent = moment(weekAgo).format('DD/MM/YYYY') + ' - ' + moment(today).format('DD/MM/YYYY');
+      }
+      document.getElementById('btnCustomSearch').addEventListener('click', updateChart);
+      updateChart();
+
+      // Sidebar link highlighting
+    const sidebarLinks = document.querySelectorAll('aside a');
+    function highlightSidebar(link) {
+      sidebarLinks.forEach(l => {
+        l.style.backgroundColor = '';
+        l.style.color = '';
+        const ico = l.querySelector('i');
+        if (ico) ico.style.color = '';
+      });
+      const icon = link.querySelector('i');
+      if (icon) {
+        const c = getComputedStyle(icon).color;
+        link.style.backgroundColor = c;
+        link.style.color = '#fff';
+        icon.style.color = '#fff';
+      }
+    }
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        highlightSidebar(link);
+        // Track navigation
+        const linkText = link.textContent.trim();
+        const href = link.getAttribute('href');
+        trackStockInteraction('navigation', `Navigated to: ${linkText} (${href})`);
+      });
+    });
+    const page = window.location.pathname.split('/').pop();
+    sidebarLinks.forEach(link => {
+      if (link.getAttribute('href') === page) highlightSidebar(link);
+    });
+
+    setTimeout(() => showLoading(false), 800);
+    });
+
+  </script>
+</body>
+</html>

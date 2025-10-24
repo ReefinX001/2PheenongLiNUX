@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Income Management (Tailwind + DaisyUI + Socket.IO)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+    <!-- ตัวอย่าง Content-Security-Policy (ปรับตามเซิร์ฟเวอร์จริง) -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content=""
+        default-src 'self';'
+        script-src 
+          'self''
+          https://cdn.tailwindcss.com
+          https://cdn.jsdelivr.net
+          https://cdn.socket.io
+          'unsafe-inline';'
+        style-src 
+          'self''
+          'unsafe-inline';'
+        connect-src
+          'self''
+          https://cdn.socket.io
+          wss://cdn.socket.io;"
+      "
+    />
+
+    <!-- Tailwind CSS + DaisyUI -->
+    <link href="/css/tailwind.css" rel="stylesheet">
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+
+    <!-- Socket.IO (ไฟล์โลคัล) + Subresource Integrity (SRI) -->
+    <script
+      src="/socket.io.min.js"
+      integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+      crossorigin="anonymous"
+    ></script>
+
+    <style>
+      body {
+        font-family: 'Prompt', sans-serif;'
+      }
+      /* ตัวอย่างสไตล์ card ด้วย tailwind + daisyUI */
+      .card-custom {
+        @apply bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4;
+      }
+      /* ตาราง */
+      table {
+        @apply w-full border border-gray-300 dark:border-gray-600 text-sm;
+      }
+      th, td {
+        @apply border border-gray-300 dark:border-gray-600 px-3 py-2;
+      }
+      thead {
+        @apply bg-gray-100 dark:bg-gray-700;
+      }
+      tbody tr:hover {
+        @apply bg-gray-50 dark:bg-gray-800;
+      }
+    </style>
+  </head>
+
+  <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+    <!-- ตรวจสอบ Token ก่อนเข้าหน้า -->
+    <script>
+      (function checkToken() {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          alert('กรุณาเข้าสู่ระบบก่อน');'
+          window.location.href = '/login'; // เปลี่ยนเป็นหน้า login ของคุณ'
+        }
+      })();
+    </script>
+
+    <div class="max-w-4xl mx-auto p-4">
+      <h1 class="text-2xl font-bold mb-3 dark:text-gray-100">Income Management</h1>
+      <p class="text-gray-600 dark:text-gray-300 mb-4">
+        จัดการข้อมูลรายรับ (API: <code>/api/incomes</code>)
+      </p>
+
+      <!-- ฟอร์มเพิ่มรายรับ -->
+      <div class="card-custom">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <div>
+            <label for="incomeAmount" class="block text-sm font-medium mb-1">จำนวนเงิน</label>
+            <input
+              type="number"
+              class="input input-bordered w-full"
+              id="incomeAmount"
+            />
+          </div>
+          <div class="md:col-span-2">
+            <label for="incomeDesc" class="block text-sm font-medium mb-1">คำอธิบาย</label>
+            <input
+              type="text"
+              class="input input-bordered w-full"
+              id="incomeDesc"
+            />
+          </div>
+        </div>
+        <div class="mt-3 flex justify-end">
+          <button class="btn btn-success" id="btnSaveIncome">
+            <i class="bi bi-plus-circle mr-1"></i> บันทึก
+          </button>
+        </div>
+      </div>
+
+      <!-- ตารางแสดงรายการรายรับ -->
+      <div class="card-custom">
+        <table>
+          <thead>
+            <tr>
+              <th>วันที่สร้าง</th>
+              <th>จำนวนเงิน</th>
+              <th>คำอธิบาย</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="incomeTableBody">
+            <!-- จะเติมข้อมูลด้วย JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ปุ่ม Logout หรือส่วนอื่น ๆ ถ้าต้องการ -->
+    <div class="max-w-4xl mx-auto px-4">
+      <div class="flex justify-end">
+        <button
+          id="btnLogout"
+          class="btn btn-outline btn-error btn-sm"
+        >
+          <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+        </button>
+      </div>
+    </div>
+
+    <!-- Script ส่วนหลัก -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {'
+        loadIncomes();
+
+        // ปุ่มบันทึกรายรับใหม่
+        document.getElementById('btnSaveIncome').addEventListener('click', async () => {'
+          const amount = Number(document.getElementById('incomeAmount').value);
+          const description = document.getElementById('incomeDesc').value.trim();
+
+          if (!amount) {
+            alert('กรุณากรอกจำนวนเงิน');'
+            return;
+          }
+          try {
+            const res = await fetch('/api/incomes', {'
+              method: 'POST','
+              headers: { 'Content-Type': 'application/json' },'
+              body: JSON.stringify({ amount, description })
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+              throw new Error(json.error || 'Error create Income');'
+            }
+            alert('บันทึกรายรับสำเร็จ');'
+            document.getElementById('incomeAmount').value = '';'
+            document.getElementById('incomeDesc').value = '';'
+            loadIncomes(); // โหลดข้อมูลซ้ำ เพื่อรีเฟรชตาราง
+          } catch (err) {
+            alert('เกิดข้อผิดพลาด: ' + err.message);'
+          }
+        });
+
+        // ปุ่ม Logout
+        document.getElementById('btnLogout').addEventListener('click', () => {'
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userEmail');
+          window.location.href = '/login';'
+        });
+
+        // Socket.IO
+        const socket = io();
+        socket.on('connect', () => {'
+          console.log('Socket.IO connected (Income page).');'
+        });
+        socket.on('disconnect', () => {'
+          console.warn('Socket.IO disconnected (Income page).');'
+        });
+        socket.on('incomeUpdate', (payload) => {'
+          console.log('Realtime Income Update:', payload);
+          // ถ้าต้องการ reload หรืออัปเดตตาราง
+          loadIncomes();
+        });
+      });
+
+      // โหลดข้อมูลรายรับทั้งหมดจาก API
+      async function loadIncomes() {
+        try {
+          const res = await fetch('/api/incomes');
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Cannot load incomes');'
+          }
+          renderIncomes(json.data);
+        } catch (err) {
+          console.error(err);
+          alert('เกิดข้อผิดพลาดในการโหลดข้อมูลรายรับ');'
+        }
+      }
+
+      // แสดงข้อมูลลงในตาราง
+      function renderIncomes(data) {
+        const tbody = document.getElementById('incomeTableBody');
+        tbody.innerHTML = '';'
+        data.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${new Date(item.createdAt).toLocaleString('th-TH')}</td>'
+            <td>${item.amount.toLocaleString()}</td>
+            <td>${item.description || ''}</td>'
+            <td>
+              <!-- ตัวอย่างปุ่มลบ (หรือจะแก้ไขก็ได้) -->
+              <button class="btn btn-xs btn-error" onclick="deleteIncome('${item._id}')">'
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // ลบข้อมูลรายรับ (DELETE /api/incomes/:id)
+      async function deleteIncome(id) {
+        if (!confirm('ยืนยันลบรายการนี้?')) return;'
+        try {
+          const res = await fetch('/api/incomes/' + id, { method: 'DELETE' });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Delete fail');'
+          }
+          alert('ลบเรียบร้อย');'
+          loadIncomes(); // โหลดรายการใหม่
+        } catch (err) {
+          console.error(err);
+          alert('ลบไม่สำเร็จ');'
+        }
+      }
+    </script>
+  </body>
+</html>

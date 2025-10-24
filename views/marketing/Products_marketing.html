@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ผลิตภัณฑ์ - ระบบการตลาด</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- User Profile Manager -->
+  <script src="/views/marketing/js/user-profile.js"></script>
+  <!-- Sidebar Manager -->
+  <script src="/views/marketing/js/sidebar.js"></script>
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Animate.css for fade animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* Standard Marketing CSS */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .product-card {
+      background-color: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease-in-out;
+    }
+
+    .dark .product-card {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .product-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .product-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 10px;
+      background-color: #f9fafb;
+      border-radius: 8px;
+    }
+
+    .dark .stat-item {
+      background-color: #374151;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .dark .stat-value {
+      color: #f9fafb;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 5px;
+    }
+
+    .dark .stat-label {
+      color: #9ca3af;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 10px;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #374151;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background: #6b7280;
+    }
+  </style>
+
+  <script>
+    let lottieAnimation = null;
+  </script>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container">
+      <!-- Sidebar content will be loaded here -->
+    </div>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="marketing_dashboard" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-graph-up-arrow text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="campaigns" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-megaphone-fill text-xl text-orange-500 dark:text-orange-400"></i>
+              <span class="ml-3">แคมเปญ</span>
+            </a>
+          </li>
+          <li>
+            <a href="analytics" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-bar-chart-line text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">วิเคราะห์ข้อมูล</span>
+            </a>
+          </li>
+          <li>
+            <a href="content_management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-richtext text-xl text-teal-500 dark:text-teal-400"></i>
+              <span class="ml-3">จัดการเนื้อหา</span>
+            </a>
+          </li>
+          <li>
+            <a href="social_media" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-share-fill text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">สื่อสังคม</span>
+            </a>
+          </li>
+          <li>
+            <a href="customer_data" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-people text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>ข้อมูลลูกค้า</span>
+            </a>
+          </li>
+          <li>
+            <a href="budget_reports" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-bar-chart text-xl text-cyan-500 dark:text-cyan-400 mr-3"></i>
+              <span>งบประมาณและรายงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="Promotion" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gift text-xl text-red-500 dark:text-red-400 mr-3"></i>
+              <span>จัดการโปรโมชั่น</span>
+            </a>
+          </li>
+          <li>
+            <a href="Products_marketing" class="flex items-center px-4 h-12 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-box-seam text-xl text-brown-500 dark:text-brown-400 mr-3"></i>
+              <span>ผลิตภัณฑ์</span>
+            </a>
+          </li>
+          <li>
+            <a href="Customers_marketing" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-person-badge text-xl text-emerald-500 dark:text-emerald-400 mr-3"></i>
+              <span>ลูกค้า</span>
+            </a>
+          </li>
+          <li class="mt-4">
+            <a href="marketing_settings" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="bg-white shadow-sm border-b sticky top-0 z-40">
+        <div class="container mx-auto px-6 py-4">
+          <div class="flex justify-between items-center">
+            <div class="page-title">
+              <h1 class="text-2xl font-semibold">ผลิตภัณฑ์การตลาด</h1>
+              <p class="text-gray-500 dark:text-gray-400">จัดการและวิเคราะห์ผลิตภัณฑ์ในระบบการตลาด</p>
+            </div>
+            <div class="flex gap-3">
+              <button class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center">
+                <i class="bi bi-plus-circle mr-2"></i> เพิ่มผลิตภัณฑ์
+              </button>
+              <button class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md flex items-center">
+                <i class="bi bi-download mr-2"></i> ส่งออกข้อมูล
+              </button>
+              <button id="btnToggleDark" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md flex items-center">
+                <i id="themeIcon" class="bi bi-moon-stars-fill mr-2"></i>
+                <span id="darkModeLabel">Dark Mode</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <div class="flex-1 p-6 bg-gray-50 dark:bg-gray-900">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div class="product-card">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">ผลิตภัณฑ์ทั้งหมด</p>
+                <p class="text-2xl font-bold text-blue-600">1,247</p>
+              </div>
+              <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
+                <i class="bi bi-box-seam text-blue-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+          
+          <div class="product-card">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">ผลิตภัณฑ์ยอดนิยม</p>
+                <p class="text-2xl font-bold text-green-600">89</p>
+              </div>
+              <div class="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+                <i class="bi bi-star-fill text-green-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+          
+          <div class="product-card">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">สินค้าขายดี</p>
+                <p class="text-2xl font-bold text-purple-600">156</p>
+              </div>
+              <div class="bg-purple-100 dark:bg-purple-900 p-3 rounded-full">
+                <i class="bi bi-trophy-fill text-purple-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+          
+          <div class="product-card">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">รายได้รวม</p>
+                <p class="text-2xl font-bold text-orange-600">₿8.5M</p>
+              </div>
+              <div class="bg-orange-100 dark:bg-orange-900 p-3 rounded-full">
+                <i class="bi bi-currency-bitcoin text-orange-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="product-card mb-6">
+          <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex-1">
+              <input type="text" placeholder="ค้นหาผลิตภัณฑ์..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option>ทุกหมวดหมู่</option>
+              <option>โทรศัพท์มือถือ</option>
+              <option>อุปกรณ์เสริม</option>
+              <option>แพ็กเกจ</option>
+            </select>
+            <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option>ทุกสถานะ</option>
+              <option>กำลังขาย</option>
+              <option>หมดสต็อก</option>
+              <option>ยกเลิก</option>
+            </select>
+            <button class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
+              <i class="bi bi-search mr-2"></i>ค้นหา
+            </button>
+          </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <!-- Product Card 1 -->
+          <div class="product-card">
+            <img src="/uploads/products/iphone15.jpg" alt="iPhone 15 Pro" class="product-image" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjY2NjIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiM5OTkiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-semibold text-lg">iPhone 15 Pro Max</h3>
+              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">กำลังขาย</span>
+            </div>
+            <p class="text-gray-500 text-sm mb-3">สมาร์ทโฟนรุ่นใหม่ล่าสุด พร้อมฟีเจอร์ AI ขั้นสูง</p>
+            <div class="flex justify-between items-center mb-3">
+              <span class="text-xl font-bold text-blue-600">฿45,900</span>
+              <span class="text-sm text-gray-500">คงเหลือ: 25</span>
+            </div>
+            <div class="product-stats">
+              <div class="stat-item">
+                <div class="stat-value">1,245</div>
+                <div class="stat-label">ขายแล้ว</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">4.8</div>
+                <div class="stat-label">คะแนน</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">12%</div>
+                <div class="stat-label">กำไร</div>
+              </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm">
+                <i class="bi bi-eye mr-1"></i>ดูรายละเอียด
+              </button>
+              <button class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-3 rounded-lg">
+                <i class="bi bi-pencil"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Product Card 2 -->
+          <div class="product-card">
+            <img src="/uploads/products/samsung-s24.jpg" alt="Samsung Galaxy S24" class="product-image" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjY2NjIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiM5OTkiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-semibold text-lg">Samsung Galaxy S24 Ultra</h3>
+              <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">กำลังขาย</span>
+            </div>
+            <p class="text-gray-500 text-sm mb-3">สมาร์ทโฟนพรีเมียม พร้อม S Pen และกล้องความละเอียดสูง</p>
+            <div class="flex justify-between items-center mb-3">
+              <span class="text-xl font-bold text-blue-600">฿42,900</span>
+              <span class="text-sm text-gray-500">คงเหลือ: 18</span>
+            </div>
+            <div class="product-stats">
+              <div class="stat-item">
+                <div class="stat-value">987</div>
+                <div class="stat-label">ขายแล้ว</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">4.6</div>
+                <div class="stat-label">คะแนน</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">10%</div>
+                <div class="stat-label">กำไร</div>
+              </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm">
+                <i class="bi bi-eye mr-1"></i>ดูรายละเอียด
+              </button>
+              <button class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-3 rounded-lg">
+                <i class="bi bi-pencil"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- More product cards can be added here -->
+          <div class="product-card">
+            <img src="/uploads/products/package-deal.jpg" alt="Package Deal" class="product-image" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjY2NjIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiM5OTkiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-semibold text-lg">แพ็กเกจคุ้มค่า</h3>
+              <span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">โปรโมชั่น</span>
+            </div>
+            <p class="text-gray-500 text-sm mb-3">แพ็กเกจรวมโทรศัพท์ + เคส + ฟิล์ม + หูฟัง</p>
+            <div class="flex justify-between items-center mb-3">
+              <span class="text-xl font-bold text-blue-600">฿38,900</span>
+              <span class="text-sm text-gray-500">คงเหลือ: 42</span>
+            </div>
+            <div class="product-stats">
+              <div class="stat-item">
+                <div class="stat-value">756</div>
+                <div class="stat-label">ขายแล้ว</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">4.9</div>
+                <div class="stat-label">คะแนน</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">15%</div>
+                <div class="stat-label">กำไร</div>
+              </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm">
+                <i class="bi bi-eye mr-1"></i>ดูรายละเอียด
+              </button>
+              <button class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-3 rounded-lg">
+                <i class="bi bi-pencil"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Initialize sidebar toggle
+    function initToggleMenu() {
+      const btnToggleMenu = document.getElementById('btnToggleMenu');
+      const sidebar = document.getElementById('sidebar');
+    
+      btnToggleMenu.addEventListener('click', function() {
+        if (sidebar.classList.contains('w-64')) {
+          sidebar.classList.remove('w-64');
+          sidebar.classList.add('w-0');
+          this.innerHTML = '<i class="bi bi-chevron-right"></i>';
+        } else {
+          sidebar.classList.remove('w-0');
+          sidebar.classList.add('w-64');
+          this.innerHTML = '<i class="bi bi-chevron-left"></i>';
+        }
+      });
+    }
+
+    // Initialize dark mode toggle
+    function initDarkModeToggle() {
+      const btnToggleDark = document.getElementById('btnToggleDark');
+      const themeIcon = document.getElementById('themeIcon');
+      const darkModeLabel = document.getElementById('darkModeLabel');
+    
+      // Check saved theme preference
+      const isDarkMode = localStorage.getItem('theme') === 'dark';
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        themeIcon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
+        darkModeLabel.textContent = 'Light Mode';
+      }
+
+      btnToggleDark.addEventListener('click', function() {
+        const isDark = document.documentElement.classList.toggle('dark');
+    
+        if (isDark) {
+          themeIcon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
+          darkModeLabel.textContent = 'Light Mode';
+          localStorage.setItem('theme', 'dark');
+        } else {
+          themeIcon.classList.replace('bi-sun-fill', 'bi-moon-stars-fill');
+          darkModeLabel.textContent = 'Dark Mode';
+          localStorage.setItem('theme', 'light');
+        }
+      });
+    }
+
+    // Initialize when DOM is loaded
+    // Show/Hide Loading Function
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // No fallback spinner - just show empty container
+              document.getElementById('lottieContainer').innerHTML = '';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async function() {
+      // Load sidebar first
+      try {
+        const response = await fetch('/views/marketing/includes/sidebar.html');
+        const sidebarHtml = await response.text();
+        const sidebarContainer = document.getElementById('sidebar-container');
+        if (sidebarContainer) {
+          sidebarContainer.innerHTML = sidebarHtml;
+          // Initialize sidebar functionality
+          if (typeof initializeSidebar === 'function') {
+            initializeSidebar();
+          }
+        }
+      } catch (error) {
+        console.error('Error loading sidebar:', error);
+        // Fallback: show basic sidebar structure
+        const sidebarContainer = document.getElementById('sidebar-container');
+        if (sidebarContainer) {
+          sidebarContainer.innerHTML = '<aside class="w-64 bg-white dark:bg-gray-800 sticky top-0 h-screen"><div class="p-4">Sidebar Loading Error</div></aside>';
+        }
+      }
+    
+      initToggleMenu();
+      initDarkModeToggle();
+    });
+  </script>
+</body>
+</html>

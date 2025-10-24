@@ -1,0 +1,3167 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Management - สรุปกราฟสต๊อก</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Flatpickr CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  />
+
+  <!-- Socket.io (ไฟล์โลคัล หรือ CDN ก็ได้) -->
+  <script src="/socket.io.min.js"></script>
+
+  <!-- Firebase v9 SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getDatabase, ref, onValue, set, push, serverTimestamp, onDisconnect, get, update, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+    
+    // Firebase configuration - using correct project
+    const firebaseConfig = {
+      apiKey: "AIzaSyCv4EBbKN8Kr4IMRqszJGBWTSoMihtYLo0",
+      authDomain: "pheenongacc.firebaseapp.com",
+      databaseURL: "https://pheenongacc-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pheenongacc",
+      storageBucket: "pheenongacc.appspot.com",
+      messagingSenderId: "917944021415",
+      appId: "1:917944021415:web:8c8b3d42e52a1dc8c2f0b5",
+      measurementId: "G-94BG9ECQTZ"
+    };
+    
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    // Make database available globally
+    window.firebaseDatabase = database;
+    window.firebaseRef = ref;
+    window.firebaseOnValue = onValue;
+    window.firebaseSet = set;
+    window.firebasePush = push;
+    window.firebaseServerTimestamp = serverTimestamp;
+    window.firebaseOnDisconnect = onDisconnect;
+    window.firebaseGet = get;
+    window.firebaseUpdate = update;
+    window.firebaseRemove = remove;
+    
+    console.log('Firebase initialized successfully for Product Management');
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    
+    /* Enhanced Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes slideInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+    
+    @keyframes shimmer {
+      0% {
+        background-position: -200px 0;
+      }
+      100% {
+        background-position: calc(200px + 100%) 0;
+      }
+    }
+    
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+    
+    /* Enhanced Button Loading States */
+    .btn-loading .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+    
+    /* Loading Mini-Spinner for Buttons */
+    .mini-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffffff;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 0.5rem;
+    }
+    
+    .animate-fadeIn {
+      animation: fadeIn 0.6s ease-out;
+      will-change: opacity, transform;
+    }
+    
+    .animate-slideInLeft {
+      animation: slideInLeft 0.5s ease-out;
+    }
+    
+    .animate-pulse-hover:hover {
+      animation: pulse 0.6s ease-in-out infinite;
+    }
+    
+    /* Loading Skeleton */
+    .skeleton, .table-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200px 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    
+    .dark .skeleton, .dark .table-skeleton {
+      background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+      background-size: 200px 100%;
+    }
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+        /* Logo styling */
+    .Logo { max-width:100%; height:auto; }
+    
+    /* Stock type badges */
+    .stock-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .stock-badge-imei {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+    .dark .stock-badge-imei {
+      background-color: #1e3a8a;
+      color: #bfdbfe;
+    }
+    .stock-badge-quantity {
+      background-color: #dcfce7;
+      color: #166534;
+    }
+    .dark .stock-badge-quantity {
+      background-color: #14532d;
+      color: #bbf7d0;
+    }
+    
+    /* Enhanced Button styling */
+    .btn-toggle-items, .btn-delete-po, .btn-edit-item {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid transparent;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+    
+    .btn-toggle-items {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-toggle-items:hover {
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      box-shadow: 0 8px 12px -2px rgba(59, 130, 246, 0.4);
+      transform: translateY(-2px);
+    }
+    
+    .btn-delete-po {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-delete-po:hover {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      box-shadow: 0 8px 12px -2px rgba(239, 68, 68, 0.4);
+      transform: translateY(-2px);
+    }
+    
+    .btn-edit-item {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3);
+    }
+    
+    .btn-edit-item:hover {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      box-shadow: 0 8px 12px -2px rgba(245, 158, 11, 0.4);
+      transform: translateY(-2px);
+    }
+    
+    /* Toast Notification System */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+      max-width: 400px;
+    }
+    
+    .toast {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      margin-bottom: 0.75rem;
+      padding: 1rem;
+      transform: translateX(100%);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-left: 4px solid;
+      backdrop-filter: blur(8px);
+    }
+    
+    .toast.show {
+      transform: translateX(0);
+    }
+    
+    .toast.success {
+      border-left-color: #10b981;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(16, 185, 129, 0.02));
+    }
+    
+    .toast.error {
+      border-left-color: #ef4444;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.02));
+    }
+    
+    .toast.info {
+      border-left-color: #3b82f6;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(59, 130, 246, 0.02));
+    }
+    
+    .dark .toast {
+      background: rgba(31, 41, 55, 0.95);
+      color: #f9fafb;
+    }
+    
+    /* สไตล์สำหรับข้อมูลผู้แก้ไข */
+    .last-edited-info {
+      max-width: 120px;
+      word-wrap: break-word;
+    }
+    .last-edited-info .editor-name {
+      font-weight: 500;
+      color: #2563eb;
+    }
+    .last-edited-info .edit-date {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    .dark .last-edited-info .editor-name {
+      color: #60a5fa;
+    }
+    .dark .last-edited-info .edit-date {
+      color: #9ca3af;
+    }
+
+    /* Loading overlay */
+    [data-theme="dark"] .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: all;
+    }
+
+    .loading-overlay.loading-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-overlay.loading-hiding {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.95);
+    }
+
+    .loading-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      min-width: 200px;
+      max-width: 400px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dark .loading-content {
+      background: rgba(31, 41, 55, 0.95);
+      color: white;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 1s ease-in-out infinite;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-dots {
+      width: 40px;
+      height: 40px;
+      position: relative;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-dots::before,
+    .loading-dots::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3b82f6;
+      position: absolute;
+      animation: dot-flashing 1s infinite linear alternate;
+      animation-delay: 0.5s;
+    }
+
+    .loading-dots::before {
+      left: 8px;
+      animation-delay: 0s;
+    }
+
+    .loading-dots::after {
+      right: 8px;
+      animation-delay: 1s;
+    }
+
+    .loading-pulse {
+      width: 40px;
+      height: 40px;
+      background: #3b82f6;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      animation: pulse-animation 1.5s ease-in-out infinite;
+    }
+
+    .loading-message {
+      color: #374151;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .dark .loading-message {
+      color: #d1d5db;
+    }
+
+    .loading-progress {
+      width: 100%;
+      height: 4px;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .loading-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .loading-success {
+      border-left: 4px solid #10b981;
+    }
+
+    .loading-warning {
+      border-left: 4px solid #f59e0b;
+    }
+
+    .loading-error {
+      border-left: 4px solid #ef4444;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes dot-flashing {
+      0% {
+        background-color: #3b82f6;
+      }
+      50%, 100% {
+        background-color: rgba(59, 130, 246, 0.2);
+      }
+    }
+
+    @keyframes pulse-animation {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loading-spinner, .loading-dots, .loading-pulse {
+        animation: none;
+      }
+      .loading-overlay {
+        transition: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .loading-content {
+        margin: 1rem;
+        padding: 1.5rem;
+      }
+    }
+
+    /* Loading Overlay CSS (Updated from BOSS home) */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+  <!-- Loading JavaScript (Updated from BOSS home) -->
+  <script>
+    let lottieAnimation = null;
+    let loadingCount = 0; // Track loading state
+
+    // Show/Hide Loading Function with state management
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+
+      if (show) {
+        loadingCount++;
+        // Only show if first loading request
+        if (loadingCount === 1) {
+          loader.style.display = 'flex';
+          loader.classList.remove('animate__fadeOut');
+          loader.classList.add('animate__fadeIn');
+
+          // โหลดและเล่น Lottie animation
+          if (!lottieAnimation) {
+            console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+            fetch('/Loading/Loading.json')
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(animationData => {
+                lottieAnimation = lottie.loadAnimation({
+                  container: document.getElementById('lottieContainer'),
+                  renderer: 'svg',
+                  loop: true,
+                  autoplay: true,
+                  animationData: animationData
+                });
+
+                console.log('✅ Lottie animation loaded successfully');
+              })
+              .catch(error => {
+                console.error('❌ Error loading Lottie animation:', error);
+                // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+                document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+              });
+          } else {
+            lottieAnimation.play();
+          }
+        }
+      } else {
+        loadingCount--;
+        // Only hide when all loading requests are done
+        if (loadingCount <= 0) {
+          loadingCount = 0; // Reset to prevent negative
+          if (lottieAnimation) {
+            lottieAnimation.pause();
+          }
+          loader.classList.remove('animate__fadeIn');
+          loader.classList.add('animate__fadeOut');
+          setTimeout(() => { loader.style.display = 'none'; }, 600);
+        }
+      }
+    }
+
+    // Auto cleanup เมื่อออกจากหน้า
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+
+    // Safe loading functions for backward compatibility
+    function safeShowLoading(options = {}) {
+      console.log('safeShowLoading called but using main loading:', options);
+      return 'loading_' + Date.now(); // Return fake ID for compatibility
+    }
+
+    function safeHideLoading(id) {
+      console.log('safeHideLoading called but using main loading:', id);
+      return true;
+    }
+
+    function safeUpdateMessage(id, message, subMessage = null) {
+      console.log('safeUpdateMessage called:', message, subMessage);
+      return true; // Just log for compatibility
+    }
+
+    function safeUpdateProgress(id, percentage) {
+      console.log('safeUpdateProgress called:', percentage + '%');
+      return true; // Just log for compatibility
+    }
+  </script>
+
+  <script>
+    /**
+     * LoadingSystem - ระบบแสดงสถานะการโหลดมาตรฐาน
+     * Version: 2.0.0-inline
+     */
+    (function(window) {
+      'use strict';
+
+      // ตัวแปรสำหรับเก็บ loading instances
+      let activeLoaders = new Map();
+      let loaderCounter = 0;
+      let defaultContainer = null;
+
+      // สร้าง container หลักสำหรับ loading overlays
+      function createDefaultContainer() {
+        if (defaultContainer && document.body.contains(defaultContainer)) {
+          return defaultContainer;
+        }
+
+        defaultContainer = document.createElement('div');
+        defaultContainer.id = 'loading-system-container';
+        defaultContainer.className = 'loading-system-container';
+        document.body.appendChild(defaultContainer);
+        return defaultContainer;
+      }
+
+      // สร้าง unique ID สำหรับ loader
+      function generateLoaderId() {
+        return 'loader-' + (++loaderCounter) + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      }
+
+      // สร้าง loading overlay element
+      function createLoadingOverlay(options) {
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+    
+        const content = document.createElement('div');
+        content.className = 'loading-content';
+    
+        if (options.variant) {
+          content.classList.add(`loading-${options.variant}`);
+        }
+
+        // สร้าง spinner ตามประเภทที่เลือก
+        let spinnerHtml = '';
+        switch (options.spinnerType) {
+          case 'dots':
+            spinnerHtml = '<div class="loading-dots"></div>';
+            break;
+          case 'pulse':
+            spinnerHtml = '<div class="loading-pulse"></div>';
+            break;
+          default:
+            spinnerHtml = '<div class="loading-spinner"></div>';
+        }
+
+        content.innerHTML = `
+          ${spinnerHtml}
+          ${options.message ? `<div class="loading-message">${options.message}</div>` : ''}
+          ${options.showProgress ? '<div class="loading-progress"><div class="loading-progress-bar"></div></div>' : ''}
+        `;
+
+        overlay.appendChild(content);
+        return overlay;
+      }
+
+      // แสดง loading
+      function show(options = {}) {
+        const loaderId = generateLoaderId();
+        const container = createDefaultContainer();
+    
+        const defaultOptions = {
+          message: 'กำลังโหลด...',
+          spinnerType: 'default',
+          showProgress: false,
+          autoProgress: false,
+          variant: null,
+          timeout: null
+        };
+
+        const finalOptions = { ...defaultOptions, ...options };
+        const overlay = createLoadingOverlay(finalOptions);
+    
+        overlay.id = loaderId;
+        container.appendChild(overlay);
+
+        // แสดง overlay ด้วย animation
+        requestAnimationFrame(() => {
+          overlay.classList.add('loading-visible');
+        });
+
+        // Auto progress
+        if (finalOptions.autoProgress && finalOptions.showProgress) {
+          startAutoProgress(loaderId);
+        }
+
+        // Auto timeout
+        if (finalOptions.timeout) {
+          setTimeout(() => {
+            hide(loaderId);
+          }, finalOptions.timeout);
+        }
+
+        // เก็บข้อมูล loader
+        activeLoaders.set(loaderId, {
+          overlay: overlay,
+          options: finalOptions,
+          startTime: Date.now()
+        });
+
+        return loaderId;
+      }
+
+      // ซ่อน loading
+      function hide(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const overlay = loaderData.overlay;
+    
+        overlay.classList.add('loading-hiding');
+        overlay.classList.remove('loading-visible');
+
+        setTimeout(() => {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+          }
+          activeLoaders.delete(loaderId);
+
+          // ลบ container ถ้าไม่มี loader เหลือ
+          if (activeLoaders.size === 0 && defaultContainer && defaultContainer.parentNode) {
+            defaultContainer.parentNode.removeChild(defaultContainer);
+            defaultContainer = null;
+          }
+        }, 300);
+
+        return true;
+      }
+
+      // ซ่อน loading ทั้งหมด
+      function hideAll() {
+        const loaderIds = Array.from(activeLoaders.keys());
+        loaderIds.forEach(id => hide(id));
+      }
+
+      // อัปเดตข้อความ
+      function updateMessage(loaderId, message) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const messageEl = loaderData.overlay.querySelector('.loading-message');
+        if (messageEl) {
+          messageEl.textContent = message;
+          return true;
+        }
+        return false;
+      }
+
+      // อัปเดต progress
+      function updateProgress(loaderId, percentage) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const progressBar = loaderData.overlay.querySelector('.loading-progress-bar');
+        if (progressBar) {
+          progressBar.style.width = Math.min(100, Math.max(0, percentage)) + '%';
+          return true;
+        }
+        return false;
+      }
+
+      // เริ่ม auto progress
+      function startAutoProgress(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return;
+
+        let progress = 0;
+        const interval = setInterval(() => {
+          if (!activeLoaders.has(loaderId)) {
+            clearInterval(interval);
+            return;
+          }
+
+          progress += Math.random() * 15;
+          if (progress > 90) {
+            progress = 90;
+          }
+
+          updateProgress(loaderId, progress);
+
+          if (progress >= 90) {
+            clearInterval(interval);
+          }
+        }, 200);
+      }
+
+      // เสร็จสิ้น progress
+      function completeProgress(loaderId) {
+        updateProgress(loaderId, 100);
+        setTimeout(() => {
+          hide(loaderId);
+        }, 500);
+      }
+
+      // Export LoadingSystem to global scope
+      window.LoadingSystem = {
+        show,
+        hide,
+        updateProgress,
+        startAutoProgress,
+        completeProgress
+      };
+
+    })(window);
+  </script>
+
+  <!-- Activity Tracker & Branch Navigation -->
+  <script src="/js/activity-tracker.js"></script>
+  <script src="/js/branch-navigation.js"></script>
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+
+</head>
+
+<body class="flex flex-col min-h-screen bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+  <!-- Loading Overlay (Updated from BOSS home) -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeIn" style="display: flex;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center">
+        <!-- Fallback spinner while Lottie loads -->
+        <div class="loading-spinner" style="width: 3rem; height: 3rem; border: 0.25rem solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+  
+  <!-- Header -->
+  <header class="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between ml-56 transition-all duration-300"
+          id="mainHeader">
+    <div>
+      <h1 class="text-lg font-semibold" id="pageTitle">จัดการสินค้า</h1>
+      <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+        กำลังโหลดสาขา...
+      </p>
+    </div>
+  </header>
+  
+  <!-- Main Content Area -->
+  <main id="mainContent" class="flex-1 overflow-y-auto transition-all duration-300 ml-56">
+
+
+
+      <!-- ห่อทั้งหมดด้วย container กลางจอ -->
+      <div class="container mx-auto p-6 space-y-6">
+        <!-- Header บนสุด -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+          <div class="flex items-center space-x-4 mb-4 sm:mb-0">
+            <!-- โลโก้ ถ้ามี -->
+          </div>
+          <!-- ตัวอย่าง: ปุ่มอื่นๆ (ถ้าอยากมี) -->
+        </div>
+
+        <!-- Card: เลือกสาขา -->
+        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 shadow-xl rounded-2xl p-6 border border-gray-200 dark:border-gray-700 animate-fadeIn">
+          <h2 class="flex items-center text-xl font-semibold mb-5 text-gray-800 dark:text-gray-100">
+            <div class="flex items-center justify-center w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg mr-3">
+              <i class="bi bi-shop text-green-600 dark:text-green-400 text-xl"></i>
+            </div>
+            สาขาที่กำลังจัดการ
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+            <!-- สาขา -->
+            <div>
+              <label for="selectBranch" class="block text-sm font-medium mb-1 dark:text-gray-200">สาขา</label>
+              <select id="selectBranch"
+                      class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300 shadow-sm">
+                <option value="" disabled selected>-- เลือกสาขา --</option>
+                <!-- ดึงจาก loadBranches() -->
+              </select>
+            </div>
+            <!-- เลขที่ PO (ถ้าอยากมี) -->
+            <!-- 
+            <div>
+              <label for="inputPONumber" class="block text-sm font-medium mb-1 dark:text-gray-200">เลขที่ PO</label>
+              <input id="inputPONumber"
+                     type="text"
+                     placeholder="เช่น PO12345"
+                     class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300 shadow-sm"/>
+            </div>
+            -->
+            <!-- ปุ่ม โหลด -->
+            <div class="md:col-span-2 flex space-x-3" id="loadButtonContainer">
+              <button id="btnLoadPO"
+                      class="flex-1 inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 font-medium">
+                <i class="bi bi-search mr-2"></i> 
+                โหลดใบสั่งซื้อ
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ปุ่มลบ OUT-items (option) -->
+        <button id="btnCleanupOut" class="hidden">
+          <i class="bi bi-trash-fill mr-2"></i> ลบประวัติ OUT ที่ตรงกับ PO
+        </button>
+
+        <!-- Card: ตารางใบสั่งซื้อ -->
+        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-slideInLeft">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <h3 class="flex items-center text-lg font-semibold text-gray-800 dark:text-gray-100">
+              <div class="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg mr-3">
+                <i class="bi bi-card-checklist text-blue-600 dark:text-blue-400"></i>
+              </div>
+              รายการใบสั่งซื้อ
+              <button id="btnRefreshStatus" class="ml-4 inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5" title="รีเฟรชสถานะ">
+                <i class="bi bi-arrow-clockwise mr-1"></i>
+                รีเฟรช
+              </button>
+            </h3>
+            <!-- Enhanced Pagination Controls -->
+            <div class="flex justify-between items-center my-6 no-print">
+              <div class="text-sm text-gray-600 dark:text-gray-400">
+                <span id="pageInfo">แสดงข้อมูล</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <button id="prevBtn" 
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white transition-all duration-200" 
+                        disabled>
+                  <i class="bi bi-chevron-left mr-1"></i>
+                  ก่อนหน้า
+                </button>
+                <div class="flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+                  หน้า <span id="currentPageNum" class="mx-1 font-medium">1</span>
+                </div>
+                <button id="nextBtn" 
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white transition-all duration-200" 
+                        disabled>
+                  ถัดไป
+                  <i class="bi bi-chevron-right ml-1"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
+                <tr>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center space-x-1">
+                      <i class="bi bi-receipt text-blue-500"></i>
+                      <span>เลขที่ PO</span>
+                    </div>
+                  </th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center space-x-1">
+                      <i class="bi bi-building text-green-500"></i>
+                      <span>ซัพพลายเออร์</span>
+                    </div>
+                  </th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center space-x-1">
+                      <i class="bi bi-tags text-purple-500"></i>
+                      <span>กลุ่มจัดประเภท</span>
+                    </div>
+                  </th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center space-x-1">
+                      <i class="bi bi-chat-text text-orange-500"></i>
+                      <span>หมายเหตุ</span>
+                    </div>
+                  </th>
+                  <th class="px-4 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center justify-end space-x-1">
+                      <i class="bi bi-currency-dollar text-emerald-500"></i>
+                      <span>ยอดรวม</span>
+                    </div>
+                  </th>
+                  <th class="px-4 py-4 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center justify-center space-x-1">
+                      <i class="bi bi-gear text-gray-500"></i>
+                      <span>ดำเนินการ</span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="poTable" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <!-- JS เติมข้อมูล โดยแต่ละ <tr> มี class="hover:bg-gray-50 dark:hover:bg-gray-700 transition" -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Alert Modal -->
+  <input type="checkbox" id="alertModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+      <h3 class="font-bold text-lg">แจ้งเตือน</h3>
+      <p class="py-4" id="alertMessage">ข้อความแจ้งเตือนที่นี่</p>
+      <div class="modal-action">
+        <label for="alertModal" class="btn btn-primary bg-blue-600 dark:bg-orange-500 text-white hover:bg-blue-700 dark:hover:bg-orange-600" id="okAlertBtn">
+          ตกลง
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <input type="checkbox" id="confirmActionModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+      <h3 class="font-bold text-lg">ยืนยันการกระทำ</h3>
+      <p class="py-4" id="confirmActionText">ข้อความยืนยันที่นี่</p>
+      <div class="modal-action">
+        <label for="confirmActionModal" class="btn btn-secondary bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600" id="cancelActionBtn">
+          ยกเลิก
+        </label>
+        <label for="confirmActionModal" class="btn btn-primary bg-blue-600 dark:bg-orange-500 text-white hover:bg-blue-700 dark:hover:bg-orange-600" id="okActionBtn">
+          ตกลง
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Footer -->
+  <footer
+   class="bg-white dark:bg-gray-800 py-2 text-center text-sm text-gray-600 dark:text-gray-400 mt-auto">
+    © 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์.
+  </footer>
+
+  <!-- Hidden input สำหรับยิงบาร์โค้ด (ถ้าต้องการใช้งาน) -->
+  <input
+    type="text"
+    id="barcodeInput"
+    class="absolute top-0 left-0 w-px h-px opacity-0 border-0"
+  />
+
+  <!-- Modal แก้ไข Item (ปรับขนาด / สีใน Dark Mode) -->
+  <div
+    id="editItemModal"
+    class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden"
+  >
+    <div
+      class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto animate-fadeIn p-6 relative"
+    >
+      <form id="editItemForm">
+        <div class="flex justify-between items-center mb-4">
+          <h5 class="text-xl font-bold dark:text-gray-100">
+            แก้ไขข้อมูลสินค้าใน PO
+          </h5>
+          <!-- ปุ่มปิด modal -->
+          <button
+            type="button"
+            id="btnCloseEditItemModal"
+            class="text-gray-600 dark:text-gray-300 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <!-- Hidden fields -->
+        <input type="hidden" id="editPoId" />
+        <input type="hidden" id="editItemIndex" />
+        <input type="hidden" id="editProductId" />
+
+        <!-- Barcode -->
+        <div class="mb-4">
+          <label
+            for="editBarcode"
+            class="block text-sm font-medium mb-1 dark:text-gray-100"
+          >
+            Barcode
+          </label>
+          <input
+            type="text"
+            id="editBarcode"
+            class="w-full p-2 border rounded bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+          />
+        </div>
+
+
+
+        <!-- IMEI -->
+        <div class="mb-4" id="editImeiContainer">
+          <label
+            for="editImei"
+            class="block text-sm font-medium mb-1 dark:text-gray-100"
+          >
+            IMEI
+          </label>
+          <input
+            type="text"
+            id="editImei"
+            class="w-full p-2 border rounded bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+          />
+        </div>
+
+        <!-- Name -->
+        <div class="mb-4">
+          <label
+            for="editName"
+            class="block text-sm font-medium mb-1 dark:text-gray-100"
+          >
+            Name
+          </label>
+          <input
+            type="text"
+            id="editName"
+            required
+            class="w-full p-2 border rounded bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+          />
+        </div>
+
+        <!-- Invoice Number -->
+        <div class="mb-4">
+          <label
+            for="editInvoiceNumber"
+            class="block text-sm font-medium mb-1 dark:text-gray-100"
+          >
+            Invoice Number (เฉพาะ IN)
+          </label>
+          <input
+            type="text"
+            id="editInvoiceNumber"
+            class="w-full p-2 border rounded bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+          />
+        </div>
+
+        <!-- Brand -->
+        <div class="mb-4">
+          <label
+            for="editBrand"
+            class="block text-sm font-medium mb-1 dark:text-gray-100"
+          >
+            Brand
+          </label>
+          <input
+            type="text"
+            id="editBrand"
+            class="w-full p-2 border rounded bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+          />
+        </div>
+
+        <div class="flex justify-end space-x-4">
+          <button
+            type="button"
+            id="btnCancelEdit"
+            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+          >
+            <i class="bi bi-save"></i> บันทึก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <script>
+    // Function to show/hide loading overlay
+        // -------------------------------------------
+    // ตัวแปร Global และ Branch Code
+    // -------------------------------------------
+    // Get branch code from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    let BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch');
+    
+    if (!BRANCH_CODE) {
+      console.warn("Branch not found in URL or localStorage, defaulting to 'HQ'");
+      BRANCH_CODE = 'HQ';
+    }
+    
+    let branchStockList = [];
+    let outItems = [];
+    let allBranches = [];
+    let allPO = [];
+
+    // -------------------------------------------
+    // 1) Dark Mode
+    // -------------------------------------------
+    const darkModeLabel = document.getElementById('darkModeLabel');
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', isDark);
+      if (darkModeLabel) {
+        darkModeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      }
+    }
+    function loadDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.classList.toggle('dark', isDark);
+      if (darkModeLabel) {
+        darkModeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      }
+    }
+
+    // -------------------------------------------
+    // 2) โหลดข้อมูลโปรไฟล์พนักงาน จาก /api/users/me (จุดเดียว)
+    // -------------------------------------------
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        const res = await fetch('/api/users/me', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) throw new Error(body.error || 'Load profile failed');
+        const user = body.data;
+    
+        // อัพเดทชื่อ ถ้าเจอ element
+        const employeeName = document.getElementById('employeeName');
+        if (employeeName) {
+          employeeName.textContent = user.name || '(ไม่พบชื่อ)';
+        }
+    
+        // อัพเดทรูป ถ้าเจอ element
+        const employeePhoto = document.getElementById('employeePhoto');
+        if (employeePhoto) {
+          let url = user.photoUrl || '';
+    
+          // Handle photo URL with better fallback
+          if (url && !url.includes('avatar-default.png')) {
+            // แก้ไข path ให้ถูกต้อง
+            if (!url.startsWith('/') && !/^https?:\/\//.test(url)) {
+              url = '/' + url;
+            }
+    
+            employeePhoto.src = url;
+                          employeePhoto.onerror = function() {
+                // ถ้าโหลดรูปไม่ได้ให้ใช้ avatar placeholder ที่เรียบง่าย
+                this.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"%3E%3Ccircle cx="20" cy="20" r="20" fill="%23E5E7EB"/%3E%3Cpath d="M20 12c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4zm0 14c-4.42 0-8 1.79-8 4v2h16v-2c0-2.21-3.58-4-8-4z" fill="%236B7280"/%3E%3C/svg%3E';
+                this.alt = 'User Avatar';
+                this.className = 'w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600';
+                this.style.display = 'block';
+              };
+            employeePhoto.style.display = 'block';
+          } else {
+            // ใช้ SVG placeholder แทนการซ่อน
+            employeePhoto.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"%3E%3Ccircle cx="20" cy="20" r="20" fill="%23E5E7EB"/%3E%3Cpath d="M20 12c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4zm0 14c-4.42 0-8 1.79-8 4v2h16v-2c0-2.21-3.58-4-8-4z" fill="%236B7280"/%3E%3C/svg%3E';
+            employeePhoto.alt = 'Default Avatar';
+            employeePhoto.className = 'w-8 h-8 rounded-full';
+            employeePhoto.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error('Error loading profile:', err);
+      }
+    }
+
+    // -------------------------------------------
+    // 3) Logout
+    // -------------------------------------------
+    function logout() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userEmail');
+              window.location.href = '/login';
+    }
+    
+    // -------------------------------------------
+    // 3.1) Update Branch Info
+    // -------------------------------------------
+    async function updateBranchInfo() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+    
+        const res = await fetch('/api/branch', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+    
+        const js = await res.json();
+        if (res.ok && js.success) {
+          const branch = js.data.find(b => b.branch_code === BRANCH_CODE);
+          if (branch) {
+            document.getElementById('branchInfo').textContent =
+              `${branch.name} — ${branch.address}`;
+            document.getElementById('pageTitle').textContent =
+              `จัดการสินค้า - ${branch.name}`;
+            return;
+          }
+        }
+        throw new Error('ไม่พบข้อมูลสาขา');
+      } catch (err) {
+        console.error('updateBranchInfo error:', err);
+        document.getElementById('branchInfo').textContent = 'สาขา: (ไม่พบข้อมูล)';
+      }
+    }
+
+    // -------------------------------------------
+    // 4) Modal Toggle
+    // -------------------------------------------
+    function toggleModal(modalId, show) {
+      const modal = document.getElementById(modalId);
+      show ? modal.classList.remove('hidden') : modal.classList.add('hidden');
+    }
+
+    // -------------------------------------------
+    // 5) โหลดสาขา, โหลด PO
+    // -------------------------------------------
+    async function loadBranches() {
+      const token = localStorage.getItem('authToken') || '';
+      try {
+        const res = await fetch('/api/branch', {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถโหลดสาขา');
+        }
+        allBranches = data.data;
+        const sel = document.getElementById('selectBranch');
+        sel.innerHTML = '<option value="">-- เลือกสาขา --</option>';
+    
+        // หาสาขาที่ตรงกับ BRANCH_CODE จาก URL
+        const currentBranch = allBranches.find(b => b.branch_code === BRANCH_CODE);
+    
+        if (currentBranch) {
+          // ถ้าเจอสาขาที่ตรงกับ URL ให้แสดงเฉพาะสาขานั้น
+          const opt = document.createElement('option');
+          opt.value = currentBranch.branch_code;
+          opt.textContent = `[${currentBranch.branch_code}] ${currentBranch.name}`;
+          opt.selected = true;
+          sel.appendChild(opt);
+    
+          // Disable dropdown ไม่ให้เปลี่ยน
+          sel.disabled = true;
+          sel.classList.add('bg-gray-100', 'dark:bg-gray-700', 'cursor-not-allowed');
+    
+          // ซ่อนปุ่มโหลด เพราะจะโหลดอัตโนมัติ
+          const loadButtonContainer = document.getElementById('loadButtonContainer');
+          if (loadButtonContainer) {
+            loadButtonContainer.style.display = 'none';
+          }
+    
+          // แสดงข้อความกำลังโหลด
+          const poTable = document.getElementById('poTable');
+          if (poTable) {
+            poTable.innerHTML = '<tr><td colspan="6" class="text-center py-4">กำลังโหลดข้อมูล...</td></tr>';
+          }
+    
+          // โหลด PO และ Branch Stock ของสาขานี้อัตโนมัติ
+          setTimeout(async () => {
+            await loadOutItems(BRANCH_CODE);
+            branchStockList = await loadBranchStock(BRANCH_CODE);
+            await loadPurchaseOrders(BRANCH_CODE);
+          }, 100);
+        } else {
+          // ถ้าไม่เจอสาขา แสดงทั้งหมดตามปกติ
+          allBranches.forEach((b) => {
+            const opt = document.createElement('option');
+            opt.value = b.branch_code;
+            opt.textContent = `[${b.branch_code}] ${b.name}`;
+            sel.appendChild(opt);
+          });
+    
+          showToast('โหลดข้อมูลสาขาสำเร็จ', 'success');
+        }
+      } catch (err) {
+        showToast('ไม่สามารถโหลดข้อมูลสาขาได้: ' + err.message, 'error');
+      }
+    }
+
+    async function loadBranchStock(branchCode) {
+      const token = localStorage.getItem('authToken') || '';
+      try {
+        // เพิ่ม include_unverified=1 เพื่อดึงสินค้าทั้งหมด รวมสินค้าที่เพิ่มจาก addNewProduct_pattani.html
+        const res = await fetch(`/api/branch-stock?branch_code=${branchCode}&include_unverified=1`, {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        const json = await res.json();
+        console.log('Branch stock loaded for status check:', {
+          success: json.success,
+          dataLength: json.data ? json.data.length : 0,
+          branch: branchCode
+        });
+        return json.success ? json.data : [];
+      } catch (e) {
+        console.error('loadBranchStock error', e);
+        return [];
+      }
+    }
+
+    async function loadOutItems(branchCode) {
+      const token = localStorage.getItem('authToken') || '';
+      const res = await fetch(
+        `/api/branch-stock-history/out-items?branch_code=${branchCode}`,
+        { headers: { Authorization: 'Bearer ' + token } }
+      );
+      const json = await res.json();
+      if (json.success) outItems = json.data;
+    }
+
+    async function loadPurchaseOrders(branchCode) {
+      const token = localStorage.getItem('authToken') || '';
+      try {
+        const url = `/api/purchase-order?branch_code=${branchCode}`;
+        const res = await fetch(url, {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถโหลด PO');
+        }
+        // กรองเฉพาะ PO ที่มี status = approved และยังไม่ได้ตัดสต็อกหมด
+        const approvedPO = data.data.filter(
+          (po) => (po.status || '').toLowerCase() === 'approved' && !po.isStockDeducted
+        );
+        allPO = approvedPO;
+        currentPage = 0;
+        await renderPOTable(allPO, currentPage);
+    
+        // Auto sync categoryGroup จาก PO ทั้งหมด
+        if (approvedPO.length > 0) {
+          setTimeout(async () => {
+            console.log('🔄 Starting auto sync process...');
+            await autoSyncAllPOItems();
+          }, 1000); // รอ 1 วินาที แล้วค่อย sync เพื่อไม่ให้ UI lag
+        }
+    
+        // Show success message
+        if (approvedPO.length > 0) {
+          showToast(`โหลดใบสั่งซื้อสำเร็จ พบ ${approvedPO.length} รายการ`, 'success');
+        } else {
+          showToast('ไม่พบใบสั่งซื้อที่อนุมัติแล้วในระบบ', 'info');
+        }
+      } catch (err) {
+        showToast('ไม่สามารถโหลดใบสั่งซื้อได้: ' + err.message, 'error');
+      }
+    }
+
+    // -------------------------------------------
+    // 6) Toggle Sidebar
+    // -------------------------------------------
+    function toggleMenu() {
+      const sb   = document.getElementById('sidebar');
+      const mc   = document.getElementById('mainContent');
+      const icon = document.querySelector('#btnToggleMenu i');
+    
+      // ตรวจสอบว่าเจอ elements ที่ต้องการหรือไม่
+      if (!sb || !mc) {
+        console.warn('toggleMenu: sidebar or mainContent not found');
+        return;
+      }
+    
+      const isCollapsed = sb.classList.contains('-translate-x-full');
+
+      if (isCollapsed) {
+        sb.classList.remove('-translate-x-full');
+        mc.classList.remove('ml-0');
+        mc.classList.add('ml-56');
+        mc.style.width = 'calc(100% - 14rem)';
+        if (icon) icon.classList.replace('bi-chevron-right','bi-chevron-left');
+      } else {
+        sb.classList.add('-translate-x-full');
+        mc.classList.remove('ml-56');
+        mc.classList.add('ml-0');
+        mc.style.width = '100%';
+        if (icon) icon.classList.replace('bi-chevron-left','bi-chevron-right');
+      }
+    }
+
+    // -------------------------------------------
+    // Socket.IO สำหรับ Real-time Updates
+    // -------------------------------------------
+    let socket;
+    let firebaseSessionId = null;
+    let productManagementSocket = null;
+    
+    function initializeSocket() {
+      try {
+        // Check if io is available
+        if (typeof io === 'undefined') {
+          console.warn('Socket.IO not available, skipping real-time features');
+          return;
+        }
+    
+        socket = io({
+          timeout: 5000,
+          autoConnect: true,
+          reconnection: true,
+          reconnectionAttempts: 3,
+          reconnectionDelay: 1000
+        });
+    
+        // Make socket globally available
+        productManagementSocket = socket;
+        window.productManagementSocket = socket;
+    
+        socket.on('connect', () => {
+          console.log('Connected to socket server');
+          showToast('เชื่อมต่อ real-time สำเร็จ', 'success', 2000);
+    
+          // Join product management room
+          const branchCode = BRANCH_CODE || localStorage.getItem('activeBranch') || 'PATTANI';
+          socket.emit('join-room', {
+            room: `product-management-${branchCode}`,
+            userId: localStorage.getItem('userId'),
+            userName: localStorage.getItem('userName'),
+            userRole: localStorage.getItem('userRole')
+          });
+    
+          // Create Firebase session
+          createProductManagementSession();
+        });
+    
+        socket.on('disconnect', (reason) => {
+          console.log('Disconnected from socket server:', reason);
+          if (reason !== 'io client disconnect') {
+            showToast('การเชื่อมต่อ real-time ขาดหาย', 'info', 3000);
+          }
+        });
+    
+        socket.on('connect_error', (error) => {
+          console.warn('Socket connection error (will retry):', error.message);
+          // Don't show error toast for connection issues
+        });
+    
+        socket.on('reconnect', (attemptNumber) => {
+          console.log('Reconnected to socket server after', attemptNumber, 'attempts');
+          showToast('เชื่อมต่อ real-time สำเร็จอีกครั้ง', 'success', 2000);
+        });
+    
+        socket.on('reconnect_failed', () => {
+          console.warn('Failed to reconnect to socket server');
+          showToast('ไม่สามารถเชื่อมต่อ real-time ได้ ระบบจะทำงานแบบธรรมดา', 'info', 4000);
+        });
+    
+        // รับการอัพเดทจาก addNewProduct_pattani.html
+        socket.on('stockUpdate', async () => {
+          console.log('Received stock update notification');
+          await refreshBranchStockData();
+        });
+    
+        socket.on('branchStockUpdated', async () => {
+          console.log('Received branch stock update notification');
+          await refreshBranchStockData();
+        });
+    
+        socket.on('branchstockCreated', async () => {
+          console.log('Received branch stock created notification');
+          await refreshBranchStockData();
+        });
+    
+        socket.on('stockSentForApproval', async (data) => {
+          console.log('Received stock sent for approval notification', data);
+          await refreshBranchStockData();
+        });
+    
+        // เพิ่ม listener สำหรับการเปลี่ยนแปลงสถานะสินค้าจาก inventory_dashboard.html
+        socket.on('stockStatusChanged', async (data) => {
+          console.log('📨 Received stock status changed notification:', data);
+    
+          if (data.status === 'approved' || data.status === 'verified') {
+            showToast(`✅ สินค้าได้รับการอนุมัติแล้ว!`, 'success');
+          } else if (data.status === 'rejected') {
+            showToast(`❌ สินค้าถูกปฏิเสธ`, 'warning');
+          }
+    
+          // รีเฟรชข้อมูล Branch Stock และ PO Table
+          await refreshBranchStockData();
+    
+          // รีเรนเดอร์ตารางเพื่อแสดงสถานะใหม่
+          if (allPO && allPO.length > 0) {
+            await renderPOTable(allPO, currentPage);
+          }
+        });
+    
+        socket.on('stockApproved', async (data) => {
+          console.log('📨 Received stock approved notification:', data);
+          await refreshBranchStockData();
+    
+          // รีเรนเดอร์ตารางเพื่อแสดงสถานะใหม่
+          if (allPO && allPO.length > 0) {
+            await renderPOTable(allPO, currentPage);
+          }
+        });
+    
+        socket.on('stockVerified', async (data) => {
+          console.log('📨 Received stock verified notification:', data);
+          await refreshBranchStockData();
+    
+          // รีเรนเดอร์ตารางเพื่อแสดงสถานะใหม่
+          if (allPO && allPO.length > 0) {
+            await renderPOTable(allPO, currentPage);
+          }
+        });
+    
+        socket.on('stockRejected', async (data) => {
+          console.log('📨 Received stock rejected notification:', data);
+          await refreshBranchStockData();
+    
+          // รีเรนเดอร์ตารางเพื่อแสดงสถานะใหม่
+          if (allPO && allPO.length > 0) {
+            await renderPOTable(allPO, currentPage);
+          }
+        });
+    
+        // User activity events
+        socket.on('user-joined-product-management', (data) => {
+          console.log('User joined product management:', data);
+          updateOnlineUsers();
+        });
+    
+        socket.on('user-left-product-management', (data) => {
+          console.log('User left product management:', data);
+          updateOnlineUsers();
+        });
+    
+        // Product-specific events
+        socket.on('po-updated', async (data) => {
+          console.log('PO updated:', data);
+          showToast(`📝 ใบสั่งซื้อ ${data.poNumber} ถูกอัพเดท`, 'info');
+          await refreshBranchStockData();
+        });
+    
+        socket.on('po-deleted', async (data) => {
+          console.log('PO deleted:', data);
+          showToast(`🗑️ ใบสั่งซื้อ ${data.poNumber} ถูกลบ`, 'warning');
+          await refreshBranchStockData();
+        });
+    
+        socket.on('item-edited', async (data) => {
+          console.log('Item edited:', data);
+          showToast(`✏️ ${data.userName} แก้ไขข้อมูลสินค้า ${data.itemName}`, 'info');
+          await refreshBranchStockData();
+        });
+    
+      } catch (err) {
+        console.error('Socket initialization error:', err);
+        showToast('ไม่สามารถเริ่มต้น real-time ได้ ระบบจะทำงานแบบธรรมดา', 'info', 3000);
+      }
+    }
+    
+    // ฟังก์ชันรีเฟรช Branch Stock Data
+    async function refreshBranchStockData() {
+      const branchCode = document.getElementById('selectBranch').value;
+      if (branchCode) {
+        console.log('Refreshing branch stock data for:', branchCode);
+        branchStockList = await loadBranchStock(branchCode);
+        // รีเรนเดอร์ตารางเพื่อแสดงสถานะใหม่
+        await renderPOTable(allPO, currentPage);
+      }
+    }
+
+    // -------------------------------------------
+    // ตัวแปรสำหรับเก็บข้อมูล Branch Stock
+    // -------------------------------------------
+
+    // -------------------------------------------
+    // 7) DOM Loaded
+    // -------------------------------------------
+    let currentPage = 0;
+    const pageSize = 5;
+
+    // ==================== LOADINGSYSTEM WRAPPER FUNCTIONS ====================
+    
+    // LoadingSystem wrapper functions ถูกลบออกแล้ว - ใช้ showLoading จาก BOSS home แทน
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Loading แสดงอยู่แล้วจาก default style
+      try {
+      // รีสโตร์สถานะ sidebarCollapsed จาก localStorage
+      if (localStorage.getItem('sidebarCollapsed') === 'true') {
+        const sb   = document.getElementById('sidebar');
+        const mc   = document.getElementById('mainContent');
+        const icon = document.querySelector('#btnToggleMenu i');
+        if (sb && mc && icon) {
+          sb.classList.add('-translate-x-full');
+          mc.classList.remove('ml-56');
+          mc.classList.add('ml-0');
+          mc.style.width = '100%';
+          icon.classList.replace('bi-chevron-left','bi-chevron-right');
+        }
+      }
+
+      // โหลด Dark Mode และผูกปุ่ม
+      loadDarkMode();
+    
+      // ผูกปุ่ม dark mode ถ้ามี
+      const btnToggleDark = document.getElementById('btnToggleDark');
+      if (btnToggleDark) {
+        btnToggleDark.addEventListener('click', toggleDarkMode);
+      }
+    
+      // ผูกปุ่ม logout ถ้ามี
+      const btnLogout = document.getElementById('btnLogout');
+      if (btnLogout) {
+        btnLogout.addEventListener('click', logout);
+      }
+    
+      // ผูกปุ่ม toggle menu ถ้ามี
+      const btnToggleMenu = document.getElementById('btnToggleMenu');
+      if (btnToggleMenu) {
+        btnToggleMenu.addEventListener('click', () => {
+          toggleMenu();
+          const sidebar = document.getElementById('sidebar');
+          if (sidebar) {
+            localStorage.setItem(
+              'sidebarCollapsed',
+              sidebar.classList.contains('-translate-x-full')
+            );
+          }
+        });
+      }
+
+      // กรณีต้องลบ out-items
+      document.getElementById('btnCleanupOut').addEventListener('click', async () => {
+        const bc = document.getElementById('selectBranch').value;
+        if (!bc) return customAlert('กรุณาเลือกสาขาก่อน');
+        await loadOutItems(bc);
+        branchStockList = await loadBranchStock(bc);
+        await loadPurchaseOrders(bc);
+      });
+    
+      // Event: เปลี่ยนสาขา
+      document.getElementById('selectBranch').addEventListener('change', async (e) => {
+        const branchCode = e.target.value;
+        if (branchCode) {
+          console.log('Branch changed to:', branchCode);
+          // โหลดทั้ง PO และ Branch Stock
+          await loadOutItems(branchCode);
+          branchStockList = await loadBranchStock(branchCode);
+          await loadPurchaseOrders(branchCode);
+        }
+      });
+
+      // ปุ่มโหลดใบสั่งซื้อ
+      document.getElementById('btnLoadPO').addEventListener('click', async () => {
+        const bc = document.getElementById('selectBranch').value;
+        if (!bc) return showToast('กรุณาเลือกสาขาก่อน', 'error');
+    
+        const btn = document.getElementById('btnLoadPO');
+        const originalText = btn.innerHTML;
+    
+        // Show enhanced loading state
+        showLoading(true);
+    
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise animate-spin mr-2"></i>กำลังโหลด...';
+    
+        try {
+          safeUpdateMessage(loaderId, 'กำลังโหลดประวัติการส่งออก...');
+          await loadOutItems(bc);
+    
+          safeUpdateMessage(loaderId, 'กำลังโหลดข้อมูล Branch Stock...');
+          branchStockList = await loadBranchStock(bc);
+    
+          safeUpdateMessage(loaderId, 'กำลังโหลดใบสั่งซื้อ...');
+          await loadPurchaseOrders(bc);
+    
+          safeUpdateProgress(loaderId, 100);
+        } catch (error) {
+          showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'error');
+        } finally {
+          // Restore button state
+          btn.disabled = false;
+          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+          btn.innerHTML = originalText;
+          showLoading(false);
+        }
+      });
+
+      // ผูก prev/next
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      prevBtn.addEventListener('click', async () => {
+        if (currentPage > 0) {
+          currentPage--;
+          await renderPOTable(allPO, currentPage);
+        }
+      });
+      nextBtn.addEventListener('click', async () => {
+        if ((currentPage + 1) * pageSize < allPO.length) {
+          currentPage++;
+          await renderPOTable(allPO, currentPage);
+        }
+      });
+
+      // ผูกคลิกในตาราง (Event Delegation)
+      document.getElementById('poTable').addEventListener('click', async e => {
+        if (e.target.closest('.btn-toggle-items')) {
+          toggleItems(e.target.closest('button').dataset.poId);
+        }
+        else if (e.target.closest('.btn-delete-po')) {
+          deletePO(e.target.closest('button').dataset.poId);
+        }
+        else if (e.target.closest('.btn-edit-item')) {
+          await openEditItemModal(
+            e.target.closest('button').dataset.poId,
+            +e.target.closest('button').dataset.index
+          );
+        }
+      });
+
+      // ผูกฟอร์มแก้ไขสินค้า
+      document.getElementById('editItemForm').addEventListener('submit', onEditItemSubmit);
+    
+      // NEW: Sync Barcode and IMEI fields in the edit modal
+      const editBarcode = document.getElementById('editBarcode');
+      const editImei = document.getElementById('editImei');
+      const imeiContainer = document.getElementById('editImeiContainer');
+
+      if (editBarcode && editImei && imeiContainer) {
+        editBarcode.addEventListener('input', (e) => {
+          // Sync only if the IMEI field is for IMEI-type products (visible)
+          if (imeiContainer.style.display !== 'none') {
+            editImei.value = e.target.value;
+          }
+        });
+
+        editImei.addEventListener('input', (e) => {
+          // Sync only if the IMEI field is for IMEI-type products (visible)
+          if (imeiContainer.style.display !== 'none') {
+            editBarcode.value = e.target.value;
+          }
+        });
+      }
+    
+      // ผูกปุ่มรีเฟรชสถานะ
+      document.getElementById('btnRefreshStatus').addEventListener('click', async () => {
+        const btn = document.getElementById('btnRefreshStatus');
+        const originalText = btn.innerHTML;
+    
+        const loaderId = safeShowLoading({
+          message: 'กำลังรีเฟรชข้อมูล...',
+          showProgress: true,
+          autoProgress: true,
+          spinnerType: 'pulse'
+        });
+    
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise animate-spin mr-1"></i> กำลังรีเฟรช...';
+        btn.disabled = true;
+    
+        try {
+          await refreshBranchStockData();
+    
+          // แสดงข้อความสำเร็จ
+          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+          btn.innerHTML = '<i class="bi bi-check mr-1"></i> รีเฟรชแล้ว';
+          showToast('รีเฟรชข้อมูลสำเร็จ', 'success', 2000);
+    
+          setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+          }, 2000);
+    
+        } catch (err) {
+          console.error('Refresh error:', err);
+          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+          btn.innerHTML = '<i class="bi bi-x mr-1"></i> เกิดข้อผิดพลาด';
+          showToast('เกิดข้อผิดพลาดในการรีเฟรช: ' + err.message, 'error');
+    
+          setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+          }, 2000);
+        } finally {
+          safeHideLoading(loaderId);
+        }
+      });
+
+      // โหลดข้อมูลพนักงาน + สาขา
+      await loadEmployeeProfile();
+      await loadBranches();
+      await updateBranchInfo();
+    
+      // เริ่มต้น Socket.IO
+      initializeSocket();
+    
+      // เริ่มต้น Firebase connections
+      setTimeout(() => {
+        initializeFirebaseConnections();
+      }, 500);
+    
+      // Welcome message with better timing
+      setTimeout(() => {
+        if (BRANCH_CODE && BRANCH_CODE !== 'HQ') {
+          showToast(`ยินดีต้อนรับสู่ระบบจัดการสินค้า สาขา ${BRANCH_CODE}! 🎉`, 'success', 4000);
+        } else {
+          showToast('ยินดีต้อนรับสู่ระบบจัดการสินค้า! 🎉', 'success', 3000);
+        }
+      }, 1500);
+
+      // Sidebar link highlighting (ถ้าเจอ sidebar)
+      const sidebarLinks = document.querySelectorAll('aside a');
+      if (sidebarLinks.length > 0) {
+        function highlightSidebar(link) {
+          sidebarLinks.forEach(l => {
+            l.style.backgroundColor = '';
+            l.style.color = '';
+            const ico = l.querySelector('i');
+            if (ico) ico.style.color = '';
+          });
+          const icon = link.querySelector('i');
+          if (icon) {
+            const c = getComputedStyle(icon).color;
+            link.style.backgroundColor = c;
+            link.style.color = '#fff';
+            icon.style.color = '#fff';
+          }
+        }
+        sidebarLinks.forEach(link => {
+          link.addEventListener('click', () => highlightSidebar(link));
+        });
+        const page = window.location.pathname.split('/').pop();
+        sidebarLinks.forEach(link => {
+          if (link.getAttribute('href') === page) highlightSidebar(link);
+        });
+      }
+    
+      } catch (err) {
+        console.error('DOMContentLoaded error:', err);
+        showToast('เกิดข้อผิดพลาดในการโหลดหน้าเว็บ', 'error');
+      } finally {
+        setTimeout(() => { showLoading(false); }, 600);
+      }
+    });
+
+    // Enhanced render ตาราง with loading states
+    async function renderPOTable(poList, page = 0) {
+      const tbody = document.getElementById('poTable');
+
+      // Show loading skeleton for immediate feedback
+      showLoadingSkeleton(tbody);
+    
+      try {
+        tbody.innerHTML = '';
+
+      const start = page * pageSize;
+      const end = start + pageSize;
+      const pageItems = poList.slice(start, end);
+
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `
+          <tr class="animate-fadeIn">
+            <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+              <div class="flex flex-col items-center justify-center space-y-2">
+                <i class="bi bi-inbox text-4xl"></i>
+                <p class="text-lg font-medium">ไม่พบใบสั่งซื้อ</p>
+                <p class="text-sm">ไม่มีใบสั่งซื้อที่ตรงกับเงื่อนไข</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      for (const po of pageItems) {
+        // กรองเฉพาะ item ที่ยังไม่ถูก out
+        const filteredItems = (po.items || []).filter(it =>
+          !outItems.some(o =>
+            o.poNumber === po.poNumber &&
+
+            o.imei     === it.imei
+          )
+        );
+        if (!filteredItems.length) return; // ถ้าไม่เหลือก็งดแสดง
+
+        po.items = filteredItems;
+        // สร้างแถว PO หลัก with enhanced styling
+        const tr = document.createElement('tr');
+        tr.className = 'animate-fadeIn hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200';
+        tr.innerHTML = `
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center space-x-2">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <i class="bi bi-receipt mr-1"></i>
+                ${po.poNumber}
+              </span>
+            </div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">${po.supplier?.name || '-'}</div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+              ${po.categoryGroup?.name || '-'}
+            </span>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title="${po.notes || ''}">
+              ${po.notes || 'ไม่มีหมายเหตุ'}
+            </div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 text-right">
+            <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              ฿${formatNumber(po.totalAmount || 0)}
+            </div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 text-center">
+            <div class="flex items-center justify-center space-x-2">
+              <button class="btn-toggle-items animate-pulse-hover" data-po-id="${po._id}" title="ดูรายละเอียดสินค้า">
+                <i class="bi bi-eye mr-1"></i>
+                ดู
+              </button>
+              <button class="btn-delete-po animate-pulse-hover" data-po-id="${po._id}" title="ลบใบสั่งซื้อ">
+                <i class="bi bi-trash mr-1"></i>
+                ลบ
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+
+        // แถวย่อย (รายละเอียดสินค้า) ซ่อน/โชว์
+        const itemTr = document.createElement('tr');
+        itemTr.className = 'item-row hidden';
+        itemTr.dataset.poId = po._id;
+        const td = document.createElement('td');
+        td.colSpan = 6; // ยังคงเป็น 6 เพราะตารางหลักมี 6 คอลัมน์
+        td.innerHTML = await createItemTableHTML(po);
+        itemTr.appendChild(td);
+        tbody.appendChild(itemTr);
+      }
+
+      // อัพเดตสถานะปุ่ม prev/next with enhanced styling
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const pageInfo = document.getElementById('pageInfo');
+      const currentPageNum = document.getElementById('currentPageNum');
+    
+      prevBtn.disabled = (page <= 0);
+      nextBtn.disabled = (end >= poList.length);
+    
+      // Update page information
+      const totalPages = Math.ceil(poList.length / pageSize);
+      const currentDisplayPage = page + 1;
+      const startItem = start + 1;
+      const endItem = Math.min(end, poList.length);
+    
+      if (pageInfo) {
+        pageInfo.textContent = `แสดงข้อมูล ${startItem}-${endItem} จาก ${poList.length} รายการ`;
+      }
+    
+      if (currentPageNum) {
+        currentPageNum.textContent = `${currentDisplayPage} จาก ${totalPages}`;
+      }
+    
+      // Add visual feedback for disabled state
+      if (prevBtn.disabled) {
+        prevBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        prevBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    
+      if (nextBtn.disabled) {
+        nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    
+      } catch (error) {
+        console.error('Error rendering PO table:', error);
+        tbody.innerHTML = `
+          <tr class="animate-fadeIn">
+            <td colspan="6" class="px-4 py-8 text-center text-red-500 dark:text-red-400">
+              <div class="flex flex-col items-center justify-center space-y-2">
+                <i class="bi bi-exclamation-triangle text-4xl"></i>
+                <p class="text-lg font-medium">เกิดข้อผิดพลาด</p>
+                <p class="text-sm">ไม่สามารถแสดงข้อมูลใบสั่งซื้อได้</p>
+              </div>
+            </td>
+          </tr>
+        `;
+      } finally {
+        // Loading completed
+      }
+    }
+
+    // Loading skeleton for smooth UX
+    function showLoadingSkeleton(tbody) {
+      tbody.innerHTML = '';
+      for (let i = 0; i < 3; i++) {
+        const skeletonRow = document.createElement('tr');
+        skeletonRow.className = 'animate-pulse';
+        skeletonRow.innerHTML = `
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="table-skeleton h-4 rounded w-24"></div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="table-skeleton h-4 rounded w-32"></div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="table-skeleton h-4 rounded w-20"></div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="table-skeleton h-4 rounded w-40"></div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="table-skeleton h-4 rounded w-16 ml-auto"></div>
+          </td>
+          <td class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-center space-x-2">
+              <div class="table-skeleton h-8 rounded w-16"></div>
+              <div class="table-skeleton h-8 rounded w-16"></div>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(skeletonRow);
+      }
+    }
+
+    async function createItemTableHTML(po) {
+      if (!po.items.length) {
+        return '<div class="text-gray-500">ไม่มีรายการสินค้าที่คงอยู่</div>';
+      }
+
+      // Auto sync categoryGroup จาก PO ไปยังสินค้าแต่ละชิ้นที่ยังไม่มี categoryGroup
+      await autoSyncItemsFromPO(po);
+
+      // ตรวจสอบ stockType จาก PO items และดึงจาก ProductImage หากไม่มี
+      const itemsWithStockType = await Promise.all(po.items.map(async (it) => {
+        let stockType = it.stockType;
+    
+        // หาก PO เก่าไม่มี stockType ให้ดึงจาก ProductImage
+        if (!stockType) {
+          try {
+            let productId = it.productId;
+            if (typeof productId === 'object' && productId !== null && productId._id) {
+              productId = productId._id;
+            }
+    
+            if (productId) {
+              const productRes = await fetch(`/api/product-image/${productId}`, {
+                headers: { Authorization: 'Bearer ' + (localStorage.getItem('authToken') || '') }
+              });
+    
+              if (productRes.ok) {
+                const productData = await productRes.json();
+                if (productData.success && productData.data) {
+                  stockType = productData.data.stockType || 'imei';
+                }
+              }
+            }
+          } catch (err) {
+            console.log('Error fetching product stockType:', err);
+          }
+        }
+    
+        return {
+          ...it,
+          stockType: stockType || 'imei'
+        };
+      }));
+
+      // ตรวจสอบว่ามีประเภทไหนบ้าง
+      let hasQuantityType = false;
+      let hasImeiType = false;
+    
+      itemsWithStockType.forEach(it => {
+        if (it.stockType === 'quantity') {
+          hasQuantityType = true;
+        } else {
+          hasImeiType = true;
+        }
+      });
+
+      // ถ้ามีทั้งสองประเภท หรือมีแต่ IMEI ให้แสดงคอลัมน์ IMEI
+      // ถ้ามีแต่ quantity เท่านั้น ให้ซ่อนคอลัมน์ IMEI
+      const showImeiColumn = hasImeiType;
+
+      let html = `
+        <table class="min-w-full border mt-2">
+          <thead class="bg-gray-200 dark:bg-gray-700">
+            <tr>
+              <th class="px-2 py-1 border">Barcode</th>
+
+              ${showImeiColumn ? '<th class="px-2 py-1 border">IMEI</th>' : ''}
+              <th class="px-2 py-1 border">Name</th>
+              <th class="px-2 py-1 border">Brand</th>
+              <th class="px-2 py-1 border">กลุ่มจัดประเภท</th>
+              <th class="px-2 py-1 border">การจัดการ Stock</th>
+              <th class="px-2 py-1 border">สถานะใน Branch</th>
+              <th class="px-2 py-1 border">ผู้แก้ไขล่าสุด</th>
+              <th class="px-2 py-1 border">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+    
+      itemsWithStockType.forEach((it, idx) => {
+        // แก้ไข: ใช้ it.sku แทน cleanedSku ที่ไม่ได้กำหนด
+        const cleanedSku = (it.sku || '').trim();
+        let displaySku = cleanedSku !== '' ? cleanedSku : '-';
+    
+        // สำหรับ IMEI แสดงเฉพาะเมื่อเป็นประเภท imei
+        const displayImei = it.stockType === 'imei' ? (it.imei || '-') : 'ไม่ใช้';
+        const stockTypeBadge = it.stockType === 'imei'
+          ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><i class="bi bi-qr-code mr-1"></i>สินค้าที่มีเลข IMEI</span>'
+          : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><i class="bi bi-boxes mr-1"></i>สินค้าที่ไม่มีเลข IMEI</span>';
+    
+        // ตรวจสอบสถานะใน Branch Stock
+        const branchStatusData = getBranchStockStatus(it, branchStockList);
+        const branchStatus = branchStatusData.statusHtml;
+    
+        // ข้อมูลผู้แก้ไขล่าสุด
+        let lastEditedInfo = '-';
+        if (it.lastEditedByName && it.lastEditedAt) {
+          const editDate = new Date(it.lastEditedAt);
+          const formattedDate = editDate.toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          lastEditedInfo = `
+            <div class="text-xs">
+              <div class="font-medium text-blue-600 dark:text-blue-400">${it.lastEditedByName}</div>
+              <div class="text-gray-500 dark:text-gray-400">${formattedDate}</div>
+            </div>
+          `;
+        }
+    
+        // ข้อมูลกลุ่มจัดประเภท - ใช้จาก item หรือ PO level
+        const categoryGroupName = it.categoryGroup?.name || po.categoryGroup?.name || '-';
+        const categoryGroupBadge = categoryGroupName !== '-'
+          ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"><i class="bi bi-tag mr-1"></i>${categoryGroupName}</span>`
+          : '<span class="text-gray-500 dark:text-gray-400">-</span>';
+    
+        html += `
+          <tr>
+            <td class="px-2 py-1 border">${it.barcode || '-'}</td>
+            <td class="px-2 py-1 border">${displaySku}</td>
+            ${showImeiColumn ? `<td class="px-2 py-1 border">${displayImei}</td>` : ''}
+            <td class="px-2 py-1 border">${it.name || '-'}</td>
+            <td class="px-2 py-1 border">${it.brand || '-'}</td>
+            <td class="px-2 py-1 border text-center">${categoryGroupBadge}</td>
+            <td class="px-2 py-1 border text-center">${stockTypeBadge}</td>
+            <td class="px-2 py-1 border text-center">${branchStatus}</td>
+            <td class="px-2 py-1 border text-center">${lastEditedInfo}</td>
+            <td class="px-2 py-1 border text-center">
+              <div class="flex items-center justify-center space-x-2">
+                <button class="btn-edit-item" data-po-id="${po._id}" data-index="${idx}" title="แก้ไขข้อมูลสินค้า">
+                  <i class="bi bi-pencil mr-1"></i>แก้ไข
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+      return html;
+    }
+
+    function toggleItems(poId) {
+      const row = document.querySelector(`tr.item-row[data-po-id="${poId}"]`);
+      if (!row) return;
+      row.classList.toggle('hidden');
+    }
+
+    // -------------------------------------------
+    // ลบ PO
+    // -------------------------------------------
+    function deletePO(poId) {
+      customConfirm('ต้องการลบใบสั่งซื้อนี้?', async () => {
+        const loaderId = safeShowLoading({
+          message: 'กำลังลบใบสั่งซื้อ...',
+          showProgress: true,
+          autoProgress: true,
+          spinnerType: 'default'
+        });
+    
+        try {
+          // Find PO details before deletion
+          const po = allPO.find(p => p._id === poId);
+          const poNumber = po ? po.poNumber : 'Unknown';
+    
+          const token = localStorage.getItem('authToken') || '';
+          const res = await fetch(`/api/purchase-order/${poId}`, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + token }
+          });
+          const contentType = res.headers.get('content-type') || '';
+          let data;
+          if (contentType.includes('application/json')) {
+            data = await res.json();
+          } else {
+            const errorText = await res.text();
+            throw new Error(errorText || 'ไม่สามารถลบ PO (ไม่ใช่ JSON)');
+          }
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'ลบ PO ไม่สำเร็จ');
+          }
+    
+          // Log to Firebase
+          if (window.logProductActivity) {
+            window.logProductActivity('PO_DELETED', {
+              poId: poId,
+              poNumber: poNumber,
+              deletedBy: localStorage.getItem('userName'),
+              deletedAt: new Date().toISOString()
+            });
+          }
+    
+          // Emit Socket.IO event
+          if (productManagementSocket && productManagementSocket.connected) {
+            productManagementSocket.emit('po-deleted', {
+              poId: poId,
+              poNumber: poNumber,
+              userId: localStorage.getItem('userId'),
+              userName: localStorage.getItem('userName'),
+              branchCode: BRANCH_CODE || localStorage.getItem('activeBranch'),
+              timestamp: Date.now()
+            });
+          }
+    
+          safeUpdateMessage(loaderId, 'กำลังรีเฟรชข้อมูล...');
+          showToast('ลบใบสั่งซื้อเรียบร้อย', 'success');
+          const branchCode = document.getElementById('selectBranch').value;
+          await loadPurchaseOrders(branchCode);
+    
+        } catch (err) {
+          showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+        } finally {
+          safeHideLoading(loaderId);
+        }
+      });
+    }
+
+    // -------------------------------------------
+    // ฟังก์ชันตรวจสอบสถานะใน Branch Stock (สำหรับแสดงผลเท่านั้น)
+    // -------------------------------------------
+    function getBranchStockStatus(item, branchStockList) {
+      console.log('Checking status for item:', {
+        name: item.name,
+        barcode: item.barcode,
+        imei: item.imei,
+        stockType: item.stockType,
+        branchStockCount: branchStockList ? branchStockList.length : 0
+      });
+    
+      if (!branchStockList || branchStockList.length === 0) {
+        console.log('No branch stock data available');
+        return {
+          statusHtml: '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"><i class="bi bi-info-circle mr-1"></i>ไม่มีข้อมูลใน Branch Stock</span>'
+        };
+      }
+    
+      const barcode = item.barcode;
+      const imei = item.imei;
+      const stockType = item.stockType || 'imei';
+    
+      // หาสินค้าใน branch stock
+      let matchingStocks = [];
+    
+      if (stockType === 'imei' && imei) {
+        // สำหรับสินค้าประเภท IMEI ให้ตรวจสอบทั้ง barcode และ IMEI
+        matchingStocks = branchStockList.filter(stock =>
+          stock.barcode === barcode && stock.imei === imei
+        );
+      } else if (stockType === 'quantity') {
+        // สำหรับสินค้าประเภท quantity ให้ตรวจสอบเฉพาะ barcode
+        matchingStocks = branchStockList.filter(stock =>
+          stock.barcode === barcode && (!stock.imei || stock.imei === '')
+        );
+      } else {
+        // กรณีอื่นๆ ตรวจสอบ barcode
+        matchingStocks = branchStockList.filter(stock =>
+          stock.barcode === barcode
+        );
+      }
+    
+      console.log(`Found ${matchingStocks.length} matching stocks for ${item.name}`);
+    
+      if (matchingStocks.length === 0) {
+        console.log('No matching stocks found');
+        return {
+          statusHtml: '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><i class="bi bi-inbox mr-1"></i>ไม่พบใน Branch Stock</span>'
+        };
+      }
+    
+      // ตรวจสอบสถานะต่างๆ ตาม workflow ที่กำหนด
+      const verifiedStocks = matchingStocks.filter(s => s.verified === true);
+      const pendingStocks = matchingStocks.filter(s => s.pending === true && s.verified !== true);
+      const unverifiedStocks = matchingStocks.filter(s =>
+        s.pending !== true && s.verified !== true
+      );
+    
+      console.log('Stock status breakdown for', item.name, ':', {
+        total: matchingStocks.length,
+        pending: pendingStocks.length,
+        verified: verifiedStocks.length,
+        unverified: unverifiedStocks.length
+      });
+    
+      // กำหนดสถานะสำหรับแสดงผล
+      let statusHtml = '';
+    
+      if (verifiedStocks.length > 0) {
+        // สินค้าได้รับการอนุมัติแล้ว
+        statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><i class="bi bi-check-circle mr-1"></i>อนุมัติแล้ว (${verifiedStocks.length})</span>`;
+      } else if (pendingStocks.length > 0 || unverifiedStocks.length > 0) {
+        // มีสินค้ารออนุมัติ
+        const waitingCount = pendingStocks.length + unverifiedStocks.length;
+        statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"><i class="bi bi-clock mr-1"></i>รออนุมัติ (${waitingCount})</span>`;
+      } else {
+        // ไม่ทราบสถานะ
+        statusHtml = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"><i class="bi bi-question-circle mr-1"></i>ไม่ทราบสถานะ</span>';
+      }
+    
+      return {
+        statusHtml: statusHtml
+      };
+    }
+
+    // -------------------------------------------
+    // แก้ไข Item
+    // -------------------------------------------
+    async function openEditItemModal(poId, itemIndex) {
+      const po = allPO.find((p) => p._id === poId);
+      if (!po) return customAlert('ไม่พบ PO นี้');
+      const item = po.items[itemIndex];
+      if (!item) return customAlert('ไม่พบ item index = ' + itemIndex);
+
+      document.getElementById('editPoId').value = poId;
+      document.getElementById('editItemIndex').value = itemIndex;
+      let productIdValue = item.productId;
+      if (typeof productIdValue === 'object' && productIdValue !== null && productIdValue._id) {
+        productIdValue = productIdValue._id;
+      }
+      document.getElementById('editProductId').value = productIdValue || '';
+      document.getElementById('editBarcode').value = item.barcode || '';
+
+
+
+      // ตรวจสอบ stockType จาก PO item หรือจาก ProductImage
+      const imeiInput = document.getElementById('editImei');
+      const imeiContainer = document.getElementById('editImeiContainer');
+    
+      // Reset modal state
+              imeiContainer.style.display = 'block'; // แสดงก่อนเพื่อ reset
+    
+      // ลบ help text เก่า
+      const oldHelpText = imeiContainer.querySelector('.help-text');
+      if (oldHelpText) {
+        oldHelpText.remove();
+      }
+    
+      // หาก stockType ไม่มีใน PO item (กรณี PO เก่า) ให้ตรวจสอบจาก ProductImage
+      let stockType = item.stockType;
+    
+      if (!stockType && productIdValue) {
+        try {
+          // ใช้ fetch เพื่อตรวจสอบ stockType จาก ProductImage
+          const productRes = await fetch(`/api/product-image/${productIdValue}`, {
+            headers: { Authorization: 'Bearer ' + (localStorage.getItem('authToken') || '') }
+          });
+    
+          if (productRes.ok) {
+            const productData = await productRes.json();
+            if (productData.success && productData.data) {
+              stockType = productData.data.stockType || 'imei';
+            }
+          }
+        } catch (err) {
+          console.log('Error fetching product stockType:', err);
+        }
+      }
+    
+      // Default เป็น 'imei' หากยังไม่สามารถหาได้
+      stockType = stockType || 'imei';
+
+      if (stockType === 'quantity') {
+        imeiContainer.style.display = 'none';
+        imeiInput.value = ''; // เคลียร์ค่า IMEI สำหรับสินค้าประเภทนับชิ้น
+        imeiInput.removeAttribute('required');
+      } else {
+        imeiContainer.style.display = 'block';
+        imeiInput.value = item.imei || '';
+        // ไม่ต้องใส่ required เพราะอาจมีสินค้าที่ยังไม่มี IMEI
+    
+        // เพิ่มคำอธิบายใต้ช่อง IMEI
+        let helpText = imeiContainer.querySelector('.help-text');
+        if (!helpText) {
+          helpText = document.createElement('p');
+          helpText.className = 'help-text text-sm text-gray-500 dark:text-gray-400 mt-1';
+          helpText.innerHTML = '<i class="bi bi-info-circle mr-1"></i>สำหรับสินค้าที่มีเลข IMEI แต่ละเครื่อง';
+          imeiContainer.appendChild(helpText);
+        }
+      }
+
+      document.getElementById('editName').value = item.name || '';
+      document.getElementById('editInvoiceNumber').value = item.invoiceNumber || '';
+      document.getElementById('editBrand').value = item.brand || '';
+    
+      // เพิ่มข้อมูลประเภท Stock และผู้แก้ไขล่าสุดให้ผู้ใช้เห็น
+      const stockTypeInfo = stockType === 'imei' ? 'สินค้าที่มีเลข IMEI (แยก Stock แต่ละเครื่อง)' : 'สินค้าที่ไม่มีเลข IMEI (นับเป็นจำนวนชิ้น)';
+    
+      // ข้อมูลผู้แก้ไขล่าสุด
+      let lastEditedInfo = '';
+      if (item.lastEditedByName && item.lastEditedAt) {
+        const editDate = new Date(item.lastEditedAt);
+        const formattedDate = editDate.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        lastEditedInfo = `
+          <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <i class="bi bi-person-check mr-1"></i>แก้ไขล่าสุดโดย: <span class="font-medium text-blue-600 dark:text-blue-400">${item.lastEditedByName}</span> 
+            เมื่อ ${formattedDate}
+          </div>
+        `;
+      }
+    
+      const modalTitle = document.querySelector('#editItemModal h5');
+      modalTitle.innerHTML = `
+        แก้ไขข้อมูลสินค้าใน PO 
+        <div class="mt-2">
+          ${stockType === 'imei'
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><i class="bi bi-qr-code mr-1"></i>สินค้าที่มีเลข IMEI</span>'
+            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><i class="bi bi-boxes mr-1"></i>สินค้าที่ไม่มีเลข IMEI</span>'
+          }
+          ${lastEditedInfo}
+        </div>
+      `;
+    
+      toggleModal('editItemModal', true);
+    }
+
+    async function onEditItemSubmit(e) {
+      e.preventDefault();
+    
+      const loaderId = safeShowLoading({
+        message: 'กำลังบันทึกการแก้ไข...',
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default'
+      });
+    
+      const token = localStorage.getItem('authToken') || '';
+      const poId = document.getElementById('editPoId').value;
+      const itemIndex = parseInt(document.getElementById('editItemIndex').value, 10);
+      const productId = document.getElementById('editProductId').value.trim();
+      const barcode = document.getElementById('editBarcode').value.trim();
+
+      const imei = document.getElementById('editImei').value.trim();
+      const name = document.getElementById('editName').value.trim();
+      const invoiceNumber = document.getElementById('editInvoiceNumber').value.trim();
+      const brand = document.getElementById('editBrand').value.trim();
+
+      const po = allPO.find((p) => p._id === poId);
+      if (!po) {
+        showToast('ไม่พบใบสั่งซื้อนี้ในระบบ', 'error');
+        return;
+      }
+    
+      // ใช้ stockType จาก PO item หรือดึงจาก ProductImage (กรณี PO เก่า)
+      const currentItem = po.items[itemIndex];
+      let stockType = currentItem?.stockType;
+    
+      // หาก PO เก่าไม่มี stockType ให้ดึงจาก ProductImage
+      if (!stockType && productId) {
+        try {
+          const productRes = await fetch(`/api/product-image/${productId}`, {
+            headers: { Authorization: 'Bearer ' + token }
+          });
+    
+          if (productRes.ok) {
+            const productData = await productRes.json();
+            if (productData.success && productData.data) {
+              stockType = productData.data.stockType || 'imei';
+            }
+          }
+        } catch (err) {
+          console.log('Error fetching product stockType for submission:', err);
+        }
+      }
+    
+      stockType = stockType || 'imei';
+
+      // ตรวจสอบว่า IMEI ซ้ำกับรายการอื่นใน PO หรือไม่
+      if (stockType === 'imei' && imei) {
+        for (let i = 0; i < po.items.length; i++) {
+          if (i === itemIndex) continue;
+          const other = po.items[i];
+    
+          // ตรวจสอบทั้ง barcode และ IMEI
+          if (other.barcode === barcode && other.imei === imei) {
+            showToast(`พบสินค้าซ้ำในใบสั่งซื้อนี้! บาร์โค้ด: ${barcode}, IMEI: ${imei}`, 'error');
+            return;
+          }
+        }
+      }
+    
+      // สำหรับสินค้าประเภท quantity ตรวจสอบเฉพาะ barcode
+      if (stockType === 'quantity') {
+        for (let i = 0; i < po.items.length; i++) {
+          if (i === itemIndex) continue;
+          const other = po.items[i];
+    
+          if (other.barcode === barcode && other.stockType === 'quantity') {
+            showToast(`พบสินค้าประเภทนับจำนวนซ้ำ! บาร์โค้ด: ${barcode}`, 'error');
+            return;
+          }
+        }
+      }
+
+      // ส่ง PATCH
+      try {
+        const formData = new FormData();
+        formData.append('productId', productId);
+        formData.append('barcode', barcode);
+        // สำหรับสินค้าประเภท quantity ให้ส่ง IMEI เป็นค่าว่าง
+        formData.append('imei', stockType === 'quantity' ? '' : imei);
+        formData.append('name', name);
+        formData.append('invoiceNumber', invoiceNumber);
+        formData.append('brand', brand);
+
+        const res = await fetch(`/api/purchase-order/${poId}/items/${itemIndex}`, {
+          method: 'PATCH',
+          headers: { Authorization: 'Bearer ' + token },
+          body: formData,
+        });
+        const contentType = res.headers.get('content-type') || '';
+        let data;
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const errorText = await res.text();
+          throw new Error(errorText || 'แก้ไข item ไม่สำเร็จ (ไม่ใช่ JSON)');
+        }
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'แก้ไข item ไม่สำเร็จ');
+        }
+    
+        // Log to Firebase
+        if (window.logProductActivity) {
+          window.logProductActivity('ITEM_EDITED', {
+            poId: poId,
+            itemIndex: itemIndex,
+            itemName: name,
+            barcode: barcode,
+            imei: stockType === 'quantity' ? '' : imei,
+            stockType: stockType,
+            editedBy: localStorage.getItem('userName'),
+            editedAt: new Date().toISOString()
+          });
+        }
+    
+        // Emit Socket.IO event
+        if (productManagementSocket && productManagementSocket.connected) {
+          productManagementSocket.emit('item-edited', {
+            poId: poId,
+            itemIndex: itemIndex,
+            itemName: name,
+            barcode: barcode,
+            userId: localStorage.getItem('userId'),
+            userName: localStorage.getItem('userName'),
+            branchCode: BRANCH_CODE || localStorage.getItem('activeBranch'),
+            timestamp: Date.now()
+          });
+        }
+    
+        safeUpdateMessage(loaderId, 'กำลังรีเฟรชข้อมูล...');
+        showToast('บันทึกการแก้ไข item เรียบร้อย', 'success');
+        toggleModal('editItemModal', false);
+        const branchCode = document.getElementById('selectBranch').value;
+        // โหลดทั้ง PO และ Branch Stock
+        await Promise.all([
+          loadPurchaseOrders(branchCode),
+          refreshBranchStockData()
+        ]);
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      } finally {
+        safeHideLoading(loaderId);
+      }
+    }
+
+    // -------------------------------------------
+    // ฟังก์ชันช่วย format ตัวเลข
+    // -------------------------------------------
+    function formatNumber(num) {
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    }
+
+    // -------------------------------------------
+    // Toast Notification System
+    // -------------------------------------------
+    function showToast(message, type = 'info', duration = 4000) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+    
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+    
+      // Icon based on type
+      let icon = '';
+      switch (type) {
+        case 'success':
+          icon = '<i class="bi bi-check-circle-fill text-green-600"></i>';
+          break;
+        case 'error':
+          icon = '<i class="bi bi-x-circle-fill text-red-600"></i>';
+          break;
+        case 'info':
+          icon = '<i class="bi bi-info-circle-fill text-blue-600"></i>';
+          break;
+        default:
+          icon = '<i class="bi bi-info-circle text-gray-600"></i>';
+      }
+    
+      toast.innerHTML = `
+        <div class="flex items-start space-x-3">
+          <div class="flex-shrink-0 mt-0.5">
+            ${icon}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${message}</p>
+          </div>
+          <button type="button" class="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" onclick="this.parentNode.parentNode.remove()">
+            <i class="bi bi-x text-lg"></i>
+          </button>
+        </div>
+      `;
+    
+      container.appendChild(toast);
+    
+      // Show toast with animation
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 100);
+    
+      // Auto remove after duration
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, duration);
+    }
+
+    // -------------------------------------------
+    // Enhanced Alert & Confirm
+    // -------------------------------------------
+    function customAlert(message, callback) {
+      // Use toast for simple messages
+      showToast(message, 'info');
+      if (callback) callback();
+    }
+
+    function customConfirm(message, actionCallback) {
+      const confirmModal = document.getElementById('confirmActionModal');
+      const confirmText = document.getElementById('confirmActionText');
+      confirmText.textContent = message;
+
+      // Clone and bind OK button
+      const okBtnOld = document.getElementById('okActionBtn');
+      const okBtn = okBtnOld.cloneNode(true);
+      okBtnOld.parentNode.replaceChild(okBtn, okBtnOld);
+
+      okBtn.addEventListener('click', () => {
+        actionCallback();
+      });
+      // เปิด modal
+      confirmModal.checked = true;
+    }
+
+    // ==================== REMOVED: PO DUPLICATE VALIDATION SYSTEM ====================
+    // ลบฟังก์ชันการตรวจสอบสินค้าซ้ำและการเพิ่มสินค้าออกแล้ว
+    // เนื่องจากไม่มีปุ่ม "เพิ่ม" ในตารางอีกต่อไป
+
+    // ปิด modal editItem
+    document.getElementById('btnCloseEditItemModal').addEventListener('click', () => {
+      toggleModal('editItemModal', false);
+    });
+    document.getElementById('btnCancelEdit').addEventListener('click', () => {
+      toggleModal('editItemModal', false);
+    });
+
+    // Firebase Session Management
+    function createProductManagementSession() {
+      if (!window.firebaseDatabase) {
+        console.warn('Firebase not initialized yet');
+        return;
+      }
+    
+      const branchCode = BRANCH_CODE || localStorage.getItem('activeBranch') || 'PATTANI';
+      const userId = localStorage.getItem('userId');
+      const userName = localStorage.getItem('userName');
+    
+      if (!userId || !userName) {
+        console.warn('User info not available for session creation');
+        return;
+      }
+    
+      firebaseSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const sessionRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/sessions/${firebaseSessionId}`);
+    
+      const sessionData = {
+        userId: userId,
+        userName: userName,
+        userRole: localStorage.getItem('userRole') || 'user',
+        activity: 'product_management',
+        page: 'product.html',
+        loginTime: window.firebaseServerTimestamp(),
+        lastActive: window.firebaseServerTimestamp(),
+        status: 'online',
+        device: navigator.userAgent,
+        branchCode: branchCode
+      };
+    
+      // Set session data
+      window.firebaseSet(sessionRef, sessionData)
+        .then(() => {
+          console.log('Product management session created:', firebaseSessionId);
+    
+          // Set up disconnect handler
+          window.firebaseOnDisconnect(sessionRef).update({
+            status: 'offline',
+            logoutTime: window.firebaseServerTimestamp()
+          });
+    
+          // Update activity on user actions
+          trackUserActivity(sessionRef);
+        })
+        .catch(error => {
+          console.error('Error creating session:', error);
+        });
+    }
+    
+    // Track user activity
+    function trackUserActivity(sessionRef) {
+      let activityTimer;
+    
+      function updateActivity() {
+        if (sessionRef) {
+          window.firebaseUpdate(sessionRef, {
+            lastActive: window.firebaseServerTimestamp()
+          }).catch(err => console.warn('Activity update failed:', err));
+        }
+      }
+    
+      // Update activity every 30 seconds if user is active
+      function resetActivityTimer() {
+        clearTimeout(activityTimer);
+        activityTimer = setTimeout(updateActivity, 30000);
+      }
+    
+      // Track various user activities
+      document.addEventListener('click', resetActivityTimer);
+      document.addEventListener('keypress', resetActivityTimer);
+      document.addEventListener('scroll', resetActivityTimer);
+    
+      // Initial activity update
+      resetActivityTimer();
+    }
+    
+    // Monitor online users in product management
+    function updateOnlineUsers() {
+      if (!window.firebaseDatabase) return;
+    
+      const branchCode = BRANCH_CODE || localStorage.getItem('activeBranch') || 'PATTANI';
+      const onlineUsersRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/onlineUsers`);
+    
+      window.firebaseOnValue(onlineUsersRef, (snapshot) => {
+        const users = snapshot.val();
+        if (users) {
+          const onlineCount = Object.values(users).filter(u => u.status === 'online' && u.activity === 'product_management').length;
+          console.log(`Online users in product management: ${onlineCount}`);
+        }
+      });
+    }
+    
+    // Log activity to Firebase
+    window.logProductActivity = function(action, details) {
+      if (!window.firebaseDatabase) return;
+    
+      const branchCode = BRANCH_CODE || localStorage.getItem('activeBranch') || 'PATTANI';
+      const activityRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/activityHistory`);
+    
+      const activityData = {
+        action: action,
+        userId: localStorage.getItem('userId'),
+        userName: localStorage.getItem('userName'),
+        timestamp: window.firebaseServerTimestamp(),
+        page: 'product.html',
+        details: details || {}
+      };
+    
+      window.firebasePush(activityRef, activityData)
+        .catch(err => console.warn('Activity log failed:', err));
+    };
+    
+    // Monitor stock updates in Firebase
+    function monitorFirebaseStockUpdates() {
+      if (!window.firebaseDatabase) return;
+    
+      const branchCode = BRANCH_CODE || localStorage.getItem('activeBranch') || 'PATTANI';
+      const stockUpdatesRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/stockUpdates`);
+    
+      // Listen for new stock updates
+      window.firebaseOnValue(stockUpdatesRef, (snapshot) => {
+        const updates = snapshot.val();
+        if (updates) {
+          // Get the latest update
+          const latestUpdate = Object.values(updates).sort((a, b) => b.timestamp - a.timestamp)[0];
+          if (latestUpdate && (Date.now() - latestUpdate.timestamp < 5000)) { // Show updates from last 5 seconds
+            console.log('📦 Firebase stock update:', latestUpdate);
+            // Refresh data if needed
+            if (latestUpdate.requiresRefresh) {
+              refreshBranchStockData();
+            }
+          }
+        }
+      });
+    }
+    
+    // Initialize Firebase connections
+    function initializeFirebaseConnections() {
+      // Check if Firebase is ready
+      if (window.firebaseDatabase) {
+        createProductManagementSession();
+        updateOnlineUsers();
+        monitorFirebaseStockUpdates();
+    
+        // Log page access
+        window.logProductActivity('PAGE_ACCESS', {
+          page: 'Product Management',
+          branch: BRANCH_CODE || 'PATTANI'
+        });
+      } else {
+        // Retry after a short delay
+        setTimeout(initializeFirebaseConnections, 1000);
+      }
+    }
+    
+    // Clean up on page unload
+    window.addEventListener('beforeunload', function() {
+      if (firebaseSessionId && window.firebaseDatabase) {
+        const branchCode = BRANCH_CODE || localStorage.getItem('activeBranch') || 'PATTANI';
+        const sessionRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/sessions/${firebaseSessionId}`);
+        window.firebaseUpdate(sessionRef, {
+          status: 'offline',
+          logoutTime: window.firebaseServerTimestamp()
+        }).catch(() => {}); // Ignore errors on unload
+      }
+    
+      if (socket) {
+        socket.disconnect();
+      }
+    });
+
+    // ==================== AUTO SYNC CATEGORY GROUP FROM PO FUNCTIONS ====================
+    
+    // ฟังก์ชันสำหรับ auto sync categoryGroup จาก PO ไปยังสินค้าที่ยังไม่มี categoryGroup
+    async function autoSyncItemsFromPO(po) {
+      if (!po.categoryGroup || !po.items || po.items.length === 0) {
+        return; // ไม่มี categoryGroup ใน PO หรือไม่มีสินค้า
+      }
+    
+      try {
+        // หาสินค้าที่ยังไม่มี categoryGroup
+        const itemsNeedSync = [];
+        for (const item of po.items) {
+          // ตรวจสอบว่าสินค้าแต่ละชิ้นมี categoryGroup หรือไม่
+          if (!item.categoryGroup) {
+            let productId = item.productId;
+            if (typeof productId === 'object' && productId !== null && productId._id) {
+              productId = productId._id;
+            }
+            if (productId) {
+              itemsNeedSync.push(productId);
+            }
+          }
+        }
+    
+        if (itemsNeedSync.length === 0) {
+          return; // ไม่มีสินค้าที่ต้อง sync
+        }
+    
+        // เรียก batch update API
+        const token = localStorage.getItem('authToken') || '';
+        const response = await fetch('/api/product/batch-update-from-po', {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            productIds: itemsNeedSync,
+            poNumber: po.poNumber
+          })
+        });
+    
+        const data = await response.json();
+    
+        if (response.ok && data.success && data.totalUpdated > 0) {
+          console.log(`Auto sync completed: ${data.totalUpdated} items updated from PO ${po.poNumber}`);
+    
+          // แสดง notification เงียบๆ (ไม่รบกวนผู้ใช้)
+          if (data.totalUpdated > 0) {
+            showToast(`🔄 Auto sync: อัปเดต ${data.totalUpdated} รายการจาก PO ${po.poNumber}`, 'info', 3000);
+          }
+        }
+    
+      } catch (error) {
+        console.error('Auto sync error:', error);
+        // ไม่แสดงข้อผิดพลาดให้ผู้ใช้เห็น เพื่อไม่ให้รบกวน
+      }
+    }
+    
+    // ฟังก์ชันสำหรับ sync ทั้งหมดเมื่อโหลด PO
+    async function autoSyncAllPOItems() {
+      if (!allPO || allPO.length === 0) {
+        return;
+      }
+    
+      let totalSynced = 0;
+    
+      for (const po of allPO) {
+        if (po.categoryGroup && po.items && po.items.length > 0) {
+          const itemsNeedSync = [];
+    
+          for (const item of po.items) {
+            if (!item.categoryGroup) {
+              let productId = item.productId;
+              if (typeof productId === 'object' && productId !== null && productId._id) {
+                productId = productId._id;
+              }
+              if (productId) {
+                itemsNeedSync.push(productId);
+              }
+            }
+          }
+    
+          if (itemsNeedSync.length > 0) {
+            try {
+              const token = localStorage.getItem('authToken') || '';
+              const response = await fetch('/api/product/batch-update-from-po', {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': 'Bearer ' + token,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  productIds: itemsNeedSync,
+                  poNumber: po.poNumber
+                })
+              });
+    
+              const data = await response.json();
+    
+              if (response.ok && data.success) {
+                totalSynced += data.totalUpdated || 0;
+              }
+    
+            } catch (error) {
+              console.error(`Auto sync error for PO ${po.poNumber}:`, error);
+            }
+          }
+        }
+      }
+    
+      if (totalSynced > 0) {
+        console.log(`Total auto sync completed: ${totalSynced} items updated`);
+        showToast(`🔄 Auto sync สำเร็จ: อัปเดต ${totalSynced} รายการทั้งหมด`, 'success', 4000);
+      }
+    }
+</script>
+  </main>
+  
+  <!-- เพิ่ม JavaScript สำหรับโหลดข้อมูลสาขา -->
+  <script>
+    // Initialize sidebar
+    if (typeof initializeSidebar === 'function') {
+      initializeSidebar();
+    }
+  </script>

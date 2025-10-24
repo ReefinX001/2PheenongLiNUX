@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทดสอบ LoadingSystem - ใช้งานได้จริง!</title>
+    <link rel="stylesheet" href="css/loading-system.css">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 2rem; background: #f0f9ff; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        .btn { background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; margin: 0.5rem; }
+        .btn:hover { background: #2563eb; }
+        .btn.success { background: #10b981; }
+        .btn.warning { background: #f59e0b; }
+        .btn.error { background: #ef4444; }
+        .status { background: #e0f2fe; padding: 1rem; border-radius: 6px; margin: 1rem 0; border-left: 4px solid #0284c7; }
+        h1 { color: #1e293b; text-align: center; }
+        .demo-section { margin: 1.5rem 0; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 ทดสอบ LoadingSystem</h1>
+        
+        <div class="status">
+            <strong>สถานะระบบ:</strong> <span id="status">กำลังตรวจสอบ...</span>
+        </div>
+        
+        <div class="demo-section">
+            <h3>ทดสอบพื้นฐาน</h3>
+            <button class="btn" onclick="testBasic()">Loading พื้นฐาน</button>
+            <button class="btn" onclick="testProgress()">Progress Bar</button>
+            <button class="btn" onclick="testAutoProgress()">Auto Progress</button>
+        </div>
+        
+        <div class="demo-section">
+            <h3>ทดสอบ Themes</h3>
+            <button class="btn success" onclick="testSuccess()">Success</button>
+            <button class="btn warning" onclick="testWarning()">Warning</button>
+            <button class="btn error" onclick="testError()">Error</button>
+        </div>
+        
+        <div class="demo-section">
+            <h3>ทดสอบขั้นสูง</h3>
+            <button class="btn" onclick="testRealScenario()">จำลอง API Call</button>
+            <button class="btn" onclick="testUpdateMessage()">Update Message</button>
+            <button class="btn" onclick="LoadingSystem.hideAll()">ปิดทั้งหมด</button>
+        </div>
+        
+        <div class="demo-section">
+            <h3>ข้อมูล Debug</h3>
+            <div id="debugInfo" style="background: #f8fafc; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.9rem;">
+                กำลังโหลด...
+            </div>
+        </div>
+    </div>
+
+    <script src="js/loading-system.js"></script>
+    <script>
+        // ตรวจสอบสถานะระบบ
+        function checkStatus() {
+            const statusEl = document.getElementById('status');
+            if (typeof LoadingSystem !== 'undefined') {
+                const debug = LoadingSystem.debug();
+                statusEl.innerHTML = `<span style="color: green;">✅ พร้อมใช้งาน v${debug.version}</span>`;
+            } else {
+                statusEl.innerHTML = '<span style="color: red;">❌ ไม่พร้อม</span>';
+            }
+        }
+        
+        // ทดสอบพื้นฐาน
+        function testBasic() {
+            const id = LoadingSystem.show({ message: 'ทดสอบ Loading พื้นฐาน...' });
+            setTimeout(() => LoadingSystem.hide(id), 3000);
+        }
+        
+        // ทดสอบ Progress
+        function testProgress() {
+            const id = LoadingSystem.show({
+                message: 'ทดสอบ Progress Bar...',
+                showProgress: true
+            });
+        
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 25;
+                LoadingSystem.updateProgress(id, progress);
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => LoadingSystem.hide(id), 500);
+                }
+            }, 800);
+        }
+        
+        // ทดสอบ Auto Progress
+        function testAutoProgress() {
+            const id = LoadingSystem.show({
+                message: 'ทดสอบ Auto Progress...',
+                showProgress: true,
+                autoProgress: true
+            });
+            setTimeout(() => LoadingSystem.completeProgress(id), 4000);
+        }
+        
+        // ทดสอบ Themes
+        function testSuccess() {
+            LoadingSystem.show({
+                message: 'สำเร็จ! ✅',
+                type: 'success',
+                timeout: 3000
+            });
+        }
+        
+        function testWarning() {
+            LoadingSystem.show({
+                message: 'คำเตือน! ⚠️',
+                type: 'warning',
+                timeout: 3000
+            });
+        }
+        
+        function testError() {
+            LoadingSystem.show({
+                message: 'ข้อผิดพลาด! ❌',
+                type: 'error',
+                timeout: 3000
+            });
+        }
+        
+        // ทดสอบ Update Message
+        function testUpdateMessage() {
+            const id = LoadingSystem.show({
+                message: 'ขั้นตอนที่ 1: เริ่มต้น...',
+                showProgress: true
+            });
+        
+            const steps = [
+                { msg: 'ขั้นตอนที่ 2: ประมวลผล...', progress: 25 },
+                { msg: 'ขั้นตอนที่ 3: บันทึกข้อมูล...', progress: 75 },
+                { msg: 'เสร็จสิ้น! ✅', progress: 100 }
+            ];
+        
+            steps.forEach((step, i) => {
+                setTimeout(() => {
+                    LoadingSystem.updateMessage(id, step.msg);
+                    LoadingSystem.updateProgress(id, step.progress);
+                    if (i === steps.length - 1) {
+                        setTimeout(() => LoadingSystem.hide(id), 1000);
+                    }
+                }, (i + 1) * 1500);
+            });
+        }
+        
+        // จำลอง API Call
+        async function testRealScenario() {
+            const id = LoadingSystem.show({
+                message: 'กำลังเรียก API...',
+                showProgress: true
+            });
+        
+            // จำลองขั้นตอนจริง
+            LoadingSystem.updateProgress(id, 25);
+            LoadingSystem.updateMessage(id, 'ส่งคำขอ...');
+            await sleep(1000);
+        
+            LoadingSystem.updateProgress(id, 50);
+            LoadingSystem.updateMessage(id, 'รอการตอบกลับ...');
+            await sleep(1000);
+        
+            LoadingSystem.updateProgress(id, 75);
+            LoadingSystem.updateMessage(id, 'ประมวลผลข้อมูล...');
+            await sleep(1000);
+        
+            LoadingSystem.updateProgress(id, 100);
+            LoadingSystem.updateMessage(id, 'API Call สำเร็จ! ✅');
+        
+            setTimeout(() => LoadingSystem.hide(id), 1000);
+        }
+        
+        // อัปเดต Debug Info
+        function updateDebugInfo() {
+            const debugEl = document.getElementById('debugInfo');
+            if (typeof LoadingSystem !== 'undefined') {
+                const debug = LoadingSystem.debug();
+                debugEl.innerHTML = `
+Version: ${debug.version}
+Active Loaders: ${debug.activeLoaders}
+Container Exists: ${debug.containerExists ? 'Yes' : 'No'}
+Last Check: ${new Date().toLocaleTimeString()}
+                `;
+            }
+        }
+        
+        // Utility
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // เริ่มต้น
+        document.addEventListener('DOMContentLoaded', () => {
+            checkStatus();
+            updateDebugInfo();
+            setInterval(updateDebugInfo, 2000);
+        });
+    </script>
+</body>
+</html> 

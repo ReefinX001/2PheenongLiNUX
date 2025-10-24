@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>การจัดการเงินสด</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff','
+              100: '#e0f2fe','
+              500: '#0ea5e9','
+              600: '#0284c7','
+            }
+          }
+        },
+      }
+    }
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent {
+      flex: 1;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;'
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+    
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+    
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+    
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+    
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+    }
+    
+    .btn-rounded {
+      border-radius: 30px;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+    
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+    
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+    
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .page-link {
+      min-width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      text-decoration: none;
+      margin: 0 2px;
+    }
+    
+    .dark .page-link {
+      border-color: #4a5568;
+      color: #d1d5db;
+    }
+    
+    .page-link:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .page-link:hover {
+      background-color: #374151;
+    }
+    
+    .page-link.active {
+      background-color: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+    
+    .dark .account-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .account-list li {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    
+    .dark .account-list li {
+      border-bottom-color: #4a5568;
+    }
+    
+    .account-list li:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .account-list li:hover {
+      background-color: #374151;
+    }
+    
+    .account-list li.active {
+      background-color: #f0f9ff;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .dark .account-list li.active {
+      background-color: #1a4971;
+      color: #38bdf8;
+    }
+    
+    .date-range {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dark .date-range {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .date-range:focus {
+      border-color: #0ea5e9;
+      outline: none;
+    }
+    
+    .negative-value {
+      color: #ef4444;
+    }
+    
+    .dark .negative-value {
+      color: #f87171;
+    }
+    
+    .5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
+    }
+    
+    .dark .4);
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .flex-none {
+      flex: none;
+    }
+    
+    .01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .3;
+      transition: 0s;
+    }
+    
+    /* Dropdown menu styling */
+    .5rem 1rem; /* Adjust as needed */
+      cursor: pointer;
+      align-items: center; /* Vertically align icon and text */
+    }
+    
+    /* First Level Dropdown Panel */
+    .1); /* From Tailwind: shadow-lg */
+      border-radius: 0.375rem; /* From Tailwind: rounded-lg */
+      min-width: 220px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 40; /* Ensure dropdown is above other content but below higher-level modals if any */
+      padding: 0.5rem; /* From Tailwind: p-2 */
+    }
+    
+    .dark .5rem; /* Adjust to align with parent li, considering parent ul padding */
+      left: 100%;
+      /* Inherit background, shadow, radius, min-width, padding from first-level or define specifically */
+      background: white; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      border-radius: 0.375rem;
+      min-width: 220px; /* Or adjust as needed */
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(10px); /* Fly-out from right */
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 45; /* Higher than first-level dropdown */
+      padding: 0.5rem;
+    }
+    
+    .dark .5rem 1rem; /* Tailwind: px-4 py-2 */
+      color: #374151; /* Tailwind: text-gray-700 */
+      text-decoration: none;
+      border-radius: 0.25rem; /* Tailwind: rounded-md */
+      white-space: nowrap; /* Prevent text wrapping in menu items */
+    }
+    
+    .dark .dark .2s, padding-left 0.2s;
+      border-left: 3px solid transparent;
+      margin-bottom: 2px; /* Spacing between items */
+    }
+    
+    .25rem; */ /* Original style, can be kept or removed */
+    }
+    
+    /* User badge */
+    .1);
+      border-radius: 30px;
+    }
+    
+    .dark .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .expense-voucher {
+      margin-left: 20px;
+      position: relative;
+    }
+    
+    .expense-voucher::before {
+      content: '';'
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background-color: #cbd5e0;
+    }
+    
+    .dark .expense-voucher::before {
+      background-color: #4a5568;
+    }
+    
+    /* Income Statement specific styles */
+    .fin-statement-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .fin-statement-table td {
+      padding: 10px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .fin-statement-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .fin-statement-table .item-title {
+      font-weight: 500;
+    }
+    
+    .fin-statement-table .bold {
+      font-weight: 600;
+    }
+    
+    .fin-statement-table .section-header {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    
+    .dark .fin-statement-table .section-header {
+      color: #f9fafb;
+    }
+    
+    .fin-statement-table .section-total {
+      font-weight: 600;
+      color: #1e40af;
+      background-color: #f0f9ff;
+    }
+    
+    .dark .fin-statement-table .section-total {
+      color: #93c5fd;
+      background-color: #1e3a8a;
+    }
+    
+    .fin-statement-table .grand-total {
+      font-weight: 700;
+      color: #0284c7;
+      background-color: #e0f2fe;
+      font-size: 1.05rem;
+    }
+    
+    .dark .fin-statement-table .grand-total {
+      color: #38bdf8;
+      background-color: #075985;
+    }
+    
+    .fin-statement-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .fin-statement-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .overview-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      background-color: white;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .dark .overview-card {
+      background-color: #1e293b;
+    }
+    
+    .overview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .metric-label {
+      color: #9ca3af;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    
+    .dark .metric-value {
+      color: #f9fafb;
+    }
+    
+    .trend-up {
+      color: #10b981;
+    }
+    
+    .trend-down {
+      color: #ef4444;
+    }
+    
+    .dark .trend-up {
+      color: #34d399;
+    }
+    
+    .dark .trend-down {
+      color: #f87171;
+    }
+    
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+    
+    .view-switcher {
+      display: flex;
+      padding: 0.25rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-switcher {
+      background-color: #374151;
+    }
+    
+    .view-option {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .view-option.active {
+      background-color: white;
+      color: #0ea5e9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .view-option.active {
+      background-color: #1f2937;
+      color: #38bdf8;
+    }
+    
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      background-color: white;
+      color: #374151;
+      transition: all 0.2s;
+    }
+    
+    .dark .action-button {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .action-button:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+    
+    .dark .action-button:hover {
+      background-color: #374151;
+      border-color: #6b7280;
+    }
+    
+    .period-selector {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      background-color: white;
+      font-size: 0.875rem;
+      color: #374151;
+      outline: none;
+    }
+    
+    .dark .period-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Dashboard Card Styles */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .dark .dashboard-card {
+      background-color: #1e293b;
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-title {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-title {
+      color: #9ca3af;
+    }
+    
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-value {
+      color: #f9fafb;
+    }
+    
+    .comparison-value {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .comparison-up {
+      color: #10b981;
+    }
+    
+    .comparison-down {
+      color: #ef4444;
+    }
+    
+    .dark .comparison-up {
+      color: #34d399;
+    }
+    
+    .dark .comparison-down {
+      color: #f87171;
+    }
+    
+    /* Menu bar styles */
+    .5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .dark .75rem 1.25rem;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .dark .active {
+      border-bottom-color: #0ea5e9;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .month-selector {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: white;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    
+    .dark .month-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Display toggle */
+    .display-toggle {
+      display: flex;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.25rem;
+    }
+    
+    .dark .display-toggle {
+      background-color: #334155;
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .toggle-btn.active {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      color: #0ea5e9;
+    }
+    
+    .dark .toggle-btn.active {
+      background-color: #1f2937;
+    }
+    
+    /* Financial table */
+    .view-container {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-container {
+      background-color: #1e293b;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .financial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .financial-table th {
+      background-color: #f8f9fa;
+      color: #6b7280;
+      font-weight: 500;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table th {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table td {
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table .section-header {
+      font-weight: 600;
+      background-color: #f3f4f6;
+      color: #111827;
+      padding: 0.75rem 1rem;
+    }
+    
+    .dark .financial-table .section-header {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+    
+    .financial-table .subsection-header {
+      font-weight: 500;
+      color: #4b5563;
+      padding: 0.75rem 1rem;
+      background-color: #f9fafb;
+    }
+    
+    .dark .financial-table .subsection-header {
+      background-color: #1f2937;
+      color: #e5e7eb;
+    }
+    
+    .financial-table .amount {
+      text-align: right;
+      position: relative;
+    }
+    
+    .financial-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .financial-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .financial-table .total-row {
+      background-color: #e0f2fe;
+      font-weight: 600;
+    }
+    
+    .dark .financial-table .total-row {
+      background-color: #0c4a6e;
+    }
+    
+    .comparison-value {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .financial-table {
+        font-size: 0.875rem;
+      }
+      
+      .card-value {
+        font-size: 1.25rem;
+      }
+      
+      .view-container {
+        padding: 1rem;
+      }
+    }
+    
+    @media print {
+      .display-toggle, .dashboard-cards {
+        display: none;
+      }
+      
+      .view-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      body {
+        font-size: 12pt;
+      }
+    }
+    
+    /* Thai Calendar Styles */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+    }
+    
+    .dark .date-picker-input {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .thai-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      width: 280px;
+      display: none;
+    }
+    
+    .dark .thai-calendar {
+      background-color: #1e293b;
+      border-color: #4b5563;
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .month-year {
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #6b7280;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .dark .nav-btn {
+      color: #9ca3af;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+    }
+    
+    .day-name {
+      text-align: center;
+      font-weight: 500;
+      color: #6b7280;
+      font-size: 0.85rem;
+      padding: 4px 0;
+    }
+    
+    .dark .day-name {
+      color: #9ca3af;
+    }
+    
+    .calendar-dates {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .date-cell {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin: 1px;
+    }
+    
+    .date-cell:hover:not(.disabled) {
+      background-color: #f3f4f6;
+      border-radius: 50%;
+    }
+    
+    .dark .date-cell:hover:not(.disabled) {
+      background-color: #374151;
+    }
+    
+    .date-cell.disabled {
+      color: #d1d5db;
+      cursor: default;
+      opacity: 0.4;
+    }
+    
+    .dark .date-cell.disabled {
+      color: #6b7280;
+    }
+    
+    .date-cell.selected {
+      background-color: #0ea5e9;
+      color: white;
+      border-radius: 50%;
+    }
+    
+    .date-cell.today {
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      font-weight: 500;
+    }
+    
+    .dark .date-cell.today {
+      border-color: #38bdf8;
+    }
+  </style>
+  
+  <!-- Template สำหรับเมนู -->
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+  <!-- Account Menu Styles -->
+  <link rel="stylesheet" href="/css/account-menu.css">
+</head>
+
+<body class="bg-white dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Spinner -->
+<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="loader"></div>
+</div>
+  <div id="mainContent" class="container mx-auto px-4 py-6">
+    <!-- Navbar -->
+    <!-- Account System Navbar Template -->
+<div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0">
+  <div class="flex-1 flex items-center space-x-6">
+    <img src="/uploads/Logo2.png"
+         alt="Logo"
+         class="rounded-full shadow-lg"
+         style="width: 40px; height: 40px;" />
+    <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี</span>
+    <!-- Menu Container -->
+    <div id="mainMenuContainer" class="ml-auto"></div>
+  </div>
+  <div class="flex-none flex items-center space-x-2">
+    <!-- User Profile Section -->
+    <div class="flex items-center space-x-3 mr-4">
+      <img id="employeePhoto"
+           alt="Profile"
+           class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600"
+           src="/img/default-avatar.svg">
+      <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+    </div>
+
+    <!-- Dark Mode Toggle -->
+    <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+      <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+      <span id="darkModeLabel">Dark Mode</span>
+    </button>
+
+    <!-- Logout Button -->
+    <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+      <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- ตารางรายการเงินสด -->
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <h3 class="text-lg font-semibold mb-4 flex items-center text-gray-800 dark:text-gray-200">
+        <i class="bi bi-list-ul mr-2 text-blue-500"></i> รายการเคลื่อนไหวเงินสดล่าสุด
+      </h3>
+
+      <div class="overflow-x-auto">
+        <table class="table border border-gray-200 dark:border-gray-700">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="px-4 py-2 text-left text-gray-700 dark:text-gray-300">วันที่</th>
+              <th class="px-4 py-2 text-left text-gray-700 dark:text-gray-300">ประเภท</th>
+              <th class="px-4 py-2 text-left text-gray-700 dark:text-gray-300">บัญชี</th>
+              <th class="px-4 py-2 text-left text-gray-700 dark:text-gray-300">รายละเอียด</th>
+              <th class="px-4 py-2 text-right text-gray-700 dark:text-gray-300">จำนวนเงิน</th>
+              <th class="px-4 py-2 text-right text-gray-700 dark:text-gray-300">คงเหลือ</th>
+            </tr>
+          </thead>
+          <tbody id="cashTable" class="divide-y divide-gray-200 dark:divide-gray-700">
+            <tr>
+              <td class="px-4 py-2">2025-05-30</td>
+              <td class="px-4 py-2"><span class="text-red-500">ออก</span></td>
+              <td class="px-4 py-2">เงินสดในมือ</td>
+              <td class="px-4 py-2">ค่าวัสดุสำนักงาน</td>
+              <td class="px-4 py-2 text-right negative-value">฿ 2,500.00</td>
+              <td class="px-4 py-2 text-right">฿ 107,500.00</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2">2025-05-29</td>
+              <td class="px-4 py-2"><span class="text-green-600">เข้า</span></td>
+              <td class="px-4 py-2">ธนาคารกสิกรไทย</td>
+              <td class="px-4 py-2">โอนเงินจากลูกค้า บ. ABC จำกัด</td>
+              <td class="px-4 py-2 text-right">฿ 5,000.00</td>
+              <td class="px-4 py-2 text-right">฿ 110,000.00</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2">2025-05-28</td>
+              <td class="px-4 py-2"><span class="text-green-600">เข้า</span></td>
+              <td class="px-4 py-2">เงินสดในมือ</td>
+              <td class="px-4 py-2">รับเงินสดจากลูกค้า</td>
+              <td class="px-4 py-2 text-right">฿ 10,000.00</td>
+              <td class="px-4 py-2 text-right">฿ 105,000.00</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2">2025-05-27</td>
+              <td class="px-4 py-2"><span class="text-red-500">ออก</span></td>
+              <td class="px-4 py-2">ฝากธนาคาร</td>
+              <td class="px-4 py-2">โอนเงินฝากธนาคาร</td>
+              <td class="px-4 py-2 text-right negative-value">฿ 5,000.00</td>
+              <td class="px-4 py-2 text-right">฿ 95,000.00</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2">2025-05-27</td>
+              <td class="px-4 py-2"><span class="text-green-600">เข้า</span></td>
+              <td class="px-4 py-2">ฝากธนาคาร</td>
+              <td class="px-4 py-2">รับเงินโอนจากลูกค้า</td>
+              <td class="px-4 py-2 text-right">฿ 100,000.00</td>
+              <td class="px-4 py-2 text-right">฿ 100,000.00</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2">2025-05-26</td>
+              <td class="px-4 py-2"><span class="text-red-500">ออก</span></td>
+              <td class="px-4 py-2">เงินสดในมือ</td>
+              <td class="px-4 py-2">จ่ายค่าเช่าสำนักงาน</td>
+              <td class="px-4 py-2 text-right negative-value">฿ 8,500.00</td>
+              <td class="px-4 py-2 text-right">฿ 0.00</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2">2025-05-25</td>
+              <td class="px-4 py-2"><span class="text-green-600">เข้า</span></td>
+              <td class="px-4 py-2">เงินสดในมือ</td>
+              <td class="px-4 py-2">รับชำระค่าบริการ</td>
+              <td class="px-4 py-2 text-right">฿ 3,500.00</td>
+              <td class="px-4 py-2 text-right">฿ 8,500.00</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2">2025-05-24</td>
+              <td class="px-4 py-2"><span class="text-green-600">เข้า</span></td>
+              <td class="px-4 py-2">เงินสดในมือ</td>
+              <td class="px-4 py-2">เงินลงทุนเพิ่มจากหุ้นส่วน</td>
+              <td class="px-4 py-2 text-right">฿ 5,000.00</td>
+              <td class="px-4 py-2 text-right">฿ 5,000.00</td>
+            </tr>
+            <!-- เพิ่มเติมรายการที่นี่ -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ตัวอย่าง script สำหรับ Dark Mode
+    const btnToggleDark = document.getElementById('btnToggleDark');'
+    btnToggleDark.addEventListener('click', () => {'
+      document.documentElement.classList.toggle('dark');'
+      // อัปเดต label
+      document.getElementById('darkModeLabel').textContent ='
+        document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';'
+    });
+
+    // แสดงเมนูด้านบน
+    const mainMenuTemplate = document.getElementById('mainMenuTemplate');'
+    const mainMenuContainer = document.getElementById('mainMenuContainer');'
+    if (mainMenuTemplate && mainMenuContainer) {
+      mainMenuContainer.innerHTML = mainMenuTemplate.innerHTML;
+    }
+
+    // ตัวอย่าง script สำหรับแทรกรายการ (จำลอง ไม่เชื่อม backend)
+    const cashForm = document.getElementById('cashForm');'
+    if (cashForm) {
+      cashForm.addEventListener('submit', function(e) {'
+        e.preventDefault();
+        const form = e.target;
+        const date = form.date.value;
+        const type = form.type.value;
+        const account = form.account.value === 'cash' ? 'เงินสดในมือ' : 'ฝากธนาคาร';'
+        const amount = parseFloat(form.amount.value);
+        const desc = form.description.value;
+
+        // ตรวจสอบค่าที่ป้อน
+        if (!date || !type || isNaN(amount) || amount <= 0 || !desc) {
+          alert('กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง');'
+          return;
+        }
+
+        const amountFormatted = amount.toFixed(2);
+        const typeText = type === 'in''
+          ? '<span class="text-green-600">เข้า</span>''
+          : '<span class="text-red-500">ออก</span>';'
+        const amountText = type === 'out''
+          ? `<span class="negative-value">฿ ${amountFormatted}</span>`
+          : `฿ ${amountFormatted}`;
+        
+        // แทรกแถวใหม่บนสุด
+        const tr = `<tr>
+          <td class="px-4 py-2">${date}</td>
+          <td class="px-4 py-2">${typeText}</td>
+          <td class="px-4 py-2">${account}</td>
+          <td class="px-4 py-2">${desc}</td>
+          <td class="px-4 py-2 text-right">${amountText}</td>
+        </tr>`;
+        document.getElementById('cashTable').insertAdjacentHTML('afterbegin', tr);'
+        form.reset();
+      });
+    }
+
+    // Dropdown submenu toggle
+    window.toggleSubmenu = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const submenu = e.currentTarget.nextElementSibling;
+      if (submenu) {
+        submenu.classList.toggle('hidden');'
+      }
+    };
+  </script>
+  <!-- Account Menu Script -->
+  <script src="/js/account-menu.js"></script>
+</body>
+</html>

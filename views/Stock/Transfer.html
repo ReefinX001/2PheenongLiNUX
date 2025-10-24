@@ -1,0 +1,2115 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ย้ายสินค้าฝ่ายสตอก</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+  
+  <!-- Flatpickr CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <script src="../js/activity-tracker.js"></script>
+  <!-- Tailwind CSS CDN (Note: For production, consider using PostCSS or Tailwind CLI) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind Configuration (prevents "tailwind is not defined" error) -->
+  <script>
+
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Socket.io CDN -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+  </script>
+
+  <!-- SignaturePad library -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+
+  <!-- Google Fonts - Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+    
+    /* Tooltip styles */
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 120px;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px;
+      position: absolute;
+      z-index: 100;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 12px;
+    }
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    /* Badge status colors */
+    .badge-success {
+      background-color: #10b981;
+    }
+    .badge-pending {
+      background-color: #f59e0b;
+    }
+    .badge-rejected {
+      background-color: #ef4444;
+    }
+    
+    /* Tab styles */
+    .tab-active {
+      color: #0ea5e9;
+      border-bottom: 2px solid #0ea5e9;
+      font-weight: 600;
+    }
+
+    /* Table hover effects */
+    .hover-row:hover {
+      background-color: rgba(14, 165, 233, 0.05);
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+    
+    .dark ::-webkit-scrollbar-track {
+      background: #2d3748;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #4a5568;
+    }
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #718096;
+    }
+
+    /* Pulse animation for indicators */
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    .animate-pulse-slow {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen bg-gray-100 dark:bg-gray-900">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+          class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-primary-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-primary-700 transition-all duration-300">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="flex w-full">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+       class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+              transform transition-transform duration-300 translate-x-0 z-20">
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-hidden">
+        <ul class="flex flex-col w-full space-y-1">
+
+      <li class="my-px">
+                  <a href="branch_stock_overview"
+                    class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                    <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                      <i class="bi bi-grid text-xl"></i>
+                    </span>
+                    <span class="ml-3">สต๊อกคงเหลือ</span>
+                  </a>
+                </li>
+
+
+          <!-- เมนู: ตรวจสินค้า/อนุมัติ -->
+          <li class="my-px">
+            <a href="inventory_dashboard"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+                <i class="bi bi-clipboard-check text-xl"></i>
+              </span>
+              <span class="ml-3">ตรวจสินค้า/อนุมัติ</span>
+            </a>
+          </li>
+
+          <!-- เมนู:PO -->
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+                <i class="bi bi-file-earmark-text text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+          <!-- เมนู: Quotation -->
+          <li class="my-px">
+            <a href="quotation_Stock"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+                <i class="bi bi-file-earmark-richtext text-xl"></i>
+              </span>
+              <span class="ml-3">สร้างใบเสนอราคา</span>
+            </a>
+          </li>
+          <!-- เมนู: Transfer -->
+          <li class="my-px">
+            <a href="Transfer"
+                    class="flex flex-row items-center h-12 px-4 rounded-lg
+            text-gray-600 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-700 transition-all sidebar-link">
+              <span class="flex items-center justify-center text-lg text-primary-500 dark:text-primary-400">
+                <i class="bi bi-truck text-xl"></i>
+              </span>
+              <span class="ml-3">ย้ายสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="product_Image"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-yellow-500 dark:text-yellow-400">
+                <i class="bi bi-upc-scan text-xl"></i>
+              </span>
+              <span class="ml-3">ลงทะเบียนสินค้า</span>
+            </a>
+          </li>
+
+          <!-- เมนู: เพิ่มเติม -->
+          <li class="my-px">
+            <a href="StockAdditional"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-three-dots text-xl"></i>
+              </span>
+              <span class="ml-3">เพิ่มเติม</span>
+            </a>
+          </li>
+
+
+          <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <!-- Dark Mode Toggle -->
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+                <i class="bi bi-moon-stars text-xl"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+                <i class="bi bi-box-arrow-right text-xl"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px mt-2">
+            <div id="profile"
+                 class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+              <div class="avatar mr-3">
+                <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+                  <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium" id="employeeName">Loading...</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="mainContent"
+          class="flex-1 ml-56 p-6 space-y-6 transition-all duration-300 ease-in-out">
+      
+      <!-- Page Header -->
+      <div class="mb-6">
+        <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+          <i class="bi bi-truck text-primary-500 mr-2"></i>
+          ย้ายสินค้าระหว่างสาขา
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">จัดการการย้ายสินค้าระหว่างสาขาและติดตามประวัติการย้าย</p>
+      </div>
+      
+      <!-- Tabs for Transfer and History -->
+      <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="transferTabs">
+          <li class="mr-2">
+            <a href="#" class="inline-block p-4 text-primary-600 tab-active" id="transferFormTab">
+              <i class="bi bi-arrow-left-right mr-2"></i>ทำรายการย้ายสินค้า
+            </a>
+          </li>
+          <li class="mr-2">
+            <a href="#" class="inline-block p-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" id="transferHistoryTab">
+              <i class="bi bi-clock-history mr-2"></i>ประวัติการย้ายสินค้า
+            </a>
+          </li>
+        </ul>
+      </div>
+      
+      <!-- Transfer Form Content -->
+      <div id="transferFormContent">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- ฟอร์มย้ายสินค้า -->
+          <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm lg:col-span-4">
+            <div class="flex items-center mb-4">
+              <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
+                <i class="bi bi-clipboard-data text-primary-500 text-lg"></i>
+              </div>
+              <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">รายละเอียดการย้าย</h2>
+            </div>
+            <div class="w-full h-1 bg-gradient-to-r from-primary-400 to-primary-600 rounded-full mb-6"></div>
+            
+            <form id="transferForm" class="space-y-5">
+              <div>
+                <label class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">วันที่ย้ายสินค้า</label>
+                <div class="relative">
+                  <input id="transferDate" type="text" readonly placeholder="เลือกวันที่" 
+                         class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 cursor-pointer focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"/>
+                  <span class="absolute inset-y-0 right-3 flex items-center text-primary-500"><i class="bi bi-calendar-date"></i></span>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-1 gap-5">
+                <div>
+                  <label class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">สาขาต้นทาง</label>
+                  <div class="relative">
+                    <select id="branchFrom" 
+                            class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 appearance-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all">
+                      <option value="">-- เลือกสาขาต้นทาง --</option>
+                    </select>
+                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500 dark:text-gray-400">
+                      <i class="bi bi-chevron-down"></i>
+                    </span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">สาขาปลายทาง</label>
+                  <div class="relative">
+                    <select id="branchTo" 
+                            class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 appearance-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all">
+                      <option value="">-- เลือกสาขาปลายทาง --</option>
+                    </select>
+                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500 dark:text-gray-400">
+                      <i class="bi bi-chevron-down"></i>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div>
+                  <label class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">ผู้ส่ง</label>
+                  <input id="sender" type="text" readonly 
+                         class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5"/>
+                </div>
+                <div>
+                  <label class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">ผู้รับ</label>
+                  <div class="relative">
+                    <select id="receiver" 
+                            class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 appearance-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all">
+                      <option value="">-- เลือกผู้รับ --</option>
+                    </select>
+                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500 dark:text-gray-400">
+                      <i class="bi bi-chevron-down"></i>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">หมายเหตุ (ถ้ามี)</label>
+                <textarea id="note" rows="3" placeholder="กรอกหมายเหตุเพิ่มเติม" 
+                          class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"></textarea>
+              </div>
+              
+              <div class="flex flex-col space-y-3 pt-2">
+                <button
+                  id="btnSubmit"
+                  type="submit"
+                  disabled
+                  class="w-full bg-primary-600 hover:bg-primary-700 text-white rounded-lg px-4 py-3 font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+                >
+                  <i class="bi bi-send mr-2"></i>
+                  บันทึกการย้ายสินค้า
+                </button>
+                <button type="reset" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg px-4 py-3 transition-all">
+                  <i class="bi bi-x-circle mr-2"></i>
+                  ยกเลิก
+                </button>
+              </div>
+              
+              <!-- Summary information -->
+              <div id="transferSummary" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg hidden">
+                <h3 class="font-medium text-gray-800 dark:text-gray-200 mb-2">สรุปรายการโอนย้าย</h3>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                  <div class="text-gray-600 dark:text-gray-400">จำนวนรายการ:</div>
+                  <div class="text-gray-800 dark:text-gray-200 font-medium" id="summaryItemCount">0 รายการ</div>
+                  <div class="text-gray-600 dark:text-gray-400">มูลค่ารวม:</div>
+                  <div class="text-gray-800 dark:text-gray-200 font-medium" id="summaryTotalValue">0 บาท</div>
+                </div>
+              </div>
+            </form>
+          </section>
+
+          <!-- เลือกสินค้า -->
+          <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm lg:col-span-8">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center">
+                <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mr-3">
+                  <i class="bi bi-box-seam text-green-500 text-lg"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">เลือกสินค้า</h2>
+              </div>
+              <div class="text-sm bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 py-1 px-3 rounded-full flex items-center">
+                <i class="bi bi-info-circle mr-1"></i>
+                <span>สามารถค้นหาสินค้าได้จากชื่อหรือ IMEI</span>
+              </div>
+            </div>
+            <div class="w-full h-1 bg-gradient-to-r from-green-400 to-green-600 rounded-full mb-6"></div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="searchInput" class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">ค้นหาสินค้า / เลข IMEI</label>
+                <div class="relative">
+                  <input id="searchInput" type="text"
+                         class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg
+                                px-4 py-2.5 pr-10 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all disabled:opacity-50"
+                         placeholder="พิมพ์ชื่อสินค้า หรือ IMEI…" />
+                  <span class="absolute inset-y-0 right-3 flex items-center text-gray-400 dark:text-gray-300">
+                    <i class="bi bi-search"></i>
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label for="categoryFilter" class="block mb-1.5 font-medium text-gray-700 dark:text-gray-300">หมวดหมู่</label>
+                <div class="relative">
+                  <select id="categoryFilter" 
+                          class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 appearance-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all">
+                    <option value="">-- เลือกหมวดหมู่ --</option>
+                  </select>
+                  <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500 dark:text-gray-400">
+                    <i class="bi bi-chevron-down"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- สินค้าต้นทาง -->
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-medium text-primary-600 dark:text-primary-400 flex items-center">
+                  <i class="bi bi-box-arrow-up text-lg mr-2"></i>
+                  สินค้าต้นทาง
+                </h3>
+                <div id="sourceItemCount" class="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 py-1 px-2 rounded">
+                  0 รายการ
+                </div>
+              </div>
+              <div class="overflow-auto max-h-[250px] border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table class="w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead class="bg-gray-100 dark:bg-gray-700 sticky top-0 z-10">
+                    <tr>
+
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">ชื่อสินค้า</th>
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">ยี่ห้อ</th>
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">IMEI</th>
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">หมวดหมู่</th>
+                      <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">คงเหลือ</th>
+                      <th class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="transferListIn" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr><td colspan="7" class="py-6 text-center text-gray-400 dark:text-gray-500">โปรดเลือกสินค้าเพื่อย้ายเข้า</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- สินค้าปลายทาง -->
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-medium text-green-600 dark:text-green-400 flex items-center">
+                  <i class="bi bi-box-arrow-in-down text-lg mr-2"></i>
+                  สินค้าปลายทาง
+                </h3>
+                <div id="destItemCount" class="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 py-1 px-2 rounded">
+                  0 รายการ
+                </div>
+              </div>
+              <div class="overflow-auto max-h-[250px] border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table class="w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead class="bg-gray-100 dark:bg-gray-700 sticky top-0 z-10">
+                    <tr>
+
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">ชื่อสินค้า</th>
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">ยี่ห้อ</th>
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">IMEI</th>
+                      <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">หมวดหมู่</th>
+                      <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">คงเหลือ</th>
+                      <th class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="transferListOut" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr><td colspan="7" class="py-6 text-center text-gray-400 dark:text-gray-500">ยังไม่มีสินค้าที่เลือกส่งออก</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Quick Guide Panel -->
+            <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <h4 class="font-medium text-blue-800 dark:text-blue-300 flex items-center mb-2">
+                <i class="bi bi-lightbulb text-lg mr-2"></i>
+                คำแนะนำการใช้งาน
+              </h4>
+              <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                <li>เลือกสาขาต้นทางและปลายทาง และกรอกรายละเอียดให้ครบถ้วน</li>
+                <li>ค้นหาสินค้าจากชื่อหรือ IMEI</li>
+                <li>กด "ย้าย" เพื่อเพิ่มสินค้าเข้าในรายการส่งออก</li>
+                <li>สามารถกด "ลบ" เพื่อนำสินค้ากลับสู่รายการต้นทาง</li>
+                <li>กด "บันทึกการย้ายสินค้า" เพื่อดำเนินการย้ายสินค้า</li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </div>
+      
+      <!-- Transfer History Content -->
+      <div id="transferHistoryContent" class="hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center">
+              <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mr-3">
+                <i class="bi bi-clock-history text-indigo-500 text-xl"></i>
+              </div>
+              <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">ประวัติการย้ายสินค้า</h2>
+            </div>
+            
+            <!-- Filters -->
+            <div class="flex space-x-2">
+              <div class="relative">
+                <input id="historySearch" type="text" placeholder="ค้นหา..."
+                       class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg
+                              px-4 py-2 w-48 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all" />
+              </div>
+              <div class="relative">
+                <!-- Filter dropdown -->
+                <select id="historyFilter" class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg
+                        px-4 py-2 appearance-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all">
+                  <option value="">ทั้งหมด</option>
+                  <option value="pending-stock">รอฝ่ายสต๊อก</option>
+                  <option value="pending-receive">รอสาขารับ</option>
+                  <option value="completed">เสร็จสิ้น</option>
+                  <option value="rejected">ถูกปฏิเสธ</option>
+                </select>
+                <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500 dark:text-gray-400">
+                  <i class="bi bi-chevron-down"></i>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- History Table -->
+          <div class="overflow-auto">
+            <table class="w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
+              <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">เลขที่</th>
+                  <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">วันที่</th>
+                  <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">จาก</th>
+                  <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">ไปยัง</th>
+                  <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">จำนวนรายการ</th>
+                  <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">สถานะ</th>
+                  <th class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">ดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <!-- Will be filled by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+          
+          <div id="historyPagination" class="flex justify-between items-center mt-6 text-sm">
+            <div class="text-gray-600 dark:text-gray-400">
+              <span id="historyPaginationInfo">แสดง 1-10 จาก 0 รายการ</span>
+            </div>
+            <div class="flex space-x-2">
+              <button id="prevPageBtn" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <div id="pageNumbers" class="flex space-x-1">
+                <!-- Page numbers will be generated here -->
+              </div>
+              <button id="nextPageBtn" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Transfer Detail Modal -->
+  <input type="checkbox" id="transferDetailModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box max-w-3xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+      <h3 class="font-bold text-lg flex items-center">
+        <i class="bi bi-info-circle mr-2 text-primary-500"></i>
+        รายละเอียดการย้ายสินค้า
+        <span id="modalTransferNo" class="ml-2 text-sm bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 py-1 px-2 rounded-lg"></span>
+      </h3>
+      
+      <div class="py-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">วันที่</div>
+            <div id="modalDate" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">สถานะ</div>
+            <div id="modalStatus" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">จากสาขา</div>
+            <div id="modalFromBranch" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">ไปยังสาขา</div>
+            <div id="modalToBranch" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">ผู้ส่ง</div>
+            <div id="modalSender" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">ผู้รับ</div>
+            <div id="modalReceiver" class="font-medium"></div>
+          </div>
+          <div class="col-span-2">
+            <div class="text-gray-500 dark:text-gray-400">หมายเหตุ</div>
+            <div id="modalNote" class="font-medium"></div>
+          </div>
+        </div>
+        
+        <div class="border-t border-gray-200 dark:border-gray-700 my-4 pt-4">
+          <h4 class="font-semibold mb-3">รายการสินค้า</h4>
+          <div class="overflow-x-auto max-h-60">
+            <table class="w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
+              <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                <tr>
+
+                  <th class="px-3 py-2 text-left">ชื่อสินค้า</th>
+                  <th class="px-3 py-2 text-left">ยี่ห้อ</th>
+                  <th class="px-3 py-2 text-left">IMEI</th>
+                  <th class="px-3 py-2 text-center">จำนวน</th>
+                </tr>
+              </thead>
+              <tbody id="modalItems" class="divide-y divide-gray-200 dark:divide-gray-700">
+                <!-- Will be filled with JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-action">
+        <button id="modalDownloadBtn"
+                class="btn btn-outline bg-white border-gray-500 text-gray-600 hover:bg-gray-50 dark:bg-transparent dark:text-gray-400 dark:hover:bg-gray-900/30 flex items-center"
+                onclick="downloadTransferSlip(this.dataset.transferId)">
+          <i class="bi bi-download mr-2"></i> ดาวน์โหลด PDF
+        </button>
+        <button id="modalPrintBtn"
+                class="btn btn-outline bg-white border-primary-500 text-primary-600 hover:bg-primary-50 dark:bg-transparent dark:text-gray-400 dark:hover:bg-primary-900/30 flex items-center"
+                onclick="printTransferSlip(this.dataset.transferId)">
+          <i class="bi bi-printer mr-2"></i> พิมพ์ใบโอน
+        </button>
+        <label for="transferDetailModal" class="btn bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600">ปิด</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <input type="checkbox" id="confirmActionModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+      <div class="flex items-center mb-4">
+        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
+          <i class="bi bi-question-circle text-blue-600 dark:text-blue-400 text-xl"></i>
+        </div>
+        <h3 class="font-bold text-lg">ยืนยันการดำเนินการ</h3>
+      </div>
+      <p class="py-4" id="confirmActionText">ข้อความยืนยันที่นี่</p>
+      <div class="modal-action">
+        <label
+          for="confirmActionModal"
+          class="btn btn-outline border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+          id="cancelActionBtn"
+        >
+          <i class="bi bi-x-lg mr-2"></i> ยกเลิก
+        </label>
+        <label
+          for="confirmActionModal"
+          class="btn bg-primary-600 dark:bg-primary-600 hover:bg-primary-700 dark:hover:bg-primary-700 text-white border-none"
+          id="okActionBtn"
+        >
+          <i class="bi bi-check-lg mr-2"></i> ยืนยัน
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approval Modal for Stock -->
+  <input type="checkbox" id="approvalModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box max-w-4xl bg-white dark:bg-gray-800">
+      <h3 class="font-bold text-lg mb-4">
+        <i class="bi bi-clipboard-check mr-2 text-green-500"></i>
+        ตรวจสอบและอนุมัติการโอนย้าย
+      </h3>
+      <!-- Details -->
+      <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">เลขที่การโอน</div>
+            <div id="approvalTransferNo" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">วันที่ขอ</div>
+            <div id="approvalRequestDate" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">จากสาขา</div>
+            <div id="approvalFromBranch" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">ไปยังสาขา</div>
+            <div id="approvalToBranch" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">ผู้ส่ง</div>
+            <div id="approvalSender" class="font-medium"></div>
+          </div>
+          <div>
+            <div class="text-gray-500 dark:text-gray-400">ผู้รับ</div>
+            <div id="approvalReceiver" class="font-medium"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Items table -->
+      <div class="mb-6">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
+              <tr>
+
+                <th class="px-3 py-2 text-left">ชื่อสินค้า</th>
+                <th class="px-3 py-2 text-left">ยี่ห้อ</th>
+                <th class="px-3 py-2 text-left">IMEI</th>
+                <th class="px-3 py-2 text-center">จำนวน</th>
+              </tr>
+            </thead>
+            <tbody id="approvalItemsTable" class="divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Will be filled with JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Note -->
+      <div class="mb-6">
+        <label class="block mb-2 font-medium">หมายเหตุจากผู้ขอโอน</label>
+        <div id="approvalNote" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-sm">-</div>
+      </div>
+      <!-- Signature -->
+      <div class="mb-6">
+        <label class="block mb-2 font-medium">ลายเซ็นผู้อนุมัติ</label>
+        <canvas id="signatureCanvas" class="w-full h-24 border border-gray-300 dark:border-gray-600 rounded-lg"></canvas>
+        <div class="flex justify-end space-x-2 mt-2">
+          <button type="button" onclick="clearSignature()"
+                  class="btn btn-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
+            <i class="bi bi-eraser mr-1"></i> ลบลายเซ็น
+          </button>
+        </div>
+      </div>
+      <!-- Rejection reason -->
+      <div id="rejectionSection" class="mb-6 hidden">
+        <label class="block mb-2 font-medium">เหตุผลการปฏิเสธ</label>
+        <textarea id="rejectionReason" rows="3" placeholder="กรุณาระบุเหตุผล" 
+                  class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"></textarea>
+      </div>
+      <!-- Actions -->
+      <div class="modal-action">
+        <button type="button" class="btn btn-outline" id="cancelApprovalBtn">
+          <i class="bi bi-x-lg mr-2"></i> ยกเลิก
+        </button>
+        <button type="button" class="btn bg-green-600 hover:bg-green-700 text-white" id="approveBtn">
+          <i class="bi bi-check-lg mr-2"></i> อนุมัติ
+        </button>
+        <button type="button" class="btn bg-red-600 hover:bg-red-700 text-white" id="rejectBtn">
+          <i class="bi bi-x-circle mr-2"></i> ปฏิเสธ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Define constants and variables
+    let branches = [],
+        incomingItems = [],
+        outgoingItems = [],
+        categoryMap = {},
+        currentTab = 'form',
+        transferHistory = [],
+        currentPage = 1,
+        itemsPerPage = 10,
+        totalTransfers = 0;
+
+    // Show/Hide Loading with Lottie animation
+    let lottieAnimation = null;
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+    // Make showLoading function globally accessible
+    window.showLoading = showLoading;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Show initial loading
+      showLoading(true);
+
+      // 1) Initialize UI components
+      initializeTabs();
+      loadDarkMode();
+    
+      // 2) Load data
+      await Promise.all([
+        loadUsers(),
+        loadEmployeeProfile(),
+        loadBranches(),
+        loadCategories(),
+      ]);
+    
+      // 3) Initialize flatpickr
+      const today = new Date();
+      const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      // Initialize flatpickr for transfer date
+      flatpickr('#transferDate', {
+        dateFormat: 'Y-m-d',
+        defaultDate: formattedDate,
+        altInput: true,
+        altFormat: 'd/m/Y',
+        disableMobile: true,
+        allowInput: false
+      });
+
+      // 4) Load history data if needed
+      if (currentTab === 'history') {
+        loadTransferHistory();
+      }
+    
+      // 5) Setup event listeners
+      setupEventListeners();
+
+      // Hide loading after initialization
+      setTimeout(() => showLoading(false), 800);
+    });
+
+    // 1) Tab management
+    function initializeTabs() {
+      const transferFormTab = document.getElementById('transferFormTab');
+      const transferHistoryTab = document.getElementById('transferHistoryTab');
+      const transferFormContent = document.getElementById('transferFormContent');
+      const transferHistoryContent = document.getElementById('transferHistoryContent');
+
+      // Click handlers for tabs
+      transferFormTab.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentTab = 'form';
+        transferFormTab.classList.add('tab-active');
+        transferHistoryTab.classList.remove('tab-active');
+        transferFormContent.classList.remove('hidden');
+        transferHistoryContent.classList.add('hidden');
+    
+        // Update styles
+        transferFormTab.classList.add('text-primary-600');
+        transferFormTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+        transferHistoryTab.classList.add('text-gray-500', 'dark:text-gray-400');
+        transferHistoryTab.classList.remove('text-primary-600');
+      });
+
+      transferHistoryTab.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentTab = 'history';
+        transferHistoryTab.classList.add('tab-active');
+        transferFormTab.classList.remove('tab-active');
+        transferHistoryContent.classList.remove('hidden');
+        transferFormContent.classList.add('hidden');
+    
+        // Update styles
+        transferHistoryTab.classList.add('text-primary-600');
+        transferHistoryTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+        transferFormTab.classList.add('text-gray-500', 'dark:text-gray-400');
+        transferFormTab.classList.remove('text-primary-600');
+    
+        // Load history data if not already loaded
+        loadTransferHistory();
+      });
+    }
+
+    // 2) Dark Mode Toggle
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const darkModeEnabled = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', darkModeEnabled);
+      document.getElementById('darkModeLabel').textContent = darkModeEnabled ? 'Light Mode' : 'Dark Mode';
+    }
+    function loadDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+
+    // 3) Toggle Sidebar
+    function toggleMenu() {
+      const sb   = document.getElementById('sidebar');
+      const mc   = document.getElementById('mainContent');
+      const icon = document.querySelector('#btnToggleMenu i');
+
+      // เลื่อน sidebar เข้า/ออก
+      sb.classList.toggle('-translate-x-full');
+    
+      // สลับ margin ของ mainContent
+      mc.classList.toggle('ml-64');
+      mc.classList.toggle('ml-0');
+    
+      // เปลี่ยนลูกศร
+      icon.classList.toggle('bi-chevron-left');
+      icon.classList.toggle('bi-chevron-right');
+    }
+
+    // 4) Employee Profile
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const res = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');
+        }
+
+        const user = result.data;
+        // ชื่อ
+        document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+
+        // รูป
+        let photoUrl = user.photoUrl || '';
+        // ถ้าไม่มี slash หน้า ให้เติม
+        if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+          photoUrl = '/' + photoUrl;
+        }
+        document.getElementById('employeePhoto').src = photoUrl || 'https://via.placeholder.com/150';
+
+        // ตั้งค่า sender เป็นชื่อผู้ใช้
+        document.getElementById('sender').value = user.name || '';
+
+        // Save user role to localStorage
+        localStorage.setItem('userRole', user.role);
+        localStorage.setItem('userId', user._id);
+      } catch (err) {
+        console.error('Load Employee Profile Error:', err);
+      }
+    }
+
+    // 5) Load branches
+    async function loadBranches() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/branch', { headers: { Authorization: 'Bearer ' + token } });
+        const result = await res.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || 'ไม่สามารถโหลดข้อมูลสาขา');
+        }
+    
+        branches = result.data || [];
+        populateBranchSelects();
+      } catch (e) {
+        console.error('Branch loading error:', e);
+        showToast('ไม่สามารถโหลดข้อมูลสาขา', 'error');
+      }
+    }
+
+    // 6) Populate branch selects
+    function populateBranchSelects() {
+      const branchFrom = document.getElementById('branchFrom');
+      const branchTo = document.getElementById('branchTo');
+    
+      branchFrom.innerHTML = '<option value="">-- เลือกสาขาต้นทาง --</option>';
+      branchTo.innerHTML = '<option value="">-- เลือกสาขาปลายทาง --</option>';
+    
+      branches.forEach(b => {
+        const code = b.branch_code || b.code;
+        const option = new Option(`[${code}] ${b.name}`, code);
+        branchFrom.append(option);
+      });
+    }
+
+    // 7) Filter destination branch
+    function filterBranchTo() {
+      const branchFrom = document.getElementById('branchFrom');
+      const branchTo = document.getElementById('branchTo');
+    
+      const src = branchFrom.value;
+      const prev = branchTo.value === src ? '' : branchTo.value;
+    
+      branchTo.innerHTML = '<option value="">-- เลือกสาขาปลายทาง --</option>';
+    
+      branches
+        .filter(b => (b.branch_code || b.code) !== src)
+        .forEach(b => {
+          const code = b.branch_code || b.code;
+          branchTo.append(new Option(`[${code}] ${b.name}`, code));
+        });
+    
+      branchTo.value = prev;
+      updateMoveButtonState();
+    }
+
+    // 8) Load categories
+    async function loadCategories() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/category-group', { headers: { Authorization: 'Bearer ' + token } });
+        const result = await res.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || 'ไม่สามารถโหลดข้อมูลหมวดหมู่');
+        }
+    
+        const data = result.data || [];
+        const categoryFilter = document.getElementById('categoryFilter');
+    
+        categoryFilter.innerHTML = '<option value="">-- เลือกหมวดหมู่ --</option>';
+        data.forEach(g => {
+          categoryMap[g._id] = g.name;
+          categoryFilter.append(new Option(g.name, g._id));
+        });
+      } catch (e) {
+        console.error('Category loading error:', e);
+        showToast('ไม่สามารถโหลดข้อมูลหมวดหมู่', 'error');
+      }
+    }
+
+    // 9) Fetch stock list
+    async function fetchStockList() {
+      const branchFrom = document.getElementById('branchFrom');
+      const code = branchFrom.value;
+      const searchInput = document.getElementById('searchInput');
+      const categoryFilter = document.getElementById('categoryFilter');
+    
+      filterBranchTo();
+      outgoingItems = [];
+      renderOutgoing([]);
+      updateTransferSummary();
+    
+      if (!code) {
+        renderIncoming([]);
+        return;
+      }
+    
+      const q = searchInput.value.trim().toLowerCase();
+      const c = categoryFilter.value;
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/branch-stock?branch_code=${encodeURIComponent(code)}`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+    
+        const result = await res.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || 'ไม่สามารถโหลดข้อมูลสต๊อก');
+        }
+    
+        const raw = result.data || [];
+    
+        incomingItems = raw
+          // 1) ตัดทิ้งที่ stock_value <= 0
+          .filter(item => item.stock_value > 0)
+          // 2) map เป็นรูปแบบที่ต้องการ
+          .map(item => ({
+            id:            item._id,
+            sku:           item.sku,
+            name:          item.name,
+            brand:         item.brand,
+            imei:          item.imei,
+            categoryGroup: item.categoryGroup,
+            stock_value:   item.stock_value
+          }))
+          // 3) กรองตาม search / category
+          .filter(i =>
+            (!q || i.name.toLowerCase().includes(q) || (i.imei||'').toLowerCase().includes(q)) &&
+            (!c || i.categoryGroup?._id === c)
+          );
+    
+        renderIncoming(incomingItems);
+      } catch (e) {
+        console.error('fetchStockList error', e);
+        incomingItems = [];
+        renderIncoming([]);
+        showToast('ไม่สามารถโหลดข้อมูลสต๊อก', 'error');
+      }
+    }
+
+    // 10) Render incoming items (source)
+    function renderIncoming(items) {
+      const incomingBody = document.getElementById('transferListIn');
+      const sourceItemCount = document.getElementById('sourceItemCount');
+    
+      sourceItemCount.textContent = `${items.length} รายการ`;
+    
+      if (!items.length) {
+        incomingBody.innerHTML = `
+          <tr><td colspan="7" class="py-6 text-center text-gray-400 dark:text-gray-500">
+            ไม่มีสินค้าในสต๊อก
+          </td></tr>`;
+        updateMoveButtonState();
+        return;
+      }
+    
+      incomingBody.innerHTML = items.map((i, idx) => `
+        <tr data-id="${i.id}" class="hover-row">
+          <td class="px-4 py-2">${i.sku || '-'}</td>
+          <td class="px-4 py-2">${i.name || '-'}</td>
+          <td class="px-4 py-2">${i.brand || '-'}</td>
+          <td class="px-4 py-2">${i.imei || '-'}</td>
+          <td class="px-4 py-2">${i.categoryGroup?.name || '-'}</td>
+          <td class="px-4 py-2 text-center">${i.stock_value}</td>
+          <td class="px-4 py-2 text-right">
+            <button 
+              class="text-white bg-primary-600 hover:bg-primary-700 rounded px-3 py-1 text-xs font-medium transition-all"
+              onclick="moveItemToOutgoing(${idx})"
+              >ย้าย</button>
+          </td>
+        </tr>
+      `).join('');
+    
+      updateMoveButtonState();
+    }
+
+    // 11) Render outgoing items (destination)
+    function renderOutgoing(items) {
+      const outgoingBody = document.getElementById('transferListOut');
+      const destItemCount = document.getElementById('destItemCount');
+    
+      destItemCount.textContent = `${items.length} รายการ`;
+    
+      if (!items.length) {
+        outgoingBody.innerHTML = `
+          <tr><td colspan="7" class="py-6 text-center text-gray-400 dark:text-gray-500">
+            ยังไม่มีสินค้าที่เลือกส่งออก
+          </td></tr>`;
+        updateMoveButtonState();
+        return;
+      }
+    
+      outgoingBody.innerHTML = items.map((i, idx) => `
+        <tr data-id="${i.id}" class="hover-row">
+          <td class="px-4 py-2">${i.sku || '-'}</td>
+          <td class="px-4 py-2">${i.name || '-'}</td>
+          <td class="px-4 py-2">${i.brand || '-'}</td>
+          <td class="px-4 py-2">${i.imei || '-'}</td>
+          <td class="px-4 py-2">${i.categoryGroup?.name || '-'}</td>
+          <td class="px-4 py-2 text-center">${i.stock_value}</td>
+          <td class="px-4 py-2 text-right">
+            <button 
+              class="text-white bg-red-600 hover:bg-red-700 rounded px-3 py-1 text-xs font-medium transition-all"
+              onclick="removeItemFromOutgoing(${idx})"
+              >ลบ</button>
+          </td>
+        </tr>
+      `).join('');
+    
+      updateMoveButtonState();
+    }
+
+    // 12) Move item from incoming to outgoing
+    function moveItemToOutgoing(idx) {
+      const item = incomingItems[idx];
+      if (!item) return;
+    
+      outgoingItems.push(item);
+      incomingItems = incomingItems.filter(i => i.id !== item.id);
+    
+      renderIncoming(incomingItems);
+      renderOutgoing(outgoingItems);
+      updateTransferSummary();
+    }
+
+    // 13) Remove item from outgoing
+    function removeItemFromOutgoing(idx) {
+      const item = outgoingItems[idx];
+      if (!item) return;
+    
+      incomingItems.push(item);
+      outgoingItems = outgoingItems.filter(i => i.id !== item.id);
+    
+      renderIncoming(incomingItems);
+      renderOutgoing(outgoingItems);
+      updateTransferSummary();
+    }
+
+    // 14) Update transfer summary info
+    function updateTransferSummary() {
+      const summary = document.getElementById('transferSummary');
+      const count = document.getElementById('summaryItemCount');
+      const value = document.getElementById('summaryTotalValue');
+    
+      if (outgoingItems.length > 0) {
+        summary.classList.remove('hidden');
+        count.textContent = `${outgoingItems.length} รายการ`;
+        const totalValue = outgoingItems.reduce((sum, item) => sum + item.stock_value, 0);
+        value.textContent = `${totalValue.toLocaleString('th-TH')} บาท`;
+      } else {
+        summary.classList.add('hidden');
+      }
+    }
+
+    // 15) Update move button state
+    function updateMoveButtonState() {
+      const branchFrom = document.getElementById('branchFrom');
+      const branchTo = document.getElementById('branchTo');
+      const receiver = document.getElementById('receiver');
+      const submitBtn = document.getElementById('btnSubmit');
+    
+      const isValid = branchFrom.value &&
+                      branchTo.value &&
+                      receiver.value &&
+                      outgoingItems.length > 0;
+    
+      submitBtn.disabled = !isValid;
+    }
+
+    // 16) Load users for receiver selection
+    async function loadUsers() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/users', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+    
+        const result = await res.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || 'ไม่สามารถโหลดข้อมูลผู้ใช้');
+        }
+    
+        const userSelect = document.getElementById('receiver');
+        userSelect.innerHTML = '<option value="">-- เลือกผู้รับ --</option>';
+    
+        (result.data || []).forEach(user => {
+          userSelect.append(new Option(user.name, user._id));
+        });
+    
+      } catch (e) {
+        console.error('User loading error:', e);
+        showToast('ไม่สามารถโหลดข้อมูลผู้ใช้', 'error');
+      }
+    }
+
+    // 17) Load transfer history
+    async function loadTransferHistory(page = 1, filter = '') {
+      try {
+        const token = localStorage.getItem('authToken');
+        const searchInput = document.getElementById('historySearch')?.value || '';
+    
+        const res = await fetch(`/api/transfers?page=${page}&limit=${itemsPerPage}&filter=${filter}&search=${searchInput}`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+    
+        const result = await res.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || 'ไม่สามารถโหลดข้อมูลประวัติ');
+        }
+    
+        currentPage = page;
+        transferHistory = result.data || [];
+        totalTransfers = result.total || 0;
+    
+        renderTransferHistory();
+        renderPagination();
+    
+      } catch (e) {
+        console.error('History loading error:', e);
+        showToast('ไม่สามารถโหลดข้อมูลประวัติ', 'error');
+      }
+    }
+
+    // 18) Render transfer history
+    function renderTransferHistory() {
+      const tbody = document.getElementById('historyTableBody');
+      if (!transferHistory.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400 dark:text-gray-500">ไม่พบข้อมูลการย้ายสินค้า</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = transferHistory.map(t => {
+        let actionButton = '';
+        // ฝ่ายสต๊อกอนุมัติ
+        if (userRole==='stock' && t.status==='pending-stock') {
+          actionButton = `<button onclick="approveTransferByStock('${t._id}')"
+            class="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 mr-1">
+              <i class="bi bi-check-circle mr-1"></i> อนุมัติ
+          </button>`;
+        }
+        // สาขาปลายทางรับ
+        else if (t.status==='pending-receive' && t.toBranch?.branch_code===currentBranch) {
+          actionButton = `<button onclick="receiveTransfer('${t._id}')"
+            class="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 mr-1">
+              <i class="bi bi-box-arrow-in-down mr-1"></i> รับสินค้า
+          </button>`;
+        }
+        // ปุ่ม PDF เมื่อเหมาะสม
+        if (['pending-receive','completed'].includes(t.status) || t.stockApproverSignature) {
+          actionButton += `
+            <div class="dropdown dropdown-end inline-block">
+              <button tabindex="0" class="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700 mr-1">
+                <i class="bi bi-file-earmark-pdf mr-1"></i> PDF <i class="bi bi-chevron-down ml-1"></i>
+              </button>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 mt-1">
+                <li><a href="#" onclick="downloadTransferSlip('${t._id}');return false;">
+                  <i class="bi bi-download"></i> ดาวน์โหลดใบโอน
+                </a></li>
+                <li><a href="#" onclick="printTransferSlip('${t._id}');return false;">
+                  <i class="bi bi-printer"></i> พิมพ์ใบโอน
+                </a></li>
+              </ul>
+            </div>`;
+        }
+        // ปุ่มรายละเอียด
+        actionButton += `<label for="transferDetailModal"
+          class="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded text-xs cursor-pointer"
+          onclick="showTransferDetail('${t._id}')">รายละเอียด</label>`;
+        return `
+          <tr class="hover-row">
+            <td class="px-4 py-3">${t.transferNo||'-'}</td>
+            <td class="px-4 py-3">${new Date(t.transferDate).toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric'})}</td>
+            <td class="px-4 py-3">${t.fromBranch?.name||'-'}</td>
+            <td class="px-4 py-3">${t.toBranch?.name||'-'}</td>
+            <td class="px-4 py-3 text-center">${t.items?.length||0}</td>
+            <td class="px-4 py-3 text-center">
+              <span class="px-3 py-1 rounded-full text-xs font-medium ${({
+                'draft':        'bg-gray-100 dark:bg-gray-900/50 text-gray-800 dark:text-gray-300',
+                'pending-stock':'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
+                'pending-receive':'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300',
+                'approved':     'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300',
+                'completed':    'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300',
+                'rejected':     'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300'
+              }[t.status] || '')}" style="min-width:100px">
+                ${{
+                  'draft':        'แบบร่าง',
+                  'pending-stock':'รอฝ่ายสต๊อก',
+                  'pending-receive':'รอสาขาปลายทางรับ',
+                  'approved':     'สำเร็จ',
+                  'completed':    'เสร็จสิ้น',
+                  'rejected':     'ถูกปฏิเสธ'
+                }[t.status]||'ไม่ระบุ'}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-right">${actionButton}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    // 19) Render pagination
+    function renderPagination() {
+      const info = document.getElementById('historyPaginationInfo');
+      const pageNumbers = document.getElementById('pageNumbers');
+      const prevBtn = document.getElementById('prevPageBtn');
+      const nextBtn = document.getElementById('nextPageBtn');
+    
+      // Calculate total pages
+      const totalPages = Math.ceil(totalTransfers / itemsPerPage) || 1;
+    
+      // Update info text
+      const start = (currentPage - 1) * itemsPerPage + 1;
+      const end = Math.min(start + itemsPerPage - 1, totalTransfers);
+      info.textContent = `แสดง ${start}-${end} จาก ${totalTransfers} รายการ`;
+    
+      // Disable/enable prev/next buttons
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+    
+      // Generate page numbers
+      pageNumbers.innerHTML = '';
+    
+      // Determine range of page numbers to display
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, startPage + 4);
+    
+      // Adjust if we're near the end
+      if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+      }
+    
+      // Generate first page if not in range
+      if (startPage > 1) {
+        const btn = createPageButton(1);
+        pageNumbers.appendChild(btn);
+    
+        if (startPage > 2) {
+          const ellipsis = document.createElement('span');
+          ellipsis.className = 'px-2 py-1 text-gray-500 dark:text-gray-400';
+          ellipsis.textContent = '...';
+          pageNumbers.appendChild(ellipsis);
+        }
+      }
+    
+      // Generate page buttons
+      for (let i = startPage; i <= endPage; i++) {
+        const btn = createPageButton(i);
+        pageNumbers.appendChild(btn);
+      }
+    
+      // Generate last page if not in range
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          const ellipsis = document.createElement('span');
+          ellipsis.className = 'px-2 py-1 text-gray-500 dark:text-gray-400';
+          ellipsis.textContent = '...';
+          pageNumbers.appendChild(ellipsis);
+        }
+    
+        const btn = createPageButton(totalPages);
+        pageNumbers.appendChild(btn);
+      }
+    }
+
+    // 20) Create page button
+    function createPageButton(pageNum) {
+      const btn = document.createElement('button');
+      btn.textContent = pageNum;
+    
+      if (pageNum === currentPage) {
+       btn.className = 'px-3 py-1 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-all';
+      } else {
+        btn.className = 'px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-all';
+        btn.addEventListener('click', () => loadTransferHistory(pageNum));
+      }
+    
+      return btn;
+    }
+
+    // 21) Show transfer detail
+    async function showTransferDetail(id) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/transfers/${id}`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+    
+        const result = await res.json();
+    
+        if (!result.success) {
+          throw new Error(result.error || 'ไม่สามารถโหลดข้อมูลรายละเอียด');
+        }
+    
+        const data = result.data;
+        if (!data) throw new Error('ไม่พบข้อมูล');
+    
+        // Populate modal
+        document.getElementById('modalTransferNo').textContent = data.transferNo || '-';
+    
+        const date = new Date(data.transferDate).toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        document.getElementById('modalDate').textContent = date;
+    
+        const statusText = {
+          'pending': 'รอดำเนินการ',
+          'approved': 'สำเร็จ',
+          'rejected': 'ถูกปฏิเสธ'
+        };
+    
+        const statusClasses = {
+          'pending': 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
+          'approved': 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300',
+          'rejected': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300'
+        };
+    
+        document.getElementById('modalStatus').innerHTML = `
+          <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClasses[data.status] || ''}">
+            ${statusText[data.status] || 'ไม่ระบุ'}
+          </span>
+        `;
+    
+        document.getElementById('modalFromBranch').textContent = data.fromBranch?.name || '-';
+        document.getElementById('modalToBranch').textContent = data.toBranch?.name || '-';
+        document.getElementById('modalSender').textContent = data.sender?.name || '-';
+        document.getElementById('modalReceiver').textContent = data.receiver?.name || '-';
+        document.getElementById('modalNote').textContent = data.note || '-';
+    
+        // Populate items table
+        const itemsTable = document.getElementById('modalItems');
+        itemsTable.innerHTML = (data.items || []).map(item => `
+          <tr>
+            <td class="px-3 py-2">${item.sku || '-'}</td>
+            <td class="px-3 py-2">${item.name || '-'}</td>
+            <td class="px-3 py-2">${item.brand || '-'}</td>
+            <td class="px-3 py-2">${item.imei || '-'}</td>
+            <td class="px-3 py-2 text-center">${item.quantity || 1}</td>
+          </tr>
+        `).join('');
+    
+        // Store ID for print function
+        document.getElementById('modalPrintBtn').dataset.transferId = id;
+    
+        if (data.senderSignature) {
+          // TODO: render senderSignature
+        }
+        if (data.stockApproverSignature) {
+          // TODO: render stockApproverSignature
+        }
+    
+      } catch (e) {
+        console.error('Transfer detail error:', e);
+        showToast('ไม่สามารถโหลดข้อมูลรายละเอียด', 'error');
+      }
+    }
+
+    // 22) Submit transfer
+    async function submitTransfer(event) {
+      event.preventDefault();
+    
+      const branchFrom = document.getElementById('branchFrom').value;
+      const branchTo = document.getElementById('branchTo').value;
+      const transferDate = document.getElementById('transferDate').value;
+      const sender = document.getElementById('sender').value;
+      const receiver = document.getElementById('receiver').value;
+      const note = document.getElementById('note').value;
+    
+      if (!branchFrom || !branchTo || !transferDate || !sender || !receiver || !outgoingItems.length) {
+        showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+        return;
+      }
+    
+      try {
+        // Show confirm dialog
+        document.getElementById('confirmActionText').textContent = 'ยืนยันการย้ายสินค้า? การดำเนินการนี้ไม่สามารถยกเลิกได้';
+        document.getElementById('confirmActionModal').checked = true;
+    
+        // Set up event listener for confirm button
+        const okButton = document.getElementById('okActionBtn');
+        okButton.onclick = async () => {
+          // Remove event listener
+          okButton.onclick = null;
+    
+          const token = localStorage.getItem('authToken');
+          const items = outgoingItems.map(i => ({
+            id: i.id,
+            sku: i.sku,
+            name: i.name,
+            brand: i.brand,
+            imei: i.imei,
+            categoryGroup: i.categoryGroup?._id,
+            quantity: 1
+          }));
+    
+          const payload = {
+  fromBranchCode: branchFrom,
+  toBranchCode: branchTo,
+  transferDate: transferDate,
+  senderId: localStorage.getItem('userId'),  // ✅ ส่ง ID ของผู้ส่ง
+  receiverId: receiver,
+  note: note,
+  items: items,
+  status: 'pending-stock'
+};
+    
+          const res = await fetch('/api/transfers', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+    
+          const result = await res.json();
+    
+          if (!result.success) {
+            throw new Error(result.error || 'ไม่สามารถบันทึกการย้ายสินค้า');
+          }
+    
+          showToast('บันทึกการย้ายสินค้าเรียบร้อยแล้ว', 'success');
+          resetForm();
+    
+          // Redirect to history tab
+          document.getElementById('transferHistoryTab').click();
+        };
+    
+      } catch (e) {
+        console.error('Submit transfer error:', e);
+        showToast('ไม่สามารถบันทึกการย้ายสินค้า: ' + e.message, 'error');
+      }
+    }
+
+    // 23) Reset form
+    function resetForm() {
+      document.getElementById('transferForm').reset();
+      document.getElementById('branchFrom').value = '';
+      document.getElementById('branchTo').value = '';
+      document.getElementById('receiver').value = '';
+    
+      incomingItems = [];
+      outgoingItems = [];
+      renderIncoming([]);
+      renderOutgoing([]);
+      updateTransferSummary();
+    }
+
+    // 24) Print transfer
+    function printTransfer(id) {
+      printTransferSlip(id);
+    }
+
+    // หลัง setupEventListeners()
+    async function downloadTransferSlip(transferId) {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) { showToast('กรุณาเข้าสู่ระบบใหม่','error'); return; }
+    showToast('กำลังเตรียมไฟล์ PDF…','info');
+    const response = await fetch(`/api/transfers/${transferId}/print`, {
+      method: 'GET',
+      headers:{ 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error||'ไม่สามารถดาวน์โหลดไฟล์ได้');
+    }
+    const blob = await response.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    const filename = response.headers.get('content-disposition')
+      ?.split('filename=')[1]?.replace(/['"]/g,'')
+      || `TransferSlip-${transferId}.pdf`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
+    showToast('ดาวน์โหลดไฟล์สำเร็จ','success');
+  } catch(error) {
+    console.error('Error downloading:',error);
+    showToast(error.message||'ไม่สามารถดาวน์โหลดใบโอนได้','error');
+  }
+}
+
+function printTransferSlip(transferId) {
+  const token = localStorage.getItem('authToken');
+  if (!token) { showToast('กรุณาเข้าสู่ระบบใหม่','error'); return; }
+  const printWindow = window.open('','_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html><html><head><title>กำลังโหลดใบโอน…</title>
+    <style>body{margin:0;padding:20px;font-family:'Prompt'} .loading{text-align:center;margin-top:50px} iframe{width:100%;height:calc(100vh-40px);border:none}</style>
+    </head><body>
+      <div class="loading"><h3>กำลังโหลดใบโอน…</h3><p>โปรดรอสักครู่</p></div>
+      <script>
+        fetch('/api/transfers/${transferId}/print',{headers:{'Authorization':'Bearer ${token}'}})
+          .then(r=>r.blob())
+          .then(b=>{ const u=URL.createObjectURL(b); document.body.innerHTML='<iframe src="'+u+'"></iframe>'; })
+          .catch(e=>{document.body.innerHTML='<div class="loading">ไม่สามารถโหลดใบโอน:'+e.message+'</div>'});
+      <\/script>
+    </body></html>
+  `);
+}
+
+    // 25) Show toast notification
+    function showToast(message, type = 'info') {
+      // Create toast container if it doesn't exist
+      let toastContainer = document.getElementById('toast-container');
+    
+      if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'fixed top-4 right-4 z-50 flex flex-col space-y-2';
+        document.body.appendChild(toastContainer);
+      }
+    
+      // Create toast
+      const toast = document.createElement('div');
+    
+      // Set class based on type
+      let bgClass, iconClass;
+    
+      switch(type) {
+        case 'success':
+          bgClass = 'bg-green-100 dark:bg-green-900/80 text-green-800 dark:text-green-300';
+          iconClass = 'bi-check-circle-fill text-green-500 dark:text-green-400';
+          break;
+        case 'error':
+          bgClass = 'bg-red-100 dark:bg-red-900/80 text-red-800 dark:text-red-300';
+          iconClass = 'bi-x-circle-fill text-red-500 dark:text-red-400';
+          break;
+        case 'warning':
+          bgClass = 'bg-yellow-100 dark:bg-yellow-900/80 text-yellow-800 dark:text-yellow-300';
+          iconClass = 'bi-exclamation-triangle-fill text-yellow-500 dark:text-yellow-400';
+          break;
+        default:
+          bgClass = 'bg-blue-100 dark:bg-blue-900/80 text-blue-800 dark:text-blue-300';
+          iconClass = 'bi-info-circle-fill text-blue-500 dark:text-blue-400';
+      }
+    
+      toast.className = `${bgClass} px-4 py-3 rounded-lg shadow-md flex items-center min-w-[300px] animate-fadeIn`;
+    
+      toast.innerHTML = `
+        <i class="bi ${iconClass} text-lg mr-3"></i>
+        <div class="flex-1">${message}</div>
+        <button class="ml-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+          <i class="bi bi-x"></i>
+        </button>
+      `;
+    
+      // Add close button functionality
+      const closeBtn = toast.querySelector('button');
+      closeBtn.addEventListener('click', () => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => {
+          toast.remove();
+        }, 300);
+      });
+    
+      // Append to container
+      toastContainer.appendChild(toast);
+    
+      // Auto-remove after 4 seconds
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => {
+          toast.remove();
+        }, 300);
+      }, 4000);
+    }
+
+    // 26) Setup event listeners
+    function setupEventListeners() {
+      // Dark mode toggle
+      document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
+    
+      // Menu toggle
+      document.getElementById('btnToggleMenu').addEventListener('click', toggleMenu);
+    
+      // Branch change
+      document.getElementById('branchFrom').addEventListener('change', fetchStockList);
+      document.getElementById('branchTo').addEventListener('change', updateMoveButtonState);
+      document.getElementById('receiver').addEventListener('change', updateMoveButtonState);
+    
+      // Search and filter products
+      document.getElementById('searchInput').addEventListener('input', fetchStockList);
+      document.getElementById('categoryFilter').addEventListener('change', fetchStockList);
+    
+      // Submit form
+      document.getElementById('transferForm').addEventListener('submit', submitTransfer);
+      document.getElementById('transferForm').addEventListener('reset', resetForm);
+    
+      // History filter change
+      const historyFilter = document.getElementById('historyFilter');
+      if (historyFilter) {
+        historyFilter.addEventListener('change', () => loadTransferHistory(1, historyFilter.value));
+      }
+    
+      // History search
+      const historySearch = document.getElementById('historySearch');
+      if (historySearch) {
+        historySearch.addEventListener('input', debounce(() => {
+          loadTransferHistory(1, document.getElementById('historyFilter').value);
+        }, 500));
+      }
+    
+      // Pagination buttons
+      document.getElementById('prevPageBtn').addEventListener('click', () => {
+        if (currentPage > 1) {
+          loadTransferHistory(currentPage - 1, document.getElementById('historyFilter').value);
+        }
+      });
+    
+      document.getElementById('nextPageBtn').addEventListener('click', () => {
+        const totalPages = Math.ceil(totalTransfers / itemsPerPage);
+        if (currentPage < totalPages) {
+          loadTransferHistory(currentPage + 1, document.getElementById('historyFilter').value);
+        }
+      });
+    
+      // Print button in modal
+      document.getElementById('modalPrintBtn').addEventListener('click', () => {
+        const id = document.getElementById('modalPrintBtn').dataset.transferId;
+        if (id) printTransfer(id);
+      });
+    
+      // Logout
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        localStorage.removeItem('authToken');
+        window.location.href = '/login';
+      });
+    
+      // Approval modal actions
+      document.getElementById('approveBtn').addEventListener('click', approveTransfer);
+      document.getElementById('rejectBtn').addEventListener('click', toggleRejectSection);
+      document.getElementById('cancelApprovalBtn').addEventListener('click', () => {
+        document.getElementById('approvalModal').checked = false;
+      });
+    }
+
+    // Helper: Debounce function
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    // Add globals and functions
+    let signaturePad = null;
+    let currentApprovalId = null;
+
+    // Initialize SignaturePad
+    function initializeSignaturePad() {
+      const canvas = document.getElementById('signatureCanvas');
+      if (!canvas) return;
+      signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)', penColor: 'rgb(0,0,0)' });
+      function resizeCanvas(){
+        const ratio = Math.max(window.devicePixelRatio||1,1);
+        canvas.width = canvas.offsetWidth*ratio;
+        canvas.height = canvas.offsetHeight*ratio;
+        canvas.getContext('2d').scale(ratio,ratio);
+        signaturePad.clear();
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+    }
+    function clearSignature(){ signaturePad?.clear(); }
+
+    async function openApprovalModal(transferId){
+      currentApprovalId = transferId;
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/transfers/${transferId}`, { headers:{Authorization:'Bearer '+token} });
+        const result = await res.json();
+        if(!result.success) throw new Error(result.error||'');
+        const data=result.data;
+        // populate approval fields, items table…
+        document.getElementById('approvalTransferNo').textContent = data.transferNo || '-';
+    
+        const date = new Date(data.transferDate).toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        document.getElementById('approvalRequestDate').textContent = date;
+    
+        document.getElementById('approvalFromBranch').textContent = data.fromBranch?.name || '-';
+        document.getElementById('approvalToBranch').textContent = data.toBranch?.name || '-';
+        document.getElementById('approvalSender').textContent = data.sender?.name || '-';
+        document.getElementById('approvalReceiver').textContent = data.receiver?.name || '-';
+    
+        // Populate items table
+        const itemsTable = document.getElementById('approvalItemsTable');
+        itemsTable.innerHTML = (data.items || []).map(item => `
+          <tr>
+            <td class="px-3 py-2">${item.sku || '-'}</td>
+            <td class="px-3 py-2">${item.name || '-'}</td>
+            <td class="px-3 py-2">${item.brand || '-'}</td>
+            <td class="px-3 py-2">${item.imei || '-'}</td>
+            <td class="px-3 py-2 text-center">${item.quantity || 1}</td>
+          </tr>
+        `).join('');
+    
+        document.getElementById('approvalNote').textContent = data.note || '-';
+        initializeSignaturePad();
+        clearSignature();
+        document.getElementById('rejectionSection').classList.add('hidden');
+        document.getElementById('approvalModal').checked = true;
+      } catch(e){ showToast('ไม่สามารถโหลดข้อมูลการโอน','error'); }
+    }
+
+    function toggleRejectSection(){
+      const s=document.getElementById('rejectionSection'), btn=document.getElementById('rejectBtn');
+      if(s.classList.toggle('hidden')){
+        btn.innerHTML='<i class="bi bi-x-circle mr-2"></i>ปฏิเสธ';
+        btn.onclick=toggleRejectSection;
+      } else {
+        btn.innerHTML='<i class="bi bi-x-circle mr-2"></i>ยืนยันการปฏิเสธ';
+        btn.onclick=rejectTransfer;
+      }
+    }
+
+    async function approveTransfer(){
+      if(!signaturePad||signaturePad.isEmpty()){ showToast('กรุณาเซ็นชื่อก่อนอนุมัติ','error'); return; }
+      try {
+        const token=localStorage.getItem('authToken');
+        const res = await fetch(`/api/transfers/${currentApprovalId}/approve-stock`, {
+          method:'POST',
+          headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+          body:JSON.stringify({
+            signature: signaturePad.toDataURL(),
+            status: 'pending-receive'
+          })
+        });
+        const result=await res.json();
+        if(!result.success) throw new Error(result.error);
+        showToast('อนุมัติเรียบร้อย','success');
+        document.getElementById('approvalModal').checked=false;
+        loadTransferHistory();
+      } catch(e){ showToast('ไม่สามารถอนุมัติ: '+e.message,'error'); }
+    }
+
+    async function rejectTransfer(){
+      const reason=document.getElementById('rejectionReason').value.trim();
+      if(!reason){ showToast('กรุณาระบุเหตุผล','error'); return; }
+      if(!signaturePad||signaturePad.isEmpty()){ showToast('กรุณาเซ็นชื่อ','error'); return; }
+      try {
+        const token=localStorage.getItem('authToken');
+        const res=await fetch(`/api/transfers/${currentApprovalId}/reject`,{
+          method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+          body:JSON.stringify({signature:signaturePad.toDataURL(),reason})
+        });
+        const result=await res.json();
+        if(!result.success) throw new Error(result.error);
+        showToast('ปฏิเสธเรียบร้อย','success');
+        document.getElementById('approvalModal').checked=false;
+        loadTransferHistory();
+      } catch(e){ showToast('ไม่สามารถปฏิเสธ: '+e.message,'error'); }
+    }
+
+    // Sidebar link highlighting
+    const sidebarLinks = document.querySelectorAll('aside a');
+    function highlightSidebar(link) {
+      sidebarLinks.forEach(l => {
+        l.style.backgroundColor = '';
+        l.style.color = '';
+        const ico = l.querySelector('i');
+        if (ico) ico.style.color = '';
+      });
+      const icon = link.querySelector('i');
+      if (icon) {
+        const c = getComputedStyle(icon).color;
+        link.style.backgroundColor = c;
+        link.style.color = '#fff';
+        icon.style.color = '#fff';
+      }
+    }
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => highlightSidebar(link));
+    });
+    const page = window.location.pathname.split('/').pop();
+    sidebarLinks.forEach(link => {
+      if (link.getAttribute('href') === page) highlightSidebar(link);
+    });
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

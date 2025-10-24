@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>จัดการภาษีขาย</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+        },
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- jQuery & Day.js (locale ไทย) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/locale/th.js"></script>
+
+  <!-- Lottie Web for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css for smooth animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Avatar Utils -->
+  <script src="/js/avatar-utils.js"></script>
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    aside.collapsed { width: 5rem; }
+    aside.collapsed .ml-3 { display: none; }
+    @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        .Logo { max-width:100%;height:auto; }
+    
+    /* Minimal button styles */
+    .btn-minimal {
+      @apply btn btn-sm border-gray-300 bg-white hover:bg-gray-50 text-gray-700;
+    }
+    .btn-minimal-primary {
+      @apply btn btn-primary btn-sm;
+    }
+    .btn-minimal-secondary {
+      @apply btn btn-secondary btn-sm;
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+
+    /* Note: Sidebar styles are now handled by /views/pattani/sidebar/sidebar.css */
+  </style>
+
+
+
+</head>
+
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+  <div class="text-center">
+    <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+  </div>
+</div>
+
+  <!-- Sidebar Container - จะถูกเติมด้วย loan-sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <!-- Main Content -->
+  <div id="mainContent" class="flex-1 flex flex-col ml-64 transition-all duration-300 ease-in-out">
+    <main class="p-6 overflow-y-auto space-y-6">
+      <!-- Breadcrumbs -->
+      <nav class="text-sm breadcrumbs mb-4">
+        <ul class="flex flex-wrap items-center space-x-2">
+          <li><a href="loan_dashboard" class="text-blue-500 hover:text-blue-700">หน้าหลัก</a></li>
+          <li class="flex items-center space-x-2">
+            <i class="bi bi-chevron-right text-gray-400"></i>
+            <span class="text-gray-600 dark:text-gray-300">ภาษี</span>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Content Header -->
+      <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 rounded-lg mb-6">
+        <div class="max-w-full px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between items-center py-4">
+            <div class="flex items-center space-x-4">
+              <div class="bg-blue-600 p-3 rounded-xl shadow-sm">
+                <i class="bi bi-receipt-cutoff text-2xl text-white"></i>
+              </div>
+              <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">จัดการภาษีขาย</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400">ระบบสินเชื่อขายผ่อนโทรศัพท์และไอแพด (ดูข้อมูลอย่างเดียว)</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-4">
+              <button id="btnRefreshData" class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise mr-2"></i>
+                รีเฟรชข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Stats -->
+      <div class="stats stats-vertical sm:stats-horizontal shadow-sm mb-8 w-full">
+        <div class="stat">
+          <div class="stat-figure text-primary">
+            <i class="bi bi-currency-dollar text-2xl"></i>
+            </div>
+          <div class="stat-title">ยอดภาษีรวม</div>
+          <div class="stat-value text-primary">฿<span id="totalTax">0</span></div>
+          <div class="stat-desc">จากข้อมูลในระบบ</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-figure text-warning">
+            <i class="bi bi-hourglass-split text-2xl"></i>
+            </div>
+          <div class="stat-title">ภาษียังไม่ถึงกำหนด</div>
+          <div class="stat-value text-warning">฿<span id="pendingTax">0</span></div>
+          <div class="stat-desc"><span id="pendingCount">0</span> รายการ</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-figure text-error">
+            <i class="bi bi-exclamation-diamond text-2xl"></i>
+            </div>
+          <div class="stat-title">ภาษีเกินกำหนด</div>
+          <div class="stat-value text-error">฿<span id="overdueTax">0</span></div>
+          <div class="stat-desc"><span id="overdueCount">0</span> รายการ</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-figure text-success">
+            <i class="bi bi-check-circle text-2xl"></i>
+            </div>
+          <div class="stat-title">ภาษีที่ชำระแล้ว</div>
+          <div class="stat-value text-success">฿<span id="paidTax">0</span></div>
+          <div class="stat-desc"><span id="paidCount">0</span> รายการ</div>
+        </div>
+      </div>
+
+      <!-- Filters and Actions -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-4">
+            <div class="relative">
+              <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              <input type="text" id="searchBox" placeholder="ค้นหาลูกค้า, หมายเลขสัญญา..." 
+                    class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300">
+            </div>
+            
+            <select id="statusFilter" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300">
+              <option value="">สถานะทั้งหมด</option>
+              <option value="pending">ยังไม่ถึงกำหนด</option>
+              <option value="overdue">เกินกำหนด</option>
+              <option value="paid">ชำระแล้ว</option>
+            </select>
+            
+            <select id="productTypeFilter" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300">
+              <option value="">ประเภทสินค้าทั้งหมด</option>
+              <option value="phone">โทรศัพท์</option>
+              <option value="ipad">ไอแพด</option>
+            </select>
+
+            <select id="branchFilter" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300">
+              <option value="">สาขาทั้งหมด</option>
+              <option value="MAIN">สาขาหลัก</option>
+              <option value="PATTANI">สาขาปัตตานี</option>
+              <option value="YALA">สาขายะลา</option>
+              <option value="NARATHIWAT">สาขานราธิวาส</option>
+            </select>
+
+            <input type="month" id="monthFilter" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300">
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <button id="btnExportExcel" class="btn btn-secondary">
+              <i class="bi bi-download mr-2"></i>
+              ส่งออก Excel
+            </button>
+            <button id="btnPrintReport" class="btn">
+              <i class="bi bi-printer mr-2"></i>
+              พิมพ์รายงาน
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tax Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">รายการภาษีขาย</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">รายการภาษีขายจากการขายผ่อนโทรศัพท์และไอแพด</p>
+        </div>
+        
+        <div class="table-container">
+          <table class="w-full">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">หมายเลขสัญญา</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ลูกค้า</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เลขบัตรประชาชน</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">สินค้า</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">มูลค่าสัญญา</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ภาษี 7%</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เลขที่ใบกำกับภาษี</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">สาขา</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">กำหนดชำระ</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">สถานะ</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">การดู</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="taxTableBody">
+              <!-- Tax records will be populated here -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+              แสดง <span class="font-medium">1</span> ถึง <span class="font-medium">10</span> จาก <span class="font-medium">85</span> รายการ
+            </div>
+            <div class="flex items-center space-x-2">
+              <button id="btnPrevPage" class="btn btn-sm">
+                ก่อนหน้า
+              </button>
+              <button class="btn btn-sm btn-primary">1</button>
+              <button class="btn btn-sm">2</button>
+              <button class="btn btn-sm">3</button>
+              <button id="btnNextPage" class="btn btn-sm">
+                ถัดไป
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal for Tax Details -->
+      <div id="taxModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+          <div class="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">รายละเอียดภาษีขาย</h3>
+                <button id="btnCloseTaxModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                  <i class="bi bi-x-lg text-xl"></i>
+                </button>
+              </div>
+            </div>
+            <div class="p-6" id="modalContent">
+              <!-- Modal content will be populated here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+  <!-- Loading Manager -->
+  <script src="/js/loading-manager.js"></script>
+
+  <!-- เพิ่ม JavaScript สำหรับการทำงาน -->
+  <script>
+    // Use centralized loading manager
+    function showLoading(show = true, message = 'กำลังโหลดข้อมูลภาษี...') {
+      if (show) {
+        window.LoadingManager.show('tax-page', message);
+      } else {
+        window.LoadingManager.hide('tax-page');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        // Show loading initially
+        showLoading(true, 'กำลังโหลดรายการภาษี...');
+
+        // Initialize loan sidebar first
+        if (typeof initializeLoanSidebar === 'function') {
+          initializeLoanSidebar();
+        }
+
+        // Security Configuration
+        const TAX_CONFIG = {
+          VAT_RATE: 0.07,  // 7% VAT rate - configurable
+          PRECISION: 2,
+          MAX_INPUT_LENGTH: 255,
+          ALLOWED_TAGS: [] // No HTML tags allowed in user input
+        };
+
+        // CSRF Token Management
+        function getCSRFToken() {
+          const token = document.querySelector('meta[name="csrf-token"]');
+          return token ? token.getAttribute('content') : '';
+        }
+
+        // Input Sanitization Functions
+        function sanitizeHTML(str) {
+          if (!str) return '';
+          const div = document.createElement('div');
+          div.textContent = String(str).substring(0, TAX_CONFIG.MAX_INPUT_LENGTH);
+          return div.innerHTML;
+        }
+
+        function escapeHtml(text) {
+          if (!text) return '';
+          const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+          };
+          return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function validateInput(input, type = 'text') {
+          if (!input) return '';
+    
+          switch(type) {
+            case 'number':
+              const num = parseFloat(input);
+              return isNaN(num) ? 0 : num;
+            case 'date':
+              const date = new Date(input);
+              return isNaN(date.getTime()) ? null : input;
+            case 'contractNo':
+              return String(input).replace(/[^A-Za-z0-9\-]/g, '').substring(0, 50);
+            default:
+              return sanitizeHTML(input);
+          }
+        }
+
+        // Enhanced Authentication Check
+        let authToken = localStorage.getItem('authToken');
+    
+        // If no token in localStorage, try sessionStorage
+        if (!authToken) {
+          authToken = sessionStorage.getItem('authToken');
+        }
+    
+        // If still no token, try to get from document or create a temporary one for development
+        if (!authToken) {
+          console.warn('No authentication token found - using development mode');
+          // For development: create a basic token structure
+          authToken = 'dev.token.placeholder';
+    
+          // Don't redirect immediately in development mode
+          // localStorage.clear();
+          // sessionStorage.clear();
+          // window.location.href = '/login';
+          // return;
+        }
+    
+        let sessionId = sessionStorage.getItem('sessionId');
+    
+        // Generate session ID if not exists
+        if (!sessionId) {
+          sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+          sessionStorage.setItem('sessionId', sessionId);
+        }
+
+        // Validate token format (basic check for JWT-like structure)
+        if (authToken !== 'dev.token.placeholder' && !authToken.match(/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/)) {
+          console.warn('Invalid token format - continuing with limited functionality');
+          // localStorage.clear();
+          // sessionStorage.clear();
+          // window.location.href = '/login';
+          // return;
+        }
+    
+        // Check token expiration periodically
+        setInterval(() => {
+          const token = localStorage.getItem('authToken');
+          if (!token) {
+            window.location.href = '/login';
+          }
+        }, 60000); // Check every minute
+
+        // API headers configuration with CSRF protection
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCSRFToken(),
+          'X-Session-Id': sessionId
+        };
+    
+        // Add Authorization header only if we have a valid token
+        if (authToken && authToken !== 'dev.token.placeholder') {
+          headers['Authorization'] = 'Bearer ' + authToken;
+        }
+
+      // Note: Sidebar functionality, dark mode, logout, and employee profile
+      // are now handled by loan-sidebar.js
+
+      // Tax data array (will be populated from API)
+      let taxData = [];
+
+      // Enhanced API Error Handling
+      class APIError extends Error {
+        constructor(message, code, details = {}) {
+          super(message);
+          this.name = 'APIError';
+          this.code = code;
+          this.details = details;
+        }
+      }
+    
+      async function apiRequest(url, options = {}) {
+        try {
+          const response = await fetch(url, {
+            ...options,
+            headers: {
+              ...headers,
+              ...options.headers
+            }
+          });
+    
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new APIError(
+              errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+              response.status,
+              errorData
+            );
+          }
+    
+          const data = await response.json();
+    
+          if (data.success === false) {
+            throw new APIError(
+              data.message || 'Request failed',
+              data.code || 'API_ERROR',
+              data
+            );
+          }
+    
+          return data;
+        } catch (error) {
+          if (error instanceof APIError) {
+            throw error;
+          }
+    
+          // Network or parsing error
+          throw new APIError(
+            'Network error or invalid response',
+            'NETWORK_ERROR',
+            { originalError: error.message }
+          );
+        }
+      }
+    
+    
+      // Global variables for pagination
+      let currentPage = 1;
+      let currentFilters = {};
+
+      // Load tax data from API with pagination and filters
+      async function loadTaxData(page = 1, filters = {}) {
+        try {
+          currentPage = page;
+          currentFilters = { ...filters };
+
+          // For development: determine the correct base URL
+          const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? `http://localhost:3000`
+            : '';
+
+          // Build query parameters
+          const queryParams = new URLSearchParams({
+            page: page.toString(),
+            limit: '10',
+            ...filters
+          });
+
+          // Use the enhanced tax summary endpoint
+          let data;
+          const endpoint = `/api/installment/reports/tax-summary?${queryParams}`;
+
+          try {
+            const fullUrl = baseUrl + endpoint;
+            console.log(`Loading tax data from: ${fullUrl}`);
+
+            const response = await fetch(fullUrl, {
+              headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            data = await response.json();
+            console.log(`✅ Successfully loaded data from: ${fullUrl}`, data);
+
+          } catch (endpointError) {
+            console.log(`❌ Failed to load from ${baseUrl + endpoint}:`, endpointError.message);
+            throw endpointError;
+          }
+    
+          // Handle the enhanced tax summary response structure
+          if (!data || !data.success) {
+            console.log('📋 No valid response, showing empty state');
+            taxData = [];
+            populateTable(taxData);
+            updateDashboardStats();
+            updatePagination({ currentPage: 1, totalPages: 1, totalItems: 0 });
+            return;
+          }
+
+          console.log('Tax data response:', data);
+
+          // Extract data from the enhanced structure
+          const responseData = data.data || {};
+          const summary = responseData.summary || {};
+          const details = responseData.details || [];
+          const pagination = responseData.pagination || {};
+          const filters = responseData.filters || {};
+
+          console.log('Summary:', summary);
+          console.log('Details count:', details.length);
+          console.log('Pagination:', pagination);
+
+          // Store the enhanced data (details now include all the new fields)
+          taxData = details.map((item, index) => {
+            console.log('Processing enhanced tax detail item:', item);
+
+            return {
+              contractNo: item.contractNo || 'ไม่ระบุ',
+              customer: item.customer || 'ไม่ระบุชื่อ',
+              customerTaxId: item.customerTaxId || '',
+              customerPhone: item.customerPhone || '',
+              product: item.product || 'สินค้าผ่อนชำระ',
+              contractValue: Math.max(0, item.contractValue || 0),
+              netAmount: Math.max(0, item.netAmount || 0),
+              taxAmount: Math.max(0, item.taxAmount || 0),
+              dueDate: item.dueDate || new Date().toISOString().split('T')[0],
+              status: item.status || 'pending',
+              paymentDate: item.paymentDate || null,
+              taxInvoiceNumber: item.taxInvoiceNumber || null,
+              branch: item.branch || { name: 'สาขาหลัก', code: 'MAIN' },
+              hasVat: item.hasVat !== undefined ? item.hasVat : true,
+              createdAt: item.createdAt || new Date().toISOString()
+            };
+          });
+
+          console.log('Processed enhanced tax data:', taxData.length, 'records');
+
+          // Update dashboard with summary data from API
+          updateDashboardStatsFromAPI(summary);
+
+          // Update the table with paginated data
+          populateTable(taxData);
+
+          // Update pagination controls
+          updatePagination(pagination);
+    
+        } catch (error) {
+          console.error('Error loading tax data:', error);
+    
+          if (error instanceof APIError) {
+            if (error.code === 401) {
+              // Unauthorized - but continue in development mode
+              showErrorMessage('ไม่มีสิทธิ์เข้าถึง กำลังพยายามในโหมดทดสอบ');
+              console.warn('Unauthorized access - continuing with limited functionality');
+              // Don't redirect immediately, just show warning
+              // setTimeout(() => {
+              //   localStorage.clear();
+              //   sessionStorage.clear();
+              //   window.location.href = '/login';
+              // }, 2000);
+              // return;
+            } else if (error.code === 403) {
+              showErrorMessage('คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้');
+            } else if (error.code === 'NETWORK_ERROR') {
+              showErrorMessage('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+            } else {
+              showErrorMessage(`เกิดข้อผิดพลาด: ${error.message}`);
+            }
+          } else {
+            showErrorMessage('ไม่สามารถโหลดข้อมูลภาษีได้ กรุณาลองใหม่อีกครั้ง');
+          }
+    
+          taxData = [];
+          populateTable(taxData);
+          updateDashboardStats();
+        }
+      }
+
+      function calculateTaxAmount(contractValue, includesVAT = true) {
+        const value = Math.max(0, validateInput(contractValue, 'number'));
+        if (value <= 0) return 0;
+    
+        if (includesVAT) {
+          // Extract VAT from total amount (price includes VAT)
+          return Math.max(0, Math.round(value * TAX_CONFIG.VAT_RATE / (1 + TAX_CONFIG.VAT_RATE)));
+        } else {
+          // Calculate VAT on net amount (price excludes VAT)
+          return Math.max(0, Math.round(value * TAX_CONFIG.VAT_RATE));
+        }
+      }
+
+      function calculateNetAmount(totalAmount) {
+        const value = Math.max(0, validateInput(totalAmount, 'number'));
+        if (value <= 0) return 0;
+        return Math.max(0, Math.round(value / (1 + TAX_CONFIG.VAT_RATE)));
+      }
+
+      function determineTaxStatus(item) {
+        if (item.taxPaymentDate) return 'paid';
+    
+        const dueDate = item.dueDate || item.createdAt;
+        if (!dueDate) return 'pending';
+    
+        try {
+          const dueDateObj = new Date(dueDate);
+          if (isNaN(dueDateObj.getTime())) return 'pending';
+    
+          const today = new Date();
+          if (dueDateObj < today) return 'overdue';
+          return 'pending';
+        } catch (error) {
+          console.error('Error determining tax status:', error);
+          return 'pending';
+        }
+      }
+
+      // Function to format currency
+      function formatCurrency(amount) {
+        const num = Math.max(0, parseFloat(amount) || 0);
+        return new Intl.NumberFormat('th-TH', {
+          style: 'currency',
+          currency: 'THB',
+          minimumFractionDigits: 0
+        }).format(num);
+      }
+
+      // Function to format date
+      function formatDate(dateString) {
+        if (!dateString) return 'ไม่ระบุ';
+    
+        try {
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return 'ไม่ระบุ';
+    
+          const options = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            locale: 'th-TH'
+          };
+          return date.toLocaleDateString('th-TH', options);
+        } catch (error) {
+          console.error('Error formatting date:', dateString, error);
+          return 'ไม่ระบุ';
+        }
+      }
+
+      // Function to determine product type
+      function getProductType(productName) {
+        if (!productName) return 'ไม่ระบุ';
+    
+        const phoneKeywords = ['iPhone', 'Galaxy', 'Samsung', 'Xiaomi', 'OPPO', 'Vivo', 'Huawei', 'โทรศัพท์', 'มือถือ', 'phone', 'mobile'];
+        const tabletKeywords = ['iPad', 'tablet', 'แท็บเล็ต', 'ไอแพด'];
+    
+        const lowerProduct = productName.toLowerCase();
+    
+        if (phoneKeywords.some(keyword => lowerProduct.includes(keyword.toLowerCase()))) {
+          return 'โทรศัพท์';
+        } else if (tabletKeywords.some(keyword => lowerProduct.includes(keyword.toLowerCase()))) {
+          return 'ไอแพด';
+        } else {
+          return 'สินค้าผ่อนชำระ';
+        }
+      }
+
+      // Function to get status badge
+      function getStatusBadge(status) {
+        const statusConfig = {
+          pending: {
+            class: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+            text: 'ยังไม่ถึงกำหนด',
+            icon: 'bi-clock'
+          },
+          overdue: {
+            class: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+            text: 'เกินกำหนด',
+            icon: 'bi-exclamation-triangle'
+          },
+          paid: {
+            class: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+            text: 'ชำระแล้ว',
+            icon: 'bi-check-circle'
+          }
+        };
+    
+        // ตรวจสอบว่า status มีอยู่ใน config หรือไม่ ถ้าไม่มีให้ใช้ default
+        const config = statusConfig[status] || {
+          text: status || 'ไม่ทราบสถานะ',
+          icon: 'bi-question-circle'
+        };
+    
+        // Use minimal gray styling for all badges
+        return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
+                  <i class="bi ${config.icon} mr-1"></i>
+                  ${config.text}
+                </span>`;
+      }
+
+      // Notification System
+      function showNotification(message, type = 'info', duration = 5000) {
+        const notificationDiv = document.createElement('div');
+        const notificationId = 'notification-' + Date.now();
+        notificationDiv.id = notificationId;
+    
+        const typeConfig = {
+          error: 'bg-red-100 border-red-500 text-red-700',
+          success: 'bg-green-100 border-green-500 text-green-700',
+          warning: 'bg-yellow-100 border-yellow-500 text-yellow-700',
+          info: 'bg-blue-100 border-blue-500 text-blue-700'
+        };
+    
+        const iconConfig = {
+          error: 'bi-exclamation-triangle',
+          success: 'bi-check-circle',
+          warning: 'bi-exclamation-circle',
+          info: 'bi-info-circle'
+        };
+    
+        notificationDiv.className = `fixed top-4 right-4 ${typeConfig[type]} border-l-4 p-4 rounded shadow-lg z-50 animate-fadeIn`;
+    
+        const container = document.createElement('div');
+        container.className = 'flex';
+    
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'flex-shrink-0';
+        iconDiv.innerHTML = `<i class="bi ${iconConfig[type]} text-${type === 'error' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'yellow' : 'blue'}-500"></i>`;
+    
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'ml-3';
+        const messageP = document.createElement('p');
+        messageP.className = 'text-sm';
+        messageP.textContent = sanitizeHTML(message);
+        messageDiv.appendChild(messageP);
+    
+        const closeDiv = document.createElement('div');
+        closeDiv.className = 'ml-auto pl-3';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = `text-${type === 'error' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'yellow' : 'blue'}-500 hover:text-${type === 'error' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'yellow' : 'blue'}-700`;
+        closeBtn.innerHTML = '<i class="bi bi-x"></i>';
+        closeBtn.addEventListener('click', () => {
+          const element = document.getElementById(notificationId);
+          if (element) element.remove();
+        });
+        closeDiv.appendChild(closeBtn);
+    
+        container.appendChild(iconDiv);
+        container.appendChild(messageDiv);
+        container.appendChild(closeDiv);
+        notificationDiv.appendChild(container);
+    
+        document.body.appendChild(notificationDiv);
+    
+        // Auto-remove after duration
+        if (duration > 0) {
+          setTimeout(() => {
+            const element = document.getElementById(notificationId);
+            if (element) element.remove();
+          }, duration);
+        }
+      }
+    
+      function showErrorMessage(message) {
+        showNotification(message, 'error');
+      }
+    
+      function showSuccessMessage(message) {
+        showNotification(message, 'success');
+      }
+    
+      function showWarningMessage(message) {
+        showNotification(message, 'warning');
+      }
+    
+      // Custom Confirmation Dialog
+      function showConfirmDialog(message, callback) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+        modal.id = 'confirmDialog';
+    
+        const dialog = document.createElement('div');
+        dialog.className = 'bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md mx-4';
+    
+        const messageP = document.createElement('p');
+        messageP.className = 'text-gray-900 dark:text-white mb-6';
+        messageP.textContent = sanitizeHTML(message);
+    
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.className = 'flex justify-end space-x-3';
+    
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'ยกเลิก';
+        cancelBtn.addEventListener('click', () => {
+          modal.remove();
+          if (callback) callback(false);
+        });
+    
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'btn btn-primary';
+        confirmBtn.textContent = 'ยืนยัน';
+        confirmBtn.addEventListener('click', () => {
+          modal.remove();
+          if (callback) callback(true);
+        });
+    
+        buttonsDiv.appendChild(cancelBtn);
+        buttonsDiv.appendChild(confirmBtn);
+        dialog.appendChild(messageP);
+        dialog.appendChild(buttonsDiv);
+        modal.appendChild(dialog);
+    
+        document.body.appendChild(modal);
+      }
+
+      // Make functions globally available
+      window.formatCurrency = formatCurrency;
+      window.formatDate = formatDate;
+      window.getStatusBadge = getStatusBadge;
+      window.getProductType = getProductType;
+      window.showErrorMessage = showErrorMessage;
+    
+      // Function to populate table (Secure version)
+      function populateTable(data = taxData) {
+        const tbody = document.getElementById('taxTableBody');
+    
+        // Clear table safely
+        while (tbody.firstChild) {
+          tbody.removeChild(tbody.firstChild);
+        }
+
+        if (data.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="11" class="px-6 py-10 text-center">
+                <div class="text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center justify-center space-y-3">
+                    <i class="bi bi-inbox text-4xl text-gray-300"></i>
+                    <div>
+                      <p class="text-lg font-medium mb-2">ไม่มีข้อมูลภาษี</p>
+                      <p class="text-sm">ยังไม่มีสัญญาผ่อนชำระในระบบ หรือเซิร์ฟเวอร์ไม่พร้อมใช้งาน</p>
+                      <button onclick="loadTaxData()" class="mt-3 btn btn-sm btn-primary">
+                        <i class="bi bi-arrow-clockwise mr-1"></i>
+                        รีเฟรชข้อมูล
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        data.forEach((item, index) => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200';
+    
+          // Create cells using DOM methods (secure approach)
+          const cells = [
+            // Contract No cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div = document.createElement('div');
+              div.className = 'text-sm font-medium text-gray-900 dark:text-white';
+              div.textContent = item.contractNo;
+              td.appendChild(div);
+              return td;
+            })(),
+
+            // Customer cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div1 = document.createElement('div');
+              div1.className = 'text-sm font-medium text-gray-900 dark:text-white';
+              div1.textContent = item.customer;
+              const div2 = document.createElement('div');
+              div2.className = 'text-xs text-gray-500 dark:text-gray-400';
+              div2.textContent = item.customerPhone || '';
+              td.appendChild(div1);
+              if (item.customerPhone) td.appendChild(div2);
+              return td;
+            })(),
+
+            // Customer Tax ID cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div = document.createElement('div');
+              div.className = 'text-sm font-mono text-gray-900 dark:text-white';
+              div.textContent = item.customerTaxId || 'ไม่ระบุ';
+              td.appendChild(div);
+              return td;
+            })(),
+
+            // Product cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div1 = document.createElement('div');
+              div1.className = 'text-sm text-gray-900 dark:text-white';
+              div1.textContent = item.product;
+              const div2 = document.createElement('div');
+              div2.className = 'text-xs text-gray-500 dark:text-gray-400';
+              div2.textContent = getProductType(item.product);
+              td.appendChild(div1);
+              td.appendChild(div2);
+              return td;
+            })(),
+
+            // Contract Value cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div = document.createElement('div');
+              div.className = 'text-sm font-medium text-gray-900 dark:text-white';
+              div.textContent = formatCurrency(item.contractValue);
+              td.appendChild(div);
+              return td;
+            })(),
+
+            // Tax Amount cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div = document.createElement('div');
+              div.className = 'text-sm font-medium text-emerald-600 dark:text-emerald-400';
+              div.textContent = formatCurrency(item.taxAmount);
+              td.appendChild(div);
+              return td;
+            })(),
+
+            // Tax Invoice Number cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div = document.createElement('div');
+              if (item.taxInvoiceNumber && item.taxInvoiceNumber !== 'ยังไม่ออก') {
+                div.className = 'text-sm font-mono text-blue-600 dark:text-blue-400';
+                div.textContent = item.taxInvoiceNumber;
+              } else {
+                div.className = 'text-sm text-gray-500 dark:text-gray-400 italic';
+                div.textContent = 'ยังไม่ออกใบกำกับภาษี';
+              }
+              td.appendChild(div);
+              return td;
+            })(),
+
+            // Branch cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div = document.createElement('div');
+              div.className = 'text-sm text-gray-900 dark:text-white';
+              div.textContent = item.branch?.name || 'สาขาหลัก';
+              td.appendChild(div);
+              return td;
+            })(),
+
+            // Due Date cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              const div = document.createElement('div');
+              div.className = 'text-sm text-gray-900 dark:text-white';
+              div.textContent = formatDate(item.dueDate);
+              td.appendChild(div);
+              return td;
+            })(),
+
+            // Status cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap';
+              try {
+                td.innerHTML = getStatusBadge(item.status); // Safe - controlled content
+              } catch (error) {
+                console.error('Error creating status badge for item:', item, 'Error:', error);
+                td.innerHTML = '<span class="text-sm text-gray-500">ไม่ทราบสถานะ</span>';
+              }
+              return td;
+            })(),
+
+            // Actions cell
+            (() => {
+              const td = document.createElement('td');
+              td.className = 'px-6 py-4 whitespace-nowrap text-right text-sm font-medium';
+              const actionsDiv = document.createElement('div');
+              actionsDiv.className = 'flex items-center space-x-2';
+
+              // View button (read-only)
+              const viewBtn = document.createElement('button');
+              viewBtn.className = 'text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200';
+              viewBtn.title = 'ดูรายละเอียด';
+              viewBtn.innerHTML = '<i class="bi bi-eye"></i>';
+              viewBtn.addEventListener('click', () => viewTaxDetails(item.contractNo));
+              actionsDiv.appendChild(viewBtn);
+
+              td.appendChild(actionsDiv);
+              return td;
+            })()
+          ];
+    
+          // Append all cells to row
+          cells.forEach(cell => row.appendChild(cell));
+          tbody.appendChild(row);
+        });
+
+        // Update pagination text
+        document.querySelector('.text-sm.text-gray-700').innerHTML = `
+          แสดง <span class="font-medium">1</span> ถึง <span class="font-medium">${Math.min(data.length, 10)}</span> จาก <span class="font-medium">${data.length}</span> รายการ
+        `;
+      }
+
+      // Function to view tax details (Secure version)
+      window.viewTaxDetails = function(contractNo) {
+        const sanitizedContractNo = validateInput(contractNo, 'contractNo');
+        const item = taxData.find(tax => tax.contractNo === sanitizedContractNo);
+        if (!item) {
+          showErrorMessage('ไม่พบข้อมูลภาษีที่ต้องการ');
+          return;
+        }
+
+        const modalContent = document.getElementById('modalContent');
+        // Clear content safely
+        while (modalContent.firstChild) {
+          modalContent.removeChild(modalContent.firstChild);
+        }
+    
+        // Build modal content using DOM methods
+        const container = document.createElement('div');
+        container.className = 'space-y-6';
+    
+        // Create modal content securely
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">ข้อมูลสัญญา</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">หมายเลขสัญญา:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="contractNo"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">ลูกค้า:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="customer"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">เลขบัตรประชาชน:</span>
+                    <span class="text-sm font-mono text-gray-900 dark:text-white" data-field="customerTaxId"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">เบอร์โทร:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="customerPhone"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">สินค้า:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="product"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">มูลค่าสัญญา:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="contractValue"></span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">ข้อมูลภาษี</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">เลขที่ใบกำกับภาษี:</span>
+                    <span class="text-sm font-mono text-blue-600 dark:text-blue-400" data-field="taxInvoiceNumber"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">ภาษี ${(TAX_CONFIG.VAT_RATE * 100).toFixed(0)}%:</span>
+                    <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400" data-field="taxAmount"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">สาขา:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="branchName"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">กำหนดชำระ:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="dueDate"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">สถานะ:</span>
+                    <span data-field="status"></span>
+                  </div>
+                  <div class="flex justify-between" data-show-if="paymentDate">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">วันที่ชำระ:</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white" data-field="paymentDate"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">รายละเอียดการคำนวณภาษี</h4>
+              <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">มูลค่าสินค้า (ไม่รวมภาษี)</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white" data-field="netAmount"></p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">ภาษีมูลค่าเพิ่ม ${(TAX_CONFIG.VAT_RATE * 100).toFixed(0)}%</p>
+                    <p class="text-sm font-medium text-emerald-600 dark:text-emerald-400" data-field="taxAmount2"></p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">ราคารวมภาษี</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white" data-field="contractValue2"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+              <div class="flex justify-end space-x-3" id="modalActions">
+                <!-- Buttons will be added dynamically -->
+              </div>
+            </div>
+          </div>
+        `;
+    
+        // Fill in the data using textContent (secure)
+        modalContent.appendChild(container);
+    
+        // Populate fields securely
+        container.querySelector('[data-field="contractNo"]').textContent = sanitizeHTML(item.contractNo);
+        container.querySelector('[data-field="customer"]').textContent = sanitizeHTML(item.customer);
+        container.querySelector('[data-field="customerTaxId"]').textContent = sanitizeHTML(item.customerTaxId || 'ไม่ระบุ');
+        container.querySelector('[data-field="customerPhone"]').textContent = sanitizeHTML(item.customerPhone || 'ไม่ระบุ');
+        container.querySelector('[data-field="product"]').textContent = sanitizeHTML(item.product);
+        container.querySelector('[data-field="contractValue"]').textContent = formatCurrency(item.contractValue);
+        container.querySelector('[data-field="taxAmount"]').textContent = formatCurrency(item.taxAmount);
+        container.querySelector('[data-field="taxInvoiceNumber"]').textContent = sanitizeHTML(item.taxInvoiceNumber || 'ยังไม่ออกใบกำกับภาษี');
+        container.querySelector('[data-field="branchName"]').textContent = sanitizeHTML(item.branch?.name || 'สาขาหลัก');
+        container.querySelector('[data-field="dueDate"]').textContent = formatDate(item.dueDate);
+        container.querySelector('[data-field="status"]').innerHTML = getStatusBadge(item.status);
+
+        // Calculate and display net amount (use netAmount from API if available)
+        const netAmount = item.netAmount || calculateNetAmount(item.contractValue);
+        container.querySelector('[data-field="netAmount"]').textContent = formatCurrency(netAmount);
+        container.querySelector('[data-field="taxAmount2"]').textContent = formatCurrency(item.taxAmount);
+        container.querySelector('[data-field="contractValue2"]').textContent = formatCurrency(item.contractValue);
+    
+        // Handle payment date display
+        const paymentDateRow = container.querySelector('[data-show-if="paymentDate"]');
+        if (item.paymentDate) {
+          container.querySelector('[data-field="paymentDate"]').textContent = formatDate(item.paymentDate);
+        } else {
+          paymentDateRow.style.display = 'none';
+        }
+    
+        // Add action buttons with event listeners
+        const actionsContainer = container.querySelector('#modalActions');
+    
+        if (item.status !== 'paid') {
+          const paidBtn = document.createElement('button');
+          paidBtn.className = 'btn btn-success';
+          paidBtn.innerHTML = '<i class="bi bi-check-circle mr-2"></i>บันทึกการชำระภาษี';
+          paidBtn.addEventListener('click', () => markAsPaid(item.contractNo));
+          actionsContainer.appendChild(paidBtn);
+        }
+    
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-primary';
+        editBtn.innerHTML = '<i class="bi bi-pencil mr-2"></i>แก้ไขข้อมูล';
+        editBtn.addEventListener('click', () => editTax(item.contractNo));
+        actionsContainer.appendChild(editBtn);
+    
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'ปิด';
+        closeBtn.addEventListener('click', closeTaxModal);
+        actionsContainer.appendChild(closeBtn);
+
+        document.getElementById('taxModal').classList.remove('hidden');
+      };
+
+      // Close tax details modal
+      window.closeTaxModal = function() {
+        document.getElementById('taxModal').classList.add('hidden');
+      };
+    
+      // Set up modal close button
+      document.getElementById('btnCloseTaxModal').addEventListener('click', closeTaxModal);
+    
+      // Read-only mode - payment marking and add/edit functions removed
+
+      // Function to update dashboard statistics
+      function updateDashboardStats() {
+        // Calculate totals
+        let totalTax = 0;
+        let pendingTax = 0;
+        let overdueTax = 0;
+        let paidTax = 0;
+        let pendingCount = 0;
+        let overdueCount = 0;
+        let paidCount = 0;
+    
+        taxData.forEach(item => {
+          const validTaxAmount = Math.max(0, item.taxAmount || 0);
+          totalTax += validTaxAmount;
+    
+          if (item.status === 'pending') {
+            pendingTax += validTaxAmount;
+            pendingCount++;
+          } else if (item.status === 'overdue') {
+            overdueTax += validTaxAmount;
+            overdueCount++;
+          } else if (item.status === 'paid') {
+            paidTax += validTaxAmount;
+            paidCount++;
+          }
+        });
+    
+        // Update dashboard
+        document.getElementById('totalTax').textContent = totalTax.toLocaleString('th-TH');
+        document.getElementById('pendingTax').textContent = pendingTax.toLocaleString('th-TH');
+        document.getElementById('overdueTax').textContent = overdueTax.toLocaleString('th-TH');
+        document.getElementById('paidTax').textContent = paidTax.toLocaleString('th-TH');
+        document.getElementById('pendingCount').textContent = pendingCount;
+        document.getElementById('overdueCount').textContent = overdueCount;
+        document.getElementById('paidCount').textContent = paidCount;
+      }
+
+      // Function to update dashboard statistics from API summary
+      function updateDashboardStatsFromAPI(summary) {
+        if (!summary) {
+          // Fallback to client-side calculation
+          updateDashboardStats();
+          return;
+        }
+    
+        console.log('Updating dashboard with API summary:', summary);
+    
+        // Use API summary data if available
+        const totalVat = Math.max(0, summary.totalVat || 0);
+        const totalPaymentVat = Math.max(0, summary.totalPaymentVat || 0);
+        const contractCount = Math.max(0, summary.contractCount || 0);
+        const paymentCount = Math.max(0, summary.paymentCount || 0);
+    
+        // Calculate pending and overdue from the difference
+        const pendingVat = Math.max(0, totalVat - totalPaymentVat);
+        const pendingCount = Math.max(0, contractCount - paymentCount);
+    
+        // Update dashboard elements
+        document.getElementById('totalTax').textContent = totalVat.toLocaleString('th-TH');
+        document.getElementById('pendingTax').textContent = pendingVat.toLocaleString('th-TH');
+        document.getElementById('overdueTax').textContent = '0'; // API doesn't separate overdue yet
+        document.getElementById('paidTax').textContent = totalPaymentVat.toLocaleString('th-TH');
+        document.getElementById('pendingCount').textContent = pendingCount;
+        document.getElementById('overdueCount').textContent = '0'; // API doesn't separate overdue yet
+        document.getElementById('paidCount').textContent = paymentCount;
+    
+        // Show additional summary info in console for debugging
+        console.log('Dashboard updated with:', {
+          totalVat,
+          pendingVat,
+          totalPaymentVat,
+          contractCount,
+          paymentCount,
+          pendingCount
+        });
+      }
+
+      // Function to update pagination display
+      function updatePagination(pagination) {
+        const paginationInfo = document.querySelector('.text-sm.text-gray-700');
+        const paginationButtons = document.querySelector('.flex.items-center.space-x-2');
+
+        if (!pagination || !paginationInfo || !paginationButtons) {
+          console.warn('Pagination elements not found');
+          return;
+        }
+
+        // Update pagination info text
+        const startItem = ((pagination.currentPage - 1) * pagination.itemsPerPage) + 1;
+        const endItem = Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems);
+
+        paginationInfo.innerHTML = `
+          แสดง <span class="font-medium">${startItem}</span> ถึง <span class="font-medium">${endItem}</span>
+          จาก <span class="font-medium">${pagination.totalItems}</span> รายการ
+        `;
+
+        // Clear existing pagination buttons
+        paginationButtons.innerHTML = '';
+
+        // Previous button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = `btn btn-sm ${pagination.hasPrevPage ? '' : 'btn-disabled'}`;
+        prevBtn.innerHTML = '<i class="bi bi-chevron-left mr-1"></i>ก่อนหน้า';
+        prevBtn.disabled = !pagination.hasPrevPage;
+        prevBtn.addEventListener('click', () => {
+          if (pagination.hasPrevPage) {
+            loadTaxData(currentPage - 1, currentFilters);
+          }
+        });
+        paginationButtons.appendChild(prevBtn);
+
+        // Page number buttons
+        const maxVisiblePages = 5;
+        const startPage = Math.max(1, pagination.currentPage - Math.floor(maxVisiblePages / 2));
+        const endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+
+        for (let i = startPage; i <= endPage; i++) {
+          const pageBtn = document.createElement('button');
+          pageBtn.className = `btn btn-sm ${i === pagination.currentPage ? 'btn-primary' : ''}`;
+          pageBtn.textContent = i;
+          pageBtn.addEventListener('click', () => {
+            loadTaxData(i, currentFilters);
+          });
+          paginationButtons.appendChild(pageBtn);
+        }
+
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = `btn btn-sm ${pagination.hasNextPage ? '' : 'btn-disabled'}`;
+        nextBtn.innerHTML = 'ถัดไป<i class="bi bi-chevron-right ml-1"></i>';
+        nextBtn.disabled = !pagination.hasNextPage;
+        nextBtn.addEventListener('click', () => {
+          if (pagination.hasNextPage) {
+            loadTaxData(currentPage + 1, currentFilters);
+          }
+        });
+        paginationButtons.appendChild(nextBtn);
+      }
+
+      // Function to build filters from form inputs
+      function buildFilters() {
+        const filters = {};
+
+        const searchInput = document.getElementById('searchBox').value.trim();
+        if (searchInput) {
+          filters.search = searchInput;
+        }
+
+        const statusFilter = document.getElementById('statusFilter').value;
+        if (statusFilter) {
+          filters.status = statusFilter;
+        }
+
+        const branchFilter = document.getElementById('branchFilter').value;
+        if (branchFilter) {
+          filters.branchCode = branchFilter;
+        }
+
+        const monthFilter = document.getElementById('monthFilter').value;
+        if (monthFilter) {
+          // Convert YYYY-MM to date range if needed
+          filters.month = monthFilter;
+        }
+
+        return filters;
+      }
+
+      // Function to apply filters (now calls API with filters)
+      function applyFilters() {
+        const filters = buildFilters();
+        loadTaxData(1, filters); // Reset to page 1 when applying filters
+      }
+
+      // Debounce function for search
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+    
+      // Debounced search function
+      const debouncedSearch = debounce(() => {
+        applyFilters();
+      }, 500);
+
+      // Set up enhanced filter event listeners
+      document.getElementById('searchBox').addEventListener('input', debouncedSearch);
+
+      document.getElementById('statusFilter').addEventListener('change', function() {
+        applyFilters();
+      });
+
+      document.getElementById('productTypeFilter').addEventListener('change', function() {
+        applyFilters();
+      });
+
+      document.getElementById('branchFilter').addEventListener('change', function() {
+        applyFilters();
+      });
+
+      document.getElementById('monthFilter').addEventListener('change', function() {
+        applyFilters();
+      });
+    
+      // Action button event listeners - Read-only mode
+    
+      document.getElementById('btnRefreshData').addEventListener('click', function() {
+        console.log('🔄 Refreshing tax data...');
+        showNotification('กำลังรีเฟรชข้อมูล...', 'info', 2000);
+        loadTaxData();
+      });
+    
+      document.getElementById('btnExportExcel').addEventListener('click', async function() {
+        try {
+          showLoading(true, 'กำลังโหลดรายการภาษี...');
+
+          // Get current filters
+          const filters = buildFilters();
+
+          // Build export URL with filters
+          const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? `http://localhost:3000`
+            : '';
+
+          const queryParams = new URLSearchParams({
+            format: 'excel',
+            ...filters
+          });
+
+          const exportUrl = `${baseUrl}/api/installment/reports/tax-summary/export?${queryParams}`;
+
+          console.log('Exporting tax data from:', exportUrl);
+
+          const response = await fetch(exportUrl, {
+            headers: {
+              ...headers,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+
+          if (data.success && data.data) {
+            // Convert JSON data to Excel using a simple CSV approach
+            const { headers: csvHeaders, rows } = data.data;
+
+            // Create CSV content
+            let csvContent = csvHeaders.join(',') + '\n';
+            rows.forEach(row => {
+              csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+
+            // Create and download the file
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `tax_summary_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showSuccessMessage(`ส่งออกข้อมูลภาษีสำเร็จ (${data.data.summary.totalRecords} รายการ)`);
+          } else {
+            throw new Error(data.message || 'ไม่สามารถส่งออกข้อมูลได้');
+          }
+
+        } catch (error) {
+          console.error('Error exporting tax data:', error);
+          showErrorMessage('เกิดข้อผิดพลาดในการส่งออกข้อมูล: ' + error.message);
+        } finally {
+          showLoading(false);
+        }
+      });
+    
+      document.getElementById('btnPrintReport').addEventListener('click', function() {
+        window.print();
+      });
+    
+      // Pagination is now handled dynamically in updatePagination function
+    
+      // Initially load tax data
+      loadTaxData();
+      } catch (error) {
+        console.error('Error loading data:', error);
+        alert('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      } finally {
+        // Hide loading after initialization
+        setTimeout(() => {
+          showLoading(false);
+        }, 600);
+      }
+    });
+  </script>
+
+  <script>
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบ HR - จัดการหมวดหมู่</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ระบบบริหารทรัพยากรบุคคลและจัดการข่าวสาร" />
+
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👥</text></svg>" type="image/svg+xml" />
+
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        fontFamily: { sans: ['Prompt','sans-serif'] },
+        colors: {
+          primary: '#4C51BF', 'primary-focus': '#3c4099',
+          secondary: '#38A169', 'secondary-focus': '#2f8a58',
+          warning: '#DD6B20', danger: '#E53E3E',
+          info: '#3182CE', success: '#38A169',
+          gray: { 750: '#2D3748' }
+        },
+        animation: { 'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite' }
+      }},
+      plugins: [function({ addComponents }) {
+        addComponents({
+          '.dashboard-card': {
+            borderRadius: '0.75rem', padding: '1.5rem',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -2px rgba(0,0,0,0.05)'
+            }
+          }
+        });
+      }]
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  <!-- Override Modal Styles -->
+  <style>
+    /* ensure modal visibility overrides DaisyUI */
+    #add-category-modal,
+    #edit-category-modal,
+    #delete-category-modal {
+      display: none;
+    }
+    #add-category-modal.show,
+    #edit-category-modal.show,
+    #delete-category-modal.show {
+      display: flex !important;
+      z-index: 9999;
+    }
+  </style>
+  <!-- Icons & Fonts - Fixed Font Awesome link -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Chart.js & AOS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    
+    /* Chart period button active state */
+    .chart-period-btn.active {
+      color: #4C51BF;
+      background-color: #EBF4FF;
+    }
+    
+    .dark .chart-period-btn.active {
+      color: #8da2fb;
+      background-color: #2D3748;
+    }
+    
+    /* Transition effects */
+    .transition-all {
+      transition-property: all;
+      transition-timing-function: cubic-bezier(0.4,0,0.2,1);
+      transition-duration: 300ms;
+    }
+    
+    /* Mobile sidebar */
+    @media (max-width: 1023px) {
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+      }
+      
+      #sidebar.open {
+        transform: translateX(0);
+      }
+    }
+    
+    /* Icon selection style */
+    .icon-option.active {
+      background-color: #EBF4FF;
+      border-color: #4C51BF;
+    }
+    
+    .dark .icon-option.active {
+      background-color: #2D3748;
+      border-color: #667EEA;
+    }
+    
+    /* Color selection style */
+    .color-option.active {
+      box-shadow: 0 0 0 3px white, 0 0 0 5px currentColor;
+    }
+    
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      color: white;
+      z-index: 100;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    /* Category card hover effect */
+    .category-card {
+      transition: all 0.2s ease;
+    }
+    
+    .category-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu"
+          class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i id="toggleIcon" class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="dashboard" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="news-management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-newspaper text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">จัดการข่าวสาร</span>
+            </a>
+          </li>
+          <li>
+            <a href="categories" class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-folder2 text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">หมวดหมู่</span>
+            </a>
+          </li>
+          <li>
+            <a href="settings" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">ตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px">
+            <div id="profile"
+                 class="flex flex-row items-center h-12 px-4 w-full rounded-lg bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 text-left transition">
+              <div class="avatar mr-3 -ml-4">
+                <div class="w-10 rounded-full">
+                  <img id="employeePhoto" src="" alt="Employee Photo" />
+                </div>
+              </div>
+              <span class="ml-3" id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="bg-white dark:bg-gray-800 shadow py-4 px-6 flex items-center justify-between sticky top-0 z-10">
+        <div class="flex items-center">
+          <button id="mobileSidebarToggle" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 mr-4">
+            <i class="fas fa-bars text-xl text-gray-700 dark:text-gray-200"></i>
+          </button>
+          <div class="relative w-full max-w-xs">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <i class="fas fa-search text-gray-400 dark:text-gray-500"></i>
+            </div>
+            <input type="text"
+                   class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                   placeholder="ค้นหา..." />
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <button class="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+            <i class="fas fa-bell text-gray-600 dark:text-gray-300"></i>
+            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full animate-pulse">3</span>
+          </button>
+          <div id="currentDateTime" class="text-sm text-gray-600 dark:text-gray-400"></div>
+        </div>
+      </header>
+
+      <!-- Categories -->
+      <section class="p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-bold text-gray-800 dark:text-white">จัดการหมวดหมู่</h1>
+          <button 
+            type="button" id="btnAddCategory"
+            class="btn btn-primary">
+            <i class="fas fa-plus mr-2"></i> เพิ่มหมวดหมู่
+          </button>
+        </div>
+        
+        <!-- Filter & Sort Options -->
+        <div class="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex items-center">
+              <label class="text-sm text-gray-600 dark:text-gray-400 mr-2">เรียงตาม:</label>
+              <select id="sortCategories" class="select select-sm select-bordered">
+                <option value="name-asc">ชื่อ (ก-ฮ)</option>
+                <option value="name-desc">ชื่อ (ฮ-ก)</option>
+                <option value="news-count">จำนวนข่าว</option>
+                <option value="newest">ล่าสุด</option>
+              </select>
+            </div>
+            <div class="ml-auto">
+              <span class="text-sm text-gray-600 dark:text-gray-400">ทั้งหมด <span id="categoryCount" class="font-medium">0</span> หมวดหมู่</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="categoriesContainer">
+          <!-- Category cards will be generated here -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add Category Modal -->
+  <div id="add-category-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6 shadow-xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-semibold text-gray-800 dark:text-white">เพิ่มหมวดหมู่ใหม่</h3>
+        <button class="btn-close-modal text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="addCategoryForm" class="space-y-4">
+        <div>
+          <label for="categoryName" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อหมวดหมู่</label>
+          <input type="text" id="categoryName" name="categoryName" 
+                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                 required />
+        </div>
+        
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">ไอคอน</label>
+          <div class="grid grid-cols-6 gap-2">
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option active" data-icon="fa-calendar-alt">
+              <i class="fas fa-calendar-alt text-xl text-primary"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-file-contract">
+              <i class="fas fa-file-contract text-xl text-warning"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-users">
+              <i class="fas fa-users text-xl text-secondary"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-chart-bar">
+              <i class="fas fa-chart-bar text-xl text-info"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-book">
+              <i class="fas fa-book text-xl text-danger"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-award">
+              <i class="fas fa-award text-xl text-purple-500"></i>
+            </button>
+          </div>
+          <input type="hidden" id="selectedIcon" name="selectedIcon" value="fa-calendar-alt" />
+        </div>
+        
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">สี</label>
+          <div class="grid grid-cols-6 gap-2">
+            <button type="button" class="w-full h-8 rounded-lg color-option active" style="background-color: #4C51BF;" data-color="primary"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #38A169;" data-color="secondary"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #DD6B20;" data-color="warning"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #E53E3E;" data-color="danger"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #3182CE;" data-color="info"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #805AD5;" data-color="purple-500"></button>
+          </div>
+          <input type="hidden" id="selectedColor" name="selectedColor" value="primary" />
+        </div>
+        
+        <div class="flex justify-end space-x-3 pt-4">
+          <button type="button" class="btn btn-outline btn-cancel">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Category Modal -->
+  <div id="edit-category-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6 shadow-xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-semibold text-gray-800 dark:text-white">แก้ไขหมวดหมู่</h3>
+        <button class="btn-close-modal text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="editCategoryForm" class="space-y-4">
+        <input type="hidden" id="editCategoryId" name="editCategoryId" />
+        
+        <div>
+          <label for="editCategoryName" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อหมวดหมู่</label>
+          <input type="text" id="editCategoryName" name="editCategoryName" 
+                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                 required />
+        </div>
+        
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">ไอคอน</label>
+          <div class="grid grid-cols-6 gap-2" id="editIconOptions">
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-calendar-alt">
+              <i class="fas fa-calendar-alt text-xl text-primary"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-file-contract">
+              <i class="fas fa-file-contract text-xl text-warning"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-users">
+              <i class="fas fa-users text-xl text-secondary"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-chart-bar">
+              <i class="fas fa-chart-bar text-xl text-info"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-book">
+              <i class="fas fa-book text-xl text-danger"></i>
+            </button>
+            <button type="button" class="p-2 border border-gray-300 dark:border-gray-700 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700 icon-option" data-icon="fa-award">
+              <i class="fas fa-award text-xl text-purple-500"></i>
+            </button>
+          </div>
+          <input type="hidden" id="editSelectedIcon" name="editSelectedIcon" />
+        </div>
+        
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">สี</label>
+          <div class="grid grid-cols-6 gap-2" id="editColorOptions">
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #4C51BF;" data-color="primary"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #38A169;" data-color="secondary"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #DD6B20;" data-color="warning"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #E53E3E;" data-color="danger"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #3182CE;" data-color="info"></button>
+            <button type="button" class="w-full h-8 rounded-lg color-option" style="background-color: #805AD5;" data-color="purple-500"></button>
+          </div>
+          <input type="hidden" id="editSelectedColor" name="editSelectedColor" />
+        </div>
+        
+        <div class="flex justify-end space-x-3 pt-4">
+          <button type="button" class="btn btn-outline btn-cancel">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึกการเปลี่ยนแปลง</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Category Confirmation Modal -->
+  <div id="delete-category-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="modal-box bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6 shadow-xl">
+      <div class="text-center">
+        <div class="inline-flex justify-center items-center w-16 h-16 mb-6 rounded-full bg-red-100 dark:bg-red-900">
+          <i class="fas fa-exclamation-triangle text-2xl text-red-600 dark:text-red-400"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">ยืนยันการลบหมวดหมู่</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">คุณต้องการลบหมวดหมู่ <span id="deleteCategoryName" class="font-medium"></span> ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+        
+        <div class="flex justify-center space-x-4">
+          <button type="button" class="btn btn-outline btn-cancel px-6">ยกเลิก</button>
+          <button type="button" id="btnConfirmDelete" class="btn btn-error px-6">ยืนยันการลบ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast bg-success">
+    <div class="flex items-center">
+      <i id="toastIcon" class="fas fa-check-circle mr-2 text-xl"></i>
+      <span id="toastMessage">บันทึกข้อมูลเรียบร้อย</span>
+    </div>
+  </div>
+
+  <script>
+  // ตั้งค่า API_BASE และ token
+  const API_BASE = '/api/categories';               // ชี้ไปยัง endpoint จริง
+  const token    = localStorage.getItem('authToken');
+
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded - initializing system');
+
+    // Optional: restore previous state
+    function checkSidebarState() {
+      const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+      if (collapsed) {
+        document.getElementById('sidebar').classList.add('-ml-64');
+        document.getElementById('toggleIcon').classList.replace('bi-chevron-left', 'bi-chevron-right');
+      }
+    }
+    checkSidebarState();
+
+    // Toast notification function
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastIcon = document.getElementById('toastIcon');
+      const toastMessage = document.getElementById('toastMessage');
+  
+      // Reset classes
+      toast.className = 'toast';
+      toastIcon.className = 'fas mr-2 text-xl';
+  
+      // Set type-specific properties
+      switch(type) {
+        case 'error':
+          toast.classList.add('bg-danger');
+          toastIcon.classList.add('fa-exclamation-circle');
+          break;
+        case 'warning':
+          toast.classList.add('bg-warning');
+          toastIcon.classList.add('fa-exclamation-triangle');
+          break;
+        case 'info':
+          toast.classList.add('bg-info');
+          toastIcon.classList.add('fa-info-circle');
+          break;
+        default: // success
+          toast.classList.add('bg-success');
+          toastIcon.classList.add('fa-check-circle');
+      }
+  
+      toastMessage.textContent = message;
+      toast.classList.add('show');
+  
+      // Auto hide after 3 seconds
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+  
+    // Modal functions
+    function showModal(id) {
+      console.log(`Showing modal: ${id}`);
+      const modal = document.getElementById(id);
+      if (!modal) {
+        console.error(`Modal ${id} not found`);
+        return;
+      }
+      // Force display with inline styles (highest priority)
+      modal.classList.add('show');
+      modal.style.display = 'flex';
+      modal.style.opacity = '1';
+      modal.style.visibility = 'visible';
+      modal.style.pointerEvents = 'auto';
+    }
+  
+    function hideModal(id) {
+      const modal = document.getElementById(id);
+      if (!modal) {
+        console.error(`Modal ${id} not found`);
+        return;
+      }
+      modal.classList.remove('show');
+      modal.style.display = 'none';
+    }
+  
+    function hideAllModals() {
+      document.querySelectorAll('.modal').forEach(modal => {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+      });
+    }
+  
+    // Thai month conversion
+    function getThaiMonth(month) {
+      const thaiMonths = [
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+      ];
+      return thaiMonths[month - 1] || '';
+    }
+  
+    // Date & Time display
+    function updateDateTime() {
+      const el = document.getElementById('currentDateTime');
+      if (!el) return;
+      const now = new Date('2025-05-12T15:28:56Z');
+      const options = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+      try {
+        el.textContent = now.toLocaleDateString('th-TH', options);
+      } catch (e) {
+        el.textContent = now.toLocaleString();
+      }
+    }
+  
+    // Sort categories
+    function sortCategories(categories, sortBy) {
+      if (!Array.isArray(categories)) return [];
+      return [...categories].sort((a, b) => {
+        switch(sortBy) {
+          case 'name-asc':
+            return (a.name || '').localeCompare(b.name || '', 'th');
+          case 'name-desc':
+            return (b.name || '').localeCompare(a.name || '', 'th');
+          case 'news-count':
+            return (b.newsCount || 0) - (a.newsCount || 0);
+          case 'newest':
+            const dateA = a.updatedAt || a.lastUpdated || '1970';
+            const dateB = b.updatedAt || b.lastUpdated || '1970';
+            return new Date(dateB) - new Date(dateA);
+          default:
+            return 0;
+        }
+      });
+    }
+  
+    // Attach button events
+    function attachCategoryButtonEvents() {
+      console.log('Attaching category button events');
+      // Edit buttons
+      document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', function() {
+          console.log('Edit button clicked:', this.dataset.id);
+          document.getElementById('editCategoryId').value = this.dataset.id;
+          document.getElementById('editCategoryName').value = this.dataset.name;
+          document.getElementById('editSelectedIcon').value = this.dataset.icon;
+          document.getElementById('editSelectedColor').value = this.dataset.color;
+          document.querySelectorAll('#editIconOptions .icon-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.icon === this.dataset.icon);
+          });
+          document.querySelectorAll('#editColorOptions .color-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.color === this.dataset.color);
+          });
+          showModal('edit-category-modal');
+        });
+      });
+      // Delete buttons
+      document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', function() {
+          console.log('Delete button clicked:', this.dataset.id);
+          const nameEl = this.closest('.category-card').querySelector('h3');
+          document.getElementById('deleteCategoryName').textContent = nameEl ? nameEl.textContent : '';
+          document.getElementById('btnConfirmDelete').dataset.id = this.dataset.id;
+          showModal('delete-category-modal');
+        });
+      });
+    }
+  
+    // Render categories
+    function renderCategories(categories) {
+      console.log('Rendering categories:', categories.length);
+      const container = document.getElementById('categoriesContainer');
+      if (!container) return console.error('Categories container not found');
+      container.innerHTML = '';
+      const countEl = document.getElementById('categoryCount');
+      if (countEl) countEl.textContent = categories.length;
+      categories.forEach(category => {
+        let formattedDate = '-';
+        const dateStr = category.lastUpdated || category.updatedAt;
+        if (dateStr) {
+          try {
+            const date = new Date(dateStr);
+            formattedDate = `${date.getDate()} ${getThaiMonth(date.getMonth()+1)} ${date.getFullYear()+543}`;
+          } catch (e) {
+            console.warn('Date format error:', e);
+          }
+        }
+        const card = document.createElement('div');
+        card.className = 'category-card p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm';
+        card.dataset.categoryId = category.id || category._id;
+        card.innerHTML = `
+          <div class="flex items-center mb-4">
+            <i class="fas ${category.icon||'fa-folder'} text-${category.color||'primary'} text-2xl mr-3"></i>
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">${category.name||'Unnamed'}</h3>
+          </div>
+          <div class="space-y-2 mb-4">
+            <div class="flex justify-between text-gray-600 dark:text-gray-400">
+              <span>ข่าวทั้งหมด</span><strong>${category.newsCount||0}</strong>
+            </div>
+            <div class="flex justify-between text-gray-600 dark:text-gray-400">
+              <span>ข่าวใหม่</span><strong>${category.newNewsCount||0}</strong>
+            </div>
+            <div class="flex justify-between text-gray-600 dark:text-gray-400">
+              <span>อัปเดตล่าสุด</span><strong>${formattedDate}</strong>
+            </div>
+          </div>
+          <div class="flex space-x-4">
+            <button class="btn-edit btn btn-sm btn-outline btn-primary"
+                    data-id="${category.id||category._id}"
+                    data-name="${category.name}"
+                    data-icon="${category.icon}"
+                    data-color="${category.color}">
+              <i class="fas fa-edit mr-2"></i>แก้ไข
+            </button>
+            <button class="btn-delete btn btn-sm btn-outline btn-error"
+                    data-id="${category.id||category._id}">
+              <i class="fas fa-trash mr-2"></i>ลบ
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      attachCategoryButtonEvents();
+    }
+  
+    // Fetch categories from API
+    async function fetchCategoriesFromAPI() {
+      console.log('Fetching categories from API', API_BASE);
+      try {
+        const res = await fetch(API_BASE, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        if (res.status === 401) {
+          localStorage.removeItem('authToken');
+          window.location.href = '/login';
+          return [];
+        }
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const payload = await res.json();
+        return payload.data || payload || [];
+      } catch (err) {
+        console.error('API error:', err);
+        showToast(`โหลดหมวดหมู่ไม่สำเร็จ: ${err.message}`, 'error');
+        return [];
+      }
+    }
+  
+    // Load & render
+    async function loadAndRenderCategories(sortBy = 'name-asc') {
+      console.log(`Loading categories with sort: ${sortBy}`);
+      let categories = await fetchCategoriesFromAPI();
+      if (!categories.length) {
+        // mock data for development
+        categories = [ /* ...mock items... */ ];
+      }
+      renderCategories(sortCategories(categories, sortBy));
+    }
+  
+    // Initialization
+    console.log('Initializing page');
+    updateDateTime();
+    if (typeof AOS !== 'undefined') AOS.init({ duration:800, once:true });
+    document.getElementById('employeeName').textContent = 'reefinX';
+  
+    // Add Category button
+    const btnAdd = document.getElementById('btnAddCategory');
+    if (btnAdd) {
+      btnAdd.addEventListener('click', () => {
+        document.getElementById('addCategoryForm').reset();
+        document.querySelectorAll('#add-category-modal .icon-option').forEach(o => o.classList.remove('active'));
+        document.querySelector('#add-category-modal .icon-option[data-icon="fa-calendar-alt"]').classList.add('active');
+        document.getElementById('selectedIcon').value = 'fa-calendar-alt';
+        document.querySelectorAll('#add-category-modal .color-option').forEach(o => o.classList.remove('active'));
+        document.querySelector('#add-category-modal .color-option[data-color="primary"]').classList.add('active');
+        document.getElementById('selectedColor').value = 'primary';
+        showModal('add-category-modal');
+      });
+    }
+  
+    // Close modal buttons
+    document.querySelectorAll('.btn-close-modal, .btn-cancel').forEach(btn => btn.addEventListener('click', hideAllModals));
+    document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', e => {
+      if (e.target === modal) hideAllModals();
+    }));
+  
+    // Dark mode toggle
+    const btnDark = document.getElementById('btnToggleDark');
+    const darkLabel = document.getElementById('darkModeLabel');
+    if (btnDark) {
+      const htmlEl = document.documentElement;
+      const saved = localStorage.getItem('darkMode');
+      if (saved==='true' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        htmlEl.classList.add('dark'); darkLabel.textContent='Light Mode';
+      }
+      btnDark.addEventListener('click', () => {
+        htmlEl.classList.toggle('dark');
+        const d = htmlEl.classList.contains('dark');
+        localStorage.setItem('darkMode', d);
+        darkLabel.textContent = d ? 'Light Mode' : 'Dark Mode';
+      });
+    }
+  
+    // Sidebar toggle
+    const btnToggle   = document.getElementById('btnToggleMenu');
+    const sidebar     = document.getElementById('sidebar');
+    const toggleIcon  = document.getElementById('toggleIcon');
+    btnToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('-ml-64');
+      const hidden = sidebar.classList.contains('-ml-64');
+      toggleIcon.classList.toggle('bi-chevron-right', hidden);
+      toggleIcon.classList.toggle('bi-chevron-left', !hidden);
+      localStorage.setItem('sidebarCollapsed', hidden);
+    });
+
+    document.getElementById('mobileSidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('open');
+    });
+  
+    // Sort dropdown
+    document.getElementById('sortCategories').addEventListener('change', e => {
+      loadAndRenderCategories(e.target.value);
+      showToast('เรียงลำดับหมวดหมู่แล้ว', 'info');
+    });
+  
+    // Icon & Color handlers
+    document.querySelectorAll('.icon-option').forEach(opt => opt.addEventListener('click', function() {
+      const f = this.closest('form');
+      f.querySelectorAll('.icon-option').forEach(o => o.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById(f.id==='editCategoryForm'?'editSelectedIcon':'selectedIcon').value = this.dataset.icon;
+    }));
+    document.querySelectorAll('.color-option').forEach(opt => opt.addEventListener('click', function() {
+      const f = this.closest('form');
+      f.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById(f.id==='editCategoryForm'?'editSelectedColor':'selectedColor').value = this.dataset.color;
+    }));
+  
+    // ผูก listener ให้ปุ่มยืนยันการลบ
+    const btnConfirm = document.getElementById('btnConfirmDelete');
+    btnConfirm.addEventListener('click', async () => {
+      const id = btnConfirm.dataset.id;
+      try {
+        const res = await fetch(`${API_BASE}/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        showToast('ลบเรียบร้อย', 'info');
+        hideModal('delete-category-modal');
+        await loadAndRenderCategories();
+      } catch (err) {
+        showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+      }
+    });
+
+    // ผูก submit ของฟอร์มเพิ่มหมวดหมู่
+    const addForm = document.getElementById('addCategoryForm');
+    addForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name  = document.getElementById('categoryName').value.trim();
+      const icon  = document.getElementById('selectedIcon').value;
+      const color = document.getElementById('selectedColor').value;
+      if (!name) {
+        showToast('กรุณากรอกชื่อหมวดหมู่', 'error');
+        return;
+      }
+      try {
+        const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ name, icon, color })
+        });
+        if (res.status === 401) {
+          showToast('เซสชันหมดอายุ','error');
+          return window.location.href = '/login';
+        }
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(err || res.statusText);
+        }
+        showToast('เพิ่มหมวดหมู่เรียบร้อย','success');
+        hideModal('add-category-modal');
+        await loadAndRenderCategories(document.getElementById('sortCategories').value);
+        addForm.reset();
+      } catch (err) {
+        showToast(`บันทึกไม่สำเร็จ: ${err.message}`,'error');
+      }
+    });
+
+    // Initial load
+    loadAndRenderCategories();
+    console.log('Initialization complete');
+  });
+
+  // อ่าน userInfo จาก localStorage เพื่ออัปเดตรูปและชื่อใน sidebar
+  document.addEventListener('DOMContentLoaded', () => {
+    const stored = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    if (stored.name) {
+      document.getElementById('employeeName').textContent = stored.name;
+    }
+    if (stored.photoUrl) {
+      document.getElementById('employeePhoto').src = stored.photoUrl;
+    }
+  });
+  </script>
+</body>
+</html>

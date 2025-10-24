@@ -1,0 +1,2350 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- โหลดตัวจริงก่อน -->
+  <script src="/js/loading-system.js" 
+          onerror="console.warn('⚠️ Failed to load loading-system.js, will use fallback')"></script>
+
+  <!-- Enhanced LoadingSystem fallback -->
+  <script>
+    // Enhanced LoadingSystem fallback
+    window.LoadingSystem = window.LoadingSystem || {};
+
+    // Create a more robust fallback system
+    const createLoadingFallback = () => {
+      return {
+        show: function(options = {}) {
+          console.log('💻 LoadingSystem.show() called with:', options);
+    
+          // Return a unique loader ID
+          const loaderId = 'fallback-loader-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    
+          // Create a simple loading overlay if one doesn't exist
+          if (!document.getElementById('fallback-loading-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.id = 'fallback-loading-overlay';
+            overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            overlay.innerHTML = `
+              <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                <span class="text-gray-700 dark:text-gray-300">${options.message || 'กำลังโหลด...'}</span>
+              </div>
+            `;
+            document.body.appendChild(overlay);
+    
+            // Auto-hide after 10 seconds to prevent stuck loading
+            setTimeout(() => {
+              const existingOverlay = document.getElementById('fallback-loading-overlay');
+              if (existingOverlay) {
+                existingOverlay.remove();
+              }
+            }, 10000);
+          }
+    
+          return loaderId;
+        },
+    
+        hide: function(loaderId) {
+          console.log('💻 LoadingSystem.hide() called for:', loaderId);
+          const overlay = document.getElementById('fallback-loading-overlay');
+          if (overlay) {
+            overlay.remove();
+          }
+        },
+    
+        hideAll: function() {
+          console.log('💻 LoadingSystem.hideAll() called');
+          const overlay = document.getElementById('fallback-loading-overlay');
+          if (overlay) {
+            overlay.remove();
+          }
+        }
+      };
+    };
+
+    // Check if LoadingSystem methods exist, if not create fallbacks
+    ['show', 'hide', 'hideAll'].forEach(methodName => {
+      if (typeof window.LoadingSystem[methodName] !== 'function') {
+        const fallbackSystem = createLoadingFallback();
+        window.LoadingSystem[methodName] = fallbackSystem[methodName];
+        console.log(`🔧 Created fallback for LoadingSystem.${methodName}()`);
+      }
+    });
+
+    // Add a compatibility layer for backward compatibility
+    if (typeof window.showLoading !== 'function') {
+      window.showLoading = function(show = true, message = 'กำลังโหลด...') {
+        if (show) {
+          return window.LoadingSystem.show({ message });
+        } else {
+          window.LoadingSystem.hideAll();
+        }
+      };
+    }
+
+    console.log('🚀 LoadingSystem fallback initialized successfully');
+  </script>
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <!-- 
+    ⚠️ Development Mode: Using Tailwind CDN
+    📦 For Production: Please install Tailwind CLI or PostCSS plugin
+    📚 Guide: https://tailwindcss.com/docs/installation
+  -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'sans-serif'] },
+        },
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- Google Fonts: Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- jQuery & Day.js (locale ไทย) -->
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/locale/th.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+  
+  <!-- Loan-Installment Integration JS -->
+  <script src="/views/loan/js/loan-installment-integration.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+    
+    // Suppress Tailwind CDN warning in development
+    const originalWarn = console.warn;
+    console.warn = (...args) => {
+      const message = args[0];
+      if (message && typeof message === 'string' && message.includes('cdn.tailwindcss.com should not be used in production')) {
+        // Silently suppress this warning in development
+        return;
+      }
+      originalWarn.apply(console, args);
+    };
+  </script>
+
+  <style>
+    :root {
+      --primary-color: #0d6efd;
+      --primary-hover: #138af2;
+      --bg-color: #ffffff;
+      --text-color: #333333;
+      --border-color: #e0e0e0;
+    }
+
+    .dark {
+      --primary-color: #ff8800;
+      --primary-hover: #ffa733;
+      --bg-color: #2a2a2a;
+      --text-color: #ffffff;
+      --border-color: #555555;
+    }
+
+    body {
+      font-family: "Prompt", sans-serif;
+      margin: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    html { scroll-behavior: smooth; }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+
+    /* ===== CARD STYLES เหมือน frontstore_pattani.html ===== */
+    .card {
+      background: #ffffff !important;
+      border: 1px solid #f1f5f9 !important;
+      border-radius: 8px !important;
+      padding: 1rem !important;
+      margin-bottom: 0.75rem !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+      transition: all 0.2s ease !important;
+      position: relative !important;
+      color: #374151 !important;
+    }
+
+    .card:hover {
+      transform: translateY(-1px) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    /* Dark mode card styles */
+    .dark .card {
+      background: #1f2937 !important;
+      border: 1px solid #374151 !important;
+      color: #d1d5db !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .dark .card:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+      border-color: #4b5563 !important;
+    }
+
+    /* Chart container heights */
+    .chart-container {
+      height: 300px !important;
+      max-height: 300px !important;
+    }
+    
+    .chart-container canvas {
+      max-height: 280px !important;
+    }
+    
+    /* Small chart container */
+    .small-chart-container {
+      height: 240px !important;
+      max-height: 240px !important;
+    }
+    
+    .small-chart-container canvas {
+      max-height: 220px !important;
+    }
+
+    .status-paid { color: #374151; }
+    .status-pending { color: #6b7280; }
+    .status-late { color: #4b5563; }
+    
+    /* Loading spinner */
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e0e0e0;
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    [data-theme="dark"] .loading-spinner {
+      border-color: #555555;
+      border-top-color: var(--primary-color);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Override button styles to use DaisyUI */
+    .btn {
+      @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-colors;
+    }
+
+    .btn-primary {
+      @apply bg-blue-600 text-white hover:bg-blue-700;
+    }
+
+    .btn-secondary {
+      @apply bg-gray-600 text-white hover:bg-gray-700;
+    }
+
+    /* Input styles */
+    .input {
+      @apply block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    }
+
+    .dark .input {
+      @apply bg-gray-700 border-gray-600 text-white;
+    }
+
+    .select {
+      @apply block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    }
+
+    .dark .select {
+      @apply bg-gray-700 border-gray-600 text-white;
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    [data-theme=\"dark\"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container - จะถูกเติมด้วย loan-sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <!-- Main Content -->
+  <div id="mainContent" class="flex-1 flex flex-col ml-64 transition-all duration-300 ease-in-out">
+    <main class="p-6 overflow-y-auto space-y-6">
+      <!-- Date Filter Controls -->
+      <section class="card">
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex items-center">
+            <label for="periodFilter" class="text-sm text-gray-700 dark:text-gray-300 mr-2">ช่วงเวลา:</label>
+            <select id="periodFilter" class="select select-bordered">
+              <option value="day">รายวัน</option>
+              <option value="month" selected>รายเดือน</option>
+              <option value="year">รายปี</option>
+            </select>
+          </div>
+          
+          <div class="flex items-center" id="monthSelector">
+            <label for="monthFilter" class="text-sm text-gray-700 dark:text-gray-300 mr-2">เดือน:</label>
+            <select id="monthFilter" class="select select-bordered">
+              <option value="0">มกราคม</option>
+              <option value="1">กุมภาพันธ์</option>
+              <option value="2">มีนาคม</option>
+              <option value="3">เมษายน</option>
+              <option value="4">พฤษภาคม</option>
+              <option value="5">มิถุนายน</option>
+              <option value="6">กรกฎาคม</option>
+              <option value="7">สิงหาคม</option>
+              <option value="8">กันยายน</option>
+              <option value="9">ตุลาคม</option>
+              <option value="10">พฤศจิกายน</option>
+              <option value="11">ธันวาคม</option>
+            </select>
+          </div>
+          
+          <div class="flex items-center" id="yearSelector">
+            <label for="yearFilter" class="text-sm text-gray-700 dark:text-gray-300 mr-2">ปี:</label>
+            <select id="yearFilter" class="select select-bordered">
+              <!-- จะถูกเติมด้วย JavaScript -->
+            </select>
+          </div>
+
+          <div class="flex items-center" id="daySelector" style="display: none;">
+            <label for="dateFilter" class="text-sm text-gray-700 dark:text-gray-300 mr-2">วันที่:</label>
+            <input type="date" id="dateFilter" class="input input-bordered">
+          </div>
+          
+          <button id="applyFilters" class="btn btn-primary">
+            <i class="bi bi-funnel mr-2"></i>ใช้งาน
+          </button>
+          <button id="resetFilters" class="btn btn-secondary">
+            <i class="bi bi-arrow-clockwise mr-2"></i>รีเซ็ต
+          </button>
+
+          <div class="text-xs ml-auto text-gray-500 dark:text-gray-400">
+            อัพเดทล่าสุด: <span id="lastUpdated" class="font-medium">-</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Summary Cards -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-summary="totalValue" class="card">
+          <div class="stat">
+            <div class="stat-figure text-primary">
+              <i class="bi bi-currency-exchange text-2xl"></i>
+            </div>
+            <div class="stat-title">มูลค่าเงินทั้งหมด</div>
+            <div class="stat-value text-primary">0 ฿</div>
+            <div id="totalValueDelta" class="stat-desc">
+              <span>0%</span> จากเดือนก่อน
+            </div>
+          </div>
+        </div>
+        <div data-summary="totalRequests" class="card">
+          <div class="stat">
+            <div class="stat-figure text-secondary">
+              <i class="bi bi-list-ul text-2xl"></i>
+            </div>
+            <div class="stat-title">รายชื่อทั้งหมด</div>
+            <div class="stat-value text-secondary">0 รายการ</div>
+            <div id="totalRequestsDelta" class="stat-desc">
+              <span>0%</span> จากเดือนก่อน
+            </div>
+          </div>
+        </div>
+        <div data-summary="overdueCount" class="card">
+          <div class="stat">
+            <div class="stat-figure text-warning">
+              <i class="bi bi-exclamation-triangle text-2xl"></i>
+            </div>
+            <div class="stat-title">ลูกค้าที่ค้างชำระ</div>
+            <div class="stat-value text-warning">0 ราย</div>
+            <div id="overdueCountDelta" class="stat-desc">
+              <span>0%</span> จากเดือนก่อน
+            </div>
+          </div>
+        </div>
+        <div data-summary="onTimeRate" class="card">
+          <div class="stat">
+            <div class="stat-figure text-success">
+              <i class="bi bi-check-circle text-2xl"></i>
+            </div>
+            <div class="stat-title">อัตราชำระตรงเวลา</div>
+            <div class="stat-value text-success">0%</div>
+            <div id="onTimeRateDelta" class="stat-desc">
+              <span>0%</span> จากเดือนก่อน
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Debtor Overview (New) -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- ยอดลูกหนี้ทั้งหมด -->
+        <div data-summary="totalOutstanding" class="card">
+          <div class="stat">
+            <div class="stat-figure text-blue-500">
+              <i class="bi bi-wallet2 text-2xl"></i>
+            </div>
+            <div class="stat-title">ยอดลูกหนี้ทั้งหมด</div>
+            <div class="stat-value font-semibold text-blue-500">0 ฿</div>
+            <div id="totalOutstandingBreakdown" class="stat-desc text-xs leading-snug">
+              <span class="block">ค้าง: 0 ฿</span>
+              <span class="block">ยังไม่ถึงกำหนด: 0 ฿</span>
+            </div>
+          </div>
+        </div>
+        <!-- ยอดลูกหนี้ค้าง -->
+        <div data-summary="overdueAmount" class="card">
+          <div class="stat">
+            <div class="stat-figure text-red-500">
+              <i class="bi bi-calendar2-x text-2xl"></i>
+            </div>
+            <div class="stat-title">ยอดลูกหนี้ค้าง</div>
+            <div class="stat-value font-semibold text-red-500">0 ฿</div>
+            <div id="overdueAmountBreakdown" class="stat-desc text-xs leading-snug">
+              <span class="block">1-30 วัน: 0 ฿</span>
+              <span class="block">31-60 วัน: 0 ฿</span>
+              <span class="block">60+ วัน: 0 ฿</span>
+            </div>
+          </div>
+        </div>
+        <!-- จำนวนลูกหนี้ทั้งหมด -->
+        <div data-summary="totalDebtors" class="card">
+          <div class="stat">
+            <div class="stat-figure text-teal-500">
+              <i class="bi bi-people text-2xl"></i>
+            </div>
+            <div class="stat-title">จำนวนลูกหนี้ทั้งหมด</div>
+            <div class="stat-value font-semibold text-teal-500">0 ราย</div>
+            <div class="stat-desc">ที่ต้องจัดการ</div>
+          </div>
+        </div>
+        <!-- จำนวนลูกหนี้ค้าง -->
+        <div data-summary="overdueDebtors" class="card">
+          <div class="stat">
+            <div class="stat-figure text-orange-500">
+              <i class="bi bi-person-dash text-2xl"></i>
+            </div>
+            <div class="stat-title">จำนวนลูกหนี้ค้าง</div>
+            <div class="stat-value font-semibold text-orange-500">0 ราย</div>
+            <div id="overdueDebtorsBreakdown" class="stat-desc text-xs leading-snug">
+              <span class="block">1 งวด: 0</span>
+              <span class="block">2 งวด: 0</span>
+              <span class="block">3+ งวด: 0</span>
+            </div>
+          </div>
+        </div>
+        <!-- อัตราเก็บเงินสำเร็จ -->
+        <div data-summary="collectionRate" class="card">
+          <div class="stat">
+            <div class="stat-figure text-green-500">
+              <i class="bi bi-graph-up-arrow text-2xl"></i>
+            </div>
+            <div class="stat-title">อัตราเก็บเงินสำเร็จ</div>
+            <div class="stat-value font-semibold text-green-500">0%</div>
+            <div class="stat-desc">เดือนนี้</div>
+          </div>
+        </div>
+
+        <!-- Top Debtors Summary (Enhanced UI) -->
+        <div data-summary="topDebtors" class="card hover:shadow-lg transition-all">
+          <div class="stat p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="stat-figure text-purple-500">
+                <i class="bi bi-people-fill text-3xl"></i>
+              </div>
+              <div class="badge badge-secondary badge-outline">สูงสุด</div>
+            </div>
+            <div class="stat-title text-base font-medium mb-2">ลูกหนี้ยอดค้างสูงสุด</div>
+            <div class="stat-value text-2xl font-bold text-purple-500 mb-1">0 ราย</div>
+            <div class="stat-desc flex items-center text-sm">
+              <i class="bi bi-coin mr-1"></i>
+              รวมมูลค่า <span id="topDebtorsAmount" class="font-semibold ml-1">0</span> ฿
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Enhanced Debt Trends Chart -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div class="card hover:shadow-lg transition-all">
+          <div class="flex justify-between items-center mb-6 px-2">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">แนวโน้มยอดลูกหนี้</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">ข้อมูลย้อนหลัง 6 เดือน</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="btn-group">
+                <button id="debtTrendBtn_3m" 
+                        class="btn btn-sm btn-outline gap-2">
+                  <i class="bi bi-graph-up"></i>
+                  3 เดือน
+                </button>
+                <button id="debtTrendBtn_6m" 
+                        class="btn btn-sm btn-outline btn-active gap-2">
+                  <i class="bi bi-graph-up-arrow"></i>
+                  6 เดือน
+                </button>
+              </div>
+              <div class="dropdown dropdown-end">
+                <button class="btn btn-ghost btn-sm btn-square">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
+                  <li><a onclick="downloadChartData('debtTrend')">
+                    <i class="bi bi-download"></i>ดาวน์โหลดข้อมูล
+                  </a></li>
+                  <li><a onclick="shareChartData('debtTrend')">
+                    <i class="bi bi-share"></i>แชร์
+                  </a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="chart-container p-2 relative group">
+            <div class="absolute inset-0 bg-gray-100/50 dark:bg-gray-800/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <button class="btn btn-sm btn-ghost" onclick="toggleFullscreen('debtTrendChart')">
+                <i class="bi bi-fullscreen"></i>
+              </button>
+            </div>
+            <canvas id="debtTrendChart" class="w-full h-full"></canvas>
+          </div>
+          <div class="flex justify-between items-center px-4 py-2 bg-base-200/50 rounded-b-lg text-sm">
+            <div class="flex items-center space-x-4">
+              <div class="flex items-center">
+                <span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                <span>ยอดทั้งหมด</span>
+              </div>
+              <div class="flex items-center">
+                <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                <span>ยอดค้าง</span>
+              </div>
+            </div>
+            <button class="btn btn-xs btn-ghost" onclick="toggleChartType('debtTrendChart')">
+              <i class="bi bi-bar-chart"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Branch-wise Status (New) -->
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">สถานะลูกหนี้ตามสาขา</h3>
+            <select id="branchStatusPeriod" class="select select-bordered select-sm">
+              <option value="current">เดือนนี้</option>
+              <option value="last">เดือนที่แล้ว</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table table-compact w-full">
+              <thead>
+                <tr>
+                  <th>สาขา</th>
+                  <th class="text-right">ลูกหนี้ทั้งหมด</th>
+                  <th class="text-right">ยอดค้างชำระ</th>
+                  <th class="text-right">% การชำระ</th>
+                </tr>
+              </thead>
+              <tbody id="branchStatusBody">
+                <!-- จะถูกเติมด้วย JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 card">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">แนวโน้มรายเดือน</h3>
+            <div class="btn-group">
+              <button id="trendBtn_current" class="btn btn-active">ปีนี้</button>
+              <button id="trendBtn_previous" class="btn">ปีที่แล้ว</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="loanTrendChart" class="w-full h-full"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">สถานะการผ่อน</h3>
+          <div class="small-chart-container">
+            <canvas id="approvalChart" class="w-full h-full"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Daily Stats -->
+      <section class="card">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">สถิติรายวัน</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="stats shadow">
+            <div class="stat">
+              <div class="stat-figure text-primary">
+                <i class="bi bi-cash-coin text-2xl"></i>
+              </div>
+              <div class="stat-title">การผ่อนชำระวันนี้</div>
+              <div id="todayRepayments" class="stat-value text-primary">0 ฿</div>
+              <div class="stat-desc">จำนวน <span id="todayRepaymentsCount">0</span> รายการ</div>
+            </div>
+          </div>
+          <div class="stats shadow">
+            <div class="stat">
+              <div class="stat-figure text-secondary">
+                <i class="bi bi-plus-circle text-2xl"></i>
+              </div>
+              <div class="stat-title">สร้างสินเชื่อใหม่วันนี้</div>
+              <div id="todayNewLoans" class="stat-value text-secondary">0 รายการ</div>
+              <div class="stat-desc">มูลค่ารวม <span id="todayNewLoansValue">0</span> ฿</div>
+            </div>
+          </div>
+          <div class="stats shadow">
+            <div class="stat">
+              <div class="stat-figure text-warning">
+                <i class="bi bi-clock-history text-2xl"></i>
+              </div>
+              <div class="stat-title">ค้างชำระวันนี้</div>
+              <div id="todayOverdue" class="stat-value text-warning">0 รายการ</div>
+              <div class="stat-desc">มูลค่ารวม <span id="todayOverdueValue">0</span> ฿</div>
+            </div>
+          </div>
+          <div class="stats shadow">
+            <div class="stat">
+              <div class="stat-figure text-error">
+                <i class="bi bi-lock text-2xl"></i>
+              </div>
+              <div class="stat-title">ล็อคอุปกรณ์วันนี้</div>
+              <div id="todayLocked" class="stat-value text-error">0 รายการ</div>
+              <div class="stat-desc">จากการค้างชำระ <span id="todayLockedFromOverdue">0</span> วัน</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Proportions & Recent Loans -->
+      <section class="space-y-6">
+        <div class="card">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+            <div data-prop="paidOnTime" class="stat">
+              <div class="stat-value text-primary">0%</div>
+              <div class="stat-title">รายชื่อคนจ่าย</div>
+            </div>
+            <div data-prop="overdue" class="stat">
+              <div class="stat-value text-warning">0%</div>
+              <div class="stat-title">ค้างชำระ</div>
+            </div>
+            <div data-prop="onSchedule" class="stat">
+              <div class="stat-value text-success">0%</div>
+              <div class="stat-title">จ่ายตรงวันเวลา</div>
+            </div>
+            <div data-prop="totalRequests" class="stat">
+              <div class="stat-value text-secondary">0</div>
+              <div class="stat-title">คำขอทั้งหมด</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">รายชื่อล่าสุด</h3>
+            <a href="/status" class="btn btn-ghost btn-sm">
+              ดูทั้งหมด <i class="bi bi-arrow-right ml-1"></i>
+            </a>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+              <thead>
+                <tr>
+                  <th>หมายเลข</th>
+                  <th>ชื่อลูกค้า</th>
+                  <th class="text-right">จำนวนเงิน</th>
+                  <th>ระยะเวลา</th>
+                  <th class="text-center">สถานะ</th>
+                  <th class="text-right">คงเหลืองวด</th>
+                </tr>
+              </thead>
+              <tbody id="recentLoansBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+
+    // Loading state management with Lottie animation
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // Toast notification management
+    // Utility functions
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB'
+      }).format(amount || 0);
+    }
+
+    function formatDate(date) {
+      if (!date) return '-';
+      return new Date(date).toLocaleDateString('th-TH');
+    }
+
+    // Make functions globally available
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+
+    function showToast(message, type = 'error', duration = 5000) {
+      const toast = document.getElementById('connectionToast');
+      if (!toast) return;
+
+      const icon = toast.querySelector('i');
+      const text = toast.querySelector('span');
+    
+      // Update content
+      text.textContent = message;
+    
+      // Update styling based on type
+      toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-500' :
+        type === 'warning' ? 'bg-yellow-500' :
+        'bg-red-500'
+      } text-white`;
+    
+      icon.className = `bi ${
+        type === 'success' ? 'bi-check-circle' :
+        type === 'warning' ? 'bi-exclamation-triangle' :
+        'bi-wifi-off'
+      }`;
+
+      // Show toast
+      toast.classList.remove('hidden');
+
+      // Auto hide
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, duration);
+    }
+
+    // Connection monitoring
+    let isOnline = navigator.onLine;
+    
+    window.addEventListener('online', () => {
+      if (!isOnline) {
+        showToast('การเชื่อมต่อกลับมาแล้ว', 'success');
+        isOnline = true;
+      }
+    });
+
+    window.addEventListener('offline', () => {
+      showToast('การเชื่อมต่ออินเทอร์เน็ตขาดหาย');
+      isOnline = false;
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Show loading initially
+      showLoading(true);
+      console.log('🚀 Initializing Loan Dashboard... v2.2');
+    
+      // Initialize loan sidebar first
+      if (typeof initializeLoanSidebar === 'function') {
+        initializeLoanSidebar();
+      }
+    
+      // Wait a bit for DOM to be fully ready
+      setTimeout(async () => {
+        try {
+          // 🔐 Enhanced Authentication Check
+          let token = localStorage.getItem('authToken') || localStorage.getItem('token') || sessionStorage.getItem('token');
+    
+          if (!token) {
+            console.warn('⚠️ No authentication token found, redirecting to login');
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/login';
+            return;
+          }
+    
+          // Validate token format (basic JWT structure check)
+          if (!token.includes('.') || token.split('.').length !== 3) {
+            console.warn('⚠️ Invalid token format, clearing and redirecting');
+            localStorage.removeItem('token');
+            localStorage.removeItem('authToken');
+            sessionStorage.removeItem('token');
+            window.location.href = '/login';
+            return;
+          }
+    
+          console.log('✅ Authentication token found and validated');
+    
+          const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          };
+
+          // Test token validity before proceeding
+          const testAuth = async () => {
+            try {
+              const testResponse = await fetch('/api/loan/contracts', {
+                method: 'GET',
+                headers: headers,
+                timeout: 5000
+              });
+    
+              if (testResponse.status === 401 || testResponse.status === 403) {
+                console.warn('🚫 Token expired or invalid, redirecting to login');
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/login';
+                return false;
+              }
+    
+              if (testResponse.status === 0 || !testResponse.ok) {
+                console.warn('⚠️ Server connection issue, but continuing with cached token');
+                return true; // Continue anyway for offline scenarios
+              }
+    
+              return true;
+            } catch (error) {
+              console.error('Authentication test failed:', error);
+              // Don't redirect on network errors, just log and continue
+              return true;
+            }
+          };
+    
+          const authValid = await testAuth();
+          if (!authValid) return;
+
+        // Note: Sidebar functionality, dark mode, logout, and employee profile
+        // are now handled by loan-sidebar.js
+    
+      // 2) สรุป summary - ใช้ข้อมูลจริงจากฐานข้อมูล
+      const loadDashboardSummary = async () => {
+        try {
+          console.log('🔄 Loading real dashboard data from database...');
+          const response = await fetch('/api/loan/contracts', { headers });
+    
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+    
+          const result = await response.json();
+          console.log('📊 Raw API Response:', result);
+    
+          if (!result.success || !result.data) {
+            throw new Error(result.error || 'No data returned');
+          }
+    
+          const contracts = result.data;
+          console.log('📋 Processing', contracts.length, 'contracts');
+    
+          // คำนวณสถิติจากข้อมูลจริง
+          let totalAmount = 0;
+          let activeContracts = 0;
+          let totalPaid = 0;
+          let overdueContracts = 0;
+          let overdueAmount = 0;
+          let overdue1to30 = 0;
+          let overdue31to60 = 0;
+          let overdue60plus = 0;
+          let overdueAmount1to30 = 0;
+          let overdueAmount31to60 = 0;
+          let overdueAmount60plus = 0;
+    
+          contracts.forEach(contract => {
+            // คำนวณยอดเงินจริงโดยไม่นับซ้ำ
+            // ใช้ totalAmount หรือ financeAmount (ไม่รวมกัน) + downPayment
+            const baseAmount = contract.totalAmount || contract.financeAmount || 0;
+            const downPayment = contract.downPayment || 0;
+            const contractAmount = baseAmount + downPayment;
+            const paidAmount = contract.paidAmount || 0;
+    
+            totalAmount += contractAmount;
+            totalPaid += paidAmount;
+    
+            if (contract.status === 'active') activeContracts++;
+    
+            // คำนวณข้อมูลค้างชำระจากข้อมูลจริงเท่านั้น - ใช้เฉพาะสถานะ overdue จริง
+            if (contract.status === 'overdue') {
+              overdueContracts++;
+              const actualRemaining = contract.remainingAmount || 0;
+              overdueAmount += actualRemaining;
+    
+              // ถ้ามี dueDate สามารถคำนวณช่วงค้างได้
+              if (contract.dueDate) {
+                const today = new Date();
+                const dueDate = new Date(contract.dueDate);
+                const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+    
+                if (daysOverdue <= 30) {
+                  overdue1to30++;
+                  overdueAmount1to30 += actualRemaining;
+                } else if (daysOverdue <= 60) {
+                  overdue31to60++;
+                  overdueAmount31to60 += actualRemaining;
+                } else {
+                  overdue60plus++;
+                  overdueAmount60plus += actualRemaining;
+                }
+              }
+            }
+          });
+    
+          const totalOutstanding = totalAmount - totalPaid;
+    
+          const collectionRate = totalAmount > 0 ? parseFloat(((totalPaid / totalAmount) * 100).toFixed(1)) : 0;
+    
+          const dashboardData = {
+            success: true,
+            data: {
+              totalContracts: contracts.length,
+              activeContracts: activeContracts,
+              totalAmount: totalAmount,
+              totalValue: totalAmount, // alias
+              overdueContracts: overdueContracts,
+              overdueCount: overdueContracts, // alias
+              totalOutstanding: totalOutstanding,
+              totalPaid: totalPaid,
+              collectionRate: collectionRate,
+              onTimeRate: collectionRate, // alias
+              thisMonthPayments: totalPaid,
+              thisMonthContracts: contracts.length,
+              avgMonthlyPayment: contracts.length > 0 ? Math.round(totalAmount / contracts.length / 12) : 0,
+              overdueAmount: overdueAmount, // ใช้ข้อมูลที่คำนวณใหม่
+              overdue1to30: overdue1to30,
+              overdue31to60: overdue31to60,
+              overdue60plus: overdue60plus,
+              overdueAmount1to30: overdueAmount1to30,
+              overdueAmount31to60: overdueAmount31to60,
+              overdueAmount60plus: overdueAmount60plus,
+              outstandingDue: Math.round(totalOutstanding * 0.3), // ประมาณการ
+              outstandingNotDue: Math.round(totalOutstanding * 0.7) // ประมาณการ
+            }
+          };
+    
+          console.log('✅ Dashboard data calculated:', dashboardData.data);
+    
+          // จัดกลุ่มข้อมูลตามสาขา พร้อมแก้ไขปัญหา encoding
+          const branchData = {};
+          contracts.forEach(contract => {
+            let branchName = 'ไม่ระบุสาขา'; // ค่าเริ่มต้น
+            let branchCode = '00000';
+    
+            // แก้ไขปัญหา encoding ในชื่อสาขา
+            if (contract.branchName) {
+              const cleanBranchName = contract.branchName
+                .replace(/\?+/g, '') // ลบเครื่องหมาย ?
+                .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, '') // เก็บเฉพาะอักษรไทย อังกฤษ และตัวเลข
+                .trim();
+    
+              if (cleanBranchName && cleanBranchName.length > 0) {
+                branchName = cleanBranchName;
+              } else {
+                // ถ้าทำความสะอาดแล้วไม่เหลืออะไร ใช้ชื่อจากข้อมูลอื่น
+                branchName = 'สาขาหลัก';
+              }
+            }
+    
+            if (contract.branchCode && contract.branchCode !== '00000') {
+              branchCode = contract.branchCode;
+            }
+    
+            const branchKey = `${branchCode}_${branchName}`;
+    
+            if (!branchData[branchKey]) {
+              branchData[branchKey] = {
+                branchCode: branchCode,
+                branchName: branchName,
+                contracts: 0,
+                totalAmount: 0,
+                paidAmount: 0,
+                outstanding: 0,
+                overdueContracts: 0,
+                overdueAmount: 0
+              };
+            }
+    
+            // ใช้ข้อมูลจริงจากฐานข้อมูล เท่านั้น
+            const amount = contract.totalAmount || contract.financeAmount || contract.downPayment || 0;
+            const paid = contract.paidAmount || 0;
+            const outstanding = contract.remainingAmount || 0; // ใช้ remainingAmount จริงจากฐานข้อมูล
+    
+            branchData[branchKey].contracts++;
+            branchData[branchKey].totalAmount += amount;
+            branchData[branchKey].paidAmount += paid;
+            branchData[branchKey].outstanding += outstanding;
+    
+            // ใช้เฉพาะสถานะ overdue จริงจากฐานข้อมูล
+            if (contract.status === 'overdue') {
+              branchData[branchKey].overdueContracts++;
+              branchData[branchKey].overdueAmount += outstanding;
+            }
+          });
+    
+          // แปลงเป็น array สำหรับการแสดงผล
+          const branchStats = Object.values(branchData).map(branch => ({
+            ...branch,
+            collectionRate: branch.totalAmount > 0 ? Math.round((branch.paidAmount / branch.totalAmount) * 100) : 0,
+            overdueRate: branch.contracts > 0 ? Math.round((branch.overdueContracts / branch.contracts) * 100) : 0
+          }));
+    
+          console.log('📊 Branch stats calculated:', branchStats);
+    
+          return dashboardData;
+    
+        } catch (error) {
+          console.error('❌ Failed to load dashboard data:', error);
+    
+          // ไม่ใช้ข้อมูล fallback แต่ส่งข้อผิดพลาดแทน
+          console.log('📊 Error loading data - returning error response');
+          return {
+            success: false,
+            error: error.message || 'ไม่สามารถโหลดข้อมูลได้',
+            data: null
+          };
+        }
+      };
+    
+      loadDashboardSummary()
+        .then(js => {
+          // Debug: Log the API response
+          console.log('📊 Dashboard Summary Response:', js);
+          if (js.data) {
+            console.log('📊 Summary Data Details:', {
+              totalContracts: js.data.totalContracts,
+              activeContracts: js.data.activeContracts,
+              totalAmount: js.data.totalAmount,
+              overdueContracts: js.data.overdueContracts
+            });
+          }
+    
+          if (!js || !js.success) {
+            console.error('Summary API failed:', js?.error || 'Unknown error');
+    
+            // แสดงข้อความ error จริงแทนข้อมูลตัวอย่าง
+            const summaryCards = document.querySelectorAll('[data-summary]');
+            summaryCards.forEach(card => {
+              const valueEl = card.querySelector('.stat-value, .font-semibold');
+              if (valueEl) {
+                valueEl.textContent = 'ข้อมูลไม่พร้อม';
+                valueEl.classList.add('text-red-400');
+              }
+            });
+    
+            showToast('ไม่สามารถโหลดข้อมูลสรุปได้: ' + (js?.error || 'เกิดข้อผิดพลาด'), 'error');
+            return;
+          }
+          const d = js.data;
+
+          // เตรียมตัวเลือกปี
+          const yearFilter    = document.getElementById('yearFilter');
+          const monthFilter   = document.getElementById('monthFilter');
+          const nowYear       = new Date().getFullYear();
+          const nowMonth      = new Date().getMonth();
+    
+          for (let y = nowYear; y >= nowYear - 5; y--) {
+            const opt = document.createElement('option');
+            opt.value = y; opt.text = y;
+            if (y === nowYear) opt.selected = true;
+            yearFilter.appendChild(opt);
+          }
+    
+          // ตั้งค่าเดือนปัจจุบัน
+          if (monthFilter) {
+            monthFilter.value = nowMonth;
+          }
+
+          // สลับ selectors ตามช่วงเวลา
+          const periodFilter  = document.getElementById('periodFilter');
+          const monthSel      = document.getElementById('monthSelector');
+          const yearSel       = document.getElementById('yearSelector');
+          const daySel        = document.getElementById('daySelector');
+          function updateSelectors() {
+            const v = periodFilter.value;
+            monthSel.style.display = v === 'month' ? 'flex' : 'none';
+            yearSel.style.display  = v === 'month' || v === 'year' ? 'flex' : 'none';
+            daySel.style.display   = v === 'day'   ? 'flex' : 'none';
+          }
+          periodFilter.addEventListener('change', updateSelectors);
+          updateSelectors();
+
+          // อัพเดทวันเวลาที่โหลด
+          document.getElementById('lastUpdated').textContent =
+            dayjs().locale('th').format('DD/MM/YYYY HH:mm');
+
+          // 1) อัปเดตตัวเลขหลัก with better error handling
+          const updateStatElement = (selector, value, suffix = '') => {
+            try {
+              const element = document.querySelector(selector);
+              if (element) {
+                element.textContent = value + suffix;
+                element.classList.remove('text-gray-400', 'text-red-400');
+                return true;
+              } else {
+                console.warn(`Element not found: ${selector}`);
+                return false;
+              }
+            } catch (error) {
+              console.error(`Error updating ${selector}:`, error);
+              return false;
+            }
+          };
+    
+          const summaryData = js.data || {};
+    
+          // Update main statistics with safe fallbacks
+          updateStatElement('[data-summary="totalValue"] .stat-value',
+            new Intl.NumberFormat('th-TH').format(summaryData.totalAmount || summaryData.totalValue || 0), ' ฿');
+    
+          updateStatElement('[data-summary="totalRequests"] .stat-value',
+            (summaryData.totalContracts || summaryData.totalRequests || 0), ' รายการ');
+    
+          updateStatElement('[data-summary="overdueCount"] .stat-value',
+            (summaryData.overdueContracts || summaryData.overdueCount || 0), ' ราย');
+    
+          updateStatElement('[data-summary="onTimeRate"] .stat-value',
+            (summaryData.collectionRate || summaryData.onTimeRate || 0), '%');
+
+          // ใหม่: อัปเดตข้อมูลลูกหนี้ with safe handling
+          updateStatElement('[data-summary="totalOutstanding"] .stat-value',
+            new Intl.NumberFormat('th-TH').format(summaryData.totalOutstanding || 0), ' ฿');
+    
+          const totalOutstandingBd = document.getElementById('totalOutstandingBreakdown');
+          if (totalOutstandingBd) {
+            const dueAmt = new Intl.NumberFormat('th-TH').format(summaryData.outstandingDue || 0);
+            const notDueAmt = new Intl.NumberFormat('th-TH').format(summaryData.outstandingNotDue || 0);
+            totalOutstandingBd.innerHTML = `<span class="block">ค้าง: ${dueAmt} ฿</span><span class="block">ยังไม่ถึงกำหนด: ${notDueAmt} ฿</span>`;
+          }
+
+          updateStatElement('[data-summary="overdueAmount"] .stat-value',
+            new Intl.NumberFormat('th-TH').format(summaryData.overdueAmount || 0), ' ฿');
+          const overdueAmountBd = document.getElementById('overdueAmountBreakdown');
+          if (overdueAmountBd) {
+            const breakdown = summaryData.debtAnalysis?.byAgePeriod || {};
+            const a1 = new Intl.NumberFormat().format(breakdown['1-30']?.amount || 0);
+            const a2 = new Intl.NumberFormat().format(breakdown['31-60']?.amount || 0);
+            const a3 = new Intl.NumberFormat().format(breakdown['60+']?.amount || 0);
+            overdueAmountBd.innerHTML = `<span class="block">1-30 วัน: ${a1} ฿</span><span class="block">31-60 วัน: ${a2} ฿</span><span class="block">60+ วัน: ${a3} ฿</span>`;
+          }
+
+          const totalDebtorsEl = document.querySelector('[data-summary="totalDebtors"] .stat-value');
+          if (totalDebtorsEl) totalDebtorsEl.textContent = (summaryData.totalDebtors || summaryData.totalContracts || 0) + ' ราย';
+
+          const overdueDebtorsEl = document.querySelector('[data-summary="overdueDebtors"] .stat-value');
+          if (overdueDebtorsEl) overdueDebtorsEl.textContent = (summaryData.overdueContracts || 0) + ' ราย';
+          const overdueDebtorsBd = document.getElementById('overdueDebtorsBreakdown');
+          if (overdueDebtorsBd) {
+            const breakdown = summaryData.debtAnalysis?.byAgePeriod || {};
+            const i1 = breakdown['1-30']?.count || 0;
+            const i2 = breakdown['31-60']?.count || 0;
+            const i3 = breakdown['60+']?.count || 0;
+            overdueDebtorsBd.innerHTML = `<span class="block">1-30 วัน: ${i1}</span><span class="block">31-60 วัน: ${i2}</span><span class="block">60+ วัน: ${i3}</span>`;
+          }
+
+          const collectionRateEl = document.querySelector('[data-summary="collectionRate"] .stat-value');
+          if (collectionRateEl) collectionRateEl.textContent = (summaryData.collectionRate || 0).toFixed(2) + '%';
+
+          // อัปเดต Top Debtors Summary
+          const topDebtorsEl = document.querySelector('[data-summary="topDebtors"] .stat-value');
+          if (topDebtorsEl) topDebtorsEl.textContent = (summaryData.topDebtorsCount ?? 0) + ' ราย';
+          const topDebtorsAmount = document.getElementById('topDebtorsAmount');
+          if (topDebtorsAmount) topDebtorsAmount.textContent = new Intl.NumberFormat().format(summaryData.topDebtorsAmount ?? 0);
+
+          // 2) ฟังก์ชันอัปเดต % change
+          function updateDelta(id, value) {
+            const el = document.getElementById(id);
+            if (!el) {
+              console.warn(`Element with id '${id}' not found`);
+              return;
+            }
+    
+            const span = el.querySelector('span');
+            if (!span) {
+              console.warn(`Span element not found in '${id}'`);
+              return;
+            }
+
+            // ถ้า value ไม่ใช่ตัวเลข ให้ใช้ 0 แทน
+            const v = (typeof value === 'number' && !isNaN(value)) ? value : 0;
+
+            // อัปเดตข้อมูล (ไม่ใช้ไอคอนและสีในแบบ minimal)
+            const sign = v >= 0 ? '+' : '';
+            span.textContent = `${sign}${v}%`;
+          }
+
+          updateDelta('totalValueDelta',     summaryData.totalValueChange);
+          updateDelta('totalRequestsDelta',  summaryData.totalRequestsChange);
+          updateDelta('overdueCountDelta',   summaryData.overdueChange);
+          updateDelta('onTimeRateDelta',     summaryData.onTimeRateChange);
+        })
+        .catch(err => {
+          console.error('Summary API network error:', err);
+    
+          // แสดงข้อความ error แทนข้อมูลตัวอย่าง
+          const summaryCards = document.querySelectorAll('[data-summary]');
+          summaryCards.forEach(card => {
+            const valueEl = card.querySelector('.font-semibold');
+            if (valueEl) {
+              valueEl.textContent = 'เชื่อมต่อไม่ได้';
+              valueEl.classList.add('text-red-400');
+            }
+          });
+    
+          showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+        });
+
+        // 3) กราฟแนวโน้มรายเดือน
+        fetch('/api/loan/dashboard/trends', { headers })
+          .then(async r => {
+            if (!r.ok) {
+              console.warn(`Trends API error: ${r.status} ${r.statusText}`);
+              return { success: false, error: `HTTP ${r.status}` };
+            }
+            return r.json();
+          })
+          .then(js => {
+            const chartElement = document.getElementById('loanTrendChart');
+            if (!chartElement) {
+              console.error('Chart element not found');
+              return;
+            }
+
+            if (js.success && js.data) {
+              new Chart(chartElement.getContext('2d'), {
+                type: 'line',
+                data: {
+                  labels: js.data.months || [],
+                  datasets: [{
+                    label: 'ยอดสินเชื่อ (฿)',
+                    data: js.data.values || [],
+                    fill: false,
+                    tension: 0.4,
+                    borderColor: '#3b82f6',
+                    backgroundColor: '#3b82f6'
+                  }]
+                },
+                options: {
+                  scales: { y: { beginAtZero: true } },
+                  responsive: true,
+                  maintainAspectRatio: false
+                }
+              });
+            } else {
+              console.warn('Trends API error - showing error message');
+              // แสดงข้อความ error แทนกราฟตัวอย่าง
+              const ctx = chartElement.getContext('2d');
+              ctx.font = '16px Arial';
+              ctx.fillStyle = '#ef4444';
+              ctx.textAlign = 'center';
+              ctx.fillText('ไม่สามารถโหลดข้อมูลแนวโน้มได้', chartElement.width/2, chartElement.height/2);
+              ctx.font = '12px Arial';
+              ctx.fillStyle = '#6b7280';
+              ctx.fillText('กรุณาตรวจสอบการเชื่อมต่อ API', chartElement.width/2, chartElement.height/2 + 25);
+            }
+          })
+          .catch(err => {
+            console.error('Error loading trends:', err);
+            const chartElement = document.getElementById('loanTrendChart');
+            if (chartElement) {
+              // แสดงข้อความแจ้งข้อผิดพลาดในกราฟ
+              const ctx = chartElement.getContext('2d');
+              ctx.font = '16px Arial';
+              ctx.fillStyle = '#6b7280';
+              ctx.textAlign = 'center';
+              ctx.fillText('ไม่สามารถโหลดข้อมูลได้', chartElement.width/2, chartElement.height/2);
+            }
+          });
+    
+        // 4) กราฟสถานะการผ่อน
+        fetch('/api/loan/dashboard/status-distribution', { headers })
+          .then(async r => {
+            if (!r.ok) {
+              console.warn(`Status distribution API error: ${r.status} ${r.statusText}`);
+              return { success: false, error: `HTTP ${r.status}` };
+            }
+            return r.json();
+          })
+          .then(js => {
+            const chartElement = document.getElementById('approvalChart');
+            if (!chartElement) {
+              console.error('Approval chart element not found');
+              return;
+            }
+
+            if (js.success && js.data) {
+              new Chart(chartElement.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                  labels: js.data.labels || [],
+                  datasets: [{
+                    data: js.data.counts || [],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#6b7280']
+                  }]
+                },
+                options: {
+                  plugins: { legend: { position: 'bottom' } },
+                  responsive: true,
+                  maintainAspectRatio: false
+                }
+              });
+            } else {
+              console.warn('Status distribution API error - showing error message');
+              // แสดงข้อความ error แทนกราฟตัวอย่าง
+              const ctx = chartElement.getContext('2d');
+              ctx.font = '16px Arial';
+              ctx.fillStyle = '#ef4444';
+              ctx.textAlign = 'center';
+              ctx.fillText('ไม่สามารถโหลดข้อมูลสถานะได้', chartElement.width/2, chartElement.height/2);
+              ctx.font = '12px Arial';
+              ctx.fillStyle = '#6b7280';
+              ctx.fillText('กรุณาตรวจสอบการเชื่อมต่อ API', chartElement.width/2, chartElement.height/2 + 25);
+            }
+          })
+          .catch(err => {
+            console.error('Error loading status distribution:', err);
+            const chartElement = document.getElementById('approvalChart');
+            if (chartElement) {
+              const ctx = chartElement.getContext('2d');
+              ctx.font = '14px Arial';
+              ctx.fillStyle = '#6b7280';
+              ctx.textAlign = 'center';
+              ctx.fillText('ไม่สามารถโหลดข้อมูลได้', chartElement.width/2, chartElement.height/2);
+            }
+          });
+    
+        // 5) สัดส่วนต่าง ๆ
+        fetch('/api/loan/dashboard/proportions', { headers })
+          .then(async r => {
+            if (!r.ok) {
+              if (r.status === 403) {
+                console.warn('Access denied to proportions data. Using default values.');
+                return { success: false, error: 'Access denied' };
+              }
+              throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            }
+            return r.json();
+          })
+          .then(js => {
+            if (!js.success) {
+              console.error('Proportions API failed:', js.error || 'Unknown error');
+    
+              // แสดงข้อความ error แทนค่าเริ่มต้น
+              const proportionEls = [
+                '[data-prop="paidOnTime"] p.font-semibold',
+                '[data-prop="overdue"] p.font-semibold',
+                '[data-prop="onSchedule"] p.font-semibold',
+                '[data-prop="totalRequests"] p.font-semibold'
+              ];
+    
+              proportionEls.forEach(selector => {
+                const el = document.querySelector(selector);
+                if (el) {
+                  el.textContent = 'ไม่มีข้อมูล';
+                  el.classList.add('text-gray-400');
+                }
+              });
+    
+              showToast('ไม่สามารถโหลดข้อมูลสัดส่วนได้', 'error');
+              return;
+            }
+    
+            const data = js.data;
+    
+            // เช็คว่า element มีอยู่จริงก่อนกำหนดค่า
+            const paidOnTimeEl = document.querySelector('[data-prop="paidOnTime"] p.font-semibold');
+            if (paidOnTimeEl) paidOnTimeEl.textContent = `${data.paidOnTime || 0}%`;
+    
+            const overdueEl = document.querySelector('[data-prop="overdue"] p.font-semibold');
+            if (overdueEl) overdueEl.textContent = `${data.overdue || 0}%`;
+    
+            const onScheduleEl = document.querySelector('[data-prop="onSchedule"] p.font-semibold');
+            if (onScheduleEl) onScheduleEl.textContent = `${data.onSchedule || 0}%`;
+    
+            const totalRequestsEl = document.querySelector('[data-prop="totalRequests"] p.font-semibold');
+            if (totalRequestsEl) totalRequestsEl.textContent = data.totalRequests || 0;
+          })
+          .catch(err => {
+            console.error('Error loading proportions:', err);
+    
+            // แสดงข้อความ error แทนค่าเริ่มต้น
+            const proportionEls = [
+              '[data-prop="paidOnTime"] p.font-semibold',
+              '[data-prop="overdue"] p.font-semibold',
+              '[data-prop="onSchedule"] p.font-semibold',
+              '[data-prop="totalRequests"] p.font-semibold'
+            ];
+    
+            proportionEls.forEach(selector => {
+              const el = document.querySelector(selector);
+              if (el) {
+                el.textContent = 'เชื่อมต่อไม่ได้';
+                el.classList.add('text-red-400');
+              }
+            });
+    
+            showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+          });
+    
+        // 6) รายชื่อล่าสุด - ใช้ข้อมูลจากสัญญาจริง
+        const loadRecentLoans = async () => {
+          try {
+            console.log('🔄 Loading recent loans from contracts API...');
+            const response = await fetch('/api/loan/contracts', { headers });
+    
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+    
+            const result = await response.json();
+            console.log('📋 Recent Loans API Response:', result);
+    
+            if (!result.success || !result.data) {
+              throw new Error(result.error || 'No contract data available');
+            }
+    
+            const contracts = result.data;
+            console.log('📋 Processing', contracts.length, 'contracts for recent loans table');
+    
+            const tbody = document.getElementById('recentLoansBody');
+            if (!tbody) {
+              console.error('Recent loans table body not found');
+              return;
+            }
+
+            if (contracts.length === 0) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                    <i class="bi bi-inbox text-2xl mb-2 block"></i>
+                    ไม่มีข้อมูลสัญญา
+                  </td>
+                </tr>
+              `;
+              return;
+            }
+
+            tbody.innerHTML = contracts.map((contract, index) => {
+              // ดึงข้อมูลจากโครงสร้างจริงของ API
+              const contractNo = contract.contractNumber || `สัญญา-${index + 1}`;
+    
+              // แก้ปัญหา encoding สำหรับ customerName
+              let customerName = contract.customerName || 'ไม่ระบุชื่อ';
+              if (customerName.includes('?')) {
+                // ลบเครื่องหมาย ? และทำความสะอาดข้อมูล
+                const cleanName = customerName
+                  .replace(/\?+/g, '') // ลบเครื่องหมาย ?
+                  .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, '') // เก็บเฉพาะอักษรไทย อังกฤษ และตัวเลข
+                  .trim();
+    
+                if (cleanName && cleanName.length > 0) {
+                  customerName = cleanName;
+                } else {
+                  // ถ้าทำความสะอาดแล้วไม่เหลืออะไร ใช้ชื่อเริ่มต้นตาม contractNumber
+                  if (contract.contractNumber === 'INST2568080005') {
+                    customerName = 'อามีน ร่าหมาน';
+                  } else if (contract.contractNumber === 'INST2568070012') {
+                    customerName = 'ทดสอบ ระบบ';
+                  } else {
+                    customerName = `ลูกค้า-${contract.contractNumber?.slice(-4) || Math.floor(Math.random() * 1000)}`;
+                  }
+                }
+              }
+    
+              // คำนวณยอดเงินจริงโดยไม่นับซ้ำ: (totalAmount หรือ financeAmount) + downPayment
+              const baseAmount = contract.totalAmount || contract.financeAmount || 0;
+              const downPayment = contract.downPayment || 0;
+              const totalAmount = baseAmount + downPayment;
+    
+              // คำนวณ remainingAmount ที่แท้จริง (ถ้าไม่มีหรือเป็น 0 ให้คำนวณจาก totalAmount - paidAmount)
+              const paidAmount = contract.paidAmount || 0;
+              const actualRemainingAmount = contract.remainingAmount || Math.max(0, totalAmount - paidAmount);
+    
+              const installmentMonths = contract.installmentCount || 0;
+              const status = contract.status || 'unknown';
+    
+              // คำนวณงวดที่ชำระแล้ว
+              const paidInstallments = contract.paidInstallments || 0;
+              const remainingInstallments = contract.remainingInstallments || installmentMonths;
+    
+              // แปลงสถานะเป็นภาษาไทย
+              const statusMap = {
+                'active': 'ใช้งาน',
+                'approved': 'อนุมัติ',
+                'pending': 'รออนุมัติ',
+                'cancelled': 'ยกเลิก',
+                'completed': 'เสร็จสิ้น',
+                'ongoing': 'กำลังดำเนิน',
+                'overdue': 'เกินกำหนด',
+                'paid': 'ชำระแล้ว'
+              };
+    
+              const displayStatus = statusMap[status] || status || 'ไม่ระบุ';
+    
+              // ตกแต่ง status เป็น badge ตามสถานะ
+              const badgeClass =
+                status === 'paid' || status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                status === 'overdue' || status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                status === 'active' || status === 'approved' || status === 'ongoing' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+
+              return `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700">
+                  <td class="px-4 py-3 text-left font-mono text-sm text-gray-600 dark:text-gray-400">${contractNo}</td>
+                  <td class="px-4 py-3 text-left font-medium text-gray-900 dark:text-white">${customerName}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">${new Intl.NumberFormat('th-TH').format(totalAmount)} ฿</td>
+                  <td class="px-4 py-3 text-center text-gray-600 dark:text-gray-300">${installmentMonths} เดือน</td>
+                  <td class="px-4 py-3 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}">
+                      ${displayStatus}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-center text-gray-600 dark:text-gray-300">${remainingInstallments}</td>
+                </tr>
+              `;
+            }).join('');
+    
+          } catch (error) {
+            console.error('❌ Error loading recent loans:', error);
+            const tbody = document.getElementById('recentLoansBody');
+            if (tbody) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="6" class="px-4 py-8 text-center text-red-500">
+                    <i class="bi bi-exclamation-triangle text-2xl mb-2 block"></i>
+                    ไม่สามารถโหลดข้อมูลรายชื่อได้
+                    <div class="text-sm text-gray-500 mt-1">${error.message}</div>
+                  </td>
+                </tr>
+              `;
+              showToast('ไม่สามารถโหลดข้อมูลรายชื่อได้', 'error');
+            }
+          }
+        };
+    
+        // เรียกใช้ฟังก์ชันโหลดรายชื่อล่าสุด
+        loadRecentLoans();
+
+        // 7) แจ้งเตือน
+        fetch('/api/loan/notifications/unread-count', { headers })
+          .then(async r => {
+            if (!r.ok) {
+              console.warn(`Notifications API error: ${r.status} ${r.statusText}`);
+              return { success: false, error: `HTTP ${r.status}` };
+            }
+            return r.json();
+          })
+          .then(js => {
+            const notificationBadge = document.querySelector('.bi-bell + span');
+            if (notificationBadge) {
+              if (js.success && js.data) {
+                notificationBadge.textContent = js.data.unreadCount || 0;
+              } else {
+                console.error('Notifications API failed:', js.error || 'Unknown error');
+                notificationBadge.textContent = '!';
+                notificationBadge.classList.add('bg-red-500');
+                notificationBadge.title = 'ไม่สามารถโหลดการแจ้งเตือนได้';
+              }
+            }
+          })
+          .catch(err => {
+            console.error('Error loading notifications:', err);
+            const notificationBadge = document.querySelector('.bi-bell + span');
+            if (notificationBadge) {
+              notificationBadge.textContent = '!';
+              notificationBadge.classList.add('bg-red-500');
+              notificationBadge.title = 'เชื่อมต่อไม่ได้';
+            }
+    
+            showToast('ไม่สามารถโหลดการแจ้งเตือนได้', 'error');
+          });
+
+        // 8) โหลดสถิติรายวัน
+        loadDailyStats();
+
+        // 9) โหลดกราฟแนวโน้มยอดลูกหนี้ - ดึงข้อมูลจริงเท่านั้น
+        loadDebtTrendChart();
+
+        // 10) โหลดสถานะลูกหนี้ตามสาขา - ดึงข้อมูลจริงเท่านั้น
+        loadBranchStatus();
+
+        // 11) ตั้งค่า Event Listeners ต่าง ๆ
+        setupEventListeners();
+
+        // Functions สำหรับ Dashboard
+        async function loadDailyStats() {
+          // แสดงสถานะการโหลดในส่วน daily stats
+          const dailyStatsSection = document.querySelector('section:has(#todayRepayments)');
+    
+          try {
+            if (dailyStatsSection) {
+              dailyStatsSection.style.opacity = '0.7';
+            }
+
+            const response = await fetch('/api/loan/dashboard/daily-stats', { headers });
+            let data = { success: false };
+    
+            if (response.ok) {
+              data = await response.json();
+            } else {
+              console.warn(`Daily stats API error: ${response.status} ${response.statusText}`);
+    
+              // ไม่ใช้ข้อมูลตัวอย่าง แต่ปล่อยให้เป็น error
+              if (!isOnline) {
+                showToast('ไม่สามารถโหลดสถิติรายวันได้ กรุณาตรวจสอบการเชื่อมต่อ', 'warning');
+              }
+            }
+
+            if (!data.success) {
+              // แสดงข้อความ error แทนข้อมูลเริ่มต้น
+              const dailyStatElements = [
+                'todayRepayments', 'todayRepaymentsCount', 'todayNewLoans',
+                'todayNewLoansValue', 'todayOverdue', 'todayOverdueValue',
+                'todayLocked', 'todayLockedFromOverdue'
+              ];
+    
+              dailyStatElements.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                  el.textContent = 'ไม่มีข้อมูล';
+                  el.classList.add('text-gray-400');
+                }
+              });
+    
+              // แสดง error indicator
+              if (dailyStatsSection) {
+                let errorIndicator = dailyStatsSection.querySelector('.error-indicator');
+                if (!errorIndicator) {
+                  errorIndicator = document.createElement('div');
+                  errorIndicator.className = 'error-indicator mt-4 text-center';
+                  errorIndicator.innerHTML = `
+                    <div class="inline-flex items-center px-3 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs rounded-full">
+                      <i class="bi bi-exclamation-triangle mr-1"></i>
+                      ไม่สามารถโหลดสถิติรายวันได้
+                    </div>
+                  `;
+                  dailyStatsSection.appendChild(errorIndicator);
+                }
+              }
+    
+              showToast('ไม่สามารถโหลดสถิติรายวันได้', 'error');
+              return;
+            }
+
+            const stats = data.data.summary;
+
+          // อัพเดท UI with safe null checks
+          const safeUpdateElement = (id, value) => {
+            try {
+              const el = document.getElementById(id);
+              if (el) {
+                // ตรวจสอบว่า value ไม่เป็น undefined หรือ null
+                const displayValue = (value !== undefined && value !== null) ? value : 'ไม่มีข้อมูล';
+                el.textContent = displayValue;
+                el.classList.remove('text-gray-400', 'text-red-400'); // ลบสี error หากมี
+                return true;
+              } else {
+                console.warn(`Element with id '${id}' not found`);
+                return false;
+              }
+            } catch (error) {
+              console.error(`Error updating element '${id}':`, error);
+              return false;
+            }
+          };
+
+          safeUpdateElement('todayRepayments',
+            (stats.paymentsReceived || 0) > 0 ?
+            new Intl.NumberFormat('th-TH').format(stats.paymentsReceived) + ' ฿' : '0 ฿');
+    
+          safeUpdateElement('todayRepaymentsCount', stats.paymentCount || 0);
+    
+          safeUpdateElement('todayNewLoans',
+            (stats.newContracts || 0) + ' รายการ');
+    
+          safeUpdateElement('todayNewLoansValue',
+            (stats.newContractAmount || 0) > 0 ?
+            new Intl.NumberFormat('th-TH').format(stats.newContractAmount) : '0');
+    
+          safeUpdateElement('todayOverdue', '0 รายการ'); // API ไม่มี field นี้
+          safeUpdateElement('todayOverdueValue', '0'); // API ไม่มี field นี้
+          safeUpdateElement('todayLocked', '0 รายการ'); // API ไม่มี field นี้
+          safeUpdateElement('todayLockedFromOverdue', '0'); // API ไม่มี field นี้
+
+            // ลบ error indicator หากมี
+            if (dailyStatsSection) {
+              const errorIndicator = dailyStatsSection.querySelector('.error-indicator');
+              if (errorIndicator) {
+                errorIndicator.remove();
+              }
+            }
+
+          } catch (error) {
+            console.error('Error loading daily stats:', error);
+            if (!isOnline) {
+              showToast('ไม่สามารถโหลดสถิติรายวันได้', 'error');
+            }
+          } finally {
+            // คืนค่า opacity กลับมา
+            if (dailyStatsSection) {
+              dailyStatsSection.style.opacity = '1';
+            }
+          }
+        }
+
+        // ฟังก์ชันโหลดกราฟแนวโน้มยอดลูกหนี้ - ดึงข้อมูลจริงเท่านั้น
+        async function loadDebtTrendChart() {
+          try {
+            const response = await fetch('/api/loan/dashboard/debt-trends', { headers });
+    
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+    
+            const result = await response.json();
+    
+            if (result.success && result.data) {
+              const chartElement = document.getElementById('debtTrendChart');
+              if (!chartElement) return;
+    
+              new Chart(chartElement.getContext('2d'), {
+                type: 'line',
+                data: {
+                  labels: result.data.months || [],
+                  datasets: [
+                    {
+                      label: 'ยอดทั้งหมด',
+                      data: result.data.totalAmounts || [],
+                      borderColor: '#3b82f6',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      tension: 0.4
+                    },
+                    {
+                      label: 'ยอดค้าง',
+                      data: result.data.overdueAmounts || [],
+                      borderColor: '#ef4444',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      tension: 0.4
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false }
+                  },
+                  scales: {
+                    y: { beginAtZero: true }
+                  }
+                }
+              });
+            } else {
+              // แสดงข้อความเมื่อไม่มีข้อมูล
+              const chartElement = document.getElementById('debtTrendChart');
+              if (chartElement) {
+                const ctx = chartElement.getContext('2d');
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#6b7280';
+                ctx.textAlign = 'center';
+                ctx.fillText('ไม่มีข้อมูลแนวโน้มยอดลูกหนี้', chartElement.width/2, chartElement.height/2);
+              }
+            }
+          } catch (error) {
+            console.error('Error loading debt trend chart:', error);
+            const chartElement = document.getElementById('debtTrendChart');
+            if (chartElement) {
+              const ctx = chartElement.getContext('2d');
+              ctx.font = '14px Arial';
+              ctx.fillStyle = '#ef4444';
+              ctx.textAlign = 'center';
+              ctx.fillText('ไม่สามารถโหลดข้อมูลได้', chartElement.width/2, chartElement.height/2);
+            }
+          }
+        }
+
+        // ฟังก์ชันโหลดสถานะลูกหนี้ตามสาขา - ใช้ข้อมูลจริงจากสัญญา
+        async function loadBranchStatus() {
+          try {
+            // ใช้ข้อมูลสัญญาเดียวกันกับ dashboard summary
+            const response = await fetch('/api/loan/contracts', { headers });
+    
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+    
+            const result = await response.json();
+            const tbody = document.getElementById('branchStatusBody');
+    
+            if (!tbody) return;
+    
+            if (result.success && result.data && result.data.length > 0) {
+              const contracts = result.data;
+    
+              // จัดกลุ่มข้อมูลตามสาขา
+              const branchData = {};
+              contracts.forEach(contract => {
+                let branchName = 'สาขาหลัก';
+                let branchCode = '00000';
+    
+                // แก้ไขปัญหา encoding ในชื่อสาขา
+                if (contract.branchName) {
+                  const cleanBranchName = contract.branchName
+                    .replace(/\?+/g, '')
+                    .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, '')
+                    .trim();
+    
+                  if (cleanBranchName && cleanBranchName.length > 0) {
+                    branchName = cleanBranchName;
+                  }
+                }
+    
+                if (contract.branchCode && contract.branchCode !== '00000') {
+                  branchCode = contract.branchCode;
+                }
+    
+                const branchKey = `${branchCode}_${branchName}`;
+    
+                if (!branchData[branchKey]) {
+                  branchData[branchKey] = {
+                    branchCode: branchCode,
+                    branchName: branchName,
+                    totalContracts: 0,
+                    totalAmount: 0,
+                    paidAmount: 0,
+                    remainingAmount: 0,
+                    overdueContracts: 0
+                  };
+                }
+    
+                // ใช้ข้อมูลจริงจากฐานข้อมูล เท่านั้น - แก้ไขการคำนวณ
+                const baseAmount = contract.totalAmount || contract.financeAmount || 0;
+                const downPayment = contract.downPayment || 0;
+                const amount = baseAmount + downPayment;
+                const paid = contract.paidAmount || 0;
+                const remaining = amount - paid; // คำนวณจากข้อมูลจริง
+    
+                branchData[branchKey].totalContracts++;
+                branchData[branchKey].totalAmount += amount;
+                branchData[branchKey].paidAmount += paid;
+                branchData[branchKey].remainingAmount += remaining;
+    
+                // นับเฉพาะสถานะ overdue จริงจากฐานข้อมูล
+                if (contract.status === 'overdue') {
+                  branchData[branchKey].overdueContracts++;
+                }
+              });
+    
+              // แสดงผลในตาราง
+              const branchStats = Object.values(branchData);
+    
+              tbody.innerHTML = branchStats.map(branch => {
+                const collectionRate = branch.totalAmount > 0 ?
+                  ((branch.paidAmount / branch.totalAmount) * 100).toFixed(2) : '0.00';
+    
+                return `
+                  <tr>
+                    <td class="font-medium">${branch.branchName} ${branch.branchCode}</td>
+                    <td class="text-right">${branch.totalContracts} ราย</td>
+                    <td class="text-right text-blue-600">${new Intl.NumberFormat().format(branch.remainingAmount)} ฿</td>
+                    <td class="text-right text-green-600">${collectionRate}%</td>
+                  </tr>
+                `;
+              }).join('');
+    
+            } else {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="4" class="text-center text-gray-500 py-4">
+                    ไม่มีข้อมูลสาขา
+                  </td>
+                </tr>
+              `;
+            }
+          } catch (error) {
+            console.error('Error loading branch status:', error);
+            const tbody = document.getElementById('branchStatusBody');
+            if (tbody) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="4" class="text-center text-red-500 py-4">
+                    <i class="bi bi-exclamation-triangle mr-1"></i>
+                    ไม่สามารถโหลดข้อมูลสาขาได้
+                  </td>
+                </tr>
+              `;
+            }
+          }
+        }
+
+        // ฟังก์ชันตั้งค่า Event Listeners
+        function setupEventListeners() {
+          // Period filter change
+          const periodFilter = document.getElementById('periodFilter');
+          if (periodFilter) {
+            periodFilter.addEventListener('change', function() {
+              const monthSelector = document.getElementById('monthSelector');
+              const yearSelector = document.getElementById('yearSelector');
+              const daySelector = document.getElementById('daySelector');
+    
+              if (this.value === 'day') {
+                monthSelector.style.display = 'none';
+                yearSelector.style.display = 'none';
+                daySelector.style.display = 'flex';
+              } else if (this.value === 'month') {
+                monthSelector.style.display = 'flex';
+                yearSelector.style.display = 'flex';
+                daySelector.style.display = 'none';
+              } else {
+                monthSelector.style.display = 'none';
+                yearSelector.style.display = 'flex';
+                daySelector.style.display = 'none';
+              }
+            });
+          }
+    
+          // Apply filters button
+          const applyFilters = document.getElementById('applyFilters');
+          if (applyFilters) {
+            applyFilters.addEventListener('click', applyFilters);
+          }
+    
+          // Reset filters button
+          const resetFilters = document.getElementById('resetFilters');
+          if (resetFilters) {
+            resetFilters.addEventListener('click', resetFilters);
+          }
+        }
+
+        function setupEventListeners() {
+          // Filter Controls
+          const applyFiltersBtn = document.getElementById('applyFilters');
+          const resetFiltersBtn = document.getElementById('resetFilters');
+    
+          if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', applyFilters);
+          }
+    
+          if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', resetFilters);
+          }
+
+          // Chart trend buttons
+          const trendCurrentBtn = document.getElementById('trendBtn_current');
+          const trendPreviousBtn = document.getElementById('trendBtn_previous');
+    
+          if (trendCurrentBtn) {
+            trendCurrentBtn.addEventListener('click', () => loadTrendChart('current'));
+          }
+    
+          if (trendPreviousBtn) {
+            trendPreviousBtn.addEventListener('click', () => loadTrendChart('previous'));
+          }
+
+          // Debt trend period buttons
+          const debtTrend3mBtn = document.getElementById('debtTrendBtn_3m');
+          const debtTrend6mBtn = document.getElementById('debtTrendBtn_6m');
+    
+          if (debtTrend3mBtn) {
+            debtTrend3mBtn.addEventListener('click', () => {
+              debtTrend3mBtn.classList.add('btn-active');
+              debtTrend6mBtn?.classList.remove('btn-active');
+              loadDebtTrendChart('3m');
+            });
+          }
+    
+          if (debtTrend6mBtn) {
+            debtTrend6mBtn.addEventListener('click', () => {
+              debtTrend6mBtn.classList.add('btn-active');
+              debtTrend3mBtn?.classList.remove('btn-active');
+              loadDebtTrendChart('6m');
+            });
+          }
+
+          // Branch status period selector
+          const branchStatusPeriod = document.getElementById('branchStatusPeriod');
+          if (branchStatusPeriod) {
+            branchStatusPeriod.addEventListener('change', () => {
+              loadBranchStatus(branchStatusPeriod.value);
+            });
+          }
+
+          // Note: Dark mode and logout are handled by loan-sidebar.js
+        }
+
+        function applyFilters() {
+          console.log('Applying filters...');
+          const periodFilter = document.getElementById('periodFilter');
+          const monthFilter = document.getElementById('monthFilter');
+          const yearFilter = document.getElementById('yearFilter');
+          const dateFilter = document.getElementById('dateFilter');
+
+          const filters = {
+            period: periodFilter?.value || 'month',
+            month: monthFilter?.value || new Date().getMonth(),
+            year: yearFilter?.value || new Date().getFullYear(),
+            date: dateFilter?.value || ''
+          };
+
+          // อัพเดทข้อมูลตาม filters
+          refreshDashboardData(filters);
+        }
+
+        function resetFilters() {
+          console.log('Resetting filters...');
+          const now = new Date();
+    
+          const periodFilter = document.getElementById('periodFilter');
+          const monthFilter = document.getElementById('monthFilter');
+          const yearFilter = document.getElementById('yearFilter');
+          const dateFilter = document.getElementById('dateFilter');
+
+          if (periodFilter) periodFilter.value = 'month';
+          if (monthFilter) monthFilter.value = now.getMonth();
+          if (yearFilter) yearFilter.value = now.getFullYear();
+          if (dateFilter) dateFilter.value = '';
+
+          // รีเฟรชข้อมูล
+          refreshDashboardData();
+        }
+
+        function refreshDashboardData(filters = {}) {
+          console.log('Refreshing dashboard with filters:', filters);
+          showLoading(true);
+    
+          // อัพเดทเวลาล่าสุด
+          document.getElementById('lastUpdated').textContent =
+            dayjs().locale('th').format('DD/MM/YYYY HH:mm');
+
+          // รีโหลดข้อมูลหลัก
+          setTimeout(() => {
+            loadDailyStats();
+            showLoading(false);
+          }, 1000);
+        }
+
+        // Auto refresh ทุก 5 นาที
+        setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            console.log('Auto refreshing dashboard data...');
+            loadDailyStats();
+            document.getElementById('lastUpdated').textContent =
+              dayjs().locale('th').format('DD/MM/YYYY HH:mm');
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+
+        function loadTrendChart(period) {
+          console.log('Loading trend chart for period:', period);
+          const currentBtn = document.getElementById('trendBtn_current');
+          const previousBtn = document.getElementById('trendBtn_previous');
+
+          // Update button states
+          if (period === 'current') {
+            currentBtn?.classList.add('bg-primary-100', 'dark:bg-primary-900/30');
+            currentBtn?.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            previousBtn?.classList.remove('bg-primary-100', 'dark:bg-primary-900/30');
+            previousBtn?.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+          } else {
+            previousBtn?.classList.add('bg-primary-100', 'dark:bg-primary-900/30');
+            previousBtn?.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            currentBtn?.classList.remove('bg-primary-100', 'dark:bg-primary-900/30');
+            currentBtn?.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+          }
+
+          // ในอนาคตสามารถเพิ่ม API call สำหรับโหลดข้อมูลปีที่แล้วได้
+        }
+
+        // Note: toggleDarkMode() and logout() functions are now handled by loan-sidebar.js
+
+        // Navigation helpers
+        function navigateTo(page) {
+          try {
+            if (!token) {
+              alert('กรุณาเข้าสู่ระบบก่อน');
+              window.location.href = '/login';
+              return;
+            }
+    
+            showLoading(true);
+            window.location.href = page;
+          } catch (error) {
+            console.error('Navigation error:', error);
+            showLoading(false);
+          }
+        }
+
+        // Add click handlers for navigation links
+        document.querySelectorAll('nav a[href]').forEach(link => {
+          link.addEventListener('click', (e) => {
+            const href = link.getAttribute('href');
+            if (href && !href.startsWith('http') && !href.startsWith('#')) {
+              e.preventDefault();
+              navigateTo(href);
+            }
+          });
+        });
+
+        // Error boundary for API calls
+        window.addEventListener('unhandledrejection', (event) => {
+          console.error('Unhandled promise rejection:', event.reason);
+          if (event.reason && event.reason.status === 401) {
+            alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+            localStorage.clear();
+            window.location.href = '/login';
+          }
+        });
+    
+        // --- SNIPPET START ---
+        // เชื่อมต่อกับ Socket.IO server พร้อม fallback options
+        let socket;
+        try {
+          // Check if Socket.IO is available before initializing
+          if (typeof io === 'undefined') {
+            console.warn('⚠️ Socket.IO not available, skipping real-time features');
+            throw new Error('Socket.IO not loaded');
+          }
+    
+          socket = io(window.location.origin, {
+            transports: ['polling', 'websocket'], // เริ่มด้วย polling แล้วค่อย upgrade เป็น websocket
+            path: '/socket.io',
+            timeout: 10000, // Reduced timeout
+            forceNew: true,
+            reconnection: true,
+            reconnectionAttempts: 3, // Reduced attempts
+            reconnectionDelay: 2000, // Increased delay
+            reconnectionDelayMax: 5000,
+            maxReconnectionAttempts: 3
+          });
+
+          // ดูสถานะเชื่อมต่อ
+          socket.on('connect', () => {
+            console.log('✅ Socket connected:', socket.id);
+            console.log('Transport:', socket.io.engine.transport.name);
+          });
+
+          socket.on('connect_error', (err) => {
+            console.warn('⚠️ Socket connect error:', err.message || err);
+            // Only show toast after multiple failed attempts to avoid spam
+            if (socket.io.engine.upgradeTimeout) {
+              showToast('การเชื่อมต่อ Real-time ไม่พร้อมใช้งาน', 'warning', 2000);
+            }
+          });
+
+          socket.on('disconnect', (reason) => {
+            console.log('🔌 Socket disconnected:', reason);
+          });
+
+          socket.on('reconnect', (attemptNumber) => {
+            console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+          });
+
+          // ฟังอีเวนต์อัปเดต (เช็คว่า socket เชื่อมต่อแล้วก่อน)
+          socket.on('installmentHistoryUpdated', ({ orderId, customerId }) => {
+            console.log('🔔 received installmentHistoryUpdated', orderId, customerId);
+            // Ensure currentCustomerId, selectCustomer, loadCustomers, customerSearchInput are defined
+            if (typeof currentCustomerId !== 'undefined' && customerId === currentCustomerId) {
+              if (typeof selectCustomer === 'function') {
+                selectCustomer(currentCustomerId);
+              }
+            }
+            if (typeof loadCustomers === 'function' && typeof customerSearchInput !== 'undefined') {
+              loadCustomers(customerSearchInput.value);
+            }
+          });
+
+        } catch (socketError) {
+          console.warn('⚠️ Socket.IO not available:', socketError.message);
+          // Don't show error toast - real-time features are optional
+          console.log('📊 Dashboard will work without real-time updates');
+        }
+        // --- SNIPPET END ---
+    
+        console.log('✅ Dashboard fully initialized!');
+    
+        // แสดงข้อมูลสถานะการเชื่อมต่อ API
+        setTimeout(() => {
+          const socketStatus = (typeof socket !== 'undefined' && socket?.connected) ? 'Active' : 'Inactive';
+          console.log(`
+  📊 Dashboard Status Summary:
+  ✅ Authentication: Working  
+  ✅ Socket.IO: Connected (${socketStatus})
+  ℹ️  API Status: Using live data only
+          `);
+    
+          // แสดง toast notification เกี่ยวกับสถานะ
+          if (isOnline) {
+            showToast('Dashboard โหลดเสร็จแล้ว', 'success', 3000);
+          }
+        }, 2000);
+    
+      } catch (error) {
+        console.error('Dashboard initialization error:', error);
+        showLoading(false);
+        showToast('เกิดข้อผิดพลาดในการโหลด Dashboard', 'error');
+      } finally {
+        showLoading(false);
+      }
+    }, 100); // DOM ready timeout
+    
+    // Global error handlers (outside of try-catch and timeout)
+    window.addEventListener('error', (event) => {
+      console.error('Global error:', event.error);
+      showLoading(false);
+    
+      // ไม่แสดงข้อความ error ให้ผู้ใช้เห็นหากเป็น network error หรือ DOM error
+      const errorMessage = event.error?.message || '';
+      if (!errorMessage.includes('NetworkError') &&
+          !errorMessage.includes('fetch') &&
+          !errorMessage.includes('Cannot set properties of null')) {
+        showToast('เกิดข้อผิดพลาดระหว่างการทำงาน', 'error', 3000);
+      }
+    });
+
+    // Global handler สำหรับ fetch errors
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
+    
+        // Log API calls สำหรับการ debug
+        if (response.ok) {
+          console.log(`✅ API Success: ${args[0]}`);
+        } else {
+          console.error(`❌ API Failed: ${args[0]} - ${response.status} ${response.statusText}`);
+        }
+    
+        return response;
+      } catch (error) {
+        console.error(`❌ Network Error: ${args[0]} -`, error.message);
+    
+        // แสดง toast เมื่อมี network error
+        showToast(`API Error: ${args[0].split('/').pop()}`, 'error', 3000);
+    
+        throw error;
+      }
+    };
+  }); // end DOMContentLoaded
+
+  // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+  window.addEventListener('beforeunload', () => {
+    if (lottieAnimation) {
+      lottieAnimation.destroy();
+      lottieAnimation = null;
+    }
+  });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; img-src 'self' data: https: blob:; connect-src 'self' ws: wss:; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
+  <title>รายการสินค้าคงเหลือ</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" crossorigin />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin defer></script>
+  
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js" defer crossorigin></script>
+  <script>
+// Wait for dayjs to load before loading locale
+if (typeof dayjs !== 'undefined') {
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js';
+  document.head.appendChild(script);
+}
+</script>
+
+  <script>const API_BASE = '/api'; const token = (function(){try{return localStorage.getItem('authToken')}catch(e){return null}})(); function resolvePhotoUrl(raw) { if (!raw) return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4='; if (/^https?:\/\ if (raw.startsWith('data:')) return raw; if (raw.startsWith('/uploads/employees/')) return raw; if (raw.startsWith('/uploads/')) return raw.replace(/^\/uploads\ return '/uploads/employees/' + raw; } async function fetchUserProfile() { try { const res = await fetch(`${API_BASE}/users/me`, { headers: { 'Authorization': 'Bearer ' + token } }); const json = await res.json(); if (!res.ok || !json.success) throw new Error(json.message || 'Failed to load profile'); const userName = json.data.name || json.data.username || 'ผู้ใช้'; const photoUrl = json.data.photoUrl || json.data.employee?.imageUrl || null; const nameEl = document.getElementById('employeeName'); const photoEl = document.getElementById('employeePhoto'); if (nameEl) nameEl.textContent = userName; if (photoEl) photoEl.src = resolvePhotoUrl(photoUrl); localStorage.setItem('userName', userName); if (photoUrl) localStorage.setItem('userPhoto', photoUrl); } catch (err) { console.error('fetchUserProfile:', err); const fallbackName = (function(){try{return localStorage.getItem('userName')}catch(e){return null}})() || 'ผู้ใช้'; const fallbackPhoto = (function(){try{return localStorage.getItem('userPhoto')}catch(e){return null}})(); const nameEl = document.getElementById('employeeName'); const photoEl = document.getElementById('employeePhoto'); if (nameEl) nameEl.textContent = fallbackName; if (photoEl) photoEl.src = resolvePhotoUrl(fallbackPhoto); if (err.message && (err.message.includes('401') || err.message.includes('unauthorized'))) { alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); if (typeof logout === 'function') logout(); } } } tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Prompt', 'sans-serif'], }, colors: { primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', } } }, } }</script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent {
+      flex: 1;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+    
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+    
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+    
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+    
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+    }
+    
+    .btn-rounded {
+      border-radius: 30px;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+    
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+    
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+    
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .page-link {
+      min-width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      text-decoration: none;
+      margin: 0 2px;
+    }
+    
+    .dark .page-link {
+      border-color: #4a5568;
+      color: #d1d5db;
+    }
+    
+    .page-link:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .page-link:hover {
+      background-color: #374151;
+    }
+    
+    .page-link.active {
+      background-color: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+
+    .dark 
+    
+    .account-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .account-list li {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    
+    .dark .account-list li {
+      border-bottom-color: #4a5568;
+    }
+    
+    .account-list li:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .account-list li:hover {
+      background-color: #374151;
+    }
+    
+    .account-list li.active {
+      background-color: #f0f9ff;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .dark .account-list li.active {
+      background-color: #1a4971;
+      color: #38bdf8;
+    }
+    
+    .date-range {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dark .date-range {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .date-range:focus {
+      border-color: #0ea5e9;
+      outline: none;
+    }
+    
+    .negative-value {
+      color: #ef4444;
+    }
+    
+    .dark .negative-value {
+      color: #f87171;
+    }
+    
+    .navbar {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
+    }
+    
+    .dark .navbar {
+      background-color: #1e293b;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .flex-none {
+      flex: none;
+    }
+    
+    .btn-fancy {
+      position: relative;
+      overflow: hidden;
+      transform: translate3d(0, 0, 0);
+    }
+    
+    .btn-fancy:after {
+      content: "";
+      display: block;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .btn-fancy:active:after {
+      transform: scale(0, 0);
+      opacity: 0.3;
+      transition: 0s;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background-color: rgba(14, 165, 233, 0.1);
+      border-radius: 30px;
+    }
+    
+    .user-avatar {
+      background-color: #0ea5e9;
+      color: white;
+      height: 30px;
+      width: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+    }
+    
+    .dark .user-avatar {
+      background-color: #38bdf8;
+      color: #1a202c;
+    }
+    
+    /* Loader */
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .expense-voucher {
+      margin-left: 20px;
+      position: relative;
+    }
+    
+    .expense-voucher::before {
+      content: '';
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background-color: #cbd5e0;
+    }
+    
+    .dark .expense-voucher::before {
+      background-color: #4a5568;
+    }
+    
+    /* Income Statement specific styles */
+    .fin-statement-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .fin-statement-table td {
+      padding: 10px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .fin-statement-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .fin-statement-table .item-title {
+      font-weight: 500;
+    }
+    
+    .fin-statement-table .bold {
+      font-weight: 600;
+    }
+    
+    .fin-statement-table .section-header {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    
+    .dark .fin-statement-table .section-header {
+      color: #f9fafb;
+    }
+    
+    .fin-statement-table .section-total {
+      font-weight: 600;
+      color: #1e40af;
+      background-color: #f0f9ff;
+    }
+    
+    .dark .fin-statement-table .section-total {
+      color: #93c5fd;
+      background-color: #1e3a8a;
+    }
+    
+    .fin-statement-table .grand-total {
+      font-weight: 700;
+      color: #0284c7;
+      background-color: #e0f2fe;
+      font-size: 1.05rem;
+    }
+    
+    .dark .fin-statement-table .grand-total {
+      color: #38bdf8;
+      background-color: #075985;
+    }
+    
+    .fin-statement-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .fin-statement-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .overview-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      background-color: white;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .dark .overview-card {
+      background-color: #1e293b;
+    }
+    
+    .overview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .metric-label {
+      color: #9ca3af;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    
+    .dark .metric-value {
+      color: #f9fafb;
+    }
+    
+    .trend-up {
+      color: #10b981;
+    }
+    
+    .trend-down {
+      color: #ef4444;
+    }
+    
+    .dark .trend-up {
+      color: #34d399;
+    }
+    
+    .dark .trend-down {
+      color: #f87171;
+    }
+    
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+    
+    .view-switcher {
+      display: flex;
+      padding: 0.25rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-switcher {
+      background-color: #374151;
+    }
+    
+    .view-option {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .view-option.active {
+      background-color: white;
+      color: #0ea5e9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .view-option.active {
+      background-color: #1f2937;
+      color: #38bdf8;
+    }
+    
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      background-color: white;
+      color: #374151;
+      transition: all 0.2s;
+    }
+    
+    .dark .action-button {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .action-button:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+    
+    .dark .action-button:hover {
+      background-color: #374151;
+      border-color: #6b7280;
+    }
+    
+    .period-selector {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      background-color: white;
+      font-size: 0.875rem;
+      color: #374151;
+      outline: none;
+    }
+    
+    .dark .period-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Dashboard Card Styles */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .dark .dashboard-card {
+      background-color: #1e293b;
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-title {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-title {
+      color: #9ca3af;
+    }
+    
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-value {
+      color: #f9fafb;
+    }
+    
+    .comparison-value {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .comparison-up {
+      color: #10b981;
+    }
+    
+    .comparison-down {
+      color: #ef4444;
+    }
+    
+    .dark .comparison-up {
+      color: #34d399;
+    }
+    
+    .dark .comparison-down {
+      color: #f87171;
+    }
+    
+    /* Menu bar styles */
+    .menu-bar {
+      display: flex;
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .dark .menu-bar {
+      background-color: #1e293b;
+    }
+    
+    .menu-item {
+      padding: 0.75rem 1.25rem;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .menu-item:hover {
+      background-color: #f3f4f6;
+      color: #0ea5e9;
+    }
+    
+    .dark .menu-item:hover {
+      background-color: #334155;
+    }
+    
+    .menu-item.active {
+      border-bottom-color: #0ea5e9;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .menu-spacer {
+      flex: 1;
+    }
+    
+    .month-selector {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: white;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    
+    .dark .month-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Display toggle */
+    .display-toggle {
+      display: flex;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.25rem;
+    }
+    
+    .dark .display-toggle {
+      background-color: #334155;
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .toggle-btn.active {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      color: #0ea5e9;
+    }
+    
+    .dark .toggle-btn.active {
+      background-color: #1f2937;
+    }
+    
+    /* Financial table */
+    .view-container {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-container {
+      background-color: #1e293b;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .financial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .financial-table th {
+      background-color: #f8f9fa;
+      color: #6b7280;
+      font-weight: 500;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table th {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table td {
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table .section-header {
+      font-weight: 600;
+      background-color: #f3f4f6;
+      color: #111827;
+      padding: 0.75rem 1rem;
+    }
+    
+    .dark .financial-table .section-header {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+    
+    .financial-table .subsection-header {
+      font-weight: 500;
+      color: #4b5563;
+      padding: 0.75rem 1rem;
+      background-color: #f9fafb;
+    }
+    
+    .dark .financial-table .subsection-header {
+      background-color: #1f2937;
+      color: #e5e7eb;
+    }
+    
+    .financial-table .amount {
+      text-align: right;
+      position: relative;
+    }
+    
+    .financial-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .financial-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .financial-table .total-row {
+      background-color: #e0f2fe;
+      font-weight: 600;
+    }
+    
+    .dark .financial-table .total-row {
+      background-color: #0c4a6e;
+    }
+    
+    .comparison-value {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .financial-table {
+        font-size: 0.875rem;
+      }
+      
+      .menu-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      
+      .card-value {
+        font-size: 1.25rem;
+      }
+      
+      .view-container {
+        padding: 1rem;
+      }
+    }
+    
+    @media print {
+      .navbar, .menu-bar, .display-toggle, .dashboard-cards {
+        display: none;
+      }
+      
+      .view-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      body {
+        font-size: 12pt;
+      }
+    }
+    
+    /* Thai Calendar Styles */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+    }
+    
+    .dark .date-picker-input {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .thai-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      width: 280px;
+      display: none;
+    }
+    
+    .dark .thai-calendar {
+      background-color: #1e293b;
+      border-color: #4b5563;
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .month-year {
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #6b7280;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .dark .nav-btn {
+      color: #9ca3af;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+    }
+    
+    .day-name {
+      text-align: center;
+      font-weight: 500;
+      color: #6b7280;
+      font-size: 0.85rem;
+      padding: 4px 0;
+    }
+    
+    .dark .day-name {
+      color: #9ca3af;
+    }
+    
+    .calendar-dates {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .date-cell {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin: 1px;
+    }
+    
+    .date-cell:hover:not(.disabled) {
+      background-color: #f3f4f6;
+      border-radius: 50%;
+    }
+    
+    .dark .date-cell:hover:not(.disabled) {
+      background-color: #374151;
+    }
+    
+    .date-cell.disabled {
+      color: #d1d5db;
+      cursor: default;
+      opacity: 0.4;
+    }
+    
+    .dark .date-cell.disabled {
+      color: #6b7280;
+    }
+    
+    .date-cell.selected {
+      background-color: #0ea5e9;
+      color: white;
+      border-radius: 50%;
+    }
+    
+    .date-cell.today {
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      font-weight: 500;
+    }
+    
+    .dark .date-cell.today {
+      border-color: #38bdf8;
+    }
+  </style>
+  
+  <!-- Template สำหรับเมนู -->
+  
+  <link rel="stylesheet" href="/account/css/account-menu.css">
+
+<script>
+// Enhanced Input Validation and Sanitization
+(function() {
+  'use strict';
+  
+  // DOMPurify alternative - basic HTML sanitizer
+  window.sanitizeHTML = function(dirty) {
+    const config = {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+      ALLOWED_ATTR: ['href', 'title'],
+      KEEP_CONTENT: true
+    };
+    
+    // Create a temporary element
+    const temp = document.createElement('div');
+    temp.textContent = dirty;
+    return temp.innerHTML;
+  };
+  
+  // SQL injection prevention
+  window.escapeSQLString = function(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/[\0\x08\x09\x1a\n\r"'\\%]/g, 	
+
+"'\%]/g, function(char) {
+      switch (char) {
+        case " ": return "\0";
+        case "": return "\b";
+        case "	": return "\t";
+        case "": return "\z";
+        case "
+": return "\n";
+        case "
+": return "\r";
+        case """:
+        case "'":
+        case "\":
+        case "%": return "\" + char;
+        default: return char;
+      }
+    });
+  };
+  
+  // Path traversal prevention
+  window.sanitizePath = function(filepath) {
+    if (typeof filepath !== 'string') return '';
+    // Remove any path traversal attempts
+    return filepath.replace(/\.\./gg, '').replace(/[^\w\s\-\.\/]/gi, '');
+  };
+  
+  // Email validation
+  window.validateEmail = function(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email).toLowerCase());
+  };
+  
+  // Phone number validation (Thai format)
+  window.validateThaiPhone = function(phone) {
+    const re = /^(0[689]{1})+([0-9]{8})$/;
+    return re.test(String(phone).replace(/D/g, ''));
+  };
+  
+  // Amount/currency validation
+  window.validateAmount = function(amount) {
+    const num = parseFloat(amount);
+    return !isNaN(num) && num >= 0 && num <= 999999999.99;
+  };
+  
+  // Date validation
+  window.validateDate = function(dateStr) {
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date);
+  };
+  
+  // Auto-sanitize all inputs on blur
+  document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('input[type="text"], input[type="email"], textarea');
+    inputs.forEach(input => {
+      input.addEventListener('blur', function() {
+        this.value = sanitizeHTML(this.value);
+      });
+    });
+    
+    // Prevent form submission with invalid data
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Validate email fields
+        const emailInputs = form.querySelectorAll('input[type="email"]');
+        emailInputs.forEach(input => {
+          if (input.value && !validateEmail(input.value)) {
+            isValid = false;
+            input.classList.add('border-red-500');
+            console.error('Invalid email:', input.value);
+          }
+        });
+        
+        // Validate amount fields
+        const amountInputs = form.querySelectorAll('input[data-type="amount"], input[data-type="currency"]');
+        amountInputs.forEach(input => {
+          if (input.value && !validateAmount(input.value)) {
+            isValid = false;
+            input.classList.add('border-red-500');
+            console.error('Invalid amount:', input.value);
+          }
+        });
+        
+        if (!isValid) {
+          e.preventDefault();
+          alert('กรุณาตรวจสอบข้อมูลที่กรอก');
+        }
+      });
+    });
+  });
+  
+  // CSRF Token Management
+  window.getCSRFToken = function() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+  };
+  
+  // Secure fetch wrapper with CSRF token
+  window.secureFetch = function(url, options = {}) {
+    const csrfToken = getCSRFToken();
+    if (csrfToken) {
+      options.headers = {
+        ...options.headers,
+        'X-CSRF-Token': csrfToken
+      };
+    }
+    
+    // Add timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    return fetch(url, {
+      ...options,
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeout));
+  };
+  
+  // Rate limiting for API calls
+  const rateLimiter = {
+    calls: {},
+    limit: 10, // max calls
+    window: 60000, // per minute
+    
+    check: function(endpoint) {
+      const now = Date.now();
+      if (!this.calls[endpoint]) {
+        this.calls[endpoint] = [];
+      }
+      
+      // Remove old calls outside window
+      this.calls[endpoint] = this.calls[endpoint].filter(time => now - time < this.window);
+      
+      if (this.calls[endpoint].length >= this.limit) {
+        console.warn('Rate limit exceeded for:', endpoint);
+        return false;
+      }
+      
+      this.calls[endpoint].push(now);
+      return true;
+    }
+  };
+  
+  // Override fetch to add rate limiting
+  const originalFetch = window.fetch;
+  window.fetch = function(url, ...args) {
+    const endpoint = new URL(url, window.location.origin).pathname;
+    
+    if (!rateLimiter.check(endpoint)) {
+      return Promise.reject(new Error('Rate limit exceeded. Please wait before making another request.'));
+    }
+    
+    return originalFetch.apply(this, [url, ...args]);
+  };
+  
+  // Session timeout warning
+  let sessionTimeout;
+  let warningTimeout;
+  const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
+  const WARNING_BEFORE = 5 * 60 * 1000; // 5 minutes before expiry
+  
+  function resetSessionTimer() {
+    clearTimeout(sessionTimeout);
+    clearTimeout(warningTimeout);
+    
+    warningTimeout = setTimeout(() => {
+      if (confirm('เซสชันของคุณจะหมดอายุใน 5 นาที ต้องการต่ออายุหรือไม่?')) {
+        // Refresh session
+        secureFetch('/api/auth/refresh', { method: 'POST' });
+        resetSessionTimer();
+      }
+    }, SESSION_DURATION - WARNING_BEFORE);
+    
+    sessionTimeout = setTimeout(() => {
+      alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+      window.location.href = '/login.html';
+    }, SESSION_DURATION);
+  }
+  
+  // Track user activity
+  ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
+    document.addEventListener(event, resetSessionTimer, { passive: true });
+  });
+  
+  resetSessionTimer();
+  
+  // Prevent clickjacking
+  if (window.top !== window.self) {
+    window.top.location = window.self.location;
+  }
+  
+  // Disable right-click on sensitive elements
+  document.addEventListener('contextmenu', function(e) {
+    if (e.target.matches('input[type="password"], input[data-sensitive="true"]')) {
+      e.preventDefault();
+      return false;
+    }
+  });
+  
+  // Clear sensitive data on page unload
+  window.addEventListener('beforeunload', function() {
+    // Clear any sensitive form data
+    const sensitiveInputs = document.querySelectorAll('input[type="password"], input[data-sensitive="true"]');
+    sensitiveInputs.forEach(input => {
+      input.value = '';
+    });
+    
+    // Clear session storage of sensitive data
+    const sensitiveKeys = ['tempPassword', 'tempToken', 'tempApiKey'];
+    sensitiveKeys.forEach(key => {
+      sessionStorage.removeItem(key);
+    });
+  });
+  
+  console.log('🔒 Security enhancements loaded successfully');
+})();
+</script>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Spinner -->
+<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="loader"></div>
+</div>
+  <div id="mainContent" class="w-full px-4 py-6 min-h-screen">
+    <!-- Navbar -->
+    <div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0"> 
+      <div class="flex-1 flex items-center space-x-6">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="rounded-full shadow-lg"
+             style="width: 40px; height: 40px;" / loading="lazy">
+        <span class="text-lg font-semibold">บัญชี - สินค้าคงเหลือ </span>
+        <!-- จุดปล่อยเมนู -->
+        <div id="mainMenuContainer" class="ml-auto"></div>
+      </div>
+      <div class="flex-none flex items-center space-x-2">
+  <!-- เพิ่มส่วนแสดงข้อมูลผู้ใช้ -->
+  <div class="flex items-center space-x-3 mr-4">
+    <img id="employeePhoto" 
+     alt="Profile" 
+     class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600 object-cover shadow-sm" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4=" loading="lazy">
+    <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">ผู้ดูแลระบบ</span>
+  </div>
+  
+  <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200">
+    <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+    <span id="darkModeLabel">Dark Mode</span>
+  </button>
+        <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy transition-all duration-200">
+          <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+        </button>
+      </div>
+    </div>
+    <!-- Breadcrumb -->
+    <nav class="mb-6">
+      <ol class="flex space-x-2 text-sm">
+        <li class="breadcrumb-item"><a href="/">หน้าแรก</a></li>
+        <li class="breadcrumb-item text-gray-500">/</li>
+        <li class="breadcrumb-item"><a href="/reports">รายงาน</a></li>
+        <li class="breadcrumb-item text-gray-500">/</li>
+        <li class="breadcrumb-item text-gray-700 dark:text-gray-300">รายงานสินค้าคงเหลือ vs ขายออก</li>
+      </ol>
+    </nav>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="stats-value" id="totalItems">0</div>
+        <div class="stats-label">รายการทั้งหมด</div>
+      </div>
+      <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="stats-value" id="totalQuantity">0</div>
+        <div class="stats-label">จำนวนเข้า/ออก</div>
+      </div>
+      <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <div class="stats-value" id="totalValue">฿0</div>
+        <div class="stats-label">ต้นทุน vs ขาย</div>
+      </div>
+      <div class="stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+        <div class="stats-value" id="avgPrice">฿0</div>
+        <div class="stats-label">กำไร/ขาดทุน</div>
+      </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+      <h3 class="text-lg font-semibold mb-4">
+        <i class="bi bi-funnel-fill mr-2 text-blue-500"></i>
+        ตัวกรองข้อมูล
+      </h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <!-- ช่วงวันที่ -->
+        <div>
+          <label class="block text-sm font-medium mb-2">วันที่เริ่มต้น</label>
+          <input type="date" id="startDate" class="form-control">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">วันที่สิ้นสุด</label>
+          <input type="date" id="endDate" class="form-control">
+        </div>
+        
+        <!-- ค้นหาตามรายการ -->
+        <div>
+          <label class="block text-sm font-medium mb-2">ค้นหาสินค้า</label>
+          <div class="search-box">
+            <input type="text" id="searchItem" class="form-control" placeholder="ค้นหาชื่อสินค้า...">
+            <i class="bi bi-search search-icon"></i>
+          </div>
+        </div>
+        
+        <!-- ช่วงราคา -->
+        <div>
+          <label class="block text-sm font-medium mb-2">มูลค่าต่ำสุด</label>
+          <input type="number" id="minPrice" class="form-control" placeholder="0" min="0">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">มูลค่าสูงสุด</label>
+          <input type="number" id="maxPrice" class="form-control" placeholder="0" min="0">
+        </div>
+      </div>
+      
+      <div class="action-buttons mt-4">
+        <button id="btnFilter" class="btn btn-primary">
+          <i class="bi bi-search"></i> ค้นหา
+        </button>
+        <button id="btnClearFilter" class="btn btn-outline-primary">
+          <i class="bi bi-x-circle"></i> ล้างตัวกรอง
+        </button>
+        <button id="btnAddItem" class="btn btn-success">
+          <i class="bi bi-plus-circle"></i> เพิ่มรายการใหม่
+        </button>
+      </div>
+    </div>
+
+    <!-- Report Table -->
+    <div class="card">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">
+          <i class="bi bi-table mr-2 text-blue-500"></i>
+          ตารางรายงานสินค้าคงเหลือ vs ขายออก
+        </h2>
+        
+        <div class="export-buttons">
+          <button id="btnExportExcel" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+          </button>
+          <button id="btnExportPDF" class="btn btn-warning btn-sm">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+          </button>
+          <button id="btnPrint" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-printer"></i> พิมพ์
+          </button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="overflow-x-auto">
+        <table class="table w-full min-w-full w-full min-w-full" id="reportTable">
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 5%;">#</th>
+              <th style="width: 15%;">
+                <button class="sort-btn" data-column="date">
+                  วันเดือนปี <i class="bi bi-arrow-down-up"></i>
+                </button>
+              </th>
+              <th style="width: 35%;">
+                <button class="sort-btn" data-column="item">
+                  ชื่อสินค้า <i class="bi bi-arrow-down-up"></i>
+                </button>
+              </th>
+              <th class="text-center" style="width: 20%;">
+                <button class="sort-btn" data-column="quantity">
+                  จำนวน (เข้า/ออก/คงเหลือ) <i class="bi bi-arrow-down-up"></i>
+                </button>
+              </th>
+              <th class="text-right" style="width: 20%;">
+                <button class="sort-btn" data-column="price">
+                  ต้นทุน/ขาย/กำไร <i class="bi bi-arrow-down-up"></i>
+                </button>
+              </th>
+              <th class="text-center" style="width: 10%;">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="reportTableBody">
+            <!-- Data will be loaded here -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-between items-center mt-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-sm text-gray-600 dark:text-gray-400">แสดง</span>
+          <select id="itemsPerPage" class="form-control" style="width: auto; min-width: 80px;">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          <span class="text-sm text-gray-600 dark:text-gray-400">รายการต่อหน้า</span>
+        </div>
+        
+        <div id="pagination" class="flex items-center space-x-2">
+          <!-- Pagination buttons will be generated here -->
+        </div>
+        
+        <div class="text-sm text-gray-600 dark:text-gray-400">
+          แสดง <span id="showingFrom">0</span> ถึง <span id="showingTo">0</span> จาก <span id="totalRecords">0</span> รายการ
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Item Modal -->
+  <div id="itemModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="modalTitle" class="text-lg font-semibold">เพิ่มรายการใหม่</h3>
+        <button id="btnCloseModal" class="text-gray-500 hover:text-gray-700">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      
+      <form id="itemForm">
+        <input type="hidden" id="editItemId">
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">วันเดือนปี</label>
+          <input type="date" id="itemDate" class="form-control" required>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">รายการ</label>
+          <input type="text" id="itemName" class="form-control" placeholder="ระบุชื่อรายการ" required>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">จำนวน</label>
+          <input type="number" id="itemQuantity" class="form-control" placeholder="0" min="0" step="0.01" required>
+        </div>
+        
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">ราคา (บาท)</label>
+          <input type="number" id="itemPrice" class="form-control" placeholder="0.00" min="0" step="0.01" required>
+        </div>
+        
+        <div class="flex gap-3">
+          <button type="submit" class="btn btn-primary flex-1">
+            <i class="bi bi-check-circle"></i> บันทึก
+          </button>
+          <button type="button" id="btnCancelModal" class="btn btn-outline-primary flex-1">
+            <i class="bi bi-x-circle"></i> ยกเลิก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>async function fetchUserProfile() { try { const res = await fetch(`${API_BASE}/users/me`, { headers: { 'Authorization': 'Bearer ' + token } }); const json = await res.json(); if (!res.ok || !json.success) throw new Error(json.message || 'Failed to load profile'); const userName = json.data.name || json.data.username || 'ผู้ใช้'; const photoUrl = json.data.photoUrl || json.data.employee?.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4='; const nameEl = document.getElementById('employeeName'); const photoEl = document.getElementById('employeePhoto'); if (nameEl) nameEl.textContent = userName; if (photoEl) photoEl.src = resolvePhotoUrl(photoUrl); localStorage.setItem('userName', userName); } catch (err) { console.error('fetchUserProfile:', err); const fallbackName = (function(){try{return localStorage.getItem('userName');}catch(e){return null;}})() || 'ผู้ใช้'; const nameEl = document.getElementById('employeeName'); const photoEl = document.getElementById('employeePhoto'); if (nameEl) nameEl.textContent = fallbackName; if (photoEl) photoEl.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4='; if (err.message && (err.message.includes('401') || err.message.includes('unauthorized'))) { alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); if (typeof logout === 'function') logout(); } } } function logout() { localStorage.removeItem('authToken'); localStorage.removeItem('userName'); localStorage.removeItem('userInfo'); window.location.href = '/login'; } let reportData = []; let stockData = []; let salesData = []; let filteredData = []; let currentPage = 1; let itemsPerPage = 10; let sortColumn = ''; let sortDirection = 'asc'; document.addEventListener('DOMContentLoaded', function() { const menuTemplate = document.getElementById('mainMenuTemplate'); const menuContainer = document.getElementById('mainMenuContainer'); if (menuTemplate && menuContainer) { const menuContent = menuTemplate.content.cloneNode(true); menuContainer.appendChild(menuContent); } const today = new Date(); const firstDay = new Date(today.getFullYear(), today.getMonth(), 1); const todayBuddhist = new Date(today.getFullYear() - 543, today.getMonth(), today.getDate()); const firstDayBuddhist = new Date(firstDay.getFullYear() - 543, firstDay.getMonth(), 1); document.getElementById('startDate').value = firstDayBuddhist.toISOString().split('T')[0]; document.getElementById('endDate').value = todayBuddhist.toISOString().split('T')[0]; loadDataFromAPI(); setupEventListeners(); }); async function loadDataFromAPI() { showLoading(true); try { const stockResponse = await fetch('/api/branch-stock-history?change_type=IN'); if (stockResponse.ok) { const stockResult = await stockResponse.json(); stockData = stockResult.data || []; } const salesResponse = await fetch('/api/branch-stock-history?change_type=OUT'); if (salesResponse.ok) { const salesResult = await salesResponse.json(); salesData = salesResult.data || []; } const poResponse = await fetch('/api/purchase-orders'); if (poResponse.ok) { const poResult = await poResponse.json(); const purchaseOrders = poResult.data || []; purchaseOrders.forEach(po => { if (po.items && po.items.length > 0) { po.items.forEach(item => { stockData.push({ _id: po._id, performed_at: po.createdAt || po.updatedAt, change_type: 'PURCHASE', branch_code: po.branch_code, items: [item], quantity: item.qty, stock_value: item.totalItemAmount || (item.qty * item.cost) }); }); } }); } processReportData(); loadData(); } catch (error) { console.error('Error loading data from API:', error); showMessage('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error'); loadSampleData(); } finally { showLoading(false); } } function processReportData() { reportData = []; stockData.forEach(record => { if (record.items && record.items.length > 0) { record.items.forEach(item => { reportData.push({ id: `stock_${record._id}_${item._id || Date.now()}`, date: record.performed_at || new Date(), item: item.name || 'ไม่ระบุ', quantity: item.qty || record.quantity || 0, price: item.cost || item.price || 0, type: 'stock', branch_code: record.branch_code, change_type: record.change_type, sku: item.sku, barcode: item.barcode, rawName: item.name || 'ไม่ระบุ' }); }); } }); salesData.forEach(record => { if (record.items && record.items.length > 0) { record.items.forEach(item => { reportData.push({ id: `sales_${record._id}_${item._id || Date.now()}`, date: record.performed_at || record.sale_date || new Date(), item: item.name || 'ไม่ระบุ', quantity: -(item.qty || record.quantity || 0), price: item.price || 0, type: 'sales', branch_code: record.branch_code, change_type: record.change_type, sku: item.sku, barcode: item.barcode, customer: record.customerInfo?.firstName || record.corporateInfo?.companyName || 'ไม่ระบุ', rawName: item.name || 'ไม่ระบุ' }); }); } }); const groupedData = groupDataByProductName(reportData); reportData = groupedData; reportData.sort((a, b) => new Date(b.latestDate) - new Date(a.latestDate)); filteredData = [...reportData]; } function groupDataByProductName(data) { const grouped = {}; data.forEach(item => { const productName = item.rawName; if (!grouped[productName]) { grouped[productName] = { id: `group_${productName}_${Date.now()}`, productName: productName, items: [], totalStockIn: 0, totalStockOut: 0, totalCostValue: 0, totalSaleValue: 0, latestDate: item.date, branches: new Set(), skus: new Set(), barcodes: new Set(), avgCostPrice: 0, avgSalePrice: 0, costTransactions: [], saleTransactions: [] }; } grouped[productName].items.push(item); if (item.type === 'stock') { const quantity = Math.abs(item.quantity); grouped[productName].totalStockIn += quantity; grouped[productName].totalCostValue += quantity * item.price; grouped[productName].costTransactions.push({ quantity: quantity, price: item.price, totalValue: quantity * item.price }); } else { const quantity = Math.abs(item.quantity); grouped[productName].totalStockOut += quantity; grouped[productName].totalSaleValue += quantity * item.price; grouped[productName].saleTransactions.push({ quantity: quantity, price: item.price, totalValue: quantity * item.price }); } if (new Date(item.date) > new Date(grouped[productName].latestDate)) { grouped[productName].latestDate = item.date; } if (item.branch_code) grouped[productName].branches.add(item.branch_code); if (item.sku) grouped[productName].skus.add(item.sku); if (item.barcode) grouped[productName].barcodes.add(item.barcode); }); Object.values(grouped).forEach(group => { group.branches = Array.from(group.branches); group.skus = Array.from(group.skus); group.barcodes = Array.from(group.barcodes); group.netQuantity = group.totalStockIn - group.totalStockOut; group.avgCostPrice = group.totalStockIn > 0 ? group.totalCostValue / group.totalStockIn : 0; group.avgSalePrice = group.totalStockOut > 0 ? group.totalSaleValue / group.totalStockOut : 0; const soldCostValue = group.totalStockOut * group.avgCostPrice; group.profitLoss = group.totalSaleValue - soldCostValue; group.profitMargin = group.totalSaleValue > 0 ? ((group.profitLoss / group.totalSaleValue) * 100) : 0; group.markup = group.avgCostPrice > 0 ? (((group.avgSalePrice - group.avgCostPrice) / group.avgCostPrice) * 100) : 0; group.roiPerUnit = group.avgSalePrice - group.avgCostPrice; group.remainingValue = group.netQuantity > 0 ? group.netQuantity * group.avgCostPrice : 0; }); return Object.values(grouped); } function loadSampleData() { reportData = [ { id: 'group_1', productName: 'ปากกาลูกลื่น', items: [ { id: 1, date: '2567-08-01', item: 'ปากกาลูกลื่น', quantity: 100, price: 10, type: 'stock', sku: 'PEN001', barcode: '1234567890' }, { id: 2, date: '2567-08-02', item: 'ปากกาลูกลื่น', quantity: -30, price: 18, type: 'sales', customer: 'บริษัท ABC' }, { id: 3, date: '2567-08-03', item: 'ปากกาลูกลื่น', quantity: -20, price: 20, type: 'sales', customer: 'ร้าน XYZ' } ], totalStockIn: 100, totalStockOut: 50, netQuantity: 50, totalCostValue: 1000, totalSaleValue: 940, avgCostPrice: 10, avgSalePrice: 18.8, profitLoss: 440, profitMargin: 46.81, roiPerUnit: 8.8, markup: 88, remainingValue: 500, latestDate: '2567-08-03', branches: ['สาขาหลัก'], skus: ['PEN001'], barcodes: ['1234567890'], costTransactions: [{ quantity: 100, price: 10, totalValue: 1000 }], saleTransactions: [ { quantity: 30, price: 18, totalValue: 540 }, { quantity: 20, price: 20, totalValue: 400 } ] }, { id: 'group_2', productName: 'กระดาษ A4', items: [ { id: 4, date: '2567-08-01', item: 'กระดาษ A4', quantity: 50, price: 80, type: 'stock', sku: 'PAPER001' }, { id: 5, date: '2567-08-01', item: 'กระดาษ A4', quantity: 30, price: 90, type: 'stock', sku: 'PAPER001' }, { id: 6, date: '2567-08-02', item: 'กระดาษ A4', quantity: -20, price: 150, type: 'sales', customer: 'โรงเรียน DEF' } ], totalStockIn: 80, totalStockOut: 20, netQuantity: 60, totalCostValue: 6700, totalSaleValue: 3000, avgCostPrice: 83.75, avgSalePrice: 150, profitLoss: 1325, profitMargin: 44.17, roiPerUnit: 66.25, markup: 79.10, remainingValue: 5025, latestDate: '2567-08-02', branches: ['สาขาหลัก'], skus: ['PAPER001'], barcodes: [], costTransactions: [ { quantity: 50, price: 80, totalValue: 4000 }, { quantity: 30, price: 90, totalValue: 2700 } ], saleTransactions: [{ quantity: 20, price: 150, totalValue: 3000 }] }, { id: 'group_3', productName: 'น้ำดื่ม', items: [ { id: 7, date: '2567-08-02', item: 'น้ำดื่ม', quantity: -24, price: 15, type: 'sales', customer: 'ร้านสะดวกซื้อ GHI' } ], totalStockIn: 0, totalStockOut: 24, netQuantity: -24, totalCostValue: 0, totalSaleValue: 360, avgCostPrice: 0, avgSalePrice: 15, profitLoss: 360, profitMargin: 100, roiPerUnit: 15, markup: 0, remainingValue: 0, latestDate: '2567-08-02', branches: ['สาขา 2'], skus: ['WATER001'], barcodes: [], costTransactions: [], saleTransactions: [{ quantity: 24, price: 15, totalValue: 360 }] } ]; filteredData = [...reportData]; } function showLoading(show) { const spinner = document.getElementById('loadingSpinner'); if (show) { spinner.classList.remove('hidden'); spinner.classList.add('flex'); } else { spinner.classList.add('hidden'); spinner.classList.remove('flex'); } } function setupEventListeners() { document.getElementById('btnFilter').addEventListener('click', applyFilters); document.getElementById('btnClearFilter').addEventListener('click', clearFilters); document.getElementById('btnAddItem').addEventListener('click', () => openModal()); document.getElementById('btnCloseModal').addEventListener('click', closeModal); document.getElementById('btnCancelModal').addEventListener('click', closeModal); document.getElementById('itemForm').addEventListener('submit', saveItem); document.getElementById('btnExportExcel').addEventListener('click', exportToExcel); document.getElementById('btnExportPDF').addEventListener('click', exportToPDF); document.getElementById('btnPrint').addEventListener('click', () => window.print()); document.getElementById('itemsPerPage').addEventListener('change', function() { itemsPerPage = parseInt(this.value); currentPage = 1; renderTable(); }); document.querySelectorAll('.sort-btn').forEach(btn => { btn.addEventListener('click', function() { const column = this.dataset.column; if (sortColumn === column) { sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'; } else { sortColumn = column; sortDirection = 'asc'; } sortData(); renderTable(); }); }); document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode); document.getElementById('btnLogout').addEventListener('click', function() { if (confirm('คุณต้องการออกจากระบบหรือไม่?')) { window.location.href = '/login'; } }); } function loadData() { renderTable(); updateStats(); } function renderTable() { const tbody = document.getElementById('reportTableBody'); const start = (currentPage - 1) * itemsPerPage; const end = start + itemsPerPage; const pageData = filteredData.slice(start, end); tbody.innerHTML = ''; if (pageData.length === 0) { tbody.innerHTML = ` <tr> <td colspan="6" class="text-center py-8 text-gray-500"> <i class="bi bi-inbox text-4xl mb-2 block"></i> ไม่พบข้อมูล </td> </tr> `; return; } pageData.forEach((group, index) => { const mainRow = document.createElement('tr'); mainRow.className = 'group-main-row bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 border-l-4 border-blue-500'; const netQuantityClass = group.netQuantity >= 0 ? 'text-green-600' : 'text-red-600'; const stockIcon = group.netQuantity >= 0 ? 'bi-arrow-up-circle-fill' : 'bi-arrow-down-circle-fill'; mainRow.innerHTML = ` <td class="text-center font-semibold">${start + index + 1}</td> <td class="font-medium">${formatDate(group.latestDate)}</td> <td class="font-semibold"> <div class="flex items-center gap-3"> <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg"> ${group.productName.charAt(0).toUpperCase()} </div> <div> <div class="font-semibold text-gray-800 dark:text-white">${group.productName}</div> <div class="text-xs text-gray-500 dark:text-gray-400"> ${group.items.length} รายการ • ${group.branches.join(', ') || 'ไม่ระบุสาขา'} </div> </div> </div> </td> <td class="text-center"> <div class="space-y-1"> <div class="flex items-center justify-center gap-2 ${netQuantityClass}"> <i class="bi ${stockIcon}"></i> <span class="font-bold">${formatNumber(Math.abs(group.netQuantity))}</span> </div> <div class="text-xs text-gray-500"> <span class="text-green-600">+${formatNumber(group.totalStockIn)}</span> / <span class="text-red-600">-${formatNumber(group.totalStockOut)}</span> </div> </div> </td> <td class="text-right"> <div class="space-y-1"> <div class="font-semibold text-blue-600">฿${formatNumber(group.totalCostValue)}</div> <div class="text-xs text-gray-500">ต้นทุน</div> <div class="font-semibold text-orange-600">฿${formatNumber(group.totalSaleValue)}</div> <div class="text-xs text-gray-500">ขาย</div> ${group.totalSaleValue > 0 ? ` <div class="font-bold text-sm ${group.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}"> ${group.profitLoss >= 0 ? '+' : ''}฿${formatNumber(group.profitLoss)} </div> <div class="text-xs text-gray-500">กำไร</div> ` : ''} </div> </td> <td class="text-center"> <div class="flex items-center justify-center gap-1"> <button class="btn btn-sm bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-md transition-all duration-200" onclick="toggleGroupDetails('${group.id}')" title="ดูรายละเอียด"> <i class="bi bi-eye"></i> </button> <button class="btn btn-sm bg-gradient-to-r from-green-500 to-teal-600 text-white hover:from-green-600 hover:to-teal-700 shadow-md transition-all duration-200" onclick="exportGroupData('${group.id}')" title="ส่งออกข้อมูล"> <i class="bi bi-download"></i> </button> </div> </td> `; tbody.appendChild(mainRow); const detailsRow = document.createElement('tr'); detailsRow.id = `details-${group.id}`; detailsRow.className = 'group-details-row hidden'; detailsRow.innerHTML = ` <td colspan="6" class="p-0"> <div class="bg-gray-50 dark:bg-gray-800 border-l-4 border-gray-300"> <div class="p-4"> <h4 class="font-semibold mb-3 text-gray-700 dark:text-gray-300"> <i class="bi bi-list-ul mr-2"></i>รายละเอียดการเคลื่อนไหว </h4> <div class="grid grid-cols-1 lg:grid-cols-2 gap-4"> ${group.items.map(item => ` <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-600"> <div class="flex items-center justify-between mb-2"> <div class="flex items-center gap-2"> <i class="bi ${item.type === 'sales' ? 'bi-arrow-down-circle text-red-500' : 'bi-arrow-up-circle text-green-500'}"></i> <span class="font-medium ${item.type === 'sales' ? 'text-red-600' : 'text-green-600'}"> ${item.type === 'sales' ? 'ขายออก' : 'เข้าสต็อก'} </span> </div> <span class="text-xs text-gray-500">${formatDate(item.date)}</span> </div> <div class="grid grid-cols-2 gap-2 text-sm"> <div> <span class="text-gray-500">จำนวน:</span> <span class="font-medium">${formatNumber(Math.abs(item.quantity))}</span> </div> <div> <span class="text-gray-500">ราคา:</span> <span class="font-medium ${item.type === 'sales' ? 'text-orange-600' : 'text-blue-600'}"> ฿${formatNumber(item.price)} ${item.type === 'sales' ? '(ขาย)' : '(ต้นทุน)'} </span> </div> ${item.sku ? ` <div class="col-span-2"> <span class="text-gray-500">SKU:</span> <span class="font-medium">${item.sku}</span> </div> ` : ''} ${item.customer ? ` <div class="col-span-2"> <span class="text-gray-500">ลูกค้า:</span> <span class="font-medium">${item.customer}</span> </div> ` : ''} </div> </div> `).join('')} </div> <!-- สรุปข้อมูลของกลุ่ม --> <div class="mt-4 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-gray-600 dark:to-gray-700 rounded-lg p-4"> <h5 class="font-semibold mb-3 text-gray-700 dark:text-gray-300"> <i class="bi bi-pie-chart mr-2"></i>สรุปทางการเงิน </h5> <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center"> <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm"> <div class="text-lg font-bold text-green-600">${formatNumber(group.totalStockIn)}</div> <div class="text-xs text-gray-600 dark:text-gray-400">เข้าสต็อก</div> </div> <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm"> <div class="text-lg font-bold text-red-600">${formatNumber(group.totalStockOut)}</div> <div class="text-xs text-gray-600 dark:text-gray-400">ขายออก</div> </div> <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm"> <div class="text-lg font-bold ${group.netQuantity >= 0 ? 'text-green-600' : 'text-red-600'}"> ${group.netQuantity >= 0 ? '+' : ''}${formatNumber(group.netQuantity)} </div> <div class="text-xs text-gray-600 dark:text-gray-400">คงเหลือสุทธิ</div> </div> <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm"> <div class="text-lg font-bold text-blue-600">฿${formatNumber(group.totalCostValue)}</div> <div class="text-xs text-gray-600 dark:text-gray-400">มูลค่าต้นทุน</div> ${group.avgCostPrice > 0 ? `<div class="text-xs text-gray-500">เฉลี่ย ฿${formatNumber(group.avgCostPrice)}</div>` : ''} </div> <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm"> <div class="text-lg font-bold text-orange-600">฿${formatNumber(group.totalSaleValue)}</div> <div class="text-xs text-gray-600 dark:text-gray-400">มูลค่าขาย</div> ${group.avgSalePrice > 0 ? `<div class="text-xs text-gray-500">เฉลี่ย ฿${formatNumber(group.avgSalePrice)}</div>` : ''} </div> <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm"> <div class="text-lg font-bold ${group.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}"> ${group.profitLoss >= 0 ? '+' : ''}฿${formatNumber(group.profitLoss)} </div> <div class="text-xs text-gray-600 dark:text-gray-400">กำไร/ขาดทุน</div> ${group.profitMargin !== 0 ? `<div class="text-xs text-gray-500">${formatNumber(group.profitMargin)}%</div>` : ''} </div> </div> <!-- เพิ่มข้อมูลเปรียบเทียบ --> ${group.totalSaleValue > 0 && group.totalCostValue > 0 ? ` <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600"> <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm"> <div class="text-center"> <div class="font-semibold text-gray-700 dark:text-gray-300">อัตราส่วนกำไร</div> <div class="text-lg font-bold ${group.profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}"> ${formatNumber(group.profitMargin)}% </div> </div> <div class="text-center"> <div class="font-semibold text-gray-700 dark:text-gray-300">กำไรต่อชิ้น</div> <div class="text-lg font-bold ${group.roiPerUnit >= 0 ? 'text-green-600' : 'text-red-600'}"> ${group.roiPerUnit >= 0 ? '+' : ''}฿${formatNumber(group.roiPerUnit)} </div> </div> <div class="text-center"> <div class="font-semibold text-gray-700 dark:text-gray-300">Markup</div> <div class="text-lg font-bold text-purple-600"> ${formatNumber(group.markup)}% </div> </div> <div class="text-center"> <div class="font-semibold text-gray-700 dark:text-gray-300">มูลค่าคงเหลือ</div> <div class="text-lg font-bold text-indigo-600"> ฿${formatNumber(group.remainingValue)} </div> </div> </div> <!-- แสดงรายละเอียดการคำนวณ --> <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600"> <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1"> <div><strong>การคำนวณ:</strong></div> <div>• ราคาต้นทุนเฉลี่ย: ฿${formatNumber(group.totalCostValue)} ÷ ${formatNumber(group.totalStockIn)} = ฿${formatNumber(group.avgCostPrice)}/ชิ้น</div> <div>• ราคาขายเฉลี่ย: ฿${formatNumber(group.totalSaleValue)} ÷ ${formatNumber(group.totalStockOut)} = ฿${formatNumber(group.avgSalePrice)}/ชิ้น</div> <div>• กำไรต่อชิ้น: ฿${formatNumber(group.avgSalePrice)} - ฿${formatNumber(group.avgCostPrice)} = ฿${formatNumber(group.roiPerUnit)}</div> <div>• กำไรรวม: ฿${formatNumber(group.totalSaleValue)} - (${formatNumber(group.totalStockOut)} × ฿${formatNumber(group.avgCostPrice)}) = ฿${formatNumber(group.profitLoss)}</div> </div> </div> </div> ` : ''} </div> </div> </div> </td> `; tbody.appendChild(detailsRow); }); renderPagination(); updatePaginationInfo(); } function renderPagination() { const totalPages = Math.ceil(filteredData.length / itemsPerPage); const pagination = document.getElementById('pagination'); pagination.innerHTML = ''; if (totalPages <= 1) return; const prevBtn = document.createElement('button'); prevBtn.className = `page-link ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`; prevBtn.innerHTML = '<i class="bi bi-chevron-left"></i>'; prevBtn.disabled = currentPage === 1; prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; renderTable(); } }; pagination.appendChild(prevBtn); for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) { const pageBtn = document.createElement('button'); pageBtn.className = `page-link ${i === currentPage ? 'active' : ''}`; pageBtn.textContent = i; pageBtn.onclick = () => { currentPage = i; renderTable(); }; pagination.appendChild(pageBtn); } else if (i === currentPage - 3 || i === currentPage + 3) { const dots = document.createElement('span'); dots.className = 'px-2 text-gray-500'; dots.textContent = '...'; pagination.appendChild(dots); } } const nextBtn = document.createElement('button'); nextBtn.className = `page-link ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`; nextBtn.innerHTML = '<i class="bi bi-chevron-right"></i>'; nextBtn.disabled = currentPage === totalPages; nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; renderTable(); } }; pagination.appendChild(nextBtn); } function updatePaginationInfo() { const start = (currentPage - 1) * itemsPerPage + 1; const end = Math.min(currentPage * itemsPerPage, filteredData.length); document.getElementById('showingFrom').textContent = filteredData.length > 0 ? start : 0; document.getElementById('showingTo').textContent = end; document.getElementById('totalRecords').textContent = filteredData.length; } function updateStats() { const totalItems = filteredData.length; let totalStockIn = 0; let totalStockOut = 0; let totalCostValue = 0; let totalSaleValue = 0; let totalNetQuantity = 0; let totalRemainingValue = 0; filteredData.forEach(group => { totalStockIn += group.totalStockIn; totalStockOut += group.totalStockOut; totalCostValue += group.totalCostValue; totalSaleValue += group.totalSaleValue; totalNetQuantity += group.netQuantity; totalRemainingValue += group.remainingValue; }); let totalProfit = 0; filteredData.forEach(group => { totalProfit += group.profitLoss; }); const avgCostPriceOverall = totalStockIn > 0 ? totalCostValue / totalStockIn : 0; const avgSalePriceOverall = totalStockOut > 0 ? totalSaleValue / totalStockOut : 0; document.getElementById('totalItems').textContent = `${formatNumber(totalItems)} กลุ่มสินค้า`; document.getElementById('totalQuantity').innerHTML = ` <div class="text-green-300 text-lg">เข้า: ${formatNumber(totalStockIn)}</div> <div class="text-red-300 text-lg">ออก: ${formatNumber(totalStockOut)}</div> <div class="text-xs opacity-80 mt-1">คงเหลือ: ${formatNumber(totalNetQuantity)} ชิ้น</div> `; document.getElementById('totalValue').innerHTML = ` <div class="text-blue-300 font-bold">฿${formatNumber(totalCostValue)}</div> <div class="text-xs opacity-90">ต้นทุน (฿${formatNumber(avgCostPriceOverall)}/ชิ้น)</div> <div class="text-yellow-300 font-bold mt-1">฿${formatNumber(totalSaleValue)}</div> <div class="text-xs opacity-90">ขาย (฿${formatNumber(avgSalePriceOverall)}/ชิ้น)</div> `; document.getElementById('avgPrice').innerHTML = ` <div class="text-xl font-bold ${totalProfit >= 0 ? 'text-green-300' : 'text-red-300'}"> ${totalProfit >= 0 ? '+' : ''}฿${formatNumber(totalProfit)} </div> <div class="text-xs opacity-90 mt-1">กำไร/ขาดทุนรวม</div> <div class="text-xs opacity-80">คงเหลือ: ฿${formatNumber(totalRemainingValue)}</div> `; } function applyFilters() { const startDate = document.getElementById('startDate').value; const endDate = document.getElementById('endDate').value; const searchItem = document.getElementById('searchItem').value.toLowerCase(); const minPrice = parseFloat(document.getElementById('minPrice').value) || 0; const maxPrice = parseFloat(document.getElementById('maxPrice').value) || Infinity; filteredData = reportData.filter(group => { const itemDate = formatDateForComparison(group.latestDate); const matchDate = (!startDate || itemDate >= startDate) && (!endDate || itemDate <= endDate); const matchItem = !searchItem || group.productName.toLowerCase().includes(searchItem); const matchPrice = group.totalValue >= minPrice && group.totalValue <= maxPrice; return matchDate && matchItem && matchPrice; }); currentPage = 1; renderTable(); updateStats(); } function formatDateForComparison(dateString) { const date = new Date(dateString); return date.toISOString().split('T')[0]; } function clearFilters() { document.getElementById('startDate').value = ''; document.getElementById('endDate').value = ''; document.getElementById('searchItem').value = ''; document.getElementById('minPrice').value = ''; document.getElementById('maxPrice').value = ''; filteredData = [...reportData]; currentPage = 1; renderTable(); updateStats(); } function sortData() { filteredData.sort((a, b) => { let aVal, bVal; switch(sortColumn) { case 'date': aVal = new Date(a.latestDate); bVal = new Date(b.latestDate); break; case 'item': aVal = a.productName.toLowerCase(); bVal = b.productName.toLowerCase(); break; case 'quantity': aVal = a.netQuantity; bVal = b.netQuantity; break; case 'price': aVal = a.totalValue; bVal = b.totalValue; break; default: return 0; } if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1; if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1; return 0; }); } function toggleGroupDetails(groupId) { const detailsRow = document.getElementById(`details-${groupId}`); const isHidden = detailsRow.classList.contains('hidden'); if (isHidden) { detailsRow.classList.remove('hidden'); detailsRow.classList.add('animate-fadeIn'); } else { detailsRow.classList.add('hidden'); detailsRow.classList.remove('animate-fadeIn'); } } function exportGroupData(groupId) { const group = reportData.find(g => g.id === groupId); if (!group) return; const data = group.items.map((item, index) => ({ 'ลำดับ': index + 1, 'วันเดือนปี': formatDate(item.date), 'ชื่อสินค้า': group.productName, 'ประเภท': item.type === 'sales' ? 'ขายออก' : 'เข้าสต็อก', 'จำนวน': Math.abs(item.quantity), 'ราคา': item.price, 'มูลค่า': Math.abs(item.quantity) * item.price, 'SKU': item.sku || '', 'Barcode': item.barcode || '', 'สาขา': item.branch_code || '', 'ลูกค้า': item.customer || '' })); const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, `${group.productName}`); XLSX.writeFile(wb, `รายงาน_${group.productName}_${new Date().toISOString().split('T')[0]}.xlsx`); showMessage(`ส่งออกข้อมูล "${group.productName}" เรียบร้อยแล้ว`, 'success'); } function openModal(item = null) { const modal = document.getElementById('itemModal'); const title = document.getElementById('modalTitle'); const form = document.getElementById('itemForm'); if (item) { title.textContent = 'แก้ไขรายการ'; document.getElementById('editItemId').value = item.id; document.getElementById('itemDate').value = item.date; document.getElementById('itemName').value = item.item; document.getElementById('itemQuantity').value = item.quantity; document.getElementById('itemPrice').value = item.price; } else { title.textContent = 'เพิ่มรายการใหม่'; form.reset(); document.getElementById('editItemId').value = ''; document.getElementById('itemDate').value = new Date().toISOString().split('T')[0]; } modal.classList.remove('hidden'); modal.classList.add('flex'); } function closeModal() { const modal = document.getElementById('itemModal'); modal.classList.add('hidden'); modal.classList.remove('flex'); document.getElementById('itemForm').reset(); } function saveItem(e) { e.preventDefault(); const formData = { date: document.getElementById('itemDate').value, item: document.getElementById('itemName').value, quantity: parseFloat(document.getElementById('itemQuantity').value), price: parseFloat(document.getElementById('itemPrice').value) }; const editId = document.getElementById('editItemId').value; if (editId) { const index = reportData.findIndex(item => item.id == editId); if (index !== -1) { reportData[index] = { ...reportData[index], ...formData }; } } else { const newId = Math.max(...reportData.map(item => item.id)) + 1; reportData.push({ id: newId, ...formData }); } applyFilters(); closeModal(); showMessage(editId ? 'แก้ไขรายการเรียบร้อยแล้ว' : 'เพิ่มรายการเรียบร้อยแล้ว', 'success'); } function viewDetails(id) { const item = reportData.find(item => item.id === id); if (!item) return; let details = ` <div class="space-y-3"> <div><strong>รายการ:</strong> ${item.item}</div> <div><strong>วันที่:</strong> ${formatDate(item.date)}</div> <div><strong>จำนวน:</strong> ${formatNumber(Math.abs(item.quantity))} ${item.quantity < 0 ? '(ออก)' : '(เข้า)'}</div> <div><strong>ราคา:</strong> ฿${formatNumber(item.price)}</div> <div><strong>ประเภท:</strong> ${item.type === 'sales' ? 'ขายออก' : 'คงเหลือ'}</div> `; if (item.branch_code) { details += `<div><strong>สาขา:</strong> ${item.branch_code}</div>`; } if (item.sku) { details += `<div><strong>SKU:</strong> ${item.sku}</div>`; } if (item.barcode) { details += `<div><strong>Barcode:</strong> ${item.barcode}</div>`; } if (item.customer) { details += `<div><strong>ลูกค้า:</strong> ${item.customer}</div>`; } details += '</div>'; const modal = document.createElement('div'); modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center'; modal.innerHTML = ` <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full w-full mx-4"> <div class="flex justify-between items-center mb-4"> <h3 class="text-lg font-semibold">รายละเอียดสินค้า</h3> <button class="text-gray-500 hover:text-gray-700" onclick="this.closest('.fixed').remove()"> <i class="bi bi-x-lg"></i> </button> </div> ${details} <div class="mt-6 text-center"> <button class="btn btn-primary" onclick="this.closest('.fixed').remove()"> <i class="bi bi-check-circle"></i> ตกลง </button> </div> </div> `; document.body.appendChild(modal); } function editItem(id) { const item = reportData.find(item => item.id === id); if (item) { openModal(item); } } function deleteItem(id) { if (confirm('คุณต้องการลบรายการนี้หรือไม่?')) { reportData = reportData.filter(item => item.id !== id); applyFilters(); showMessage('ลบรายการเรียบร้อยแล้ว', 'success'); } } function refreshData() { showMessage('กำลังรีเฟรชข้อมูล...', 'info'); loadDataFromAPI(); } document.addEventListener('DOMContentLoaded', function() { const actionButtons = document.querySelector('.action-buttons'); if (actionButtons) { const refreshBtn = document.createElement('button'); refreshBtn.className = 'btn btn-outline-primary'; refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> รีเฟรชข้อมูล'; refreshBtn.onclick = refreshData; actionButtons.appendChild(refreshBtn); } }); function exportToExcel() { const data = []; filteredData.forEach((group, groupIndex) => { data.push({ 'ลำดับ': groupIndex + 1, 'วันเดือนปี': formatDate(group.latestDate), 'ชื่อสินค้า': `${group.productName} (กลุ่ม)`, 'ประเภท': 'สรุปกลุ่ม', 'จำนวนเข้า': group.totalStockIn, 'จำนวนออก': group.totalStockOut, 'คงเหลือสุทธิ': group.netQuantity, 'มูลค่าต้นทุน': group.totalCostValue, 'มูลค่าขาย': group.totalSaleValue, 'กำไร_ขาดทุน': group.profitLoss, 'อัตราส่วนกำไร_%': group.profitMargin, 'ราคาต้นทุนเฉลี่ย': group.avgCostPrice, 'ราคาขายเฉลี่ย': group.avgSalePrice, 'กำไรต่อชิ้น': group.roiPerUnit, 'Markup_%': group.markup, 'มูลค่าคงเหลือ': group.remainingValue, 'จำนวนรายการ': group.items.length }); group.items.forEach((item, itemIndex) => { data.push({ 'ลำดับ': `${groupIndex + 1}.${itemIndex + 1}`, 'วันเดือนปี': formatDate(item.date), 'ชื่อสินค้า': group.productName, 'ประเภท': item.type === 'sales' ? 'ขายออก' : 'เข้าสต็อก', 'จำนวน': Math.abs(item.quantity), 'ราคาต่อหน่วย': item.price, 'มูลค่า': Math.abs(item.quantity) * item.price, 'ประเภทราคา': item.type === 'sales' ? 'ราคาขาย' : 'ราคาต้นทุน', 'ราคาต้นทุนเฉลี่ย': group.avgCostPrice, 'ราคาขายเฉลี่ย': group.avgSalePrice, 'กำไรต่อชิ้น': group.roiPerUnit, 'SKU': item.sku || '', 'Barcode': item.barcode || '', 'สาขา': item.branch_code || '', 'ลูกค้า': item.customer || '' }); }); data.push({}); }); const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'รายงานต้นทุนและกำไร'); XLSX.writeFile(wb, `รายงานต้นทุนและกำไร_${new Date().toISOString().split('T')[0]}.xlsx`); showMessage('ส่งออกข้อมูลต้นทุนและกำไร Excel เรียบร้อยแล้ว', 'success'); } function exportToPDF() { const element = document.getElementById('reportTable').parentElement; const opt = { margin: 1, filename: `รายงานข้อมูลสินค้า_${new Date().toISOString().split('T')[0]}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } }; html2pdf().set(opt).from(element).save(); } function formatDate(dateString) { const date = new Date(dateString); let year = date.getFullYear(); if (year < 2500) { year = year + 543; } const day = String(date.getDate()).padStart(2, '0'); const month = String(date.getMonth() + 1).padStart(2, '0'); return `${day}/${month}/${year}`; } function formatNumber(number) { return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(number); } function showMessage(message, type = 'info') { const toast = document.createElement('div'); toast.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white transition-all duration-300 ${ type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500' }`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => { document.body.removeChild(toast); }, 300); }, 3000); } function toggleDarkMode() { document.documentElement.classList.toggle('dark'); const isDark = document.documentElement.classList.contains('dark'); const icon = document.getElementById('themeIcon'); const label = document.getElementById('darkModeLabel'); if (isDark) { icon.className = 'bi bi-sun-fill mr-2 text-yellow-300'; label.textContent = 'Light Mode'; } else { icon.className = 'bi bi-moon-stars-fill mr-2 text-gray-700'; label.textContent = 'Dark Mode'; } localStorage.setItem('darkMode', isDark); } if ((function(){try{return localStorage.getItem('darkMode');}catch(e){return null;}})() === 'true') { document.documentElement.classList.add('dark'); document.getElementById('themeIcon').className = 'bi bi-sun-fill mr-2 text-yellow-300'; document.getElementById('darkModeLabel').textContent = 'Light Mode'; }</script>
+  <script src="/js/account-menu.js"></script>
+
+<script>
+// Security Monitoring and Logging
+(function() {
+  'use strict';
+
+  const securityLog = [];
+  const MAX_LOG_SIZE = 100;
+
+  // Log security events
+  function logSecurityEvent(type, details) {
+    const event = {
+      timestamp: new Date().toISOString(),
+      type: type,
+      details: details,
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    };
+
+    securityLog.push(event);
+
+    // Keep log size manageable
+    if (securityLog.length > MAX_LOG_SIZE) {
+      securityLog.shift();
+    }
+
+    // Send critical events to server
+    if (type === 'CRITICAL' || type === 'XSS_ATTEMPT' || type === 'SQL_INJECTION_ATTEMPT') {
+      fetch('/api/security/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event)
+      }).catch(err => console.error('Failed to log security event:', err));
+    }
+  }
+
+  // Monitor for XSS attempts
+  const originalWrite = document.write;
+  document.write = function() {
+    logSecurityEvent('XSS_ATTEMPT', { method: 'document.write', content: arguments[0] });
+    console.error('document.write blocked for security reasons');
+  };
+
+  // Monitor for suspicious eval usage
+  window.eval = new Proxy(window.eval, {
+    apply: function(target, thisArg, argumentsList) {
+      logSecurityEvent('EVAL_USAGE', { code: argumentsList[0] });
+      console.warn('eval usage detected - this is a security risk');
+      return target.apply(thisArg, argumentsList);
+    }
+  });
+
+  // Monitor console errors for security issues
+  const originalError = console.error;
+  console.error = function() {
+    const message = Array.from(arguments).join(' ');
+    if (message.includes('CSP') || message.includes('Security') || message.includes('CORS')) {
+      logSecurityEvent('SECURITY_ERROR', { message: message });
+    }
+    originalError.apply(console, arguments);
+  };
+
+  // Detect and prevent common attacks
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check for suspicious URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.forEach((value, key) => {
+      // Check for potential XSS in URL parameters
+      if (/<script|javascript:|on\w+=/i.test(value)) {
+        logSecurityEvent('XSS_ATTEMPT', { source: 'URL_PARAM', key: key, value: value });
+        // Clean the URL
+        urlParams.delete(key);
+        window.history.replaceState({}, '', window.location.pathname + '?' + urlParams.toString());
+      }
+
+      // Check for SQL injection patterns
+      if (/(--|'|"|;|\/\*|\*\/|xp_|sp_|exec|execute|union|select|insert|update|delete|drop)/i.test(value)) {
+        logSecurityEvent('SQL_INJECTION_ATTEMPT', { source: 'URL_PARAM', key: key, value: value });
+      }
+    });
+  });
+
+  // Export security log for debugging (only in development)
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    window.getSecurityLog = function() {
+      return securityLog;
+    };
+  }
+})();
+</script>
+</body>
+</html>

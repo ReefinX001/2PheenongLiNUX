@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>งบประมาณและรายงาน - ระบบการตลาด</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- User Profile Manager -->
+  <script src="/views/marketing/js/user-profile.js"></script>
+  <!-- Sidebar Manager -->
+  <script src="/views/marketing/js/sidebar.js"></script>
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Animate.css for fade animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* CSS Variables for theming */
+    :root {
+      --primary-color: #10b981;
+      --secondary-color: #3b82f6;
+      --warning-color: #f59e0b;
+      --error-color: #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    /* Base animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Utility classes */
+    .animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
+    .transition-default { transition: all 0.2s ease-in-out; }
+    .hover-lift:hover { transform: translateY(-3px); }
+    .shadow-hover:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--gray-100); }
+    .dark ::-webkit-scrollbar-track { background: #1e1e1e; }
+    ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* Main content */
+    .main-content {
+      flex: 1;
+      padding: 20px 30px;
+      overflow-y: auto;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    
+    .page-title h1 {
+      font-size: 1.8rem;
+      margin-bottom: 5px;
+    }
+    
+    .page-title p {
+      font-size: 0.9rem;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      border-bottom: 2px solid #e5e7eb;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+
+    .tab-nav::-webkit-scrollbar {
+      display: none; /* Chrome, Safari and Opera */
+    }
+
+    .dark .tab-nav {
+      border-bottom-color: #374151;
+    }
+
+    .tab-btn {
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .dark .tab-btn {
+      color: #9ca3af;
+    }
+
+    .tab-btn:hover {
+      color: #111827;
+      border-bottom-color: #d1d5db;
+    }
+
+    .dark .tab-btn:hover {
+      color: #f9fafb;
+      border-bottom-color: #4b5563;
+    }
+
+    .tab-btn.active {
+      color: #10b981;
+      border-bottom-color: #10b981;
+    }
+
+    .dark .tab-btn.active {
+      color: #10b981;
+      border-bottom-color: #10b981;
+    }
+
+    /* Budget progress bar styles */
+    .budget-progress {
+      height: 12px;
+      background-color: #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    
+    .dark .budget-progress {
+      background-color: #374151;
+    }
+    
+    .budget-progress-bar {
+      height: 100%;
+      border-radius: 6px;
+    }
+    
+    .progress-success {
+      background-color: #10b981;
+    }
+    
+    .progress-warning {
+      background-color: #f59e0b;
+    }
+    
+    .progress-danger {
+      background-color: #ef4444;
+    }
+    
+    .budget-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+    
+    .dark .budget-meta {
+      color: #9ca3af;
+    }
+
+    /* Chart containers */
+    .chart-container {
+      background-color: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+
+    .dark .chart-container {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .chart-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .chart-actions button {
+      padding: 5px;
+      background: transparent;
+      border: none;
+      color: #6b7280;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .dark .chart-actions button {
+      color: #9ca3af;
+    }
+
+    .chart-actions button:hover {
+      color: #111827;
+    }
+
+    .dark .chart-actions button:hover {
+      color: #f9fafb;
+    }
+    
+    /* Table styles */
+    .budget-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .budget-table th {
+      padding: 12px 15px;
+      text-align: left;
+      font-weight: 500;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .budget-table th {
+      color: #9ca3af;
+      border-bottom-color: #374151;
+    }
+    
+    .budget-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .budget-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .budget-table tbody tr:hover {
+      background-color: #f9fafb;
+    }
+    
+    .dark .budget-table tbody tr:hover {
+      background-color: #1f2937;
+    }
+    
+    /* Status badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 9999px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .status-approved {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+    
+    .dark .status-approved {
+      background-color: rgba(16, 185, 129, 0.2);
+    }
+    
+    .status-pending {
+      background-color: rgba(245, 158, 11, 0.1);
+      color: #f59e0b;
+    }
+    
+    .dark .status-pending {
+      background-color: rgba(245, 158, 11, 0.2);
+    }
+    
+    .status-rejected {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+    }
+    
+    .dark .status-rejected {
+      background-color: rgba(239, 68, 68, 0.2);
+    }
+  </style>
+
+  <script>
+    let lottieAnimation = null;
+  </script>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container">
+      <!-- Sidebar content will be loaded here -->
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Header -->
+      <div class="header">
+        <div class="page-title">
+          <h1 class="text-2xl font-semibold">งบประมาณและรายงาน</h1>
+          <p class="text-gray-500 dark:text-gray-400">จัดการงบประมาณและดูรายงานทางการเงินของการตลาด</p>
+        </div>
+        <div class="flex gap-3">
+          <button id="btnCreateBudget" class="bg-emerald-500 hover:bg-emerald-600 text-white py-2 px-4 rounded-md flex items-center">
+            <i class="bi bi-plus-lg mr-2"></i> สร้างงบประมาณใหม่
+          </button>
+          <div class="relative">
+            <select class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md py-2 px-4 pr-10">
+              <option>ปี 2025</option>
+              <option>ปี 2024</option>
+              <option>ปี 2023</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+              <i class="bi bi-chevron-down text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget Overview -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">งบประมาณการตลาดทั้งหมด</p>
+              <p class="text-2xl font-bold">฿7,500,000</p>
+            </div>
+            <div class="text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 p-3 rounded-full">
+              <i class="bi bi-cash"></i>
+            </div>
+          </div>
+          <div class="budget-progress">
+            <div class="budget-progress-bar progress-success" style="width: 68%;"></div>
+          </div>
+          <div class="budget-meta">
+            <span>ใช้ไปแล้ว: ฿5,100,000 (68%)</span>
+            <span>เหลือ: ฿2,400,000</span>
+          </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">โซเชียลมีเดีย</p>
+              <p class="text-2xl font-bold">฿1,800,000</p>
+            </div>
+            <div class="text-purple-500 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 p-3 rounded-full">
+              <i class="bi bi-share"></i>
+            </div>
+          </div>
+          <div class="budget-progress">
+            <div class="budget-progress-bar progress-warning" style="width: 85%;"></div>
+          </div>
+          <div class="budget-meta">
+            <span>ใช้ไปแล้ว: ฿1,530,000 (85%)</span>
+            <span>เหลือ: ฿270,000</span>
+          </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">โฆษณาออนไลน์</p>
+              <p class="text-2xl font-bold">฿2,400,000</p>
+            </div>
+            <div class="text-blue-500 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 p-3 rounded-full">
+              <i class="bi bi-laptop"></i>
+            </div>
+          </div>
+          <div class="budget-progress">
+            <div class="budget-progress-bar progress-success" style="width: 62%;"></div>
+          </div>
+          <div class="budget-meta">
+            <span>ใช้ไปแล้ว: ฿1,488,000 (62%)</span>
+            <span>เหลือ: ฿912,000</span>
+          </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">อีเวนต์และนิทรรศการ</p>
+              <p class="text-2xl font-bold">฿2,100,000</p>
+            </div>
+            <div class="text-orange-500 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400 p-3 rounded-full">
+              <i class="bi bi-calendar-event"></i>
+            </div>
+          </div>
+          <div class="budget-progress">
+            <div class="budget-progress-bar progress-danger" style="width: 95%;"></div>
+          </div>
+          <div class="budget-meta">
+            <span>ใช้ไปแล้ว: ฿1,995,000 (95%)</span>
+            <span>เหลือ: ฿105,000</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="overview">ภาพรวม</button>
+        <button class="tab-btn" data-tab="budget">งบประมาณ</button>
+        <button class="tab-btn" data-tab="expenses">ค่าใช้จ่าย</button>
+        <button class="tab-btn" data-tab="roi">ROI การตลาด</button>
+        <button class="tab-btn" data-tab="forecast">การคาดการณ์</button>
+        <button class="tab-btn" data-tab="reports">รายงาน</button>
+      </div>
+
+      <!-- Overview Tab Content -->
+      <div id="overviewTab" class="tab-content animate-fadeIn">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <!-- Budget vs Actual Chart -->
+          <div class="chart-container">
+            <div class="chart-header">
+              <h3 class="chart-title">งบประมาณเทียบกับค่าใช้จ่ายจริง (ล้านบาท)</h3>
+              <div class="chart-actions">
+                <button title="ดาวน์โหลด PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+                <button title="ดาวน์โหลด Excel"><i class="bi bi-file-earmark-excel"></i></button>
+              </div>
+            </div>
+            <div class="h-80">
+              <canvas id="budgetVsActualChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Expenses by Category Chart -->
+          <div class="chart-container">
+            <div class="chart-header">
+              <h3 class="chart-title">สัดส่วนค่าใช้จ่ายตามประเภท</h3>
+              <div class="chart-actions">
+                <button title="ดาวน์โหลด PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+                <button title="ดาวน์โหลด Excel"><i class="bi bi-file-earmark-excel"></i></button>
+              </div>
+            </div>
+            <div class="h-80">
+              <canvas id="expensesByCategoryChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Expenses Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-semibold">รายการค่าใช้จ่ายล่าสุด</h3>
+            <button class="text-sm text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center">
+              ดูทั้งหมด <i class="bi bi-arrow-right ml-2"></i>
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="budget-table">
+              <thead>
+                <tr>
+                  <th>รายการ</th>
+                  <th>หมวดหมู่</th>
+                  <th>วันที่</th>
+                  <th>จำนวนเงิน</th>
+                  <th>สถานะ</th>
+                  <th>ดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>โฆษณา Facebook รุ่นใหม่ Q2</td>
+                  <td>โซเชียลมีเดีย</td>
+                  <td>10 พ.ค. 2025</td>
+                  <td>฿85,000</td>
+                  <td><span class="status-badge status-approved">อนุมัติแล้ว</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>ค่าจัดบูธงาน Tech Expo 2025</td>
+                  <td>อีเวนต์และนิทรรศการ</td>
+                  <td>08 พ.ค. 2025</td>
+                  <td>฿450,000</td>
+                  <td><span class="status-badge status-approved">อนุมัติแล้ว</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>โฆษณา Google Ads Q2</td>
+                  <td>โฆษณาออนไลน์</td>
+                  <td>05 พ.ค. 2025</td>
+                  <td>฿120,000</td>
+                  <td><span class="status-badge status-pending">รออนุมัติ</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>จ้างผู้มีอิทธิพลบน TikTok</td>
+                  <td>โซเชียลมีเดีย</td>
+                  <td>03 พ.ค. 2025</td>
+                  <td>฿180,000</td>
+                  <td><span class="status-badge status-approved">อนุมัติแล้ว</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>ถ่ายวิดีโอผลิตภัณฑ์ใหม่</td>
+                  <td>การผลิตเนื้อหา</td>
+                  <td>29 เม.ย. 2025</td>
+                  <td>฿75,000</td>
+                  <td><span class="status-badge status-rejected">ปฏิเสธ</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Monthly Budget Trend -->
+        <div class="chart-container">
+          <div class="chart-header">
+            <h3 class="chart-title">แนวโน้มงบประมาณรายเดือน (ล้านบาท)</h3>
+            <div class="chart-actions">
+              <button title="ดาวน์โหลด PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+              <button title="ดาวน์โหลด Excel"><i class="bi bi-file-earmark-excel"></i></button>
+            </div>
+          </div>
+          <div class="h-80">
+            <canvas id="monthlyBudgetTrendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget Tab Content (Hidden by default) -->
+      <div id="budgetTab" class="tab-content hidden">
+        <!-- Budget Table with Category Breakdown -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-semibold">แผนงบประมาณประจำปี 2025</h3>
+            <div class="flex items-center gap-3">
+              <button class="border border-emerald-500 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 px-4 py-2 rounded-md flex items-center">
+                <i class="bi bi-pencil mr-2"></i> แก้ไขงบประมาณ
+              </button>
+              <button class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-md flex items-center">
+                <i class="bi bi-file-earmark-excel mr-2"></i> ส่งออก
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="budget-table">
+              <thead>
+                <tr>
+                  <th>หมวดหมู่</th>
+                  <th>งบประมาณที่ตั้งไว้</th>
+                  <th>ใช้ไปแล้ว</th>
+                  <th>คงเหลือ</th>
+                  <th>% การใช้</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>โซเชียลมีเดีย</td>
+                  <td>฿1,800,000</td>
+                  <td>฿1,530,000</td>
+                  <td>฿270,000</td>
+                  <td>85%</td>
+                  <td>
+                    <div class="budget-progress" style="width: 120px;">
+                      <div class="budget-progress-bar progress-warning" style="width: 85%;"></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>โฆษณาออนไลน์</td>
+                  <td>฿2,400,000</td>
+                  <td>฿1,488,000</td>
+                  <td>฿912,000</td>
+                  <td>62%</td>
+                  <td>
+                    <div class="budget-progress" style="width: 120px;">
+                      <div class="budget-progress-bar progress-success" style="width: 62%;"></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>อีเวนต์และนิทรรศการ</td>
+                  <td>฿2,100,000</td>
+                  <td>฿1,995,000</td>
+                  <td>฿105,000</td>
+                  <td>95%</td>
+                  <td>
+                    <div class="budget-progress" style="width: 120px;">
+                      <div class="budget-progress-bar progress-danger" style="width: 95%;"></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>อีเมลมาร์เก็ตติ้ง</td>
+                  <td>฿500,000</td>
+                  <td>฿180,000</td>
+                  <td>฿320,000</td>
+                  <td>36%</td>
+                  <td>
+                    <div class="budget-progress" style="width: 120px;">
+                      <div class="budget-progress-bar progress-success" style="width: 36%;"></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>การผลิตเนื้อหา</td>
+                  <td>฿700,000</td>
+                  <td>฿407,000</td>
+                  <td>฿293,000</td>
+                  <td>58%</td>
+                  <td>
+                    <div class="budget-progress" style="width: 120px;">
+                      <div class="budget-progress-bar progress-success" style="width: 58%;"></div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot class="font-medium">
+                <tr>
+                  <td>รวมทั้งสิ้น</td>
+                  <td>฿7,500,000</td>
+                  <td>฿5,100,000</td>
+                  <td>฿2,400,000</td>
+                  <td>68%</td>
+                  <td>
+                    <div class="budget-progress" style="width: 120px;">
+                      <div class="budget-progress-bar progress-success" style="width: 68%;"></div>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Budget Allocation Chart -->
+        <div class="chart-container">
+          <div class="chart-header">
+            <h3 class="chart-title">การจัดสรรงบประมาณตามหมวดหมู่</h3>
+            <div class="chart-actions">
+              <button title="ดาวน์โหลด PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+              <button title="ดาวน์โหลด Excel"><i class="bi bi-file-earmark-excel"></i></button>
+            </div>
+          </div>
+          <div class="h-80">
+            <canvas id="budgetAllocationChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expenses Tab Content (Hidden by default) -->
+      <div id="expensesTab" class="tab-content hidden">
+        <!-- Expenses Filter -->
+        <div class="bg-white dark:bg-gray-800 p-4 mb-6 rounded-lg shadow-sm">
+          <div class="flex flex-wrap gap-4">
+            <div class="flex-1 min-w-[200px]">
+              <label class="block text-sm mb-1 text-gray-500 dark:text-gray-400">ค้นหา</label>
+              <div class="relative">
+                <input type="text" placeholder="ค้นหารายการ..." class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700">
+                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-sm mb-1 text-gray-500 dark:text-gray-400">หมวดหมู่</label>
+              <select class="border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 px-3 py-2">
+                <option>ทั้งหมด</option>
+                <option>โซเชียลมีเดีย</option>
+                <option>โฆษณาออนไลน์</option>
+                <option>อีเวนต์และนิทรรศการ</option>
+                <option>อีเมลมาร์เก็ตติ้ง</option>
+                <option>การผลิตเนื้อหา</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm mb-1 text-gray-500 dark:text-gray-400">สถานะ</label>
+              <select class="border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 px-3 py-2">
+                <option>ทั้งหมด</option>
+                <option>อนุมัติแล้ว</option>
+                <option>รออนุมัติ</option>
+                <option>ปฏิเสธ</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm mb-1 text-gray-500 dark:text-gray-400">ช่วงวันที่</label>
+              <div class="flex items-center border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700">
+                <input type="date" class="border-0 bg-transparent px-3 py-2">
+                <span class="text-gray-400">ถึง</span>
+                <input type="date" class="border-0 bg-transparent px-3 py-2">
+              </div>
+            </div>
+            
+            <div class="flex items-end">
+              <button class="bg-emerald-500 hover:bg-emerald-600 text-white py-2 px-4 rounded-md flex items-center">
+                <i class="bi bi-funnel mr-2"></i> กรอง
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- All Expenses Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-semibold">รายการค่าใช้จ่ายทั้งหมด</h3>
+            <div class="flex items-center gap-3">
+              <button class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-md flex items-center">
+                <i class="bi bi-plus-lg mr-2"></i> เพิ่มค่าใช้จ่าย
+              </button>
+              <button class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-md flex items-center">
+                <i class="bi bi-file-earmark-excel mr-2"></i> ส่งออก
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="budget-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>รายการ</th>
+                  <th>หมวดหมู่</th>
+                  <th>วันที่</th>
+                  <th>จำนวนเงิน</th>
+                  <th>ผู้ขออนุมัติ</th>
+                  <th>สถานะ</th>
+                  <th>ดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>#EXP-2025051</td>
+                  <td>โฆษณา Facebook รุ่นใหม่ Q2</td>
+                  <td>โซเชียลมีเดีย</td>
+                  <td>10 พ.ค. 2025</td>
+                  <td>฿85,000</td>
+                  <td>สมชาย ใจดี</td>
+                  <td><span class="status-badge status-approved">อนุมัติแล้ว</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>#EXP-2025050</td>
+                  <td>ค่าจัดบูธงาน Tech Expo 2025</td>
+                  <td>อีเวนต์และนิทรรศการ</td>
+                  <td>08 พ.ค. 2025</td>
+                  <td>฿450,000</td>
+                  <td>วนิดา สมศรี</td>
+                  <td><span class="status-badge status-approved">อนุมัติแล้ว</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>#EXP-2025049</td>
+                  <td>โฆษณา Google Ads Q2</td>
+                  <td>โฆษณาออนไลน์</td>
+                  <td>05 พ.ค. 2025</td>
+                  <td>฿120,000</td>
+                  <td>มานี สมใจ</td>
+                  <td><span class="status-badge status-pending">รออนุมัติ</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>#EXP-2025048</td>
+                  <td>จ้างผู้มีอิทธิพลบน TikTok</td>
+                  <td>โซเชียลมีเดีย</td>
+                  <td>03 พ.ค. 2025</td>
+                  <td>฿180,000</td>
+                  <td>สมชาย ใจดี</td>
+                  <td><span class="status-badge status-approved">อนุมัติแล้ว</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>#EXP-2025047</td>
+                  <td>ถ่ายวิดีโอผลิตภัณฑ์ใหม่</td>
+                  <td>การผลิตเนื้อหา</td>
+                  <td>29 เม.ย. 2025</td>
+                  <td>฿75,000</td>
+                  <td>วนิดา สมศรี</td>
+                  <td><span class="status-badge status-rejected">ปฏิเสธ</span></td>
+                  <td>
+                    <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mr-2">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 mr-2">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Pagination -->
+          <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+              แสดง 1-5 จาก 42 รายการ
+            </div>
+            <div>
+              <nav class="flex items-center space-x-2">
+                <button class="w-8 h-8 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" disabled>
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <button class="w-8 h-8 flex items-center justify-center rounded-md border border-transparent bg-emerald-500 text-white">1</button>
+                <button class="w-8 h-8 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">2</button>
+                <button class="w-8 h-8 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">3</button>
+                <span class="text-gray-500">...</span>
+                <button class="w-8 h-8 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">9</button>
+                <button class="w-8 h-8 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other Tab Contents (Hidden by default) -->
+      <div id="roiTab" class="tab-content hidden">
+        <!-- ROI content will go here -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+            <h3 class="text-lg font-semibold mb-4">ROI ภาพรวม</h3>
+            <div class="text-center mb-4">
+              <span class="text-4xl font-bold text-emerald-500">356%</span>
+              <p class="text-gray-500 dark:text-gray-400 mt-1">ผลตอบแทนจากการลงทุนด้านการตลาด</p>
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+              <div class="flex justify-between mb-2">
+                <span>ค่าใช้จ่ายการตลาดทั้งหมด:</span>
+                <span class="font-medium text-gray-700 dark:text-gray-200">฿5,100,000</span>
+              </div>
+              <div class="flex justify-between mb-2">
+                <span>รายได้จากแคมเปญการตลาด:</span>
+                <span class="font-medium text-gray-700 dark:text-gray-200">฿18,156,000</span>
+              </div>
+              <div class="flex justify-between">
+                <span>กำไรสุทธิ:</span>
+                <span class="font-medium text-emerald-500">฿13,056,000</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="md:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+            <h3 class="text-lg font-semibold mb-4">ROI ตามช่องทาง</h3>
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                  <th class="text-left py-2">ช่องทาง</th>
+                  <th class="text-right py-2">ค่าใช้จ่าย</th>
+                  <th class="text-right py-2">รายได้</th>
+                  <th class="text-right py-2">ROI</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                  <td class="py-2">โซเชียลมีเดีย</td>
+                  <td class="text-right">฿1,530,000</td>
+                  <td class="text-right">฿6,425,000</td>
+                  <td class="text-right font-medium text-emerald-500">320%</td>
+                </tr>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                  <td class="py-2">โฆษณาออนไลน์</td>
+                  <td class="text-right">฿1,488,000</td>
+                  <td class="text-right">฿5,830,000</td>
+                  <td class="text-right font-medium text-emerald-500">292%</td>
+                </tr>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                  <td class="py-2">อีเวนต์และนิทรรศการ</td>
+                  <td class="text-right">฿1,995,000</td>
+                  <td class="text-right">฿5,250,000</td>
+                  <td class="text-right font-medium text-emerald-500">163%</td>
+                </tr>
+                <tr>
+                  <td class="py-2">อีเมลมาร์เก็ตติ้ง</td>
+                  <td class="text-right">฿180,000</td>
+                  <td class="text-right">฿1,176,000</td>
+                  <td class="text-right font-medium text-emerald-500">553%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="forecastTab" class="tab-content hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-4">การคาดการณ์งบประมาณ 6 เดือนข้างหน้า</h3>
+            <div class="space-y-4">
+              <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span>มิถุนายน 2025</span>
+                <span class="font-semibold">฿750,000</span>
+              </div>
+              <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span>กรกฎาคม 2025</span>
+                <span class="font-semibold">฿820,000</span>
+              </div>
+              <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span>สิงหาคม 2025</span>
+                <span class="font-semibold">฿680,000</span>
+              </div>
+              <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span>กันยายน 2025</span>
+                <span class="font-semibold">฿900,000</span>
+              </div>
+              <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span>ตุลาคม 2025</span>
+                <span class="font-semibold">฿780,000</span>
+              </div>
+              <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span>พฤศจิกายน 2025</span>
+                <span class="font-semibold">฿850,000</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-4">สรุปการคาดการณ์</h3>
+            <div class="space-y-4">
+              <div class="border-l-4 border-emerald-500 pl-4">
+                <h4 class="font-medium">งบประมาณรวม 6 เดือน</h4>
+                <p class="text-2xl font-bold text-emerald-500">฿4,780,000</p>
+              </div>
+              <div class="border-l-4 border-blue-500 pl-4">
+                <h4 class="font-medium">เฉลี่ยต่อเดือน</h4>
+                <p class="text-xl font-semibold text-blue-500">฿796,667</p>
+              </div>
+              <div class="border-l-4 border-orange-500 pl-4">
+                <h4 class="font-medium">เดือนที่มีงบประมาณสูงสุด</h4>
+                <p class="text-lg font-medium text-orange-500">กันยายน 2025</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+          <h3 class="text-lg font-semibold mb-4">แนวโน้มและข้อเสนอแนะ</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 class="font-medium mb-3 text-emerald-600">โอกาส</h4>
+              <ul class="space-y-2 text-sm">
+                <li class="flex items-start">
+                  <i class="bi bi-check-circle-fill text-emerald-500 mr-2 mt-0.5"></i>
+                  งบประมาณโซเชียลมีเดียควรเพิ่มขึ้น 15% เนื่องจาก ROI สูง
+                </li>
+                <li class="flex items-start">
+                  <i class="bi bi-check-circle-fill text-emerald-500 mr-2 mt-0.5"></i>
+                  ช่วงไตรมาส 3 เหมาะสำหรับการลงทุนแคมเปญใหญ่
+                </li>
+                <li class="flex items-start">
+                  <i class="bi bi-check-circle-fill text-emerald-500 mr-2 mt-0.5"></i>
+                  อีเมลมาร์เก็ตติ้งมีศักยภาพขยายได้อีก 50%
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 class="font-medium mb-3 text-orange-600">ข้อควรระวัง</h4>
+              <ul class="space-y-2 text-sm">
+                <li class="flex items-start">
+                  <i class="bi bi-exclamation-triangle-fill text-orange-500 mr-2 mt-0.5"></i>
+                  งบประมาณอีเวนต์ใกล้หมดแล้ว ควรจัดสรรเพิ่มเติม
+                </li>
+                <li class="flex items-start">
+                  <i class="bi bi-exclamation-triangle-fill text-orange-500 mr-2 mt-0.5"></i>
+                  ค่าโฆษณาออนไลน์มีแนวโน้มเพิ่มขึ้น 8% ในไตรมาส 3
+                </li>
+                <li class="flex items-start">
+                  <i class="bi bi-exclamation-triangle-fill text-orange-500 mr-2 mt-0.5"></i>
+                  ควรติดตามการใช้จ่ายประจำเดือนอย่างใกล้ชิด
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="reportsTab" class="tab-content hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-4">รายงานรายเดือน</h3>
+            <div class="space-y-3">
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>รายงานพฤษภาคม 2025</span>
+                <i class="bi bi-download text-emerald-500"></i>
+              </button>
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>รายงานเมษายน 2025</span>
+                <i class="bi bi-download text-emerald-500"></i>
+              </button>
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>รายงานมีนาคม 2025</span>
+                <i class="bi bi-download text-emerald-500"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-4">รายงานตามหมวดหมู่</h3>
+            <div class="space-y-3">
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>โซเชียลมีเดีย Q1-Q2</span>
+                <i class="bi bi-download text-blue-500"></i>
+              </button>
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>โฆษณาออนไลน์ Q1-Q2</span>
+                <i class="bi bi-download text-blue-500"></i>
+              </button>
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>อีเวนต์และนิทรรศการ Q1-Q2</span>
+                <i class="bi bi-download text-blue-500"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-4">รายงานพิเศษ</h3>
+            <div class="space-y-3">
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>วิเคราะห์ ROI ประจำปี</span>
+                <i class="bi bi-download text-purple-500"></i>
+              </button>
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>เปรียบเทียบงบประมาณ 3 ปี</span>
+                <i class="bi bi-download text-purple-500"></i>
+              </button>
+              <button class="w-full flex items-center justify-between p-3 text-left bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                <span>แนวโน้มค่าใช้จ่ายการตลาด</span>
+                <i class="bi bi-download text-purple-500"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-semibold">สร้างรายงานแบบกำหนดเอง</h3>
+            <button class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-md">
+              สร้างรายงาน
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">ช่วงเวลา</label>
+              <select class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700">
+                <option>เดือนนี้</option>
+                <option>ไตรมาสนี้</option>
+                <option>ปีนี้</option>
+                <option>กำหนดเอง</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-2">หมวดหมู่</label>
+              <select class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700">
+                <option>ทั้งหมด</option>
+                <option>โซเชียลมีเดีย</option>
+                <option>โฆษณาออนไลน์</option>
+                <option>อีเวนต์และนิทรรศการ</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-2">รูปแบบ</label>
+              <select class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700">
+                <option>PDF</option>
+                <option>Excel</option>
+                <option>CSV</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-2">รายละเอียด</label>
+              <select class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700">
+                <option>สรุป</option>
+                <option>แบบละเอียด</option>
+                <option>แบบเปรียบเทียb</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Wait for the DOM to load
+    // Show/Hide Loading Function
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // No fallback spinner - just show empty container
+              document.getElementById('lottieContainer').innerHTML = '';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async function() {
+      // Load sidebar first
+      try {
+        const response = await fetch('/views/marketing/includes/sidebar.html');
+        const sidebarHtml = await response.text();
+        const sidebarContainer = document.getElementById('sidebar-container');
+        if (sidebarContainer) {
+          sidebarContainer.innerHTML = sidebarHtml;
+          // Initialize sidebar functionality
+          if (typeof initializeSidebar === 'function') {
+            initializeSidebar();
+          }
+        }
+      } catch (error) {
+        console.error('Error loading sidebar:', error);
+        // Fallback: show basic sidebar structure
+        const sidebarContainer = document.getElementById('sidebar-container');
+        if (sidebarContainer) {
+          sidebarContainer.innerHTML = '<aside class="w-64 bg-white dark:bg-gray-800 sticky top-0 h-screen"><div class="p-4">Sidebar Loading Error</div></aside>';
+        }
+      }
+    
+      // Initialize Toggle Menu
+      initToggleMenu();
+    
+      // Initialize Dark Mode
+      initDarkMode();
+    
+      // Initialize Charts
+      initializeCharts();
+    
+      // Set up event listeners
+      setupEventListeners();
+    
+      // Set profile name
+      document.getElementById('employeeName').textContent = 'reefinX';
+
+      // Add current date to appropriate places
+      const currentDate = new Date('2025-05-10T08:23:55.000Z');
+      // You can use this date object to display dates where needed
+    });
+
+    // Initialize sidebar toggle
+    function initToggleMenu() {
+      const btnToggleMenu = document.getElementById('btnToggleMenu');
+      const sidebar = document.getElementById('sidebar');
+
+      if (btnToggleMenu && sidebar) {
+        btnToggleMenu.addEventListener('click', function() {
+          if (sidebar.classList.contains('w-64')) {
+            sidebar.classList.remove('w-64');
+            sidebar.classList.add('w-0');
+            this.innerHTML = '<i class="bi bi-chevron-right"></i>';
+          } else {
+            sidebar.classList.remove('w-0');
+            sidebar.classList.add('w-64');
+            this.innerHTML = '<i class="bi bi-chevron-left"></i>';
+          }
+        });
+      }
+    }
+
+    // Initialize dark mode toggle
+    function initDarkMode() {
+      const btnToggleDark = document.getElementById('btnToggleDark');
+      const darkModeLabel = document.getElementById('darkModeLabel');
+
+      if (btnToggleDark && darkModeLabel) {
+        // Check system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark');
+          darkModeLabel.textContent = 'Light Mode';
+          btnToggleDark.innerHTML = '<i class="bi bi-brightness-high text-xl text-yellow-500 dark:text-yellow-400"></i><span class="ml-3">Light Mode</span>';
+        }
+
+        btnToggleDark.addEventListener('click', function() {
+          if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            darkModeLabel.textContent = 'Dark Mode';
+            btnToggleDark.innerHTML = '<i class="bi bi-moon text-xl text-slate-600"></i><span class="ml-3">Dark Mode</span>';
+          } else {
+            document.documentElement.classList.add('dark');
+            darkModeLabel.textContent = 'Light Mode';
+            btnToggleDark.innerHTML = '<i class="bi bi-brightness-high text-xl text-yellow-500"></i><span class="ml-3">Light Mode</span>';
+          }
+        });
+      }
+    }
+
+    // Initialize Charts with error handling
+    function initializeCharts() {
+      // Check if Chart.js is loaded
+      if (typeof Chart === 'undefined') {
+        console.error('Chart.js library not loaded');
+        return;
+      }
+
+      // Define chart colors using CSS variables
+      const chartColors = {
+        emerald: getComputedStyle(document.documentElement).getPropertyValue('--primary-color') || '#10b981',
+        emeraldLight: 'rgba(16, 185, 129, 0.2)',
+        blue: getComputedStyle(document.documentElement).getPropertyValue('--secondary-color') || '#3b82f6',
+        blueLight: 'rgba(59, 130, 246, 0.2)',
+        orange: '#f97316',
+        orangeLight: 'rgba(249, 115, 22, 0.2)',
+        purple: '#8b5cf6',
+        yellow: '#eab308',
+        red: '#ef4444',
+        gray: '#6b7280'
+      };
+
+      // Budget vs Actual Chart
+      const budgetVsActualCtx = document.getElementById('budgetVsActualChart');
+      if (budgetVsActualCtx) {
+        try {
+          const budgetVsActualChart = new Chart(budgetVsActualCtx, {
+            type: 'bar',
+            data: {
+              labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
+              datasets: [
+                {
+                  label: 'งบประมาณ',
+                  data: [0.6, 0.5, 0.7, 0.6, 0.8, 0.65, 0.7, 0.6, 0.5, 0.7, 0.6, 0.5],
+                  backgroundColor: chartColors.emeraldLight,
+                  borderColor: chartColors.emerald,
+                  borderWidth: 1
+                },
+                {
+                  label: 'ค่าใช้จ่ายจริง',
+                  data: [0.55, 0.45, 0.65, 0.55, 0.75, 0.6, 0.65, 0.55, 0.45, 0.65, 0.55, 0.45],
+                  backgroundColor: chartColors.blueLight,
+                  borderColor: chartColors.blue,
+                  borderWidth: 1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top'
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(tooltipItem) {
+                      let label = tooltipItem.dataset.label || '';
+                      if (label) {
+                        label += ': ';
+                      }
+                      label += '฿' + (tooltipItem.raw * 1000000).toLocaleString();
+                      return label;
+                    }
+                  }
+                }
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error creating budget vs actual chart:', error);
+        }
+      }
+
+      // Expenses by Category Chart
+      const expensesByCategoryCtx = document.getElementById('expensesByCategoryChart');
+      if (expensesByCategoryCtx) {
+        try {
+          const expensesByCategoryChart = new Chart(expensesByCategoryCtx, {
+            type: 'doughnut',
+            data: {
+              labels: ['โซเชียลมีเดีย', 'โฆษณาออนไลน์', 'อีเวนต์และนิทรรศการ', 'อีเมลมาร์เก็ตติ้ง', 'การผลิตเนื้อหา'],
+              datasets: [{
+                label: 'ค่าใช้จ่ายตามประเภท',
+                data: [30, 25, 20, 15, 10],
+                backgroundColor: [
+                  chartColors.emerald,
+                  chartColors.blue,
+                  chartColors.orange,
+                  chartColors.purple,
+                  chartColors.yellow
+                ],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'right'
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      return context.label + ': ' + context.parsed + '%';
+                    }
+                  }
+                }
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error creating expenses by category chart:', error);
+        }
+      }
+
+      // Monthly Budget Trend Chart
+      const monthlyBudgetTrendCtx = document.getElementById('monthlyBudgetTrendChart');
+      if (monthlyBudgetTrendCtx) {
+        try {
+          const monthlyBudgetTrendChart = new Chart(monthlyBudgetTrendCtx, {
+            type: 'line',
+            data: {
+              labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.'],
+              datasets: [{
+                label: 'ค่าใช้จ่ายสะสม',
+                data: [0.6, 1.1, 1.75, 2.3, 3.1],
+                borderColor: chartColors.emerald,
+                backgroundColor: chartColors.emeraldLight,
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top'
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true
+                }
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error creating monthly budget trend chart:', error);
+        }
+      }
+
+      // Budget Allocation Chart
+      const budgetAllocationCtx = document.getElementById('budgetAllocationChart');
+      if (budgetAllocationCtx) {
+        try {
+          const budgetAllocationChart = new Chart(budgetAllocationCtx, {
+            type: 'pie',
+            data: {
+              labels: ['โซเชียลมีเดีย', 'โฆษณาออนไลน์', 'อีเวนต์และนิทรรศการ', 'อีเมลมาร์เก็ตติ้ง', 'การผลิตเนื้อหา'],
+              datasets: [{
+                data: [24, 32, 28, 6.7, 9.3],
+                backgroundColor: [
+                  chartColors.emerald,
+                  chartColors.blue,
+                  chartColors.orange,
+                  chartColors.purple,
+                  chartColors.yellow
+                ],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom'
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      return context.label + ': ' + context.parsed.toFixed(1) + '%';
+                    }
+                  }
+                }
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error creating budget allocation chart:', error);
+        }
+      }
+    }
+
+    // Set up event listeners
+    function setupEventListeners() {
+      // Tab navigation
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const tabName = this.getAttribute('data-tab');
+
+          // Remove active class from all buttons and hide all contents
+          tabButtons.forEach(btn => btn.classList.remove('active'));
+          tabContents.forEach(content => content.classList.add('hidden'));
+
+          // Add active class to current button and show corresponding content
+          this.classList.add('active');
+          const targetTab = document.getElementById(tabName + 'Tab');
+          if (targetTab) {
+            targetTab.classList.remove('hidden');
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Management - สรุปกราฟสต๊อก</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+  <!-- Flatpickr CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- เพิ่ม Socket.io CDN ใหม่ -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Global declaration for socket -->
+  <script>
+    const socket = io();
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    /* Custom Toast Notification */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      z-index: 1000;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    .toast.show {
+      transform: translateX(0);
+    }
+    .toast.success {
+      background-color: #10b981;
+    }
+    .toast.error {
+      background-color: #ef4444;
+    }
+  </style>
+</head>
+
+<body class="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+          class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Layout หลัก: Sidebar - Main Content -->
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white dark:bg-gray-800  flex flex-col transition-all duration-300">
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome.html">
+        <div class="p-4 border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="Logo" />
+        </div>
+      </a>
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full">
+          
+          <!-- เมนู:PO -->
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-people text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+          
+          <!-- Dark Mode Toggle -->
+          <li class="my-px mt-6">
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition">
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-moon"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition">
+              <span class="flex items-center justify-center text-lg text-red-400 dark:text-red-300">
+                <i class="bi bi-box-arrow-right"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px">
+            <div id="profile"
+                 class="flex flex-row items-center h-12 px-4 w-full rounded-lg bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 text-left transition">
+              <div class="avatar mr-3 -ml-4">
+                <div class="w-10 rounded-full">
+                  <img id="employeePhoto" src="" alt="Employee Photo" />
+                </div>
+              </div>
+              <span class="ml-3" id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ส่วนเนื้อหา (Main Content) -->
+    <div class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="p-4 bg-white dark:bg-gray-800  flex justify-between items-center transition-colors">
+        <h1 class="text-xl font-bold" id="pageTitle">ซัพพลายเออร์</h1>
+      </header>
+
+  <!-- Card: ลงทะเบียนซัพพลายเออร์ -->
+  <section class="bg-white dark:bg-gray-800  rounded-lg p-6 space-y-4">
+    <h2 class="flex items-center text-lg font-semibold text-gray-800 dark:text-gray-100">
+      <i class="bi bi-person-plus-fill text-green-500 mr-2"></i> ลงทะเบียนซัพพลายเออร์
+    </h2>
+    <form id="registerSupplierForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="col-span-1">
+        <label for="supplierName" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ชื่อซัพพลายเออร์ <span class="text-red-500">*</span></label>
+        <input id="supplierName" name="name" type="text" required placeholder="ระบุชื่อซัพพลายเออร์"
+               class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition" />
+      </div>
+      <div class="col-span-1">
+        <label for="supplierCode" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">รหัสซัพพลายเออร์ <span class="text-red-500">*</span></label>
+        <input id="supplierCode" name="code" type="text" required placeholder="เช่น 112"
+               class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition" />
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">รหัสนี้จะต่อท้ายกับบาร์โค้ดของสินค้า</p>
+      </div>
+      <div class="col-span-1">
+        <label for="taxId" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">เลขผู้เสียภาษี</label>
+        <input id="taxId" name="taxId" type="text" placeholder="ระบุเลขผู้เสียภาษี"
+               class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition" />
+      </div>
+
+      <div class="col-span-1">
+        <label for="contact" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ผู้ติดต่อ</label>
+        <input id="contact" name="contact" type="text" placeholder="ระบุชื่อผู้ติดต่อ"
+               class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition" />
+      </div>
+      <div class="col-span-1">
+        <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">เบอร์โทรศัพท์</label>
+        <input id="phone" name="phone" type="tel" placeholder="ระบุเบอร์โทรศัพท์"
+               class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition" />
+      </div>
+      <div class="col-span-1">
+        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">อีเมล</label>
+        <input id="email" name="email" type="email" placeholder="ระบุอีเมล"
+               class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition" />
+      </div>
+
+      <div class="col-span-3">
+        <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ที่อยู่</label>
+        <textarea id="address" name="address" rows="2" placeholder="ระบุที่อยู่"
+                  class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"></textarea>
+      </div>
+
+      <div class="col-span-3 text-right">
+        <button type="submit" id="submitSupplierBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
+          <span class="loading-spinner hidden">
+            <div class="spinner w-4 h-4 mr-2"></div>
+          </span>
+          <i class="bi bi-person-plus mr-2"></i>
+          <span class="btn-text">ลงทะเบียนซัพพลายเออร์</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+           <!-- Card: รายชื่อซัพพลายเออร์ -->
+  <section class="bg-white dark:bg-gray-800  rounded-lg p-6">
+    <h2 class="flex items-center text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+      <i class="bi bi-people-fill text-purple-500 mr-2"></i> รายชื่อซัพพลายเออร์
+    </h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+          <tr>
+            <th class="px-3 py-2 text-left">รหัส</th>
+            <th class="px-3 py-2 text-left">ชื่อ</th>
+            <th class="px-3 py-2 text-left">เลขภาษี</th>
+            <th class="px-3 py-2 text-left">ผู้ติดต่อ</th>
+            <th class="px-3 py-2 text-left">โทรศัพท์</th>
+            <th class="px-3 py-2 text-left">อีเมล</th>
+            <th class="px-3 py-2 text-left">ที่อยู่</th>
+            <th class="px-3 py-2 text-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="supplierTable" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+      </table>
+    </div>
+  </section>
+          <!-- Modal ยืนยันการลบซัพพลายเออร์ -->
+          <div
+            id="deleteSupplierModal"
+            class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50"
+          >
+            <div class="bg-white dark:bg-gray-800 rounded-lg w-11/12 md:w-1/3 p-6">
+              <div class="flex items-center mb-4">
+                <i class="bi bi-exclamation-triangle text-red-500 text-2xl mr-3"></i>
+                <h5 class="text-xl font-semibold text-gray-800 dark:text-gray-100">
+                  ยืนยันการลบซัพพลายเออร์
+                </h5>
+              </div>
+              <p class="text-gray-600 dark:text-gray-300 mb-6">
+                คุณแน่ใจหรือไม่ว่าต้องการลบซัพพลายเออร์นี้? การดำเนินการนี้ไม่สามารถยกเลิกได้
+              </p>
+              <div class="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  class="btn-close-modal px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  data-modal="deleteSupplierModal"
+                >
+                  <i class="bi bi-x-circle mr-2"></i>ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  id="confirmDeleteBtn"
+                  class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <i class="bi bi-trash mr-2"></i>ยืนยันการลบ
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal แก้ไขซัพพลายเออร์ -->
+          <div
+            id="editSupplierModal"
+            class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden"
+          >
+            <div
+              class="bg-white dark:bg-gray-800 rounded-lg  w-11/12 md:w-1/2 p-4"
+            >
+              <form id="editSupplierForm">
+                <div class="flex justify-between items-center mb-4">
+                  <h5 class="text-xl font-semibold" id="editSupplierTitle">
+                    แก้ไขข้อมูลซัพพลายเออร์
+                  </h5>
+                  <button
+                    type="button"
+                    class="btn-close-modal text-gray-600 dark:text-gray-300"
+                    data-modal="editSupplierModal"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <input type="hidden" id="editSupplierId" />
+                <div class="mb-3">
+                  <label
+                    for="editSupplierName"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >ชื่อซัพพลายเออร์</label
+                  >
+                  <input
+                    type="text"
+                    id="editSupplierName"
+                    required
+                    class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+                <div class="mb-3">
+                  <label
+                    for="editSupplierCode"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >รหัสซัพพลายเออร์</label
+                  >
+                  <input
+                    type="text"
+                    id="editSupplierCode"
+                    required
+                    class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+                <div class="mb-3">
+                  <label
+                    for="editTaxId"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >เลขผู้เสียภาษี</label
+                  >
+                  <input
+                    type="text"
+                    id="editTaxId"
+                    class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+                <div class="mb-3">
+                  <label
+                    for="editContact"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >ผู้ติดต่อ</label
+                  >
+                  <input
+                    type="text"
+                    id="editContact"
+                    class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+                <div class="mb-3">
+                  <label
+                    for="editPhone"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >เบอร์โทรศัพท์</label
+                  >
+                  <input
+                    type="tel"
+                    id="editPhone"
+                    class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+                <div class="mb-3">
+                  <label
+                    for="editEmail"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >อีเมล</label
+                  >
+                  <input
+                    type="email"
+                    id="editEmail"
+                    class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"
+                  />
+                </div>
+                <div class="mb-3">
+                  <label
+                    for="editAddress"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >ที่อยู่</label
+                  >
+                  <textarea
+                    id="editAddress"
+                    rows="2"
+                    class="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 transition"
+                  ></textarea>
+                </div>
+                <div class="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    class="btn-close-modal px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    data-modal="editSupplierModal"
+                  >
+                    <i class="bi bi-x-circle mr-2"></i>ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <i class="bi bi-check-circle mr-2"></i>ยืนยัน
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+
+    <!-- Footer (fixed) -->
+    <footer
+      id="footer"
+      class="bg-white dark:bg-gray-800 text-center py-4  mt-8 fixed bottom-0 left-64 w-[calc(100%-16rem)]"
+    >
+      <div class="container mx-auto">
+        <small>© 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์.</small>
+      </div>
+    </footer>
+
+      <!-- อย่าลืม include Flatpickr CSS/JS ไว้ใน <head> หรือ ตรงก่อน </body> -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        // เรียก Flatpickr บน input#docDate
+        flatpickr('#docDate', {
+          dateFormat: 'd/m/Y',    // รูปแบบวันที่ตามต้องการ
+          defaultDate: '2025-02-14' // กำหนดวันที่เริ่มต้น (ถ้าต้องการ)
+        });
+      });
+    </script>
+    <!-- Script ส่วนหลัก -->
+        <!-- Script ส่วนหลัก ของหน้า register_supplier.html -->
+        <script>
+          // --- Toast Notification Function ---
+          function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+              <div class="flex items-center">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+                ${message}
+              </div>
+            `;
+          
+            document.body.appendChild(toast);
+          
+            setTimeout(() => {
+              toast.classList.add('show');
+            }, 100);
+          
+            setTimeout(() => {
+              toast.classList.remove('show');
+              setTimeout(() => {
+                if (toast.parentNode) {
+                  toast.parentNode.removeChild(toast);
+                }
+              }, 300);
+            }, 3000);
+          }
+
+          // --- Dark Mode Persistence ---
+          const darkModePreference = localStorage.getItem('darkMode');
+          const darkModeLabel = document.getElementById('darkModeLabel');
+          if (darkModePreference === 'true') {
+            document.documentElement.classList.add('dark');
+            darkModeLabel.textContent = 'Light Mode';
+          } else {
+            document.documentElement.classList.remove('dark');
+            darkModeLabel.textContent = 'Dark Mode';
+          }
+          document.getElementById('btnToggleDark').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            darkModeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+            localStorage.setItem('darkMode', isDark);
+          });
+
+          // --- Load Employee Profile ---
+          async function loadEmployeeProfile() {
+            try {
+              const token = localStorage.getItem('authToken');
+              const userId = localStorage.getItem('userId');
+              if (!token || !userId) return;
+              const res = await fetch(`/api/users/${userId}`, {
+                headers: { Authorization: 'Bearer ' + token },
+              });
+              const data = await res.json();
+              if (!res.ok || !data.success) throw new Error(data.error || 'Error');
+              const emp = data.data;
+              document.getElementById('employeeName').textContent = emp.name || '(ไม่พบชื่อ)';
+              if (emp.image) {
+                let url = emp.image.startsWith('/uploads/') ? emp.image : '/uploads/' + emp.image;
+                document.getElementById('employeePhoto').src = url;
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          }
+
+          // --- Logout ---
+          document.getElementById('btnLogout').addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userId');
+            window.location.href = 'login.html';
+          });
+
+          // --- Toggle Sidebar & Footer ---
+          function toggleMenu() {
+            const sidebar = document.querySelector('aside');
+            const footer = document.getElementById('footer');
+            sidebar.classList.toggle('collapsed');
+            const icon = document.querySelector('#btnToggleMenu i');
+            if (sidebar.classList.contains('collapsed')) {
+              icon.classList.replace('bi-chevron-left', 'bi-chevron-right');
+              footer.classList.replace('left-64', 'left-20');
+              footer.classList.replace('w-[calc(100%-16rem)]', 'w-[calc(100%-5rem)]');
+            } else {
+              icon.classList.replace('bi-chevron-right', 'bi-chevron-left');
+              footer.classList.replace('left-20', 'left-64');
+              footer.classList.replace('w-[calc(100%-5rem)]', 'w-[calc(100%-16rem)]');
+            }
+          }
+          document.getElementById('btnToggleMenu').addEventListener('click', toggleMenu);
+
+          // --- Supplier Logic ---
+          let allSuppliers = [];
+
+          // โหลดซัพพลายเออร์
+          async function loadSuppliers() {
+            try {
+              const res = await fetch('/api/supplier');
+          
+              console.log('Response status:', res.status);
+              console.log('Response headers:', res.headers);
+          
+              // ตรวจสอบว่า response เป็น JSON หรือไม่
+              const contentType = res.headers.get('content-type');
+              console.log('Content-Type:', contentType);
+          
+              if (!contentType || !contentType.includes('application/json')) {
+                const htmlText = await res.text();
+                console.error('Server returned HTML instead of JSON:', htmlText.substring(0, 200));
+          
+                // ตรวจสอบว่าเป็น 404 หรือไม่
+                if (res.status === 404) {
+                  throw new Error('ไม่พบ API endpoint /api/supplier - กรุณาตรวจสอบ routing');
+                }
+          
+                throw new Error('เซิร์ฟเวอร์ส่ง HTML กลับมาแทน JSON - อาจจะเซิร์ฟเวอร์ไม่ทำงาน');
+              }
+          
+              const data = await res.json();
+              console.log('API Response:', data);
+          
+              if (!res.ok || !data.success) throw new Error(data.error || 'Error loading suppliers');
+              allSuppliers = data.data || [];
+              renderSupplierTable(allSuppliers);
+            } catch (err) {
+              console.error('Error loading suppliers:', err);
+          
+              // ตรวจสอบว่าเป็น network error หรือไม่
+              if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
+                err.message = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ - กรุณาตรวจสอบว่าเซิร์ฟเวอร์ทำงานอยู่';
+              }
+          
+              const tbody = document.getElementById('supplierTable');
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <i class="bi bi-exclamation-triangle text-2xl mb-2"></i>
+                    <div>ไม่สามารถโหลดข้อมูลซัพพลายเออร์ได้</div>
+                    <div class="text-sm mt-1">${err.message}</div>
+                    <div class="text-xs mt-2 text-gray-400">กรุณาเปิด Console (F12) เพื่อดูรายละเอียด</div>
+                  </td>
+                </tr>`;
+            }
+          }
+
+          function renderSupplierTable(suppliers) {
+            const tbody = document.getElementById('supplierTable');
+            tbody.innerHTML = '';
+          
+            if (!suppliers || suppliers.length === 0) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <i class="bi bi-inbox text-2xl mb-2"></i>
+                    <div>ไม่มีข้อมูลซัพพลายเออร์</div>
+                  </td>
+                </tr>`;
+              return;
+            }
+          
+            suppliers.forEach(sup => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">${sup.code || '-'}</td>
+                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">${sup.name || '-'}</td>
+                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">${sup.taxId || '-'}</td>
+                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">${sup.contact || '-'}</td>
+                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">${sup.phone || '-'}</td>
+                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">${sup.email || '-'}</td>
+                <td class="px-3 py-2 text-gray-700 dark:text-gray-200">${sup.address || '-'}</td>
+                <td class="px-3 py-2 text-center space-x-2">
+                  <button class="btn-edit-supplier px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors" data-supplier-id="${sup._id}">
+                    <i class="bi bi-pencil mr-1"></i>แก้ไข
+                  </button>
+                  <button class="btn-delete-supplier px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors" data-supplier-id="${sup._id}">
+                    <i class="bi bi-trash mr-1"></i>ลบ
+                  </button>
+                </td>`;
+              tbody.appendChild(tr);
+            });
+            attachSupplierTableEvents();
+          }
+
+          function attachSupplierTableEvents() {
+            document.querySelectorAll('.btn-edit-supplier').forEach(btn =>
+              btn.addEventListener('click', () => editSupplier(btn.dataset.supplierId))
+            );
+            document.querySelectorAll('.btn-delete-supplier').forEach(btn =>
+              btn.addEventListener('click', () => deleteSupplier(btn.dataset.supplierId))
+            );
+          }
+
+          // ลงทะเบียนซัพพลายเออร์
+          async function registerSupplier(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitSupplierBtn');
+            const spinner = submitBtn.querySelector('.loading-spinner');
+            const btnText = submitBtn.querySelector('.btn-text');
+          
+            // แสดง loading state
+            submitBtn.disabled = true;
+            spinner.classList.remove('hidden');
+            btnText.textContent = 'กำลังลงทะเบียน...';
+          
+            const formData = new FormData(e.target);
+            try {
+              const res = await fetch('/api/supplier', { method: 'POST', body: formData });
+          
+              // ตรวจสอบว่า response เป็น JSON หรือไม่
+              const contentType = res.headers.get('content-type');
+              if (!contentType || !contentType.includes('application/json')) {
+                const htmlText = await res.text();
+                console.error('Server returned HTML instead of JSON:', htmlText.substring(0, 200));
+                throw new Error('เซิร์ฟเวอร์ส่ง HTML กลับมาแทน JSON - กรุณาตรวจสอบ API endpoint');
+              }
+          
+              const data = await res.json();
+              if (!res.ok || !data.success) throw new Error(data.error || 'Error registering');
+              showToast('ลงทะเบียนซัพพลายเออร์เรียบร้อยแล้ว', 'success');
+              e.target.reset();
+              loadSuppliers();
+            } catch (err) {
+              showToast(err.message, 'error');
+            } finally {
+              // ซ่อน loading state
+              submitBtn.disabled = false;
+              spinner.classList.add('hidden');
+              btnText.textContent = 'ลงทะเบียนซัพพลายเออร์';
+            }
+          }
+
+          // แก้ไขซัพพลายเออร์
+          async function editSupplier(id) {
+            const supplier = allSuppliers.find(s => s._id === id);
+            if (!supplier) return;
+          
+            // เติมข้อมูลลงใน modal
+            document.getElementById('editSupplierId').value = supplier._id;
+            document.getElementById('editSupplierName').value = supplier.name || '';
+            document.getElementById('editSupplierCode').value = supplier.code || '';
+            document.getElementById('editTaxId').value = supplier.taxId || '';
+            document.getElementById('editContact').value = supplier.contact || '';
+            document.getElementById('editPhone').value = supplier.phone || '';
+            document.getElementById('editEmail').value = supplier.email || '';
+            document.getElementById('editAddress').value = supplier.address || '';
+          
+            // แสดง modal
+            showModal('editSupplierModal');
+          }
+
+          async function updateSupplier(e) {
+            e.preventDefault();
+            const id = document.getElementById('editSupplierId').value;
+          
+            const supplierData = {
+              name: document.getElementById('editSupplierName').value,
+              code: document.getElementById('editSupplierCode').value,
+              taxId: document.getElementById('editTaxId').value,
+              contact: document.getElementById('editContact').value,
+              phone: document.getElementById('editPhone').value,
+              email: document.getElementById('editEmail').value,
+              address: document.getElementById('editAddress').value
+            };
+
+            try {
+              const res = await fetch(`/api/supplier/${id}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(supplierData)
+              });
+          
+              if (!res.ok) {
+                if (res.status === 404) {
+                  throw new Error('ไม่พบข้อมูลซัพพลายเออร์');
+                }
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'ไม่สามารถอัพเดทข้อมูลได้');
+              }
+          
+              const data = await res.json();
+              showToast('อัพเดทข้อมูลซัพพลายเออร์เรียบร้อยแล้ว', 'success');
+              hideModal('editSupplierModal');
+              loadSuppliers();
+            } catch (err) {
+              console.error('Update error:', err);
+              showToast(err.message || 'เกิดข้อผิดพลาดในการอัพเดทข้อมูล', 'error');
+            }
+          }
+
+          let deleteSupplierIdToDelete = null;
+
+          async function deleteSupplier(id) {
+            const supplier = allSuppliers.find(s => s._id === id);
+            if (!supplier) {
+              showToast('ไม่พบข้อมูลซัพพลายเออร์', 'error');
+              return;
+            }
+            deleteSupplierIdToDelete = id;
+            // แสดงชื่อซัพพลายเออร์ที่จะลบในหน้าต่างยืนยัน
+            const confirmMessage = document.querySelector('#deleteSupplierModal p');
+            confirmMessage.textContent = `คุณแน่ใจหรือไม่ว่าต้องการลบซัพพลายเออร์ "${supplier.name}"? การดำเนินการนี้ไม่สามารถยกเลิกได้`;
+            showModal('deleteSupplierModal');
+          }
+
+          async function confirmDeleteSupplier() {
+            if (!deleteSupplierIdToDelete) return;
+          
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            const originalText = confirmBtn.innerHTML;
+          
+            try {
+              confirmBtn.disabled = true;
+              confirmBtn.innerHTML = '<i class="bi bi-hourglass-split mr-2"></i>กำลังลบ...';
+          
+              const res = await fetch(`/api/supplier/${deleteSupplierIdToDelete}`, {
+                method: 'DELETE'
+              });
+
+              if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                if (res.status === 404) {
+                  throw new Error('ไม่พบข้อมูลซัพพลายเออร์');
+                }
+                throw new Error(errorData.error || 'ไม่สามารถลบข้อมูลได้');
+              }
+
+              showToast('ลบซัพพลายเออร์เรียบร้อยแล้ว', 'success');
+              hideModal('deleteSupplierModal');
+              await loadSuppliers(); // รีโหลดข้อมูลหลังจากลบสำเร็จ
+            } catch (err) {
+              console.error('Delete error:', err);
+              showToast(err.message || 'เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+            } finally {
+              deleteSupplierIdToDelete = null;
+              confirmBtn.disabled = false;
+              confirmBtn.innerHTML = originalText;
+            }
+          }
+
+          // Modal close
+          function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+          function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+          document.addEventListener('DOMContentLoaded', () => {
+            loadSuppliers();
+            loadEmployeeProfile();
+            document.getElementById('registerSupplierForm').addEventListener('submit', registerSupplier);
+            document.getElementById('editSupplierForm').addEventListener('submit', updateSupplier);
+            document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDeleteSupplier);
+            document.querySelectorAll('.btn-close-modal').forEach(btn =>
+              btn.addEventListener('click', () => hideModal(btn.dataset.modal))
+            );
+          });
+        </script>
+      </body>
+    </html>

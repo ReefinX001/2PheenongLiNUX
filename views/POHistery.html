@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ประวัติใบสั่งซื้อ (PO History)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-white text-gray-700">
+    <div class="container mx-auto p-4">
+      <h1 class="text-2xl font-bold mb-6">ประวัติใบสั่งซื้อ (PO History)</h1>
+      
+      <!-- ฟอร์มเลือกวันที่ -->
+      <div class="mb-6">
+        <label for="selectedDate" class="block text-lg mb-2">เลือกวันที่:</label>
+        <input type="date" id="selectedDate" class="border rounded p-2" />
+        <button
+          id="fetchHistory"
+          class="ml-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          ค้นหา
+        </button>
+      </div>
+      
+      <!-- ตารางแสดงผล PO History (8 คอลัมน์) -->
+      <table class="min-w-full border">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-2 py-1 border">เลขที่ PO</th>
+            <th class="px-2 py-1 border">สาขา</th>
+            <th class="px-2 py-1 border">ซัพพลายเออร์</th>
+            <th class="px-2 py-1 border">กลุ่มจัดประเภท</th>
+            <th class="px-2 py-1 border">หมายเหตุ</th>
+            <th class="px-2 py-1 border">ยอดรวม</th>
+            <th class="px-2 py-1 border">ลบ</th>
+            <th class="px-2 py-1 border">ดาวน์โหลด</th>
+          </tr>
+        </thead>
+        <tbody id="poHistoryTable">
+          <tr>
+            <td colspan="8" class="px-4 py-2 border text-center">
+              กรุณาเลือกวันที่แล้วกดค้นหา
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      // ฟังก์ชันสร้าง HTML แสดงรายละเอียด (ถ้าต้องการทำตารางย่อย)
+      // เช่น ถ้ามี record.details ก็สามารถ render เพิ่มได้
+      function createDetailTableHtml(details) {
+        let html = `
+          <table class="min-w-full border mt-2">
+            <thead class="bg-gray-200">
+              <tr>
+                <th class="px-2 py-1 border">เลขที่ PO</th>
+                <th class="px-2 py-1 border">ยอดรวม (บาท)</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        details.forEach(d => {
+          const poNum = d.poNumber || '-';
+          const amount = (d.totalAmount || 0).toLocaleString('en-US');
+          html += `
+            <tr>
+              <td class="px-2 py-1 border">${poNum}</td>
+              <td class="px-2 py-1 border">${amount}</td>
+            </tr>
+          `;
+        });
+        html += `
+            </tbody>
+          </table>
+        `;
+        return html;
+      }
+
+      document.getElementById('fetchHistory').addEventListener('click', async function() {
+        const selectedDate = document.getElementById('selectedDate').value;
+        if (!selectedDate) {
+          alert('กรุณาเลือกวันที่');'
+          return;
+        }
+        
+        try {
+          // เรียก Endpoint ใหม่: /api/purchase_order/history?date=YYYY-MM-DD
+          const url = `/api/purchase-order/history?date=${selectedDate}`;
+          const res = await fetch(url);
+          const result = await res.json();
+          
+          if (!result.success) {
+            alert('ไม่สามารถโหลดข้อมูลประวัติได้');'
+            return;
+          }
+          
+          const tableBody = document.getElementById('poHistoryTable');
+          tableBody.innerHTML = '';'
+          
+          if (result.data.length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="8" class="px-4 py-2 border text-center">
+                  ไม่พบข้อมูลสำหรับวันที่ที่เลือก
+                </td>
+              </tr>
+            `;
+          } else {
+            // วนลูปข้อมูล PO แต่ละรายการ
+            result.data.forEach(po => {
+              const poNumber     = po.poNumber || '-';'
+              const branchName   = po.branch?.name || '-';'
+              const supplierName = po.supplier?.name || '-';
+              const category     = po.categoryGroup?.name || '-';'
+              const notes        = po.notes || '-';'
+              const totalAmount  = (po.totalAmount || 0).toLocaleString('en-US');'
+
+              // สร้างแถวหลัก 8 คอลัมน์
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td class="px-2 py-1 border">${poNumber}</td>
+                <td class="px-2 py-1 border">${branchName}</td>
+                <td class="px-2 py-1 border">${supplierName}</td>
+                <td class="px-2 py-1 border">${category}</td>
+                <td class="px-2 py-1 border">${notes}</td>
+                <td class="px-2 py-1 border">${totalAmount}</td>
+                <td class="px-2 py-1 border">
+                  <button class="btn-delete-po px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition" data-po-id="${po._id}">
+                    ลบ
+                  </button>
+                </td>
+                <td class="px-2 py-1 border">
+                  <button class="btn-download-po px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition" data-po-id="${po._id}">
+                    PDF
+                  </button>
+                </td>
+              `;
+              tableBody.appendChild(row);
+
+              // ถ้าต้องการแสดงรายละเอียดเพิ่มเติม (เช่น record.details)
+              // ก็สามารถสร้างแถว <tr> เพิ่มแล้วใส่ createDetailTableHtml(...) ได้
+              // ตัวอย่าง (ถ้าคุณมี record.details):
+              /*
+              if (po.details && po.details.length > 0) {
+                const detailRow = document.createElement('tr');
+                detailRow.innerHTML = `
+                  <td colspan="8" class="border p-2 bg-gray-50">
+                    ${createDetailTableHtml(po.details)}
+                  </td>
+                `;
+                tableBody.appendChild(detailRow);
+              }
+              */
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          alert('เกิดข้อผิดพลาดในการดึงข้อมูล');'
+        }
+      });
+    </script>
+  </body>
+</html>

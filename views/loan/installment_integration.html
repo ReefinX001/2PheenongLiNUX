@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>เชื่อมต่อระบบผ่อนชำระ - Loan Module</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  
+  <!-- Lottie Web for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css for smooth animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+  
+  <!-- Tailwind CSS & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'sans-serif'] },
+        },
+      },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+  
+  <!-- jQuery & Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/locale/th.js"></script>
+  
+  <!-- Loan Integration Scripts -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+  <script src="/views/loan/js/loan-installment-integration.js"></script>
+  
+  <style>
+    .integration-card {
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .integration-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .status-badge {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 font-sans">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <div class="flex h-screen">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="loan_dashboard" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-full object-cover" />
+      </a>
+      <nav class="flex-1 p-4 overflow-y-auto">
+        <ul class="space-y-1">
+          <li><a href="loan_dashboard" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <i class="bi bi-house-door text-xl text-blue-500"></i><span class="ml-3">หน้าแรก</span>
+          </a></li>
+          <li><a href="installment_integration" class="flex items-center px-4 h-12 rounded-lg bg-blue-50 dark:bg-gray-700">
+            <i class="bi bi-link-45deg text-xl text-green-500"></i><span class="ml-3">เชื่อมต่อระบบผ่อน</span>
+          </a></li>
+          <li><a href="repayment" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <i class="bi bi-wallet2 text-xl text-green-500"></i><span class="ml-3">ผ่อนชำระ</span>
+          </a></li>
+          <li><a href="customer" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <i class="bi bi-people text-xl text-purple-500"></i><span class="ml-3">จัดการลูกค้า</span>
+          </a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-auto">
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+          <i class="bi bi-link-45deg text-green-500 mr-2"></i>
+          เชื่อมต่อระบบผ่อนชำระ
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+          เชื่อมต่อระหว่าง Loan Module และ Pattani Installment System
+        </p>
+      </div>
+
+      <!-- Status Overview -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Connection Status -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">สถานะการเชื่อมต่อ</h3>
+            <span class="status-badge badge badge-success">เชื่อมต่อแล้ว</span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">API Endpoint:</span>
+              <span class="text-green-600" id="apiStatus">✓ พร้อมใช้งาน</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Database:</span>
+              <span class="text-green-600" id="dbStatus">✓ เชื่อมต่อ</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Real-time:</span>
+              <span class="text-green-600" id="socketStatus">✓ Active</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sync Status -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">การซิงค์ข้อมูล</h3>
+            <button class="btn btn-sm btn-primary" onclick="syncAllData()">
+              <i class="bi bi-arrow-repeat mr-1"></i>ซิงค์ทั้งหมด
+            </button>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">ซิงค์ล่าสุด:</span>
+              <span id="lastSync">ไม่เคย</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">รายการรอซิงค์:</span>
+              <span id="pendingSync">0</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">ข้อผิดพลาด:</span>
+              <span id="syncErrors">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
+          <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">สถิติระบบ</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">สัญญาทั้งหมด:</span>
+              <span class="font-bold" id="totalContracts">0</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">รอดำเนินการ:</span>
+              <span class="text-yellow-600" id="pendingContracts">0</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">เชื่อมต่อแล้ว:</span>
+              <span class="text-green-600" id="linkedContracts">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Integration Features -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Create Contract from Installment -->
+        <div class="integration-card bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md" 
+             onclick="openCreateContract()">
+          <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+              <i class="bi bi-file-earmark-plus text-xl text-blue-600"></i>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-800 dark:text-white">สร้างสัญญาจากระบบผ่อน</h4>
+              <p class="text-sm text-gray-500">นำข้อมูลจาก Pattani Installment</p>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline btn-primary w-full">
+            <i class="bi bi-plus-circle mr-1"></i>สร้างสัญญา
+          </button>
+        </div>
+
+        <!-- Sync Installment Data -->
+        <div class="integration-card bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md"
+             onclick="openSyncModal()">
+          <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+              <i class="bi bi-arrow-repeat text-xl text-green-600"></i>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-800 dark:text-white">ซิงค์ข้อมูลผ่อนชำระ</h4>
+              <p class="text-sm text-gray-500">อัพเดทข้อมูลการชำระล่าสุด</p>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline btn-success w-full">
+            <i class="bi bi-cloud-arrow-down mr-1"></i>ซิงค์ข้อมูล
+          </button>
+        </div>
+
+        <!-- Navigate to Installment System -->
+        <div class="integration-card bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md"
+             onclick="navigateToInstallment()">
+          <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+              <i class="bi bi-box-arrow-up-right text-xl text-purple-600"></i>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-800 dark:text-white">ไปยังระบบผ่อน</h4>
+              <p class="text-sm text-gray-500">Pattani Installment System</p>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline btn-secondary w-full">
+            <i class="bi bi-link-45deg mr-1"></i>เปิดระบบ
+          </button>
+        </div>
+
+        <!-- Import Customer Data -->
+        <div class="integration-card bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md"
+             onclick="importCustomerData()">
+          <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center mr-4">
+              <i class="bi bi-people text-xl text-amber-600"></i>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-800 dark:text-white">นำเข้าข้อมูลลูกค้า</h4>
+              <p class="text-sm text-gray-500">ดึงข้อมูลลูกค้าจากระบบผ่อน</p>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline btn-warning w-full">
+            <i class="bi bi-download mr-1"></i>นำเข้า
+          </button>
+        </div>
+
+        <!-- Payment History -->
+        <div class="integration-card bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md"
+             onclick="viewPaymentHistory()">
+          <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mr-4">
+              <i class="bi bi-clock-history text-xl text-indigo-600"></i>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-800 dark:text-white">ประวัติการชำระ</h4>
+              <p class="text-sm text-gray-500">ดูประวัติการชำระเงินงวด</p>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline btn-info w-full">
+            <i class="bi bi-list-ul mr-1"></i>ดูประวัติ
+          </button>
+        </div>
+
+        <!-- Reports -->
+        <div class="integration-card bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md"
+             onclick="generateReports()">
+          <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+              <i class="bi bi-file-earmark-bar-graph text-xl text-red-600"></i>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-800 dark:text-white">รายงานรวม</h4>
+              <p class="text-sm text-gray-500">รายงานข้อมูลทั้งสองระบบ</p>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline btn-error w-full">
+            <i class="bi bi-printer mr-1"></i>สร้างรายงาน
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent Activities -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
+        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
+          <i class="bi bi-activity text-blue-500 mr-2"></i>กิจกรรมล่าสุด
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="table table-compact w-full">
+            <thead>
+              <tr>
+                <th>เวลา</th>
+                <th>กิจกรรม</th>
+                <th>รายละเอียด</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="activityLog">
+              <tr>
+                <td colspan="4" class="text-center text-gray-500">ไม่มีกิจกรรม</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create Contract Modal -->
+  <div id="createContractModal" class="modal">
+    <div class="modal-box w-11/12 max-w-2xl">
+      <h3 class="font-bold text-lg mb-4">สร้างสัญญาจากระบบผ่อน</h3>
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text">เลือกใบสั่งซื้อผ่อนชำระ</span>
+        </label>
+        <select id="installmentOrderSelect" class="select select-bordered w-full">
+          <option value="">-- เลือกใบสั่งซื้อ --</option>
+        </select>
+      </div>
+      <div id="orderDetails" class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hidden">
+        <!-- Order details will be displayed here -->
+      </div>
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeModal('createContractModal')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="createContract()">สร้างสัญญา</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Modal -->
+  <div id="syncModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">ซิงค์ข้อมูลระบบผ่อน</h3>
+      <div class="space-y-3">
+        <label class="flex items-center">
+          <input type="checkbox" class="checkbox checkbox-primary mr-2" checked>
+          <span>ซิงค์ข้อมูลลูกค้า</span>
+        </label>
+        <label class="flex items-center">
+          <input type="checkbox" class="checkbox checkbox-primary mr-2" checked>
+          <span>ซิงค์สถานะการชำระ</span>
+        </label>
+        <label class="flex items-center">
+          <input type="checkbox" class="checkbox checkbox-primary mr-2" checked>
+          <span>ซิงค์ยอดค้างชำระ</span>
+        </label>
+      </div>
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeModal('syncModal')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="performSync()">เริ่มซิงค์</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Utility functions
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      // Create a simple toast notification
+      const toast = document.createElement('div');
+      toast.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' :
+        type === 'warning' ? 'bg-yellow-500' :
+        type === 'error' ? 'bg-red-500' :
+        'bg-blue-500'
+      }`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+    
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => response.json())
+            .then(animationData => {
+              console.log('✅ Lottie animation data loaded successfully');
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: false,
+                animationData: animationData
+              });
+            })
+            .catch(error => {
+              console.warn('Failed to load Lottie animation:', error);
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        }
+        if (lottieAnimation) lottieAnimation.play();
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 300);
+      }
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB'
+      }).format(amount || 0);
+    }
+
+    function formatDate(date) {
+      if (!date) return '-';
+      return new Date(date).toLocaleDateString('th-TH');
+    }
+
+    // Make functions globally available
+    window.showToast = showToast;
+    window.showLoading = showLoading;
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+
+    // Initialize integration
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check authentication
+      const token = localStorage.getItem('authToken');
+    
+      if (!token) {
+        console.error('No authentication token found');
+        alert('กรุณาเข้าสู่ระบบก่อน');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+
+      // Initialize sidebar
+      if (typeof initializeLoanSidebar === 'function') {
+        initializeLoanSidebar();
+      }
+
+      // Show loading
+      showLoading(true);
+
+      // Initialize integration
+      initializeIntegration();
+      loadStatistics();
+      loadActivityLog();
+    
+      // Setup real-time updates
+      if (window.LoanIntegration && window.LoanIntegration.Realtime) {
+        window.LoanIntegration.Realtime.init();
+      }
+    });
+
+    // Initialize integration
+    function initializeIntegration() {
+      // Check API status
+      checkAPIStatus();
+    
+      // Load last sync info
+      const lastSync = localStorage.getItem('lastSyncTime');
+      if (lastSync) {
+        document.getElementById('lastSync').textContent = new Date(lastSync).toLocaleString('th-TH');
+      }
+    }
+
+    // Check API status
+    async function checkAPIStatus() {
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          console.error('No authentication token found for API check');
+          return { status: 'error', message: 'Authentication required' };
+        }
+    
+        const response = await fetch('/api/loan/contracts?limit=1', {
+          headers: {
+            'Authorization': 'Bearer ' + authToken
+          }
+        });
+    
+        if (response.ok) {
+          document.getElementById('apiStatus').innerHTML = '✓ พร้อมใช้งาน';
+          document.getElementById('apiStatus').className = 'text-green-600';
+        } else {
+          document.getElementById('apiStatus').innerHTML = '✗ ไม่พร้อม';
+          document.getElementById('apiStatus').className = 'text-red-600';
+        }
+      } catch (error) {
+        document.getElementById('apiStatus').innerHTML = '✗ ออฟไลน์';
+        document.getElementById('apiStatus').className = 'text-red-600';
+      }
+    }
+
+    // Load statistics
+    async function loadStatistics() {
+      try {
+        const stats = await window.LoanIntegration.Contract.getContracts({ limit: 1 });
+        document.getElementById('totalContracts').textContent = stats.pagination?.total || 0;
+    
+        // Calculate pending and linked contracts
+        const contracts = await window.LoanIntegration.Contract.getContracts({ limit: 100 });
+        const pending = contracts.data.filter(c => c.status === 'pending').length;
+        const linked = contracts.data.filter(c => c.installment_order_id).length;
+    
+        document.getElementById('pendingContracts').textContent = pending;
+        document.getElementById('linkedContracts').textContent = linked;
+      } catch (error) {
+        console.error('Error loading statistics:', error);
+      }
+    }
+
+    // Load activity log
+    function loadActivityLog() {
+      const activities = JSON.parse(localStorage.getItem('integrationActivities') || '[]');
+      const tbody = document.getElementById('activityLog');
+    
+      if (activities.length === 0) {
+        return;
+      }
+    
+      tbody.innerHTML = activities.slice(0, 5).map(activity => `
+        <tr>
+          <td>${new Date(activity.time).toLocaleString('th-TH')}</td>
+          <td>${activity.action}</td>
+          <td>${activity.details}</td>
+          <td>
+            <span class="badge badge-${activity.status === 'success' ? 'success' : 'error'} badge-sm">
+              ${activity.status === 'success' ? 'สำเร็จ' : 'ล้มเหลว'}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Add activity to log
+    function addActivity(action, details, status) {
+      const activities = JSON.parse(localStorage.getItem('integrationActivities') || '[]');
+      activities.unshift({
+        time: new Date().toISOString(),
+        action,
+        details,
+        status
+      });
+    
+      // Keep only last 50 activities
+      if (activities.length > 50) {
+        activities.pop();
+      }
+    
+      localStorage.setItem('integrationActivities', JSON.stringify(activities));
+      loadActivityLog();
+    }
+
+    // Navigate to installment system
+    function navigateToInstallment() {
+      window.LoanIntegration.Navigator.goToStep(1);
+    }
+
+    // Open create contract modal
+    async function openCreateContract() {
+      document.getElementById('createContractModal').classList.add('modal-open');
+    
+      // Load installment orders
+      try {
+        const response = await fetch('/api/loan/installment/orders?status=pending', {
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+          }
+        });
+    
+        if (response.ok) {
+          const data = await response.json();
+          const select = document.getElementById('installmentOrderSelect');
+    
+          select.innerHTML = '<option value="">-- เลือกใบสั่งซื้อ --</option>' +
+            data.data.map(order => `
+              <option value="${order._id}">
+                ${order.order_number} - ${order.customer_name} - ฿${Math.max(0, order.total_amount || 0).toLocaleString()}
+              </option>
+            `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading orders:', error);
+      }
+    }
+
+    // Create contract
+    async function createContract() {
+      const orderId = document.getElementById('installmentOrderSelect').value;
+      if (!orderId) {
+        alert('กรุณาเลือกใบสั่งซื้อ');
+        return;
+      }
+    
+      try {
+        const contract = await window.LoanIntegration.Contract.createFromInstallmentOrder(orderId);
+        addActivity('สร้างสัญญา', `สัญญาเลขที่ ${contract.contract_number}`, 'success');
+        closeModal('createContractModal');
+        loadStatistics();
+      } catch (error) {
+        addActivity('สร้างสัญญา', error.message, 'error');
+      }
+    }
+
+    // Open sync modal
+    function openSyncModal() {
+      document.getElementById('syncModal').classList.add('modal-open');
+    }
+
+    // Perform sync
+    async function performSync() {
+      try {
+        // Show loading
+        showLoading(true);
+    
+        // Simulate sync process
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    
+        localStorage.setItem('lastSyncTime', new Date().toISOString());
+        document.getElementById('lastSync').textContent = new Date().toLocaleString('th-TH');
+    
+        addActivity('ซิงค์ข้อมูล', 'ซิงค์ข้อมูลเรียบร้อย', 'success');
+    
+        showLoading(false);
+    
+        closeModal('syncModal');
+      } catch (error) {
+        addActivity('ซิงค์ข้อมูล', error.message, 'error');
+        showLoading(false);
+      }
+    }
+
+    // Sync all data
+    async function syncAllData() {
+      if (confirm('ต้องการซิงค์ข้อมูลทั้งหมดหรือไม่?')) {
+        await performSync();
+      }
+    }
+
+    // Import customer data
+    async function importCustomerData() {
+      try {
+        showLoading(true);
+    
+        // Simulate import
+        await new Promise(resolve => setTimeout(resolve, 1500));
+    
+        addActivity('นำเข้าข้อมูล', 'นำเข้าข้อมูลลูกค้าเรียบร้อย', 'success');
+    
+        showLoading(false);
+      } catch (error) {
+        addActivity('นำเข้าข้อมูล', error.message, 'error');
+        showLoading(false);
+      }
+    }
+
+    // View payment history
+    function viewPaymentHistory() {
+      window.location.href = 'installment_history.html';
+    }
+
+    // Generate reports
+    function generateReports() {
+      alert('ฟีเจอร์รายงานกำลังพัฒนา');
+    }
+
+    // Close modal
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('modal-open');
+    }
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

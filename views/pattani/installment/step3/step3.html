@@ -1,0 +1,2925 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบผ่อน Pattani - Step 3: ใบแจ้งหนี้</title>
+
+  <!-- CSP configured at server level in server.js -->
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+
+  <!-- Include Shared CSS Files -->
+  <!-- Disabled: Using inline CSS for stepper like step1 -->
+  <!-- <link rel="stylesheet" href="/views/pattani/installment/shared/css/stepper-common.css?v=4.0"> -->
+  <link rel="stylesheet" href="/views/pattani/installment/shared/css/common-styles.css">
+
+  <!-- Step 3 Specific CSS Files -->
+  <link rel="stylesheet" href="/views/pattani/installment/step2/css/installment-forms.css">
+  <link rel="stylesheet" href="/views/pattani/installment/step2/css/step2-styles.css">
+  <link rel="stylesheet" href="/views/pattani/installment/step2/css/step2-dark-mode.css">
+
+  <!-- Include Shared JavaScript Files -->
+  <script src="/views/pattani/installment/shared/js/common-utils.js"></script>
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Suppress Tailwind CSS production warning
+    const originalWarn = console.warn;
+    const originalLog = console.log;
+    console.warn = function (msg) {
+      if (msg && msg.includes && (
+        msg.includes('should not be used in production') ||
+        msg.includes('cdn.tailwindcss.com') ||
+        msg.includes('Tailwind CSS') ||
+        msg.includes('production')
+      )) {
+        return; // Suppress Tailwind production warnings
+      }
+      originalWarn.apply(console, arguments);
+    };
+    console.log = function (msg) {
+      if (msg && msg.includes && (
+        msg.includes('should not be used in production') ||
+        msg.includes('cdn.tailwindcss.com')
+      )) {
+        return; // Suppress Tailwind production logs
+      }
+      originalLog.apply(console, arguments);
+    };
+  </script>
+
+  <!-- (2) กำหนดค่า Tailwind และ DaisyUI -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8'
+            }
+          }
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.20/dist/full.min.css" rel="stylesheet" type="text/css" />
+
+  <!-- Sidebar CSS -->
+  <link href="/views/pattani/sidebar/sidebar.css" rel="stylesheet" type="text/css" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+  <!-- Installment System Styles - Complete Inline -->
+  <style>
+    /* ========== INSTALLMENT SYSTEM SPECIFIC STYLES ========== */
+    /* ไฟล์ CSS เฉพาะสำหรับระบบผ่อน Pattani */
+
+    /* ========== PERFORMANCE OPTIMIZATIONS ========== */
+    .stepper,
+    .step-icon,
+    .loading-spinner,
+    .card,
+    .toast,
+    .modal,
+    .dropdown {
+      will-change: transform, opacity;
+    }
+
+    .card,
+    .product-card,
+    .modal-box,
+    .step-content {
+      contain: layout style paint;
+    }
+
+    /* ========== STEPPER STYLES ========== */
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .stepper::before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #e9ecef;
+      z-index: 1;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+      min-width: 120px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 20px;
+      right: -50%;
+      width: 100%;
+      height: 2px;
+      background: #e2e8f0;
+      z-index: 1;
+      transition: background-color 0.3s ease;
+    }
+
+    .step.active:not(:last-child)::after,
+    .step.completed:not(:last-child)::after {
+      background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
+    }
+
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+      color: #94a3b8;
+      z-index: 2;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .step.active .step-icon {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border-color: #3b82f6;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .step.completed .step-icon {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border-color: #10b981;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .step-text,
+    .step-label {
+      margin-top: 0.5rem;
+      font-size: 12px;
+      font-weight: 500;
+      color: #64748b;
+      text-align: center;
+      transition: color 0.3s ease;
+    }
+
+    .step.active .step-text,
+    .step.active .step-label {
+      color: #3b82f6;
+      font-weight: 600;
+    }
+
+    .step.completed .step-text,
+    .step.completed .step-label {
+      color: #10b981;
+    }
+
+    /* ========== CARD STYLES ========== */
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Dark mode card */
+    .dark .card {
+      background: #1f2937;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .dark .card-title {
+      color: #f1f5f9;
+    }
+
+    /* ========== BUTTON STYLES ========== */
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      padding: 0.625rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 14px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    /* ========== TOAST STYLES ========== */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 300px;
+      animation: slideInRight 0.3s ease;
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success {
+      border-left: 4px solid #10b981;
+    }
+
+    .toast.error {
+      border-left: 4px solid #ef4444;
+    }
+
+    /* Dark mode toast */
+    .dark .toast {
+      background: #374151;
+      color: #f3f4f6;
+    }
+
+    /* Payment Plan Cards */
+    .payment-plan-card {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .payment-plan-card:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .payment-plan-card.selected {
+      border-color: #3b82f6;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+    }
+
+    .payment-plan-card.selected::before {
+      content: '✓';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #3b82f6;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .payment-plan-card.recommended {
+      border-color: #10b981;
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    }
+
+    .payment-plan-card.recommended::after {
+      content: 'แนะนำ';
+      position: absolute;
+      top: -5px;
+      right: 10px;
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    /* Custom Plan Form */
+    .custom-plan-form {
+      background: #f8fafc;
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-top: 1rem;
+    }
+
+    .custom-plan-form.active {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    /* Calculator Display */
+    .calculator-display {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      color: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .calculation-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .calculation-row:last-child {
+      border-bottom: none;
+      font-weight: bold;
+      font-size: 1.1rem;
+      padding-top: 1rem;
+      margin-top: 0.5rem;
+      border-top: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Progress Indicators */
+    .progress-ring {
+      stroke-width: 4;
+      fill: transparent;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    .progress-ring-background {
+      stroke: #e2e8f0;
+    }
+
+    .progress-ring-progress {
+      stroke: #3b82f6;
+      stroke-linecap: round;
+      transition: stroke-dasharray 0.5s ease;
+    }
+
+    /* Dark mode support */
+    .dark .payment-plan-card {
+      background: #1f2937;
+      border-color: #374151;
+      color: #f3f4f6;
+    }
+
+    .dark .payment-plan-card.selected {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      border-color: #2563eb;
+    }
+
+    .dark .payment-plan-card.recommended {
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+      border-color: #059669;
+    }
+
+    .dark .custom-plan-form {
+      background: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+
+    .dark .custom-plan-form.active {
+      background: #1e3a8a;
+      border-color: #2563eb;
+    }
+
+    /* Tax Selection Styles */
+    .tax-selection-card {
+      transition: all 0.3s ease;
+    }
+
+    .tax-selection-card.required {
+      border-color: #f59e0b !important;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+    }
+
+    .tax-option-label {
+      transition: all 0.3s ease;
+    }
+
+    .tax-option-label:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .tax-option-label.selected {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+    }
+
+    /* Animation for required field */
+    @keyframes pulseOrange {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+      }
+    }
+
+    .animate-pulse-orange {
+      animation: pulseOrange 1.5s infinite;
+    }
+
+    /* Dark mode support for tax selection */
+    .dark .tax-selection-card {
+      background: #374151 !important;
+      border-color: #d97706 !important;
+      color: #f3f4f6;
+    }
+
+    .dark .tax-option-label {
+      background: #4b5563;
+      border-color: #6b7280;
+      color: #f3f4f6;
+    }
+
+    .dark .tax-option-label:hover {
+      background: #5b6471;
+      border-color: #d97706;
+    }
+
+    .dark .tax-option-label.selected {
+      background: #92400e;
+      border-color: #f59e0b;
+    }
+
+    .dark #taxCalculationPreview {
+      background: #4b5563 !important;
+      border-color: #6b7280 !important;
+      color: #f3f4f6;
+    }
+
+    /* Button states for tax requirement */
+    .btn-disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* Document Type Notification */
+    #documentTypeNotification {
+      transition: all 0.3s ease;
+      transform: translateX(100%);
+      animation: slideInRight 0.3s ease forwards;
+    }
+
+    @keyframes slideInRight {
+      to {
+        transform: translateX(0);
+      }
+    }
+
+    /* Document Type Preview Styles */
+    #taxCalculationPreview {
+      transition: all 0.3s ease;
+    }
+
+    #taxPreviewDocumentType {
+      transition: all 0.3s ease;
+    }
+
+    /* Dark mode for document type elements */
+    .dark #documentTypeNotification {
+      background: #1f2937 !important;
+      border-color: #3b82f6 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark #documentTypeNote {
+      color: #9ca3af !important;
+    }
+
+    .dark #documentTypeNoteText {
+      color: #9ca3af !important;
+    }
+
+
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .payment-plan-card {
+        padding: 1rem;
+      }
+
+      .calculator-display {
+        padding: 1rem;
+      }
+
+      .calculation-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+
+      .tax-option-label {
+        padding: 0.75rem !important;
+      }
+
+      .tax-selection-card {
+        padding: 1rem !important;
+      }
+    }
+
+    /* ========== LOADING OVERLAY STYLES ========== */
+    @keyframes pulse {
+      0% { opacity: .75;}
+      50%{ opacity: 1;}
+      100%{ opacity: .75;}
+    }
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* Loading spinner for fallback */
+    .loading {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    .loading-lg {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  <!-- Animate.css for loading animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie.js for animated loading icons -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+</head>
+
+<body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+
+  <main id="mainContent" class="flex-1 overflow-y-auto transition-all duration-300 ml-64">
+    <!-- Header -->
+    <header
+      class="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold" id="pageTitle">ระบบผ่อน Pattani - เลือกแผนการชำระ</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">กำลังโหลดสาขา...</p>
+      </div>
+
+      <!-- Progress Indicator -->
+      <div class="flex items-center gap-4">
+        <div class="text-sm text-gray-600 dark:text-gray-300">
+          ขั้นตอนที่ <span class="font-bold text-blue-600">3</span> จาก 4
+        </div>
+        <div class="w-16 h-16">
+          <svg class="w-full h-full" viewBox="0 0 36 36">
+            <path class="progress-ring progress-ring-background"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-width="2" />
+            <path class="progress-ring progress-ring-progress"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-width="2"
+              stroke-dasharray="75, 100" />
+          </svg>
+          <div class="text-center mt-1 text-xs text-gray-500">75%</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+      <div class="container-fluid p-4">
+        <!-- Stepper (Static like step1) -->
+        <div class="stepper" role="navigation" aria-label="ขั้นตอนการทำงาน">
+          <div class="step completed" data-step="1" role="tab" aria-selected="false"
+            aria-label="ขั้นตอนที่ 1 เลือกสินค้า">
+            <div class="step-icon" aria-hidden="true">✓</div>
+            <div class="step-text">เลือกสินค้า</div>
+          </div>
+          <div class="step completed" data-step="2" role="tab" aria-selected="false"
+            aria-label="ขั้นตอนที่ 2 ข้อมูลลูกค้า">
+            <div class="step-icon" aria-hidden="true">✓</div>
+            <div class="step-text">ข้อมูลลูกค้า</div>
+          </div>
+          <div class="step active" data-step="3" role="tab" aria-selected="true"
+            aria-label="ขั้นตอนที่ 3 รายละเอียดผ่อน">
+            <div class="step-icon" aria-hidden="true">3</div>
+            <div class="step-text">รายละเอียดผ่อน</div>
+          </div>
+          <div class="step" data-step="4" role="tab" aria-selected="false" aria-label="ขั้นตอนที่ 4 ยืนยันและพิมพ์">
+            <div class="step-icon" aria-hidden="true">4</div>
+            <div class="step-text">ยืนยันและพิมพ์</div>
+          </div>
+        </div>
+
+        <script>
+          // Simple navigation function
+          function goToStep(stepNumber) {
+            if (stepNumber >= 1 && stepNumber <= 4) {
+              window.location.href = `/step${stepNumber}`;
+            }
+          }
+        </script>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left: Plan Selection -->
+          <div class="lg:col-span-2 space-y-6">
+
+            <!-- Order Summary -->
+            <div class="card p-6">
+              <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i class="bi bi-cart-check text-green-600"></i>
+                สรุปรายการสินค้า
+              </h3>
+
+              <div id="orderSummary" class="space-y-4">
+                <!-- Order items will be loaded here -->
+              </div>
+
+              <div class="border-t pt-4 mt-4">
+                <div class="flex justify-between items-center text-lg font-bold">
+                  <span>ยอดดาวน์รวม:</span>
+                  <div class="text-right">
+                    <div id="totalAmount" class="text-blue-600">฿0.00</div>
+                    <div class="text-xs text-gray-500">(ระบบผ่อนชำระ)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Document Fee & Discount Section -->
+            <div class="card p-6 bg-blue-50 border-blue-200">
+              <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="bi bi-file-earmark-text text-blue-600"></i>
+                ค่าธรรมเนียมเอกสาร & ส่วนลด
+              </h3>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Document Fee -->
+                <div>
+                  <label class="label">
+                    <span class="label-text font-medium">ค่าธรรมเนียมเอกสาร (บาท)</span>
+                    <span class="label-text-alt text-blue-600">*ใช้กับทุกแผนการชำระ</span>
+                  </label>
+                  <input type="number" id="globalDocumentFee" class="input input-bordered w-full" value="500" min="0"
+                    step="50">
+                  <div class="text-xs text-gray-600 mt-1">
+                    <div class="font-medium">รายการเอกสาร:</div>
+                    <ul class="text-xs mt-1 space-y-1">
+                      <li>• ใบเสนอราคา</li>
+                      <li>• ใบแจ้งหนี้</li>
+                      <li>• ใบเสร็จรับเงิน</li>
+                      <li>• สัญญาผ่อนชำระ</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Discount -->
+                <div>
+                  <label class="label">
+                    <span class="label-text font-medium">ส่วนลด (บาท)</span>
+                    <span class="label-text-alt text-orange-600">*เป็นทางเลือก</span>
+                  </label>
+                  <input type="number" id="globalDiscount" class="input input-bordered w-full" value="0" min="0"
+                    step="100" placeholder="0.00">
+                  <div class="text-xs text-gray-600 mt-1">
+                    <div class="font-medium">ประเภทส่วนลด:</div>
+                    <div class="flex gap-2 mt-1">
+                      <label class="flex items-center gap-1 text-xs">
+                        <input type="radio" name="discountType" value="amount" class="radio radio-xs" checked>
+                        <span>จำนวนเงิน</span>
+                      </label>
+                      <label class="flex items-center gap-1 text-xs">
+                        <input type="radio" name="discountType" value="percent" class="radio radio-xs">
+                        <span>เปอร์เซ็นต์</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Plan Selection -->
+            <div class="card p-6">
+              <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i class="bi bi-credit-card text-blue-600"></i>
+                เลือกแผนการชำระ
+              </h3>
+
+              <div class="text-sm text-blue-600 mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <i class="bi bi-info-circle"></i>
+                <strong>ระบบผ่อนชำระ:</strong> เลือกแผนการชำระที่เหมาะสมกับคุณ
+                คำนวณจากยอดดาวน์ขั้นต่ำที่คุณเลือกในขั้นตอนที่ 1
+              </div>
+
+              <!-- แผนการชำระทั้งหมด -->
+              <div class="space-y-6">
+                <!-- แผนแนะนำ -->
+                <div>
+                  <h4 class="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <i class="bi bi-star-fill text-yellow-500"></i>
+                    แผนการชำระแนะนำ
+                  </h4>
+
+                  <div id="recommendedPlans" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <!-- Recommended plans will be generated here -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Payment Method Selection (Global) -->
+              <div id="paymentMethodSection" class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg"
+                style="display: none;">
+                <h4 class="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                  <i class="bi bi-credit-card"></i>
+                  เลือกวิธีการชำระเงิน
+                </h4>
+                <div class="text-sm text-amber-700 mb-3">
+                  กรุณาเลือกวิธีการชำระเงินสำหรับแผนที่เลือก
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-amber-100">
+                    <input type="radio" name="globalPaymentMethod" value="cash" class="radio radio-warning">
+                    <div class="flex items-center gap-2">
+                      <i class="bi bi-cash text-green-600"></i>
+                      <span>เงินสด</span>
+                    </div>
+                  </label>
+                  <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-amber-100">
+                    <input type="radio" name="globalPaymentMethod" value="transfer" class="radio radio-warning">
+                    <div class="flex items-center gap-2">
+                      <i class="bi bi-bank text-blue-600"></i>
+                      <span>โอนเงิน</span>
+                    </div>
+                  </label>
+                  <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-amber-100">
+                    <input type="radio" name="globalPaymentMethod" value="card" class="radio radio-warning">
+                    <div class="flex items-center gap-2">
+                      <i class="bi bi-credit-card text-purple-600"></i>
+                      <span>บัตรเครดิต</span>
+                    </div>
+                  </label>
+                </div>
+                
+                <!-- ตัวเลือกชำระผสม -->
+                <div class="col-span-1 md:col-span-3">
+                  <label class="flex items-center gap-2 p-3 border-2 border-orange-300 rounded-lg cursor-pointer hover:bg-amber-100 bg-gradient-to-r from-yellow-50 to-orange-50">
+                    <input type="radio" name="globalPaymentMethod" value="mixed" class="radio radio-warning">
+                    <div class="flex items-center gap-2">
+                      <i class="bi bi-cash-coin text-orange-600"></i>
+                      <span class="font-semibold">ชำระผสม</span>
+                      <span class="text-sm text-gray-600">(เงินสด + โอนเงิน + บัตรเครดิต)</span>
+                    </div>
+                  </label>
+                </div>
+
+                <!-- รายละเอียดการชำระแบบผสม -->
+                <div id="step3MixedPaymentDetails" class="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-orange-300 rounded-lg" style="display: none;">
+                  <h4 class="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                    <i class="bi bi-cash-coin text-orange-600"></i>
+                    รายละเอียดการชำระแบบผสม
+                  </h4>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="bi bi-cash text-green-600"></i> เงินสด
+                      </label>
+                      <input type="number" id="mixedCashAmount" class="input input-bordered w-full" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="bi bi-bank text-blue-600"></i> โอนเงิน
+                      </label>
+                      <input type="number" id="mixedTransferAmount" class="input input-bordered w-full" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="bi bi-credit-card text-purple-600"></i> บัตรเครดิต
+                      </label>
+                      <input type="number" id="mixedCardAmount" class="input input-bordered w-full" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                  </div>
+                  <div class="mt-3 p-3 bg-white rounded-lg border">
+                    <div class="flex justify-between items-center">
+                      <span class="font-medium">ยอดรวมการชำระ:</span>
+                      <span id="mixedTotalAmount" class="text-lg font-bold text-orange-600">฿0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center mt-1">
+                      <span class="text-sm text-gray-600">ยอดที่ต้องชำระ:</span>
+                      <span id="mixedRequiredAmount" class="text-sm font-medium">฿0.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ข้อมูลบัญชีธนาคารสำหรับโอนเงิน -->
+                <div id="step3BankTransferInfo" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+                  style="display: none;">
+                  <h4 class="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                    <i class="bi bi-bank text-blue-600"></i>
+                    ข้อมูลบัญชีสำหรับโอนเงิน
+                  </h4>
+                  <div id="step3BankAccountDetails" class="space-y-2">
+                    <!-- ข้อมูลบัญชีจะถูกโหลดที่นี่ -->
+                  </div>
+                  <div class="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                    <i class="bi bi-info-circle"></i>
+                    กรุณาโอนเงินตามข้อมูลบัญชีข้างต้น และแจ้งชำระเงินในขั้นตอนถัดไป
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Calculator & Summary -->
+          <div class="space-y-6">
+
+            <!-- Tax Selection (Required) -->
+            <div class="card tax-selection-card required p-6 border-2 border-orange-200 bg-orange-50">
+              <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="bi bi-percent text-orange-600"></i>
+                ประเภทภาษี
+                <span class="badge badge-error badge-sm text-white">จำเป็น</span>
+              </h3>
+
+              <div class="text-sm text-orange-700 mb-4">
+                <i class="bi bi-exclamation-triangle"></i>
+                กรุณาเลือกประเภทภาษีก่อนดำเนินการต่อ
+              </div>
+
+              <div class="space-y-3">
+                <label
+                  class="tax-option-label flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-orange-300 hover:bg-orange-100 transition-all">
+                  <input type="radio" name="taxType" value="inclusive" class="radio radio-warning" required>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-800">รวมภาษี 7%</div>
+                    <div class="text-xs text-gray-600">ราคาที่แสดงรวมภาษีแล้ว</div>
+                  </div>
+                  <i class="bi bi-check-circle text-green-500 opacity-0 transition-opacity"
+                    id="tax-inclusive-check"></i>
+                </label>
+
+                <label
+                  class="tax-option-label flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-orange-300 hover:bg-orange-100 transition-all">
+                  <input type="radio" name="taxType" value="exclusive" class="radio radio-warning" required>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-800">แยกภาษี 7%</div>
+                    <div class="text-xs text-gray-600">ราคาไม่รวมภาษี คิดภาษีแยก</div>
+                  </div>
+                  <i class="bi bi-check-circle text-green-500 opacity-0 transition-opacity"
+                    id="tax-exclusive-check"></i>
+                </label>
+
+                <label
+                  class="tax-option-label flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-orange-300 hover:bg-orange-100 transition-all">
+                  <input type="radio" name="taxType" value="none" class="radio radio-warning" required>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-800">ไม่มีภาษี</div>
+                    <div class="text-xs text-gray-600">ยกเว้นภาษีมูลค่าเพิ่ม</div>
+                  </div>
+                  <i class="bi bi-check-circle text-green-500 opacity-0 transition-opacity" id="tax-none-check"></i>
+                </label>
+              </div>
+
+              <!-- Tax Calculation Preview -->
+              <div id="taxCalculationPreview" class="mt-4 p-3 bg-white rounded-lg border" style="display: none;">
+                <div class="text-sm font-medium text-gray-700 mb-2">ตัวอย่างการคำนวณ:</div>
+                <div class="space-y-1 text-xs">
+                  <div class="flex justify-between">
+                    <span id="taxPreviewLabel">ก่อนภาษี:</span>
+                    <span id="taxPreviewBeforeTax">฿0.00</span>
+                  </div>
+                  <div class="flex justify-between" id="taxPreviewVatRow">
+                    <span>ภาษี VAT 7%:</span>
+                    <span id="taxPreviewVat">฿0.00</span>
+                  </div>
+                  <div class="flex justify-between font-medium border-t pt-1">
+                    <span>ยอดรวม:</span>
+                    <span id="taxPreviewTotal">฿0.00</span>
+                  </div>
+                </div>
+
+                <!-- Document Type Preview -->
+                <div class="mt-3 pt-2 border-t border-gray-200">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="text-gray-600">ประเภทเอกสาร:</span>
+                    <span id="taxPreviewDocumentType" class="font-medium text-blue-600">📋 ใบกำกับภาษี</span>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1" id="taxPreviewDocumentNote">
+                    สามารถขอคืนภาษีได้
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Calculator -->
+            <div class="card p-6">
+              <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="bi bi-calculator text-blue-600"></i>
+                เครื่องคำนวณ
+              </h3>
+
+              <div class="calculator-display" id="calculatorDisplay">
+                <!-- Tax Information Section -->
+                <div class="calculation-row" id="taxInfoRow" style="display: none;">
+                  <span>ก่อนภาษี:</span>
+                  <span id="calcBeforeTax">฿0.00</span>
+                </div>
+                <div class="calculation-row" id="vatAmountRow" style="display: none;">
+                  <span>ภาษี (VAT):</span>
+                  <span id="calcVatAmount">฿0.00</span>
+                </div>
+
+                <div class="calculation-row">
+                  <span>ยอดสินค้า:</span>
+                  <span id="calcSubTotal">฿0.00</span>
+                </div>
+                <div class="calculation-row">
+                  <span>เงินดาวน์:</span>
+                  <span id="calcDownPayment">฿0.00</span>
+                </div>
+                <div class="calculation-row">
+                  <span>ยอดผ่อน:</span>
+                  <span id="calcCreditAmount">฿0.00</span>
+                </div>
+                <div class="calculation-row">
+                  <span>ค่าธรรมเนียม:</span>
+                  <span id="calcDocFee">฿0.00</span>
+                </div>
+                <div class="calculation-row">
+                  <span>จำนวนงวด:</span>
+                  <span id="calcInstallmentCount">0 งวด</span>
+                </div>
+                <div class="calculation-row">
+                  <span>ยอดรวมทั้งสิ้น:</span>
+                  <span id="calcTotalAmount">฿0.00</span>
+                </div>
+                <div class="calculation-row">
+                  <span>ผ่อนต่องวด:</span>
+                  <span id="calcInstallmentAmount">฿0.00</span>
+                </div>
+              </div>
+
+              <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">สรุปการชำระเงิน</h4>
+                <div class="text-sm space-y-1">
+                  <div class="flex justify-between">
+                    <span>ชำระดาวน์วันนี้:</span>
+                    <span class="font-semibold" id="payTodayAmount">฿0.00</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>งวดแรก:</span>
+                    <span id="firstInstallmentDate">-</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>งวดสุดท้าย:</span>
+                    <span id="lastInstallmentDate">-</span>
+                  </div>
+                  <div class="flex justify-between mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
+                    <span>ประเภทเอกสาร:</span>
+                    <span class="font-semibold" id="documentType" data-document-type>📄 ระบุประเภทเอกสาร</span>
+                  </div>
+                  <div class="flex justify-between" id="vatTypesInfo" style="display: none;">
+                    <span>ประเภทภาษี:</span>
+                    <span class="text-xs" id="vatTypes">-</span>
+                  </div>
+                  <div class="flex justify-between text-xs text-gray-500" id="documentTypeNote">
+                    <span>หมายเหตุ:</span>
+                    <span id="documentTypeNoteText">กรุณาเลือกประเภทภาษีก่อน</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Selected Plan Summary -->
+            <div class="card p-6" id="selectedPlanSummary" style="display: none;">
+              <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="bi bi-check-circle text-green-600"></i>
+                แผนที่เลือก
+              </h3>
+
+              <div id="selectedPlanDetails" class="space-y-2">
+                <!-- Selected plan details will be shown here -->
+              </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="card p-6">
+              <div class="flex flex-col gap-3">
+                <button id="btnStep3ToStep4" class="btn btn-primary btn-block" disabled>
+                  <i class="bi bi-arrow-right mr-2"></i>
+                  ไปขั้นตอนถัดไป (สรุปและชำระเงิน)
+                </button>
+
+                <button id="btnStep3ToStep2" class="btn btn-outline btn-block">
+                  <i class="bi bi-arrow-left mr-2"></i>
+                  กลับไปแก้ไขข้อมูลลูกค้า
+                </button>
+              </div>
+
+              <div class="text-center mt-4">
+                <div class="text-xs text-gray-500">
+                  ขั้นตอนที่ 3 จาก 4 • กรุณาเลือกแผนการชำระ
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </main>
+
+
+  <!-- Scripts -->
+
+  <!-- Global Data Manager -->
+  <script src="/views/pattani/installment/js/global-data-manager.js"></script>
+
+  <!-- Receipt & Tax Invoice Integration -->
+  <script src="/views/pattani/installment/js/receipt-tax-invoice-integration.js"></script>
+
+  <!-- Sidebar JavaScript -->
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+
+  <!-- Step 3 JavaScript -->
+  <script src="/views/pattani/installment/step3/js/step3-integration.js?v=1.0.4"></script>
+
+  <!-- Data Sync Test Script -->
+  <!-- Test data sync disabled -->
+  <!-- <script src="test-data-sync.js"></script> -->
+
+  <script>
+    // Image URL function to handle duplicate paths
+    function getImageUrl(imagePath) {
+      if (!imagePath) return '/uploads/Logo2.png';
+      if (imagePath.startsWith('http')) return imagePath;
+    
+      let url = imagePath;
+    
+      // Debug logging
+      console.log('🖼️ [Step3] Original image path:', imagePath);
+    
+      // Convert all backslashes to forward slashes first
+      url = url.replace(/\\/g, '/');
+    
+      // Remove any existing domain or protocol
+      url = url.replace(/^https?:\/\/[^\/]+/, '');
+    
+      // More aggressive cleanup of duplicate path segments
+      // Handle all possible variations of duplicate paths
+      url = url.replace(/(\/?uploads\/products\/)+/g, '/uploads/products/');
+      url = url.replace(/(\/?uploads\\products\\)+/g, '/uploads/products/');
+      url = url.replace(/(uploads\/products\/)+/g, 'uploads/products/');
+    
+      // Clean up any remaining duplicates - more patterns
+      url = url.replace(/uploads\/products\/uploads\/products\//g, 'uploads/products/');
+      url = url.replace(/\/uploads\/products\/uploads\/products\//g, '/uploads/products/');
+      url = url.replace(/\/uploads\/products\/uploads\/products/g, '/uploads/products');
+      url = url.replace(/uploads\/products\/uploads\/products/g, 'uploads/products');
+    
+      // Special handling for the exact pattern we're seeing
+      url = url.replace(/uploads\/products\/uploads\/products\//g, 'uploads/products/');
+      url = url.replace(/\/uploads\/products\/uploads\/products\//g, '/uploads/products/');
+    
+      // Ensure leading slash
+      if (!url.startsWith('/')) {
+        url = '/' + url;
+      }
+    
+      // Add uploads/products prefix if not present
+      if (!url.startsWith('/uploads/products/')) {
+        // Remove any leading slashes before adding the prefix
+        url = '/uploads/products/' + url.replace(/^\/+/, '');
+      }
+    
+      // Final cleanup: remove duplicate slashes
+      url = url.replace(/\/{2,}/g, '/');
+    
+      console.log('🖼️ [Step3] Cleaned image path:', url);
+      return url;
+    }    // Make getImageUrl globally available
+    window.getImageUrl = getImageUrl;
+    
+    // Test the function immediately
+    console.log('🧪 [Step3] Testing getImageUrl function:');
+    console.log('🧪 Test 1:', getImageUrl('uploads/products/uploads/products/1752308938164-577314183.jpg'));
+    console.log('🧪 Test 2:', getImageUrl('/uploads/products/uploads/products/test.jpg'));
+    console.log('🧪 Test 3:', getImageUrl('1752308938164-577314183.jpg'));
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', async function () {
+      console.log('🚀 Step 3 initialized');
+
+      // Extract branch code from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchCode = urlParams.get('branch');
+      if (branchCode) {
+        window.BRANCH_CODE = branchCode;
+        console.log('📍 Branch code from URL:', branchCode);
+      }
+
+      // Initialize branch info first
+      if (window.globalInstallmentManager) {
+        window.globalInstallmentManager.initializeBranchInfo();
+      }
+
+      // Load branch info
+      await loadBranchInfo();
+
+      // Initialize theme
+      const savedTheme = localStorage.getItem('darkMode');
+      if (savedTheme === 'true') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+
+      // Update connection status
+      const connectionStatus = document.getElementById('connectionStatus');
+      if (connectionStatus) {
+        connectionStatus.textContent = '🟢 เชื่อมต่อแล้ว';
+      }
+
+      // Initialize Step 3 Integration
+      try {
+        if (typeof Step3Integration !== 'undefined') {
+          window.step3Integration = new Step3Integration();
+          console.log('✅ Step3Integration initialized successfully');
+        } else {
+          console.error('❌ Step3Integration class not found');
+          // Retry after a short delay
+          setTimeout(() => {
+            if (typeof Step3Integration !== 'undefined') {
+              window.step3Integration = new Step3Integration();
+              console.log('✅ Step3Integration initialized on retry');
+            } else {
+              console.error('❌ Step3Integration still not available after retry');
+            }
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('❌ Error initializing Step3Integration:', error);
+      }
+
+      // Initialize Tax Type Manager
+      setTimeout(() => {
+        if (window.taxTypeManager) {
+          window.taxTypeManager.init();
+          console.log('✅ Tax Type Manager initialized');
+        }
+
+        // Initialize Document Fee System
+        initializeStep3DocumentFeeSystem();
+
+        // Initialize Discount System
+        initializeStep3DiscountSystem();
+
+        // Initialize Payment Method System
+        initializeStep3PaymentMethodSystem();
+
+        // Load order summary
+        loadStep3OrderSummary();
+      }, 500);
+
+      showToast('ระบบเลือกแผนการชำระพร้อมใช้งาน', 'success');
+
+      // Auto-run data sync test in development
+      if (window.location.hostname === 'localhost' || window.location.hostname.includes('dev')) {
+        setTimeout(() => {
+          console.log('🧪 Running automatic data sync test...');
+          if (typeof testDataSync === 'function') {
+            testDataSync();
+          }
+        }, 2000);
+      }
+
+      // Add CSS for modal animations
+      const modalStyles = document.createElement('style');
+      modalStyles.textContent = `
+        #customPlanModal {
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.3s ease-out;
+        }
+        
+        #customPlanModal > div {
+          animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+          from { 
+            opacity: 0;
+            transform: scale(0.9) translateY(-20px);
+          }
+          to { 
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        
+        .custom-plan-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .payment-plan-card.selected {
+          border-color: #10b981 !important;
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+        
+        .plan-selection-indicator {
+          animation: bounceIn 0.4s ease-out;
+        }
+        
+        @keyframes bounceIn {
+          0% { transform: scale(0); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+      `;
+      document.head.appendChild(modalStyles);
+    });
+
+    async function loadBranchInfo() {
+      let js = null;
+      let branchCode = null;
+      try {
+        branchCode = window.BRANCH_CODE;
+        if (!branchCode) {
+          throw new Error('ไม่พบรหัสสาขา กรุณาเลือกสาขาจากหน้าหลัก');
+        }
+        const token = localStorage.getItem('authToken') || '';
+        // เรียก /api/branch เพื่อดึง list สาขา
+        const res = await fetch(`/api/branch`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        js = await res.json();
+        if (res.ok && js.success) {
+          // หา record ที่ตรงกับ BRANCH_CODE
+          const branch = js.data.find(b => b.branch_code === branchCode);
+          if (branch) {
+            document.getElementById('branchInfo').textContent =
+              `${branch.name} — ${branch.address}`;
+            // อัพเดท title ของหน้าด้วยชื่อสาขาจริง
+            document.title = `ระบบผ่อน - ${branch.name}`;
+            document.getElementById('pageTitle').textContent = `ระบบผ่อน - ${branch.name}`;
+
+            // อัพเดท dropdown branch info ใน Receipt Menu
+            const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+            if (dropdownBranchInfo) {
+              dropdownBranchInfo.textContent = `สาขา: ${branch.name}`;
+            }
+            return;
+          }
+        }
+        throw new Error(`ไม่พบสาขา ${branchCode}`);
+      } catch (err) {
+        console.error('❌ loadBranchInfo error:', err);
+        console.error('🔍 Available branches:', js?.data?.map(b => ({ code: b.branch_code, name: b.name })) || 'No data');
+        document.getElementById('branchInfo').textContent =
+          `สาขา: ไม่พบข้อมูลสาขา "${branchCode}"`;
+
+        // Show available branches for debugging
+        if (js?.data) {
+          console.log('📋 Available branch codes:', js.data.map(b => b.branch_code));
+          showToast(`ไม่พบสาขา "${branchCode}" กรุณาเลือกสาขาจากหน้าหลัก`, 'error');
+        }
+      }
+    }
+
+    // Toast function
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+
+      // Determine background color
+      let bgColor = 'bg-blue-500';
+      if (type === 'success') bgColor = 'bg-green-500';
+      else if (type === 'error') bgColor = 'bg-red-500';
+      else if (type === 'warning') bgColor = 'bg-yellow-500';
+
+      // Determine icon
+      let icon = 'info-circle';
+      if (type === 'success') icon = 'check-circle';
+      else if (type === 'error') icon = 'x-circle';
+      else if (type === 'warning') icon = 'exclamation-triangle';
+
+      toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white ${bgColor}`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <i class="bi bi-${icon}"></i>
+          <span>${message}</span>
+        </div>
+      `;
+
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
+    // Make functions globally available
+    window.showToast = showToast;
+
+    // === TAX TYPE SELECTION MANAGEMENT ===
+    window.taxTypeManager = {
+      selectedTaxType: null,
+
+      init() {
+        const taxRadios = document.querySelectorAll('input[name="taxType"]');
+        const btnStep3ToStep4 = document.getElementById('btnStep3ToStep4');
+
+        // Add event listeners to tax type radio buttons
+        taxRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            this.handleTaxTypeChange(e.target.value);
+          });
+        });
+
+        // Initial button state check
+        this.validateTaxSelection();
+
+        // Check if there's already a selected tax type
+        const selectedTax = document.querySelector('input[name="taxType"]:checked');
+        if (selectedTax) {
+          this.handleTaxTypeChange(selectedTax.value);
+        } else {
+          // Set default document type when no tax is selected
+          this.updateDocumentType('default');
+        }
+
+        // Override button click to validate tax selection
+        if (btnStep3ToStep4) {
+          btnStep3ToStep4.addEventListener('click', (e) => {
+            if (!this.validateTaxSelection()) {
+              e.preventDefault();
+              e.stopPropagation();
+              this.showTaxRequiredMessage();
+              return false;
+            }
+          });
+        }
+      },
+
+      handleTaxTypeChange(taxType) {
+        this.selectedTaxType = taxType;
+
+        // Update visual indicators
+        this.updateVisualIndicators(taxType);
+
+        // Update tax calculation preview
+        this.updateTaxPreview(taxType);
+
+        // Update calculator with tax calculations
+        this.updateCalculatorWithTax(taxType);
+
+        // Update document type based on tax selection
+        this.updateDocumentType(taxType);
+
+        // Validate and enable/disable next button
+        this.validateTaxSelection();
+
+        // Save to global data manager
+        if (window.globalInstallmentManager) {
+          // คำนวณยอดภาษีและประเภทเอกสาร
+          const totalAmountElement = document.getElementById('totalAmount');
+          const currentTotal = parseFloat(totalAmountElement?.textContent?.replace(/[฿,]/g, '') || '0');
+
+          let beforeTax, vat, total, documentType;
+
+          switch (taxType) {
+            case 'inclusive':
+              total = currentTotal;
+              beforeTax = total / 1.07;
+              vat = total - beforeTax;
+              documentType = 'ใบกำกับภาษี';
+              break;
+            case 'exclusive':
+              beforeTax = currentTotal;
+              vat = beforeTax * 0.07;
+              total = beforeTax + vat;
+              documentType = 'ใบกำกับภาษี';
+              break;
+            case 'none':
+            default:
+              beforeTax = currentTotal;
+              vat = 0;
+              total = currentTotal;
+              documentType = 'ใบเสร็จรับเงิน';
+              break;
+          }
+
+          // ดึงค่าธรรมเนียมเอกสาร
+          const documentFee = parseFloat(document.getElementById('globalDocumentFee')?.value || '500');
+
+          // บันทึกข้อมูลครบถ้วน
+          window.globalInstallmentManager.updateStepData(3, {
+            taxType: taxType,
+            documentType: documentType,
+            vatAmount: vat,
+            beforeTaxAmount: beforeTax,
+            totalWithTax: total,
+            docFee: documentFee,
+            timestamp: new Date().toISOString()
+          });
+
+          console.log('💾 Step3 Tax Data Saved:', {
+            taxType,
+            documentType,
+            vatAmount: vat,
+            beforeTaxAmount: beforeTax,
+            totalWithTax: total
+          });
+        }
+
+        showToast(`เลือกประเภทภาษี: ${this.getTaxTypeLabel(taxType)}`, 'success');
+      },
+
+      updateVisualIndicators(taxType) {
+        // Reset all check icons
+        document.querySelectorAll('[id$="-check"]').forEach(icon => {
+          icon.classList.add('opacity-0');
+        });
+
+        // Reset all tax option labels
+        document.querySelectorAll('.tax-option-label').forEach(label => {
+          label.classList.remove('border-orange-400', 'bg-orange-100', 'selected');
+          label.classList.add('border-gray-200');
+        });
+
+        // Highlight selected option
+        const selectedRadio = document.querySelector(`input[name="taxType"][value="${taxType}"]`);
+        if (selectedRadio) {
+          const label = selectedRadio.closest('.tax-option-label');
+          if (label) {
+            label.classList.remove('border-gray-200');
+            label.classList.add('border-orange-400', 'bg-orange-100', 'selected');
+          }
+
+          // Show check icon with animation
+          const checkIcon = document.getElementById(`tax-${taxType}-check`);
+          if (checkIcon) {
+            checkIcon.classList.remove('opacity-0');
+            checkIcon.style.transform = 'scale(0.8)';
+            setTimeout(() => {
+              checkIcon.style.transform = 'scale(1)';
+            }, 150);
+          }
+        }
+
+        // Remove required animation from tax card
+        const taxCard = document.querySelector('.tax-selection-card');
+        if (taxCard) {
+          taxCard.classList.remove('animate-pulse', 'animate-pulse-orange');
+        }
+      },
+
+      updateTaxPreview(taxType) {
+        const preview = document.getElementById('taxCalculationPreview');
+        const totalAmountElement = document.getElementById('totalAmount');
+        const currentTotal = parseFloat(totalAmountElement?.textContent?.replace(/[฿,]/g, '') || '0');
+
+        if (currentTotal <= 0) {
+          preview.style.display = 'none';
+          return;
+        }
+
+        preview.style.display = 'block';
+
+        let beforeTax, vat, total;
+
+        switch (taxType) {
+          case 'inclusive':
+            // ราคารวมภาษีแล้ว - แยกภาษีออก
+            total = currentTotal;
+            beforeTax = total / 1.07;
+            vat = total - beforeTax;
+
+            document.getElementById('taxPreviewLabel').textContent = 'ก่อนภาษี:';
+            document.getElementById('taxPreviewVatRow').style.display = 'flex';
+            break;
+
+          case 'exclusive':
+            // ราคาไม่รวมภาษี - เพิ่มภาษี
+            beforeTax = currentTotal;
+            vat = beforeTax * 0.07;
+            total = beforeTax + vat;
+
+            document.getElementById('taxPreviewLabel').textContent = 'ก่อนภาษี:';
+            document.getElementById('taxPreviewVatRow').style.display = 'flex';
+            break;
+
+          case 'none':
+            // ไม่มีภาษี
+            beforeTax = currentTotal;
+            vat = 0;
+            total = currentTotal;
+
+            document.getElementById('taxPreviewLabel').textContent = 'ยอดสุทธิ:';
+            document.getElementById('taxPreviewVatRow').style.display = 'none';
+            break;
+        }
+
+        // Update preview display
+        document.getElementById('taxPreviewBeforeTax').textContent = `฿${beforeTax.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        document.getElementById('taxPreviewVat').textContent = `฿${vat.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        document.getElementById('taxPreviewTotal').textContent = `฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+
+        // Update main calculator with new values
+        this.updateMainCalculatorValues(beforeTax, vat, total, taxType);
+
+        // Update document type preview
+        this.updateTaxPreviewDocumentType(taxType);
+      },
+
+      updateMainCalculatorValues(beforeTax, vat, total, taxType) {
+        // Update main calculator displays
+        const calcBeforeTax = document.getElementById('calcBeforeTax');
+        const calcVatAmount = document.getElementById('calcVatAmount');
+        const calcTotalAmount = document.getElementById('calcTotalAmount');
+
+        if (calcBeforeTax) {
+          calcBeforeTax.textContent = `฿${beforeTax.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        }
+
+        if (calcVatAmount) {
+          calcVatAmount.textContent = `฿${vat.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        }
+
+        if (calcTotalAmount) {
+          calcTotalAmount.textContent = `฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        }
+
+        // Update pay today amount (ชำระดาวน์วันนี้)
+        const payTodayAmount = document.getElementById('payTodayAmount');
+        if (payTodayAmount) {
+          // สำหรับระบบผ่อน ยอดที่ชำระวันนี้คือยอดดาวน์ + ค่าเอกสาร
+          const documentFee = parseFloat(document.getElementById('globalDocumentFee')?.value || '500');
+          const downPayment = total * 0.3; // สมมติดาวน์ 30%
+          const payToday = downPayment + documentFee;
+          payTodayAmount.textContent = `฿${payToday.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        }
+      },
+
+      updateTaxPreviewDocumentType(taxType) {
+        const documentTypeElement = document.getElementById('taxPreviewDocumentType');
+        const documentNoteElement = document.getElementById('taxPreviewDocumentNote');
+
+        if (!documentTypeElement || !documentNoteElement) return;
+
+        let documentType = '';
+        let documentNote = '';
+        let documentClass = '';
+        let icon = '';
+
+        switch (taxType) {
+          case 'inclusive':
+            documentType = 'ใบกำกับภาษี';
+            documentNote = 'ราคารวมภาษีแล้ว - สามารถขอคืนภาษีได้';
+            documentClass = 'text-blue-600';
+            icon = '📋';
+            break;
+          case 'exclusive':
+            documentType = 'ใบกำกับภาษี';
+            documentNote = 'ราคาแยกภาษี - สามารถขอคืนภาษีได้';
+            documentClass = 'text-blue-600';
+            icon = '📋';
+            break;
+          case 'none':
+            documentType = 'ใบเสร็จรับเงิน';
+            documentNote = 'ไม่มีภาษี - ไม่สามารถขอคืนภาษีได้';
+            documentClass = 'text-green-600';
+            icon = '🧾';
+            break;
+          case 'default':
+          default:
+            documentType = 'ระบุประเภท';
+            documentNote = 'กรุณาเลือกประเภทภาษี';
+            documentClass = 'text-gray-600';
+            icon = '📄';
+        }
+
+        documentTypeElement.innerHTML = `${icon} ${documentType}`;
+        documentTypeElement.className = `font-medium ${documentClass}`;
+        documentNoteElement.textContent = documentNote;
+        documentNoteElement.className = `text-xs mt-1 ${documentClass.replace('600', '500')}`;
+      },
+
+      updateCalculatorWithTax(taxType) {
+        const calcElements = {
+          beforeTax: document.getElementById('calcBeforeTax'),
+          vatAmount: document.getElementById('calcVatAmount'),
+          totalAmount: document.getElementById('calcTotalAmount'),
+          taxInfoRow: document.getElementById('taxInfoRow'),
+          vatAmountRow: document.getElementById('vatAmountRow'),
+          vatTypesInfo: document.getElementById('vatTypesInfo'),
+          vatTypes: document.getElementById('vatTypes')
+        };
+
+        // Show/hide tax information rows
+        if (taxType === 'none') {
+          calcElements.taxInfoRow?.style && (calcElements.taxInfoRow.style.display = 'none');
+          calcElements.vatAmountRow?.style && (calcElements.vatAmountRow.style.display = 'none');
+          calcElements.vatTypesInfo?.style && (calcElements.vatTypesInfo.style.display = 'none');
+        } else {
+          calcElements.taxInfoRow?.style && (calcElements.taxInfoRow.style.display = 'flex');
+          calcElements.vatAmountRow?.style && (calcElements.vatAmountRow.style.display = 'flex');
+          calcElements.vatTypesInfo?.style && (calcElements.vatTypesInfo.style.display = 'flex');
+
+          // Update VAT type info
+          if (calcElements.vatTypes) {
+            calcElements.vatTypes.textContent = this.getTaxTypeLabel(taxType);
+          }
+        }
+      },
+
+      updateDocumentType(taxType) {
+        const documentTypeElement = document.getElementById('documentType');
+        if (!documentTypeElement) return;
+
+        let documentType = '';
+        let documentClass = '';
+        let icon = '';
+
+        switch (taxType) {
+          case 'inclusive':
+          case 'exclusive':
+            documentType = 'ใบกำกับภาษี';
+            documentClass = 'text-blue-600';
+            icon = '📋';
+            break;
+          case 'none':
+            documentType = 'ใบเสร็จรับเงิน';
+            documentClass = 'text-green-600';
+            icon = '🧾';
+            break;
+          case 'default':
+          default:
+            documentType = 'ระบุประเภทเอกสาร';
+            documentClass = 'text-gray-600';
+            icon = '📄';
+        }
+
+        // Update document type display
+        documentTypeElement.innerHTML = `${icon} ${documentType}`;
+        documentTypeElement.className = `font-semibold ${documentClass}`;
+
+        // Update document type note
+        const documentTypeNoteElement = document.getElementById('documentTypeNoteText');
+        if (documentTypeNoteElement) {
+          let noteText = '';
+          switch (taxType) {
+            case 'inclusive':
+            case 'exclusive':
+              noteText = 'สามารถใช้เป็นหลักฐานการขอคืนภาษีได้';
+              break;
+            case 'none':
+              noteText = 'ไม่สามารถใช้เป็นหลักฐานการขอคืนภาษีได้';
+              break;
+            case 'default':
+            default:
+              noteText = 'กรุณาเลือกประเภทภาษีก่อน';
+          }
+          documentTypeNoteElement.textContent = noteText;
+          documentTypeNoteElement.className = `${documentClass.replace('600', '500')}`;
+        }
+
+        // Update all other document type references
+        const allDocumentTypeElements = document.querySelectorAll('[data-document-type]');
+        allDocumentTypeElements.forEach(element => {
+          if (element.id !== 'documentType') { // Skip the main element we already updated
+            element.innerHTML = `${icon} ${documentType}`;
+            element.className = documentClass;
+          }
+        });
+
+        // Show notification of document type change
+        if (taxType !== 'none') {
+          this.showDocumentTypeInfo(documentType);
+        }
+      },
+
+      showDocumentTypeInfo(documentType) {
+        // Show a subtle notification about document type
+        const existingNotification = document.getElementById('documentTypeNotification');
+        if (existingNotification) {
+          existingNotification.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.id = 'documentTypeNotification';
+        notification.className = 'fixed top-20 right-4 bg-blue-100 border border-blue-300 text-blue-800 px-4 py-2 rounded-lg shadow-lg z-40 text-sm';
+        notification.innerHTML = `
+           <div class="flex items-center gap-2">
+             <i class="bi bi-info-circle"></i>
+             <span>ประเภทเอกสาร: <strong>${documentType}</strong></span>
+           </div>
+         `;
+
+        document.body.appendChild(notification);
+
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 3000);
+      },
+
+      validateTaxSelection() {
+        const btnStep3ToStep4 = document.getElementById('btnStep3ToStep4');
+        const selectedTax = document.querySelector('input[name="taxType"]:checked');
+
+        if (selectedTax) {
+          // Tax is selected - check other validations
+          if (btnStep3ToStep4) {
+            btnStep3ToStep4.disabled = false;
+            btnStep3ToStep4.classList.remove('btn-disabled');
+            btnStep3ToStep4.innerHTML = `
+              <i class="bi bi-arrow-right mr-2"></i>
+              ไปขั้นตอนถัดไป (สรุปและชำระเงิน)
+            `;
+          }
+          return true;
+        } else {
+          // Tax not selected
+          if (btnStep3ToStep4) {
+            btnStep3ToStep4.disabled = true;
+            btnStep3ToStep4.classList.add('btn-disabled');
+            btnStep3ToStep4.innerHTML = `
+              <i class="bi bi-exclamation-triangle mr-2"></i>
+              กรุณาเลือกประเภทภาษีก่อน
+            `;
+          }
+          return false;
+        }
+      },
+
+      showTaxRequiredMessage() {
+        // Scroll to tax selection section
+        const taxSection = document.querySelector('.tax-selection-card');
+        if (taxSection) {
+          taxSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          // Add highlight animation
+          taxSection.classList.add('animate-pulse-orange');
+          setTimeout(() => {
+            taxSection.classList.remove('animate-pulse-orange');
+          }, 3000);
+
+          // Add shake animation to all tax options
+          const taxOptions = document.querySelectorAll('.tax-option-label');
+          taxOptions.forEach((option, index) => {
+            setTimeout(() => {
+              option.style.transform = 'translateX(-5px)';
+              setTimeout(() => {
+                option.style.transform = 'translateX(5px)';
+                setTimeout(() => {
+                  option.style.transform = 'translateX(0)';
+                }, 100);
+              }, 100);
+            }, index * 100);
+          });
+        }
+
+        showToast('⚠️ กรุณาเลือกประเภทภาษีก่อนดำเนินการต่อ', 'warning');
+      },
+
+      getTaxTypeLabel(taxType) {
+        const labels = {
+          'inclusive': 'รวมภาษี 7%',
+          'exclusive': 'แยกภาษี 7%',
+          'none': 'ไม่มีภาษี'
+        };
+        return labels[taxType] || taxType;
+      },
+
+      getSelectedTaxType() {
+        const selected = document.querySelector('input[name="taxType"]:checked');
+        return selected ? selected.value : null;
+      }
+    };
+
+    // === PAYMENT METHOD & BANK ACCOUNT MANAGEMENT FOR STEP 3 ===
+
+    // ข้อมูลบัญชีธนาคาร
+    let step3BankAccountInfo = null;
+
+    // โหลดข้อมูลบัญชีธนาคารจาก Chart of Accounts
+    async function loadStep3BankAccountInfo() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/chart-of-accounts', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch chart of accounts');
+        }
+
+        const result = await response.json();
+        console.log('📊 Chart of Accounts loaded (Step3):', result);
+
+        // ค้นหาบัญชีธนาคารกสิกรไทย (code: 11105-02)
+        const accounts = result.data || result;
+        const bankAccount = accounts.find(account => account.code === '11105-02');
+
+        if (bankAccount) {
+          step3BankAccountInfo = bankAccount;
+          console.log('🏦 Bank account found (Step3):', bankAccount);
+          return bankAccount;
+        } else {
+          console.warn('⚠️ Bank account 11105-02 not found (Step3)');
+          return null;
+        }
+
+      } catch (error) {
+        console.error('❌ Error loading bank account info (Step3):', error);
+        return null;
+      }
+    }
+
+    // แสดงข้อมูลบัญชีธนาคารสำหรับ step3
+    function displayStep3BankAccountInfo(accountInfo) {
+      const bankAccountDetails = document.getElementById('step3BankAccountDetails');
+      if (!bankAccountDetails || !accountInfo) return;
+
+      // แยกข้อมูลจากชื่อบัญชี
+      const bankName = 'ธนาคารกสิกรไทย';
+      const accountNumber = '165-8-68983-1';
+      const accountType = 'บัญชีออมทรัพย์';
+
+      bankAccountDetails.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="flex items-center gap-2">
+            <i class="bi bi-building text-blue-600"></i>
+            <div>
+              <div class="text-xs text-gray-600">ธนาคาร</div>
+              <div class="font-medium">${bankName}</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <i class="bi bi-credit-card-2-front text-green-600"></i>
+            <div>
+              <div class="text-xs text-gray-600">เลขที่บัญชี</div>
+              <div class="font-medium font-mono">${accountNumber}</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <i class="bi bi-tag text-purple-600"></i>
+            <div>
+              <div class="text-xs text-gray-600">ประเภทบัญชี</div>
+              <div class="font-medium">${accountType}</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <i class="bi bi-person text-orange-600"></i>
+            <div>
+              <div class="text-xs text-gray-600">ชื่อบัญชี</div>
+              <div class="font-medium">บริษัท 2 พี่น้อง โมบาย จำกัด</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+          <div class="text-sm text-green-800">
+            <strong>รหัสบัญชี:</strong> ${accountInfo.code}
+          </div>
+        </div>
+      `;
+    }
+
+    // จัดการการเปลี่ยน payment method ใน step3
+    function handleStep3PaymentMethodChange() {
+      const selectedPayment = document.querySelector('input[name="globalPaymentMethod"]:checked');
+      const bankTransferInfo = document.getElementById('step3BankTransferInfo');
+      const mixedPaymentDetails = document.getElementById('step3MixedPaymentDetails');
+
+      if (!selectedPayment) return;
+
+      const paymentValue = selectedPayment.value;
+      console.log('💳 Payment method changed (Step3):', paymentValue);
+
+      // จัดการแสดง/ซ่อนส่วนต่างๆ
+      if (paymentValue === 'transfer') {
+        // แสดงข้อมูลบัญชีธนาคาร
+        if (bankTransferInfo) bankTransferInfo.style.display = 'block';
+        if (mixedPaymentDetails) mixedPaymentDetails.style.display = 'none';
+
+        // โหลดและแสดงข้อมูลบัญชีถ้ายังไม่มี
+        if (!step3BankAccountInfo) {
+          loadStep3BankAccountInfo().then(accountInfo => {
+            if (accountInfo) {
+              displayStep3BankAccountInfo(accountInfo);
+            }
+          });
+        } else {
+          displayStep3BankAccountInfo(step3BankAccountInfo);
+        }
+      } else if (paymentValue === 'mixed') {
+        // แสดงทั้งข้อมูลบัญชีและส่วนชำระผสม
+        if (bankTransferInfo) bankTransferInfo.style.display = 'block';
+        if (mixedPaymentDetails) mixedPaymentDetails.style.display = 'block';
+    
+        // โหลดข้อมูลบัญชีสำหรับส่วนโอนเงิน
+        if (!step3BankAccountInfo) {
+          loadStep3BankAccountInfo().then(accountInfo => {
+            if (accountInfo) {
+              displayStep3BankAccountInfo(accountInfo);
+            }
+          });
+        } else {
+          displayStep3BankAccountInfo(step3BankAccountInfo);
+        }
+    
+        // อัพเดทยอดที่ต้องชำระ
+        updateMixedPaymentRequired();
+      } else {
+        // ซ่อนทั้งหมด
+        if (bankTransferInfo) bankTransferInfo.style.display = 'none';
+        if (mixedPaymentDetails) mixedPaymentDetails.style.display = 'none';
+      }
+
+      // บันทึกข้อมูลใน global data manager
+      if (window.globalInstallmentManager) {
+        // 🔧 ดึงข้อมูล step3 ปัจจุบันมาก่อน
+        const currentStep3Data = window.globalInstallmentManager.getStepData(3) || {};
+
+        const paymentData = {
+          ...currentStep3Data, // รวมข้อมูลเดิม
+          paymentMethod: paymentValue,
+          creditTerm: paymentValue, // เพิ่ม creditTerm ด้วย
+          timestamp: new Date().toISOString()
+        };
+
+        console.log('💳 Saving payment method to step3:', paymentData);
+
+        // เพิ่มข้อมูลบัญชีธนาคารถ้าเลือกโอนเงิน
+        if (paymentValue === 'transfer' && step3BankAccountInfo) {
+          paymentData.bankAccount = {
+            code: step3BankAccountInfo.code,
+            name: step3BankAccountInfo.name,
+            bankName: 'ธนาคารกสิกรไทย',
+            accountNumber: '165-8-68983-1',
+            accountType: 'บัญชีออมทรัพย์',
+            accountHolder: 'บริษัท 2 พี่น้อง โมบาย จำกัด'
+          };
+        }
+
+        window.globalInstallmentManager.updateStepData(3, paymentData);
+
+        console.log('✅ Payment method saved to step3 successfully');
+      }
+    }
+
+    // ฟังก์ชันคำนวณและอัพเดทยอดรวมการชำระแบบผสม
+    function updateMixedPaymentTotal() {
+      const cashAmount = parseFloat(document.getElementById('mixedCashAmount')?.value || 0);
+      const transferAmount = parseFloat(document.getElementById('mixedTransferAmount')?.value || 0);
+      const cardAmount = parseFloat(document.getElementById('mixedCardAmount')?.value || 0);
+    
+      const total = cashAmount + transferAmount + cardAmount;
+    
+      const totalDisplay = document.getElementById('mixedTotalAmount');
+      if (totalDisplay) {
+        totalDisplay.textContent = `฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+    
+      // บันทึกข้อมูลการชำระผสม
+      if (window.globalInstallmentManager) {
+        const currentStep3Data = window.globalInstallmentManager.getStepData(3) || {};
+        const paymentData = {
+          ...currentStep3Data,
+          paymentMethod: 'mixed',
+          mixedPaymentDetails: {
+            cash: cashAmount,
+            transfer: transferAmount,
+            card: cardAmount,
+            total: total
+          }
+        };
+        window.globalInstallmentManager.setStepData(3, paymentData);
+      }
+    
+      return total;
+    }
+    
+    // ฟังก์ชันอัพเดทยอดที่ต้องชำระสำหรับการชำระแบบผสม
+    function updateMixedPaymentRequired() {
+      // ดึงยอดที่ต้องชำระจากการคำนวณ
+      const totalAmountDisplay = document.querySelector('.payment-amount.final');
+      let requiredAmount = 0;
+    
+      if (totalAmountDisplay) {
+        const amountText = totalAmountDisplay.textContent.replace(/[^\d.]/g, '');
+        requiredAmount = parseFloat(amountText) || 0;
+      }
+    
+      const requiredDisplay = document.getElementById('mixedRequiredAmount');
+      if (requiredDisplay) {
+        requiredDisplay.textContent = `฿${requiredAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+    }
+
+    // เริ่มต้นระบบ payment method สำหรับ step3
+    function initializeStep3PaymentMethodSystem() {
+      console.log('💳 Initializing Step3 payment method system...');
+
+      // 🔧 ตรวจสอบข้อมูล payment method ที่บันทึกไว้แล้ว
+      const currentStep3Data = window.globalInstallmentManager?.getStepData(3);
+      if (currentStep3Data?.paymentMethod) {
+        console.log('💳 Found existing payment method:', currentStep3Data.paymentMethod);
+        const existingMethod = document.querySelector(`input[name="globalPaymentMethod"][value="${currentStep3Data.paymentMethod}"]`);
+        if (existingMethod) {
+          existingMethod.checked = true;
+          handleStep3PaymentMethodChange(); // อัปเดต UI
+        }
+      }
+
+      // เพิ่ม event listeners สำหรับ payment method
+      const paymentMethods = document.querySelectorAll('input[name="globalPaymentMethod"]');
+      paymentMethods.forEach(method => {
+        method.addEventListener('change', handleStep3PaymentMethodChange);
+      });
+    
+      // เพิ่ม event listeners สำหรับการชำระแบบผสม
+      const mixedInputs = ['mixedCashAmount', 'mixedTransferAmount', 'mixedCardAmount'];
+      mixedInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+          input.addEventListener('input', updateMixedPaymentTotal);
+        }
+      });
+
+      // โหลดข้อมูลบัญชีธนาคารล่วงหน้า
+      loadStep3BankAccountInfo();
+
+      console.log('✅ Step3 payment method system initialized');
+    }
+
+    // === DOCUMENT FEE MANAGEMENT FOR STEP 3 ===
+    function initializeStep3DocumentFeeSystem() {
+      console.log('💰 Initializing Step3 document fee system...');
+
+      const docFeeInput = document.getElementById('globalDocumentFee');
+      if (docFeeInput) {
+        // Event listener สำหรับการเปลี่ยนแปลงค่าธรรมเนียมเอกสาร
+        docFeeInput.addEventListener('input', function () {
+          const docFee = parseFloat(this.value || '0');
+          console.log('💰 Document fee changed:', docFee);
+
+          // บันทึกลงใน globalInstallmentManager
+          const currentStep3Data = window.globalInstallmentManager?.getStepData(3) || {};
+          window.globalInstallmentManager?.updateStepData(3, {
+            ...currentStep3Data,
+            docFee: docFee,
+            timestamp: new Date().toISOString()
+          });
+
+          // อัพเดทการแสดงผล
+          updatePayTodayCalculation();
+
+          console.log('💾 Document fee saved to step3 data:', docFee);
+        });
+
+        // บันทึกค่าเริ่มต้น
+        const initialDocFee = parseFloat(docFeeInput.value || '500');
+        const currentStep3Data = window.globalInstallmentManager?.getStepData(3) || {};
+        window.globalInstallmentManager?.updateStepData(3, {
+          ...currentStep3Data,
+          docFee: initialDocFee,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log('💰 Initial document fee saved:', initialDocFee);
+      }
+
+      console.log('✅ Step3 document fee system initialized');
+    }
+
+    // === DISCOUNT MANAGEMENT FOR STEP 3 ===
+    function initializeStep3DiscountSystem() {
+      console.log('🔥 Initializing Step3 discount system...');
+
+      const discountInput = document.getElementById('globalDiscount');
+      const discountTypeRadios = document.querySelectorAll('input[name="discountType"]');
+
+      if (discountInput) {
+        // Event listener สำหรับการเปลี่ยนแปลงส่วนลด
+        discountInput.addEventListener('input', function () {
+          const discountValue = parseFloat(this.value || '0');
+          const discountType = document.querySelector('input[name="discountType"]:checked')?.value || 'amount';
+
+          console.log('🔥 Discount changed:', { value: discountValue, type: discountType });
+
+          // บันทึกลงใน globalInstallmentManager
+          const currentStep3Data = window.globalInstallmentManager?.getStepData(3) || {};
+          window.globalInstallmentManager?.updateStepData(3, {
+            ...currentStep3Data,
+            discount: discountValue,
+            discountType: discountType,
+            timestamp: new Date().toISOString()
+          });
+
+          // อัพเดทการแสดงผล
+          updateDiscountCalculation();
+
+          console.log('💾 Discount saved to step3 data:', { value: discountValue, type: discountType });
+        });
+
+        // Event listener สำหรับการเปลี่ยนประเภทส่วนลด
+        discountTypeRadios.forEach(radio => {
+          radio.addEventListener('change', function () {
+            const discountValue = parseFloat(discountInput.value || '0');
+            const discountType = this.value;
+
+            console.log('🔥 Discount type changed:', { value: discountValue, type: discountType });
+
+            // อัพเดท placeholder ตามประเภท
+            if (discountType === 'percent') {
+              discountInput.placeholder = '0-100%';
+              discountInput.max = '100';
+              discountInput.step = '1';
+            } else {
+              discountInput.placeholder = '0.00';
+              discountInput.removeAttribute('max');
+              discountInput.step = '100';
+            }
+
+            // บันทึกลงใน globalInstallmentManager
+            const currentStep3Data = window.globalInstallmentManager?.getStepData(3) || {};
+            window.globalInstallmentManager?.updateStepData(3, {
+              ...currentStep3Data,
+              discount: discountValue,
+              discountType: discountType,
+              timestamp: new Date().toISOString()
+            });
+
+            // อัพเดทการแสดงผล
+            updateDiscountCalculation();
+
+            console.log('💾 Discount type saved to step3 data:', { value: discountValue, type: discountType });
+          });
+        });
+
+        // บันทึกค่าเริ่มต้น
+        const initialDiscount = parseFloat(discountInput.value || '0');
+        const initialDiscountType = document.querySelector('input[name="discountType"]:checked')?.value || 'amount';
+        const currentStep3Data = window.globalInstallmentManager?.getStepData(3) || {};
+        window.globalInstallmentManager?.updateStepData(3, {
+          ...currentStep3Data,
+          discount: initialDiscount,
+          discountType: initialDiscountType,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log('🔥 Initial discount saved:', { value: initialDiscount, type: initialDiscountType });
+      }
+
+      console.log('✅ Step3 discount system initialized');
+    }
+
+    // ฟังก์ชันอัพเดทการคำนวณส่วนลด
+    function updateDiscountCalculation() {
+      const discountInput = document.getElementById('globalDiscount');
+      const discountType = document.querySelector('input[name="discountType"]:checked')?.value || 'amount';
+      const discountValue = parseFloat(discountInput?.value || '0');
+
+      // ดึงยอดรวมสินค้าจาก step1 - ใช้ downAmount สำหรับสินค้าผ่อน
+      const step1Data = window.globalInstallmentManager?.getStepData(1);
+      let subtotal = 0;
+      if (step1Data?.items) {
+        subtotal = step1Data.items.reduce((sum, item) => {
+          // ใช้ downAmount เป็นราคาหลักสำหรับสินค้าผ่อน
+          const price = parseFloat(item.downAmount || item.price || 0);
+          return sum + (price * parseInt(item.quantity || 1));
+        }, 0);
+      }
+
+      // คำนวณส่วนลดจริง
+      let actualDiscount = 0;
+      if (discountType === 'percent') {
+        actualDiscount = (subtotal * discountValue) / 100;
+      } else {
+        actualDiscount = discountValue;
+      }
+
+      // อัพเดทการแสดงผลในหน้า (ถ้ามี elements)
+      const discountDisplayElements = document.querySelectorAll('[data-discount-amount]');
+      discountDisplayElements.forEach(element => {
+        element.textContent = `฿${actualDiscount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+      });
+
+      // อัพเดทยอดสุทธิ
+      const netTotal = subtotal - actualDiscount;
+      const netTotalElements = document.querySelectorAll('[data-net-total]');
+      netTotalElements.forEach(element => {
+        element.textContent = `฿${netTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+      });
+
+      // อัพเดทการคำนวณภาษี (ถ้ามี)
+      if (window.taxTypeManager && window.taxTypeManager.selectedTaxType) {
+        window.taxTypeManager.updateTaxPreview(window.taxTypeManager.selectedTaxType);
+      }
+
+      console.log('🔥 Discount calculation updated:', {
+        subtotal,
+        discountType,
+        discountValue,
+        actualDiscount,
+        netTotal
+      });
+    }
+
+    // ฟังก์ชันอัพเดทการคำนวณยอดชำระวันนี้
+    function updatePayTodayCalculation() {
+      const payTodayAmount = document.getElementById('payTodayAmount');
+      if (payTodayAmount) {
+        const documentFee = parseFloat(document.getElementById('globalDocumentFee')?.value || '500');
+
+        // ดึงยอดรวมล่าสุดจากระบบภาษี
+        const step3Data = window.globalInstallmentManager?.getStepData(3);
+        let totalWithTax = 0;
+
+        if (step3Data?.totalWithTax) {
+          totalWithTax = parseFloat(step3Data.totalWithTax);
+        } else {
+          // Fallback: คำนวณจากข้อมูลสินค้า
+          const step1Data = window.globalInstallmentManager?.getStepData(1);
+          if (step1Data?.items) {
+            totalWithTax = step1Data.items.reduce((sum, item) => {
+              return sum + (parseFloat(item.price || 0) * parseInt(item.quantity || 1));
+            }, 0);
+          }
+        }
+
+        const downPayment = totalWithTax * 0.3; // ดาวน์ 30%
+        const payToday = downPayment + documentFee;
+
+        payTodayAmount.textContent = `฿${payToday.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+
+        // อัพเดทการแสดงค่าธรรมเนียมในตารางสรุป
+        const calcDocFee = document.getElementById('calcDocFee');
+        if (calcDocFee) {
+          calcDocFee.textContent = `฿${documentFee.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        }
+
+        console.log('💸 Pay today calculation updated:', {
+          documentFee,
+          totalWithTax,
+          downPayment,
+          payToday
+        });
+      }
+    }
+
+    // === SIGNATURE MANAGEMENT SYSTEM FOR STEP 3 ===
+    window.step3SignatureManager = {
+      loadSavedSignature() {
+        const signatureStatus = document.getElementById('signatureStatus');
+        const savedSignature = localStorage.getItem('customerSignature');
+
+        if (signatureStatus) {
+          if (savedSignature) {
+            signatureStatus.innerHTML = '<i class="bi bi-check-circle text-green-500"></i> ลายเซ็นบันทึกแล้ว';
+            signatureStatus.className = 'text-sm text-green-600';
+          } else {
+            signatureStatus.innerHTML = '<i class="bi bi-exclamation-circle text-yellow-500"></i> ยังไม่มีลายเซ็น';
+            signatureStatus.className = 'text-sm text-yellow-600';
+          }
+        }
+      },
+
+      updateSignatureInStepManager() {
+        const savedSignature = localStorage.getItem('customerSignature');
+        if (window.globalInstallmentManager && savedSignature) {
+          window.globalInstallmentManager.updateStepData(3, { signature: savedSignature });
+        }
+      }
+    };
+
+    // Initialize signature status on page load
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(() => {
+        window.step3SignatureManager.loadSavedSignature();
+        window.step3SignatureManager.updateSignatureInStepManager();
+      }, 1000);
+
+      // เริ่มต้นระบบ payment method และข้อมูลบัญชีธนาคาร
+      initializeStep3PaymentMethodSystem();
+    });
+
+    // Function to redirect to step2 for signature if needed
+    window.goToStep2ForSignature = function () {
+      if (typeof showToast === 'function') {
+        showToast('กำลังไปหน้าเซ็นลายเซ็น...', 'info');
+      }
+      setTimeout(() => {
+        window.location.href = '/step2';
+      }, 1000);
+    };
+  </script>
+
+  <!-- Signature Status Modal (if needed) -->
+  <div id="signatureModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">สถานะลายเซ็น</h3>
+        <button onclick="document.getElementById('signatureModal').classList.add('hidden')"
+          class="text-gray-500 hover:text-gray-700">
+          <i class="bi bi-x-lg text-xl"></i>
+        </button>
+      </div>
+
+      <div class="text-center mb-4">
+        <div id="signatureStatus" class="text-sm text-gray-600">
+          <i class="bi bi-exclamation-circle text-yellow-500"></i> ยังไม่มีลายเซ็น
+        </div>
+      </div>
+
+      <div class="flex justify-center gap-2">
+        <button onclick="document.getElementById('signatureModal').classList.add('hidden')"
+          class="btn btn-ghost btn-sm">ปิด</button>
+        <button onclick="goToStep2ForSignature()" class="btn btn-primary btn-sm">
+          <i class="bi bi-pencil-square mr-1"></i>
+          ไปเซ็นลายเซ็น
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ เพิ่ม: Quotation และ Invoice Integration สำหรับ Step 3 -->
+  <script>
+    // Window InstallmentAPI Integration for Step 3
+    window.InstallmentAPI = window.InstallmentAPI || {};
+
+    // Step 3 Specific Functions - Invoice Processing
+    window.InstallmentAPI.step3 = {
+      // ดึงข้อมูลใบเสนอราคาจาก Session
+      getQuotationData: function () {
+        try {
+          const data = sessionStorage.getItem('installmentQuotationData');
+          return data ? JSON.parse(data) : null;
+        } catch (error) {
+          console.error('Error getting quotation data:', error);
+          return null;
+        }
+      },
+
+      // สร้างใบแจ้งหนี้จากใบเสนอราคา พร้อมส่งลายเซ็น
+      createInvoiceFromQuotation: async function () {
+        try {
+          const quotationData = this.getQuotationData();
+          if (!quotationData || !quotationData.quotationNumber) {
+            throw new Error('ไม่พบข้อมูลใบเสนอราคา');
+          }
+
+          console.log('🔄 Step 3: Creating invoice from quotation:', quotationData.quotationNumber);
+
+          // 🔧 ENHANCEMENT: รวบรวมลายเซ็นจาก localStorage
+          const signatures = {
+            customerSignature: localStorage.getItem('customerSignature') || '',
+            salespersonSignature: localStorage.getItem('salespersonSignature') || '',
+            authorizedSignature: localStorage.getItem('salespersonSignature') || ''
+          };
+
+          console.log('🖋️ Step 3: Signatures to include in invoice:', {
+            customerSignature: signatures.customerSignature ? 'Present' : 'Missing',
+            salespersonSignature: signatures.salespersonSignature ? 'Present' : 'Missing',
+            authorizedSignature: signatures.authorizedSignature ? 'Present' : 'Missing'
+          });
+
+          // ส่งข้อมูลไปยัง backend โดยใช้ createInvoiceWithSignatures แทน
+          const response = await window.InstallmentAPI.invoice.createFromQuotationWithSignatures(quotationData.quotationNumber, signatures);
+
+          if (response.success) {
+            // บันทึกข้อมูลใบแจ้งหนี้
+            quotationData.invoice = response.data;
+            quotationData.invoiceNumber = response.data.invoiceNumber;
+            quotationData.step = 3;
+            quotationData.lastUpdated = new Date().toISOString();
+
+            sessionStorage.setItem('installmentQuotationData', JSON.stringify(quotationData));
+            sessionStorage.setItem('savedInvoiceId', response.data._id || response.data.id);
+
+            console.log('✅ Step 3: Invoice created with signatures successfully:', response.data.invoiceNumber);
+            return response.data;
+          } else {
+            throw new Error(response.message || 'สร้างใบแจ้งหนี้ไม่สำเร็จ');
+          }
+        } catch (error) {
+          console.error('❌ Step 3: Error creating invoice:', error);
+          throw error;
+        }
+      },
+
+      // ดาวน์โหลด Invoice PDF
+      downloadInvoicePdf: async function (invoiceNumber) {
+        try {
+          const response = await fetch(`/api/invoice/${invoiceNumber}/pdf`);
+          if (!response.ok) {
+            throw new Error('ไม่สามารถดาวน์โหลด PDF ได้');
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `invoice-${invoiceNumber}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+
+          console.log('✅ Step 3: Invoice PDF downloaded:', invoiceNumber);
+        } catch (error) {
+          console.error('❌ Step 3: Error downloading invoice PDF:', error);
+          throw error;
+        }
+      },
+
+      // แสดงข้อมูลใบแจ้งหนี้ในหน้า
+      displayInvoiceInfo: function (invoiceData) {
+        try {
+          // อัปเดตข้อมูลในหน้า (ถ้ามี elements ที่เกี่ยวข้อง)
+          const elements = {
+            invoiceNumber: document.querySelector('#invoice-number'),
+            quotationNumber: document.querySelector('#quotation-number'),
+            netTotal: document.querySelector('#net-total'),
+            invoiceDate: document.querySelector('#invoice-date')
+          };
+
+          if (elements.invoiceNumber) {
+            elements.invoiceNumber.textContent = invoiceData.invoiceNumber;
+          }
+          if (elements.quotationNumber) {
+            elements.quotationNumber.textContent = invoiceData.quotationNumber;
+          }
+          if (elements.netTotal) {
+            elements.netTotal.textContent = `${invoiceData.summary.netTotal.toLocaleString()} บาท`;
+          }
+          if (elements.invoiceDate) {
+            elements.invoiceDate.textContent = new Date(invoiceData.date).toLocaleDateString('th-TH');
+          }
+
+          console.log('✅ Step 3: Invoice info displayed');
+        } catch (error) {
+          console.error('❌ Step 3: Error displaying invoice info:', error);
+        }
+      }
+    };
+
+    // Quotation Management (ถ้ายังไม่มี)
+    if (!window.InstallmentAPI.quotation) {
+      window.InstallmentAPI.quotation = {
+        get: async function (quotationNumber) {
+          try {
+            const response = await fetch(`/api/quotation/${quotationNumber}`);
+            return await response.json();
+          } catch (error) {
+            console.error('Error fetching quotation:', error);
+            throw error;
+          }
+        }
+      };
+    }
+
+    // Invoice Management (ถ้ายังไม่มี)
+    if (!window.InstallmentAPI.invoice) {
+      window.InstallmentAPI.invoice = {
+        createFromQuotation: async function (quotationNumber) {
+          try {
+            const response = await fetch(`/api/quotation/${quotationNumber}/invoice`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            return await response.json();
+          } catch (error) {
+            console.error('Error creating invoice from quotation:', error);
+            throw error;
+          }
+        },
+
+        // 🚀 NEW: สร้างใบแจ้งหนี้พร้อมลายเซ็น
+        createFromQuotationWithSignatures: async function (quotationNumber, signatures) {
+          try {
+            console.log('📤 Creating invoice with signatures for quotation:', quotationNumber);
+
+            const invoiceData = {
+              quotationNumber: quotationNumber,
+              customerSignature: signatures.customerSignature || '',
+              customerSignatureUrl: signatures.customerSignature || '',
+              salespersonSignature: signatures.salespersonSignature || '',
+              salespersonSignatureUrl: signatures.salespersonSignature || '',
+              authorizedSignature: signatures.authorizedSignature || '',
+              authorizedSignatureUrl: signatures.authorizedSignature || '',
+              date: new Date(),
+              branchCode: window.BRANCH_CODE || '00000'
+            };
+
+            console.log('📋 Invoice data with signatures to send:', {
+              ...invoiceData,
+              customerSignature: invoiceData.customerSignature ? 'Present (' + invoiceData.customerSignature.substring(0, 30) + '...)' : 'Missing',
+              salespersonSignature: invoiceData.salespersonSignature ? 'Present (' + invoiceData.salespersonSignature.substring(0, 30) + '...)' : 'Missing'
+            });
+
+            const response = await fetch('/api/invoice', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+              },
+              body: JSON.stringify(invoiceData)
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('✅ Invoice created with signatures:', result);
+            return result;
+          } catch (error) {
+            console.error('❌ Error creating invoice with signatures:', error);
+            throw error;
+          }
+        },
+
+        get: async function (invoiceNumber) {
+          try {
+            const response = await fetch(`/api/invoice/${invoiceNumber}`);
+            return await response.json();
+          } catch (error) {
+            console.error('Error fetching invoice:', error);
+            throw error;
+          }
+        }
+      };
+    }
+
+    // เริ่มต้น Step 3
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('🚀 Step 3: Invoice processing system initialized');
+
+      // ตรวจสอบข้อมูลใบเสนอราคา
+      const quotationData = window.InstallmentAPI.step3.getQuotationData();
+      if (quotationData && quotationData.quotationNumber) {
+        console.log('✅ Step 3: Quotation data found:', quotationData.quotationNumber);
+
+        // แสดงข้อมูลใบแจ้งหนี้ถ้ามี
+        if (quotationData.invoice) {
+          window.InstallmentAPI.step3.displayInvoiceInfo(quotationData.invoice);
+        }
+      } else {
+        console.warn('⚠️ Step 3: No quotation data found');
+      }
+
+      // เชื่อมต่อกับ globalInstallmentManager
+      if (window.globalInstallmentManager) {
+        window.globalInstallmentManager.setStep(3);
+        console.log('✅ Step 3: Connected to globalInstallmentManager');
+      }
+    });
+
+    // ฟังก์ชันโหลดสรุปรายการสินค้า step3
+    function loadStep3OrderSummary() {
+      const orderSummaryDiv = document.getElementById('orderSummary');
+      const totalAmountDiv = document.getElementById('totalAmount');
+
+      if (!orderSummaryDiv || !totalAmountDiv) {
+        console.warn('Step3: Order summary elements not found');
+        return;
+      }
+
+      // ดึงข้อมูลสินค้าจาก step1
+      const step1Data = window.globalInstallmentManager?.getStepData(1);
+      let products = [];
+
+      if (step1Data?.cartItems) {
+        products = step1Data.cartItems;
+      } else {
+        // Fallback to localStorage
+        try {
+          const cartData = localStorage.getItem('cartItems') || localStorage.getItem('cartData');
+          if (cartData) {
+            products = JSON.parse(cartData);
+          }
+        } catch (e) {
+          console.error('Error loading cart data:', e);
+        }
+      }
+
+      if (products.length === 0) {
+        orderSummaryDiv.innerHTML = `
+          <div class="text-center py-8">
+            <i class="bi bi-cart-x text-4xl text-gray-400"></i>
+            <p class="text-gray-500 mt-2">ไม่พบรายการสินค้า</p>
+            <p class="text-xs text-gray-400 mt-1">กรุณากลับไป Step 1 เพื่อเลือกสินค้า</p>
+          </div>
+        `;
+        totalAmountDiv.textContent = '฿0.00';
+        return;
+      }
+
+      let totalAmount = 0;
+      let html = '';
+
+      products.forEach((item, index) => {
+        const quantity = item.quantity || 1;
+        const downAmount = parseFloat(item.downAmount || 0);
+        const downInstallment = parseFloat(item.downInstallment || 0);
+        const downInstallmentCount = parseInt(item.downInstallmentCount || 0);
+        const totalPrice = (downAmount + (downInstallment * downInstallmentCount)) * quantity;
+        const subtotal = downAmount * quantity;
+        totalAmount += subtotal;
+
+        // Debug image path before processing
+        console.log(`🖼️ [Step3] Item ${index} raw image:`, item.image);
+        const processedImageUrl = item.image ? getImageUrl(item.image) : null;
+        console.log(`🖼️ [Step3] Item ${index} processed image:`, processedImageUrl);
+
+        html += `
+          <div class="product-item mb-4 p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div class="flex items-start gap-4">
+              <div class="w-16 h-16 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center overflow-hidden">
+                ${item.image ?
+            `<img src="${processedImageUrl}" alt="${item.name}" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` :
+            ''
+          }
+                <div class="w-full h-full flex items-center justify-center text-gray-500 ${item.image ? 'hidden' : ''}">
+                  <i class="bi bi-phone text-2xl"></i>
+                </div>
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <h6 class="font-semibold text-base mb-2">${item.name || 'สินค้า'}</h6>
+                <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-3">
+                  ${item.brand ? `<span class="bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded text-xs">${item.brand}</span>` : ''}
+                  ${item.imei ? `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-mono">IMEI: ${item.imei}</span>` : ''}
+                  <span class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded text-xs">ผ่อนชำระ</span>
+                </div>
+                
+                <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-3">
+                  <div class="grid grid-cols-4 gap-2 text-center text-sm">
+                    <div>
+                      <div class="text-gray-500 text-xs">ดาวน์ขั้นต่ำ</div>
+                      <div class="font-bold text-green-600">฿${formatPrice(downAmount)}</div>
+                    </div>
+                    <div>
+                      <div class="text-gray-500 text-xs">ผ่อน/เดือน</div>
+                      <div class="font-bold text-purple-600">฿${formatPrice(downInstallment)}</div>
+                    </div>
+                    <div>
+                      <div class="text-gray-500 text-xs">จำนวนงวด</div>
+                      <div class="font-bold text-blue-600">${downInstallmentCount} งวด</div>
+                    </div>
+                    <div>
+                      <div class="text-gray-500 text-xs">ยอดทั้งหมด</div>
+                      <div class="font-bold text-orange-600">฿${formatPrice(totalPrice / quantity)}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex items-center justify-between text-sm">
+                  <div>
+                    <span class="text-gray-600 dark:text-gray-300">จำนวน: </span>
+                    <span class="font-semibold">${quantity}</span>
+                    <span class="text-gray-500 ml-2">× ฿${formatPrice(downAmount)} (ดาวน์)</span>
+                  </div>
+                  <div class="text-right">
+                    <div class="font-bold text-blue-600 dark:text-blue-400 text-lg">฿${formatPrice(subtotal)}</div>
+                    <div class="text-xs text-gray-500">(ยอดดาวน์)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      orderSummaryDiv.innerHTML = html;
+      totalAmountDiv.textContent = `฿${formatPrice(totalAmount)}`;
+
+      console.log('✅ Step3: Order summary loaded with', products.length, 'items, total:', totalAmount);
+    }
+
+    // Helper function for price formatting
+    function formatPrice(num) {
+      return Number(num || 0).toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+  </script>
+
+  <!-- Loading System -->
+  <script>
+    let lottieAnimation = null;
+
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // Backward compatibility functions
+    function showStep3Loading(show = true) {
+      showLoading(show);
+    }
+
+    function hideStep3Loading() {
+      showLoading(false);
+    }
+
+    // Show loading on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      showLoading(true);
+
+      // Hide loading after page is fully loaded
+      setTimeout(() => {
+        showLoading(false);
+      }, 1500);
+    });
+
+    // Show loading when navigating away
+    window.addEventListener('beforeunload', function() {
+      showLoading(true);
+    });
+
+    // Show loading for form submissions and AJAX requests
+    document.addEventListener('submit', function() {
+      showLoading(true);
+    });
+
+    // Show loading for navigation links
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('a[href]');
+      if (link && !link.hasAttribute('download') &&
+          !link.href.startsWith('javascript:') &&
+          !link.href.startsWith('mailto:') &&
+          !link.href.startsWith('tel:') &&
+          !link.target !== '_blank') {
+        showLoading(true);
+      }
+    });
+  </script>
+</body>
+
+</html>

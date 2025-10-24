@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="csrf-token" content="">
+  <title>ใบสำคัญรับ-จ่าย</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <script src="/js/activity-tracker.js"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif']
+          }
+        }
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate']
+      }
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" type="text/css" />
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Google Fonts: Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: all;
+    }
+
+    .loading-overlay.loading-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-overlay.loading-hiding {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.95);
+    }
+
+    .loading-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      min-width: 200px;
+      max-width: 400px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dark .loading-content {
+      background: rgba(31, 41, 55, 0.95);
+      color: white;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 1s ease-in-out infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+
+  <script>
+    /**
+     * LoadingSystem - ระบบแสดงสถานะการโหลดมาตรฐาน
+     * Version: 2.0.0-inline
+     */
+    (function(window) {
+      'use strict';
+
+      let activeLoaders = new Map();
+      let loaderCounter = 0;
+      let defaultContainer = null;
+
+      function createDefaultContainer() {
+        if (defaultContainer && document.body.contains(defaultContainer)) {
+          return defaultContainer;
+        }
+
+        defaultContainer = document.createElement('div');
+        defaultContainer.id = 'loading-system-container';
+        defaultContainer.className = 'loading-system-container';
+        document.body.appendChild(defaultContainer);
+        return defaultContainer;
+      }
+
+      function generateLoaderId() {
+        return 'loader-' + (++loaderCounter) + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      }
+
+      function createLoadingOverlay(options) {
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+    
+        const content = document.createElement('div');
+        content.className = 'loading-content';
+    
+        if (options.variant) {
+          content.classList.add(`loading-${options.variant}`);
+        }
+
+        content.innerHTML = `
+          <div class="loading-spinner"></div>
+          ${options.message ? `<div class="loading-message">${options.message}</div>` : ''}
+        `;
+
+        overlay.appendChild(content);
+        return overlay;
+      }
+
+      function show(options = {}) {
+        const loaderId = generateLoaderId();
+        const container = createDefaultContainer();
+    
+        const defaultOptions = {
+          message: 'กำลังโหลด...',
+          spinnerType: 'default',
+          showProgress: false,
+          autoProgress: false,
+          variant: null,
+          timeout: null
+        };
+
+        const finalOptions = { ...defaultOptions, ...options };
+        const overlay = createLoadingOverlay(finalOptions);
+    
+        overlay.id = loaderId;
+        container.appendChild(overlay);
+
+        requestAnimationFrame(() => {
+          overlay.classList.add('loading-visible');
+        });
+
+        activeLoaders.set(loaderId, {
+          overlay: overlay,
+          options: finalOptions,
+          startTime: Date.now()
+        });
+
+        return loaderId;
+      }
+
+      function hide(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const overlay = loaderData.overlay;
+    
+        overlay.classList.add('loading-hiding');
+        overlay.classList.remove('loading-visible');
+
+        setTimeout(() => {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+          }
+          activeLoaders.delete(loaderId);
+
+          if (activeLoaders.size === 0 && defaultContainer && defaultContainer.parentNode) {
+            defaultContainer.parentNode.removeChild(defaultContainer);
+            defaultContainer = null;
+          }
+        }, 300);
+
+        return true;
+      }
+
+      function hideAll() {
+        const loaderIds = Array.from(activeLoaders.keys());
+        loaderIds.forEach(id => hide(id));
+      }
+
+      window.LoadingSystem = {
+        show,
+        hide,
+        hideAll,
+        version: '2.0.0-inline'
+      };
+
+    })(window);
+  </script>
+
+  <!-- Sidebar JavaScript -->
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+
+  <style>
+    /* Minimal Design System */
+    :root {
+      /* Colors - Simplified palette */
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      
+      /* Neutrals */
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      
+      /* Spacing */
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      
+      /* Border radius */
+      --radius: 0.5rem;
+      --radius-sm: 0.375rem;
+      
+      /* Shadows */
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    /* Dark mode */
+    [data-theme="dark"] {
+      --gray-50: #18181b;
+      --gray-100: #27272a;
+      --gray-200: #3f3f46;
+      --gray-300: #52525b;
+      --gray-500: #a1a1aa;
+      --gray-700: #e4e4e7;
+      --gray-900: #fafafa;
+    }
+
+    /* Base Reset */
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: "Prompt", -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      background-color: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    /* Main content styles */
+    #mainContent {
+      transition: margin-left 0.3s ease-in-out;
+      margin-left: 14rem;
+      min-height: 100vh;
+      background: var(--gray-50);
+    }
+
+    #mainContent.ml-64 {
+      margin-left: 14rem;
+    }
+
+    /* Header adjustments */
+    #mainHeader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 40;
+      transition: margin-left 0.3s ease-in-out;
+      margin-left: 0;
+    }
+
+    #mainHeader.ml-64 {
+      margin-left: 14rem;
+    }
+
+    /* Hide fallback toggle */
+    .fallback-toggle, #fallbackToggle {
+      display: none !important;
+    }
+
+    /* Minimal Card Design */
+    .minimal-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--gray-200);
+      transition: all 0.2s;
+      cursor: pointer;
+      width: 250px;
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
+    }
+
+    .minimal-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color: var(--primary);
+    }
+
+    .minimal-card i {
+      font-size: 3rem;
+      color: var(--gray-700);
+      transition: color 0.2s;
+    }
+
+    .minimal-card:hover i {
+      color: var(--primary);
+    }
+
+    .minimal-card span {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--gray-700);
+      text-align: center;
+    }
+
+    /* Special styles for receipt and payment vouchers */
+    .receipt-voucher {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+    }
+
+    .receipt-voucher:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+    }
+
+    .receipt-voucher i {
+      color: white !important;
+    }
+
+    .receipt-voucher span {
+      color: white !important;
+    }
+
+    .payment-voucher {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      border: none;
+    }
+
+    .payment-voucher:hover {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+    }
+
+    .payment-voucher i {
+      color: white !important;
+    }
+
+    .payment-voucher span {
+      color: white !important;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: var(--space-3) var(--space-4);
+      background: white;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow);
+      display: none;
+      z-index: 9999;
+      max-width: 350px;
+    }
+
+    .toast.show {
+      display: block;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    /* Dark mode adjustments */
+    [data-theme="dark"] .toast {
+      background: var(--gray-100);
+      color: var(--gray-900);
+    }
+
+    [data-theme="dark"] .minimal-card {
+      background: var(--gray-100);
+      border-color: var(--gray-300);
+    }
+
+    [data-theme="dark"] .minimal-card:hover {
+      border-color: var(--primary);
+    }
+
+    [data-theme="dark"] .minimal-card i,
+    [data-theme="dark"] .minimal-card span {
+      color: var(--gray-200);
+    }
+
+    [data-theme="dark"] .minimal-card:hover i {
+      color: var(--primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #mainContent,
+      #mainHeader {
+        margin-left: 0 !important;
+      }
+      
+      #mainContent {
+        padding-top: 6rem;
+      }
+      
+      .minimal-card {
+        width: 100%;
+        max-width: 250px;
+      }
+
+      .toast {
+        right: 1rem;
+        left: 1rem;
+        max-width: none;
+      }
+    }
+
+    /* Sidebar z-index adjustments */
+    .sidebar, #sidebarContainer, #sidebar {
+      z-index: 30;
+    }
+
+    #mainHeader {
+      z-index: 40;
+    }
+
+    #btnToggleMenu, .fallback-toggle {
+      display: none !important;
+    }
+  </style>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <div class="flex items-center gap-3">
+      <i id="toastIcon" class="bi bi-info-circle"></i>
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+   
+  <!-- Header -->
+  <header class="fixed top-0 right-0 left-0 z-40 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all duration-300" id="mainHeader">
+    <div class="flex items-center gap-4">
+      <div>
+        <h1 class="text-lg font-semibold" id="pageTitle">ใบสำคัญรับ-จ่าย</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+          กำลังโหลดสาขา...
+        </p>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-4">
+      <!-- User info area (optional) -->
+    </div>
+  </header>
+   
+  <!-- Main Content -->
+  <div id="mainContent" class="pt-24 px-6 py-8 flex-grow transition-all">
+    <div class="container mx-auto">
+      <!-- Voucher Management Center -->
+      <div class="min-h-[calc(100vh-200px)] flex items-center justify-center">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl mx-auto">
+          
+          <!-- ใบสำคัญรับเงิน Card -->
+          <div onclick="navigateToReceiptVoucher()" class="minimal-card receipt-voucher">
+            <i class="bi bi-cash-coin"></i>
+            <span>ใบสำคัญรับเงิน</span>
+            <small style="font-size: 0.75rem; opacity: 0.9;">Receipt Voucher</small>
+          </div>
+
+          <!-- ใบสำคัญจ่าย Card -->
+          <div onclick="navigateToPaymentVoucher()" class="minimal-card payment-voucher">
+            <i class="bi bi-wallet2"></i>
+            <span>ใบสำคัญจ่าย</span>
+            <small style="font-size: 0.75rem; opacity: 0.9;">Payment Voucher</small>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Global variables
+    let BRANCH_CODE = '';
+    
+    // Show toast notification
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toastIcon');
+      const msg = document.getElementById('toastMessage');
+    
+      if (!toast || !icon || !msg) return;
+    
+      const icons = {
+        success: 'bi-check-circle text-green-500',
+        error: 'bi-x-circle text-red-500',
+        warning: 'bi-exclamation-triangle text-yellow-500',
+        info: 'bi-info-circle text-blue-500'
+      };
+    
+      icon.className = `bi ${icons[type] || icons.info}`;
+      msg.textContent = message;
+    
+      toast.classList.add('show');
+    
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Navigation functions
+    function navigateToReceiptVoucher() {
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังเปิดใบสำคัญรับเงิน...'
+      });
+    
+      // Navigate to receipt voucher page
+      const branchCode = localStorage.getItem('activeBranch') || 'PATTANI';
+      const branchName = localStorage.getItem('activeBranchName') || '';
+    
+      setTimeout(() => {
+        // Update this URL to your actual receipt voucher page
+        window.location.href = `/receiptVoucher?branch=${branchCode}&name=${branchName}`;
+      }, 100);
+    }
+
+    function navigateToPaymentVoucher() {
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังเปิดใบสำคัญจ่าย...'
+      });
+    
+      // Navigate to payment voucher page
+      const branchCode = localStorage.getItem('activeBranch') || 'PATTANI';
+      const branchName = localStorage.getItem('activeBranchName') || '';
+    
+      setTimeout(() => {
+        // Update this URL to your actual payment voucher page
+        window.location.href = `/payment_vouchers?branch=${branchCode}&name=${branchName}`;
+      }, 100);
+    }
+
+    // Load branch info
+    async function loadBranchInfo() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch') || 'PATTANI';
+    
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+    
+        const res = await fetch(`/api/branch`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+    
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+    
+        const js = await res.json();
+        if (js.success && js.data) {
+          const branch = js.data.find(b => b.branch_code === BRANCH_CODE);
+          if (branch) {
+            const branchInfoElement = document.getElementById('branchInfo');
+            const pageTitleElement = document.getElementById('pageTitle');
+    
+            if (branchInfoElement) {
+              branchInfoElement.textContent =
+                `${branch.name} — ${branch.address}`;
+            }
+    
+            document.title = `ใบสำคัญรับ-จ่าย - ${branch.name}`;
+    
+            if (pageTitleElement) {
+              pageTitleElement.textContent = `ใบสำคัญรับ-จ่าย - ${branch.name}`;
+            }
+    
+            localStorage.setItem('branchCode', branch.branch_code);
+            localStorage.setItem('branchName', branch.name);
+            localStorage.setItem('activeBranch', branch.branch_code);
+            localStorage.setItem('activeBranchName', branch.name);
+            return;
+          }
+        }
+        throw new Error('ไม่พบข้อมูลสาขา');
+      } catch (err) {
+        console.error('loadBranchInfo error:', err);
+        const branchInfoElement = document.getElementById('branchInfo');
+        if (branchInfoElement) {
+          branchInfoElement.textContent = 'สาขา: (ไม่พบข้อมูล)';
+        }
+        showToast('ไม่สามารถโหลดข้อมูลสาขาได้', 'warning');
+      }
+    }
+
+    // Check authentication
+    async function checkAuth() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        window.location.href = '/login';
+        return false;
+      }
+    
+      try {
+        const response = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+    
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return false;
+          }
+          throw new Error('Authentication failed');
+        }
+    
+        const data = await response.json();
+        if (data.success) {
+          const userData = data.data;
+          localStorage.setItem('userId', userData._id);
+          localStorage.setItem('userName', userData.name);
+          localStorage.setItem('userRole', userData.role);
+          return true;
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        showToast('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์', 'error');
+        return false;
+      }
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', async function() {
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...'
+      });
+    
+      try {
+        // Check authentication
+        const isAuthenticated = await checkAuth();
+        if (!isAuthenticated) {
+          return;
+        }
+    
+        // Load branch info
+        await loadBranchInfo();
+    
+      } catch (err) {
+        console.error('Initialization error:', err);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+      } finally {
+        LoadingSystem.hide(pageLoaderId);
+      }
+    });
+
+// Show/Hide Loading with Lottie animation
+let lottieAnimation = null;
+function showLoading(show) {
+  const loader = document.getElementById('loadingOverlay');
+  if (show) {
+    loader.style.display = 'flex';
+    loader.classList.remove('animate__fadeOut');
+    loader.classList.add('animate__fadeIn');
+
+    if (!lottieAnimation) {
+      console.log('=🔄 Loading Lottie animation from /Loading/Loading.json');
+      fetch('/Loading/Loading.json')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(animationData => {
+          lottieAnimation = lottie.loadAnimation({
+            container: document.getElementById('lottieContainer'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+          console.log('✅ Lottie animation loaded successfully');
+        })
+        .catch(error => {
+          console.error('❌ Error loading Lottie animation:', error);
+          document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+        });
+    } else {
+      lottieAnimation.play();
+    }
+  } else {
+    if (lottieAnimation) {
+      lottieAnimation.pause();
+    }
+    loader.classList.remove('animate__fadeIn');
+    loader.classList.add('animate__fadeOut');
+    setTimeout(() => { loader.style.display = 'none'; }, 600);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  showLoading(true);
+  // existing code continues to run...
+  setTimeout(() => showLoading(false), 800);
+});
+
+window.addEventListener('beforeunload', () => {
+  if (lottieAnimation) {
+    lottieAnimation.destroy();
+    lottieAnimation = null;
+  }
+});
+  </script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],'
+      },
+    }
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Socket.io (ไฟล์โลคัล หรือ CDN ก็ได้) -->
+  <script
+    src="/socket.io.min.js"
+    integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+    crossorigin="anonymous"
+  ></script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+    
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem; /* ลดความกว้างเมื่อยุบ */
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+  </style>
+</head>
+
+<body
+  class=""
+    w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition 
+    bg-white text-gray-700              /* Light Mode */
+    dark:bg-gray-700 dark:text-gray-200 /* Dark Mode */"
+  "
+>
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button
+    id="btnToggleMenu"
+    title="Toggle Menu"
+    aria-label="Toggle Menu"
+    class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition"
+  >
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Layout หลัก: Sidebar - Main Content -->
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar -->
+    <aside
+      class="w-64 bg-white dark:bg-gray-800 shadow flex flex-col transition-all duration-300"
+    >
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome.html">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="Logo" />
+        </div>
+      </a>
+
+      <!-- บันทึกบัญชี -->
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full">
+          <!-- เมนู: สินค้า -->
+          <li class="my-px">
+            <a
+              href="bookkeeping_report"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-box-seam text-xl"></i>
+              </span>
+              <span class="ml-3">บันทึกบัญชี</span>
+            </a>
+          </li>
+          <!-- เมนู: ผังบัญชี
+ -->
+          <li class="my-px">
+            <a
+              href="chart_of_accounts"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-speedometer2 text-xl"></i>
+              </span>
+              <span class="ml-3">ผังบัญชี</span>
+            </a>
+          </li>
+          <!-- เมนู: สินทรัพย์ -->
+          <li class="my-px">
+            <a
+              href="register_supplier.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-people text-xl"></i>
+              </span>
+              <span class="ml-3">สินทรัพย์</span>
+            </a>
+          </li>
+          <!-- เมนู: ปรับยอดบัญชี-ปรับยอดบัญชี -->
+          <li class="my-px">
+            <a
+              href="Transfer.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-arrow-left-right text-xl"></i>
+              </span>
+              <span class="ml-3">ปรับยอดบัญชี-ปรับยอดบัญชี</span>
+            </a>
+          </li>
+          <!-- เมนู: ประวัติสินค้า -->
+          <li class="my-px">
+            <a
+              href="stockHistory.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-clock-history text-xl"></i>
+              </span>
+              <span class="ml-3">รับเงินเข้าบัญชี</span>
+            </a>
+          </li>
+          <!-- เมนู: สรุป -->
+          <li class="my-px">
+            <a
+              href="stock_Supplier_fifo.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-cash-coin text-xl"></i>
+              </span>
+              <span class="ml-3">ภาษีและประกันสังคม-ภาษีและประกันสังคม</span>
+            </a>
+          </li>
+          <!-- Dark Mode Toggle -->
+          <li class="my-px mt-6">
+            <button
+              id="btnToggleDark"
+              class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-moon"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+
+          <!-- Logout -->
+          <li class="my-px">
+            <button
+              id="btnLogout"
+              class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition"
+            >
+              <span class="flex items-center justify-center text-lg text-red-400 dark:text-red-300">
+                <i class="bi bi-box-arrow-right"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px">
+            <div
+              id="profile"
+              class="flex flex-row items-center h-12 px-4 w-full rounded-lg bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 text-left transition"
+            >
+              <div class="avatar mr-3 -ml-4">
+                <div class="w-10 rounded-full">
+                  <img id="employeePhoto" src="" alt="Employee Photo" />
+                </div>
+              </div>
+              <span class="ml-3" id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ส่วนเนื้อหา (Main Content) -->
+    <div class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="p-4 bg-white dark:bg-gray-800 shadow flex justify-between items-center transition-colors">
+        <h1 class="text-xl font-bold" id="pageTitle">Dashboard</h1>
+      </header>
+
+      <!-- Cards สถิติ -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <!-- Card: สถิติผู้ใช้ -->
+        <div class="card shadow-lg bg-white p-6">
+          <h2 class="text-xl font-semibold mb-2">สถิติผู้ใช้</h2>
+          <p>จำนวนผู้ใช้ทั้งหมด: <span class="font-bold">1200</span></p>
+          <p>ผู้ใช้ที่ออนไลน์: <span class="font-bold">300</span></p>
+        </div>
+        <!-- Card: ยอดขาย -->
+        <div class="card shadow-lg bg-white p-6">
+          <h2 class="text-xl font-semibold mb-2">ยอดขาย</h2>
+          <p>ยอดขายวันนี้: <span class="font-bold">5,000 บาท</span></p>
+          <p>ยอดขายเดือนนี้: <span class="font-bold">150,000 บาท</span></p>
+        </div>
+      </div>
+
+      <!-- Section สำหรับกราฟ -->
+      <div class="card shadow-lg bg-white p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">กราฟยอดขาย</h2>
+        <canvas id="salesChart" class="w-full h-64"></canvas>
+      </div>
+    </div>
+
+      <!-- Footer -->
+      <footer class="bg-white dark:bg-gray-800 py-2 shadow text-center text-sm text-gray-600 dark:text-gray-400 transition-colors">
+        © 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์.
+      </footer>
+    </div>
+  </div>
+
+    <!-- Script สำหรับ Chart.js -->
+    <script>
+      const ctx = document.getElementById('salesChart').getContext('2d');'
+      const salesChart = new Chart(ctx, {
+        type: 'line','
+        data: {
+          labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.'],'
+          datasets: [{
+            label: 'ยอดขาย (บาท)','
+            data: [15000, 20000, 18000, 22000, 24000, 21000],
+            borderColor: 'rgba(75, 192, 192, 1)','
+            backgroundColor: 'rgba(75, 192, 192, 0.2)','
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

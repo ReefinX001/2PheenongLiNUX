@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Inventory Dashboard (Mobile Friendly) - สาขาปัตตานี</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: #f8f9fa;
+      margin-top: 20px;
+    }
+    .card {
+      border: none;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    footer {
+      background-color: #fff;
+      padding: 1rem 0;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-top: 2rem;
+      box-shadow: 0 -2px 4px rgba(0,0,0,0.03);
+    }
+    /* ซ่อน input สำหรับรับข้อมูลจากเครื่องยิงบาร์โค้ด (Keyboard Wedge) */
+    #barcodeInput {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      border: none;
+    }
+    /* สไตล์สำหรับอินไลน์แก้ไข IMEI */
+    .editable-imei {
+      cursor: pointer;
+    }
+    /* ทำให้ซัพพลายเออร์เด่นขึ้น (เช่นตัวหนา + ขยายเล็กน้อย) */
+    .supplier-header button {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    /* สำหรับ checkbox */
+    .form-check-input {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="text-secondary">Inventory Dashboard</h4>
+    <div>
+      <span id="loggedInUser" class="me-3 text-secondary"></span>
+      <button id="btnLogout" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-box-arrow-right me-1"></i> ออกจากระบบ
+      </button>
+    </div>
+  </div>
+
+  <h2 class="mb-4">คลังสินค้า - แยกตามสาขา</h2>
+
+  <!-- เลือกสาขา + ปุ่มสแกนบาร์โค้ด -->
+  <div class="card p-3 mb-4">
+    <h5 class="card-title mb-3">
+      <i class="bi bi-building me-1"></i> เลือกสาขา
+    </h5>
+    <div class="row g-2">
+      <div class="col-12 col-sm-6">
+        <label for="branchSelect" class="form-label fw-semibold">สาขา</label>
+        <select class="form-select" id="branchSelect">
+          <option value="">-- Loading --</option>
+        </select>
+      </div>
+      <div class="col-12 col-sm-6 d-flex align-items-end">
+        <button class="btn btn-primary w-100" id="btnScanBarcode">
+          <i class="bi bi-camera"></i> สแกนบาร์โค้ด
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- แสดงสต๊อกแบบ 2-Level Accordion -->
+  <div class="card p-3">
+    <h5 class="card-title mb-3">
+      <i class="bi bi-people"></i> รายการสต๊อก (Grouped by Supplier)
+    </h5>
+    <div id="stockContainer"><!-- จะถูกเติมด้วย renderStocksGroupedBySupplier() --></div>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <small>© 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์.</small>
+  </div>
+</footer>
+
+<!-- Hidden input สำหรับรับข้อมูลจากเครื่องยิงบาร์โค้ด (Keyboard Wedge) -->
+<input type="text" id="barcodeInput" autofocus />
+
+<!-- Modal สำหรับแสดงรายการบาร์โค้ดที่สแกน -->
+<div class="modal fade" id="barcodeModal" tabindex="-1" aria-labelledby="barcodeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="barcodeModalLabel">รายการบาร์โค้ดที่สแกน</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+         <div class="mb-3">
+           <label for="scannedCodeModal" class="form-label fw-semibold">เลขบาร์โค้ดล่าสุด</label>
+           <input type="text" class="form-control" id="scannedCodeModal" readonly>
+         </div>
+         <div class="table-responsive">
+           <table class="table table-bordered table-sm">
+              <thead class="table-light">
+                <tr>
+                  <th>บาร์โค้ด</th>
+                  <th>รายละเอียดสินค้า</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="scannedProductsTable">
+                <!-- รายการบาร์โค้ดที่สแกนจะถูกเพิ่มที่นี่ -->
+              </tbody>
+           </table>
+         </div>
+      </div>
+      <div class="modal-footer">
+         <button type="button" class="btn btn-secondary" id="cancelManualEntry">ยกเลิก</button>
+         <button type="button" class="btn btn-primary" id="confirmManualEntry">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  let scannedProduct = null;
+  let scannedProducts = []; // เก็บรายการบาร์โค้ดที่สแกนใน modal
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // ตรวจสอบ token และข้อมูลผู้ใช้
+    const token = localStorage.getItem('authToken');
+    const userEmail = localStorage.getItem('userEmail');
+    if (!token) {
+      alert('❌ ยังไม่ได้เข้าสู่ระบบ หรือไม่มี token');
+      window.location.href = '/login';
+      return;
+    }
+    try {
+      const res = await fetch('/api/users/me', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลผู้ใช้');
+      }
+      document.getElementById('loggedInUser').textContent = userEmail
+        ? `พนักงาน: ${userEmail}`
+        : 'Guest';
+      const allowedPages = data.data.allowedPages || [];
+      if (!allowedPages.includes('inventory')) {
+        alert('ไม่มีสิทธิ์เข้าถึงหน้า Inventory');
+        window.location.href = '/login';
+        return;
+      }
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+      window.location.href = '/login';
+      return;
+    }
+  
+    // โหลดสาขา (เฉพาะ PTN01 เป็นตัวอย่าง)
+    await loadBranches();
+  
+    // ตั้ง event listener ต่าง ๆ
+    document.getElementById('btnLogout').addEventListener('click', logout);
+    document.getElementById('branchSelect').addEventListener('change', loadStock);
+    document.getElementById('btnScanBarcode').addEventListener('click', onScanBarcodeClick);
+
+    // รับบาร์โค้ดผ่าน keyboard wedge (เครื่องยิงบาร์โค้ด)
+    const barcodeInput = document.getElementById('barcodeInput');
+    barcodeInput.focus();
+    barcodeInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        const code = e.target.value.trim();
+        if (code) {
+          console.log('🔸 Barcode Received:', code);
+          processBarcode(code);
+        }
+        e.target.value = '';
+      }
+    });
+
+    // ตั้ง event listener สำหรับปุ่มใน modal
+    document.getElementById('confirmManualEntry').addEventListener('click', confirmScannedProducts);
+    document.getElementById('cancelManualEntry').addEventListener('click', cancelScannedProducts);
+
+    // เมื่อปิด Modal -> focus ที่ input ต่อ
+    const barcodeModalEl = document.getElementById('barcodeModal');
+    barcodeModalEl.addEventListener('hidden.bs.modal', () => {
+      barcodeInput.focus();
+    });
+  });
+  
+  function logout() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userEmail');
+    window.location.href = '/login';
+  }
+  
+  async function loadBranches() {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/branch', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถโหลดสาขา');
+      }
+  
+      const branchSelect = document.getElementById('branchSelect');
+      branchSelect.innerHTML = '';
+      const ptnBranches = data.data.filter(b => b.branch_code === 'PTN01');
+      if (ptnBranches.length === 0) {
+        branchSelect.innerHTML = '<option value="">ไม่พบสาขา PTN01</option>';
+        alert('ไม่พบสาขา PTN01');
+        return;
+      }
+      ptnBranches.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b._id;
+        opt.textContent = `[${b.branch_code}] ${b.name}`;
+        branchSelect.appendChild(opt);
+      });
+      branchSelect.disabled = true;
+      loadStock();
+    } catch (err) {
+      alert('Error loading branches: ' + err.message);
+    }
+  }
+  
+  async function loadStock() {
+    const branchId = document.getElementById('branchSelect').value;
+    if (!branchId) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      const url = `/api/branch-stock?branch_id=${branchId}&include_unverified=1`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'ไม่สามารถโหลดสต๊อก');
+      }
+      renderStocksGroupedBySupplier(json.data);
+    } catch (err) {
+      alert('Error loading stock: ' + err.message);
+    }
+  }
+
+  function renderStocksGroupedBySupplier(stocks) {
+    const container = document.getElementById('stockContainer');
+    container.innerHTML = `<div class="accordion" id="supplierAccordion"></div>`;
+    const accordion = document.getElementById('supplierAccordion');
+  
+    const supplierMap = {};
+    stocks.forEach(st => {
+      const p = st.product_id || {};
+      const supName = (p.supplier && p.supplier._id)
+        ? `[${p.supplier.code || '??'}] ${p.supplier.name}`
+        : 'ไม่ระบุซัพพลายเออร์';
+      if (!supplierMap[supName]) {
+        supplierMap[supName] = [];
+      }
+      supplierMap[supName].push(st);
+    });
+
+    let supIdx = 0;
+    Object.keys(supplierMap).forEach(supName => {
+      supIdx++;
+      const supAccId = `supplier_${supIdx}`;
+      const stItems = supplierMap[supName];
+  
+      const accItem = document.createElement('div');
+      accItem.className = 'accordion-item mb-2';
+      accItem.innerHTML = `
+        <h2 class="accordion-header supplier-header" id="heading_${supAccId}">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#collapse_${supAccId}" aria-expanded="false" aria-controls="collapse_${supAccId}">
+            ${supName} (ทั้งหมด ${stItems.length} รายการ)
+          </button>
+        </h2>
+        <div id="collapse_${supAccId}" class="accordion-collapse collapse"
+             aria-labelledby="heading_${supAccId}" data-bs-parent="#supplierAccordion">
+          <div class="accordion-body p-2" id="body_${supAccId}"></div>
+        </div>
+      `;
+      accordion.appendChild(accItem);
+  
+      const bodyDiv = document.getElementById(`body_${supAccId}`);
+  
+      const groupMap = {};
+      stItems.forEach(st => {
+        const p = st.product_id || {};
+        const gKey = `[${p.brand || '-'}] ${p.name || 'NoName'} (mdl:${p.model || '-'})`;
+        if (!groupMap[gKey]) groupMap[gKey] = [];
+        groupMap[gKey].push(st);
+      });
+  
+      // ปุ่ม "Select All" และ "Delete Selected" เฉพาะใน group เดียวกัน
+      // (ถ้าต้องการรวมทุก group ก็ไปทำปุ่มข้างบนแทน)
+      const groupActionDiv = document.createElement('div');
+      groupActionDiv.className = 'd-flex gap-2 align-items-center';
+      groupActionDiv.innerHTML = `
+        <input type="checkbox" class="form-check-input" id="selectAll_${supAccId}" />
+        <label for="selectAll_${supAccId}">Select All</label>
+        <button class="btn btn-sm btn-danger" id="btnDeleteSelected_${supAccId}">
+          ลบรายการที่เลือก
+        </button>
+      `;
+      bodyDiv.appendChild(groupActionDiv);
+
+      // โค้ดส่วน toggle "Select All" + ลบทีเดียว
+      const selectAllCb = groupActionDiv.querySelector(`#selectAll_${supAccId}`);
+      const deleteSelectedBtn = groupActionDiv.querySelector(`#btnDeleteSelected_${supAccId}`);
+
+      // จะสร้างตารางรวมของ groupKey ทั้งหมดใน supplier นี้
+      const mainTable = document.createElement('table');
+      mainTable.className = 'table table-bordered table-sm mt-2';
+      mainTable.innerHTML = `
+        <thead class="table-light">
+          <tr>
+            <th><input type="checkbox" class="form-check-input" id="selectAllInTable_${supAccId}" /></th>
+            <th>ภาพ</th>
+            <th>ยี่ห้อ</th>
+            <th>รุ่น</th>
+            <th>ความจุ</th>
+            <th>สี</th>
+            <th>ราคา</th>
+            <th>IMEI</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      bodyDiv.appendChild(mainTable);
+
+      // เมื่อคลิกปุ่ม heading => toggle แสดง/ซ่อน
+      // (หรือจะคลิก heading groupKey ทีละตัวก็ได้)
+      // ที่นี่ปรับมาเป็นตารางรวม (ไม่ซ่อนก็ได้)
+  
+      const tableTbody = mainTable.querySelector('tbody');
+
+      // รวมทุก groupKey ไว้ในตารางเดียว
+      Object.keys(groupMap).forEach(gKey => {
+        groupMap[gKey].forEach(st => {
+          const p = st.product_id || {};
+          const imageUrl = p.image
+            ? `/uploads/${p.image}`
+            : 'https://via.placeholder.com/100?text=No+Image';
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>
+              <input type="checkbox" class="form-check-input row-check" data-stock-id="${st._id}" />
+            </td>
+            <td><img src="${imageUrl}" alt="${p.name || ''}" style="width:60px;"></td>
+            <td>${p.brand || '-'}</td>
+            <td>${p.model || '-'}</td>
+            <td>${p.capacity || '-'}</td>
+            <td>${p.color || '-'}</td>
+            <td>${p.price || 0}</td>
+            <td class="editable-imei" data-stock-id="${st._id}">
+              ${st.imei || '-'}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-danger" onclick="removeStock('${st._id}')">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          `;
+          tableTbody.appendChild(row);
+        });
+      });
+
+      // Event: selectAll (checkbox)
+      selectAllCb.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        // ติ๊ก/ยกเลิกติ๊ก ทุกอันในตาราง
+        const rowCbs = mainTable.querySelectorAll('.row-check');
+        rowCbs.forEach(cb => {
+          cb.checked = checked;
+        });
+      });
+
+      // หรือถ้าอยากให้ selectAllInTable แยกต่างหากก็ได้
+      const selectAllInTable = mainTable.querySelector(`#selectAllInTable_${supAccId}`);
+      selectAllInTable.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        const rowCbs = mainTable.querySelectorAll('.row-check');
+        rowCbs.forEach(cb => {
+          cb.checked = checked;
+        });
+        // sync กับ checkbox ด้านบน
+        selectAllCb.checked = checked;
+      });
+
+      // ปุ่มลบรายการที่เลือก
+      deleteSelectedBtn.addEventListener('click', async () => {
+        // หา checkbox ที่ checked
+        const rowCbs = mainTable.querySelectorAll('.row-check:checked');
+        if (rowCbs.length === 0) {
+          alert('ยังไม่ได้เลือกสินค้าใด ๆ');
+          return;
+        }
+        if (!confirm(`ต้องการลบ ${rowCbs.length} รายการ ใช่หรือไม่?`)) return;
+
+        // ลูปลบทีละตัว
+        for (let cb of rowCbs) {
+          const stockId = cb.getAttribute('data-stock-id');
+          try {
+            await removeStock(stockId, false); // false = ไม่ต้อง alert
+          } catch (err) {
+            console.error('ลบไม่สำเร็จ', err);
+          }
+        }
+        // เสร็จแล้ว reload stock
+        loadStock();
+      });
+    });
+  }
+  
+  // Inline Editing IMEI
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.classList.contains('editable-imei')) {
+      const cell = e.target;
+      if (cell.querySelector('input')) return;
+      const stockId = cell.getAttribute('data-stock-id');
+      const currentIMEI = (cell.textContent.trim() === '-' ? '' : cell.textContent.trim());
+      enableIMEIEditing(cell, stockId, currentIMEI);
+    }
+  });
+  
+  async function enableIMEIEditing(cell, stockId, currentIMEI) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control form-control-sm';
+    input.value = currentIMEI;
+    input.style.width = '100px';
+  
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm btn-success ms-1';
+    btn.textContent = 'ยืนยัน';
+  
+    cell.innerHTML = '';
+    cell.appendChild(input);
+    cell.appendChild(btn);
+  
+    btn.addEventListener('click', async () => {
+      const newIMEI = input.value.trim();
+      if (newIMEI === currentIMEI) {
+        cell.textContent = currentIMEI || '-';
+        return;
+      }
+      const token = localStorage.getItem('authToken');
+      try {
+        const res = await fetch(`/api/branch-stock/${stockId}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ imei: newIMEI })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          alert('แก้ไข IMEI ไม่สำเร็จ: ' + (json.error || 'Error'));
+          cell.textContent = currentIMEI || '-';
+        } else {
+          alert('แก้ไข IMEI เรียบร้อย');
+          cell.textContent = newIMEI || '-';
+        }
+      } catch (err) {
+        alert('Error updating IMEI: ' + err.message);
+        cell.textContent = currentIMEI || '-';
+      }
+    });
+  }
+  
+  // เมื่อคลิกปุ่ม “สแกนบาร์โค้ด”
+  function onScanBarcodeClick() {
+    const branchId = document.getElementById('branchSelect').value;
+    if (!branchId) {
+      alert('กรุณาเลือกสาขาก่อน');
+      return;
+    }
+    document.getElementById('barcodeInput').focus();
+  }
+  
+  // processBarcode: หลังจากสแกนบาร์โค้ด
+  async function processBarcode(code) {
+    console.log('🔸 processBarcode =>', code);
+    // อัปเดตเลขบาร์โค้ดล่าสุดใน modal
+    document.getElementById('scannedCodeModal').value = code;
+  
+    const branchId = document.getElementById('branchSelect').value;
+    if (!branchId) {
+      alert('กรุณาเลือกสาขาก่อน');
+      document.getElementById('barcodeInput').focus();
+      return;
+    }
+    const token = localStorage.getItem('authToken');
+    try {
+      const res = await fetch(`/api/product/find-by-barcode?code=${encodeURIComponent(code)}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const findData = await res.json();
+      let product = null;
+      if (!res.ok || !findData.success || !findData.data || !findData.data._id) {
+        if (confirm(`ไม่พบสินค้าตรงบาร์โค้ด "${code}"\nต้องการสร้างสินค้าใหม่หรือไม่?`)) {
+          product = null; // manual entry
+        } else {
+          document.getElementById('barcodeInput').focus();
+          return;
+        }
+      } else {
+        product = findData.data;
+        if (!product.supplier || !product.supplier._id) {
+          alert(`สินค้า SKU:${product.sku} ยังไม่ได้ระบุซัพพลายเออร์!\nกรุณาแก้ไขสินค้านี้ให้มีซัพพลายเออร์ก่อน`);
+          document.getElementById('barcodeInput').focus();
+          return;
+        }
+      }
+      // เพิ่มรายการบาร์โค้ดที่สแกนเข้า modal
+      addScannedProductRow(code, product);
+  
+      // หาก modal ยังไม่เปิด ให้เปิดขึ้นมา
+      const modalEl = document.getElementById('barcodeModal');
+      if (!modalEl.classList.contains('show')) {
+        const barcodeModal = new bootstrap.Modal(modalEl);
+        barcodeModal.show();
+      }
+    } catch (err) {
+      alert('Error scanning barcode: ' + err.message);
+    }
+  
+    document.getElementById('barcodeInput').focus();
+  }
+  
+  function addScannedProductRow(code, product) {
+    const id = Date.now();
+    scannedProducts.push({ id, code, product });
+    updateScannedProductsTable();
+  }
+  
+  function updateScannedProductsTable() {
+    const tbody = document.getElementById('scannedProductsTable');
+    tbody.innerHTML = '';
+    scannedProducts.forEach(item => {
+      const tr = document.createElement('tr');
+      const details = item.product
+         ? `SKU: ${item.product.sku}, ชื่อ: ${item.product.name}`
+         : `กรุณากรอกข้อมูล (Manual entry)`;
+      tr.innerHTML = `
+        <td>${item.code}</td>
+        <td>${details}</td>
+        <td>
+           <button class="btn btn-sm btn-outline-danger" onclick="deleteScannedProduct(${item.id})">
+             <i class="bi bi-trash"></i>
+           </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  
+  function deleteScannedProduct(id) {
+    scannedProducts = scannedProducts.filter(item => item.id !== id);
+    updateScannedProductsTable();
+  }
+  
+  async function confirmScannedProducts() {
+    if (scannedProducts.length === 0) {
+      alert('ไม่มีสินค้าที่สแกนเข้ามา');
+      document.getElementById('barcodeInput').focus();
+      return;
+    }
+    const token = localStorage.getItem('authToken');
+    const branchId = document.getElementById('branchSelect').value;
+    if (!branchId) {
+      alert('กรุณาเลือกสาขาก่อน');
+      document.getElementById('barcodeInput').focus();
+      return;
+    }
+    // Loop เพิ่มสินค้าทีละรายการ
+    for (const item of scannedProducts) {
+      if (!item.product) {
+        alert(`สินค้าบาร์โค้ด ${item.code} ต้องการการกรอกข้อมูลเพิ่มเติม (Manual entry not implemented)`);
+        continue;
+      }
+      try {
+        const res = await fetch('/api/branch-stock', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            product_id: item.product._id,
+            branch_id: branchId,
+            quantity: 1,
+            imei: ''
+          })
+        });
+        const stockData = await res.json();
+        if (!res.ok || !stockData.success) {
+          alert(`เพิ่มสินค้า ${item.product.sku} ไม่สำเร็จ: ${stockData.error || 'Error'}`);
+        } else {
+          console.log(`เพิ่มสินค้า ${item.product.sku} เรียบร้อย`);
+        }
+      } catch (err) {
+        alert(`Error adding product ${item.code}: ${err.message}`);
+      }
+    }
+    alert('เพิ่มสินค้าทั้งหมดเรียบร้อย');
+    scannedProducts = [];
+    updateScannedProductsTable();
+    const barcodeModalEl = document.getElementById('barcodeModal');
+    const barcodeModal = bootstrap.Modal.getInstance(barcodeModalEl);
+    barcodeModal.hide();
+
+    document.getElementById('barcodeInput').focus();
+  
+    loadStock();
+  }
+  
+  function cancelScannedProducts() {
+    if (confirm('ยกเลิกการเพิ่มสินค้าทั้งหมด?')) {
+      scannedProducts = [];
+      updateScannedProductsTable();
+      const barcodeModalEl = document.getElementById('barcodeModal');
+      const barcodeModal = bootstrap.Modal.getInstance(barcodeModalEl);
+      barcodeModal.hide();
+    }
+    document.getElementById('barcodeInput').focus();
+  }
+  
+  /**
+   * ลบสต๊อกในรายการสต๊อกหลัก
+   * @param {string} stockId - _id ของ branch-stock
+   * @param {boolean} showAlert - ถ้า true จะแสดง alert แจ้งเตือน (default=true)
+   */
+  async function removeStock(stockId, showAlert = true) {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`/api/branch-stock/${stockId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ลบสต๊อกไม่สำเร็จ');
+      }
+      if (showAlert) alert('ลบสต๊อกเรียบร้อย');
+      // ถ้าต้องการ reloadStock ที่นี่เลยก็ได้
+    } catch (err) {
+      if (showAlert) alert('Error removing stock: ' + err.message);
+      else throw err; // โยนกลับให้ฝั่งที่เรียกจัดการ
+    }
+  }
+</script>
+</body>
+</html>

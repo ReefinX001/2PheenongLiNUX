@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ใบวางบิล (Billing Note) - ระบบบัญชี</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- ตัวอย่าง Content-Security-Policy (ปรับตามเซิร์ฟเวอร์จริง) --><!-- ตั้งค่า Tailwind dark mode เป็น "class" ก่อนโหลด Tailwind CSS -->
+  <script>
+    window.tailwind = {
+      config: {
+        darkMode: 'class'
+      }
+    };
+  </script>
+
+  <!-- Tailwind CSS + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Socket.IO (ไฟล์โลคัล) + Subresource Integrity (SRI) -->
+  <script
+    src="/socket.io.min.js"
+    integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+    crossorigin="anonymous"
+  ></script>
+
+  <!-- ตรวจสอบ Token ก่อนเข้าหน้า -->
+  <script>
+    (function checkToken() {
+      const token = localStorage.getItem('authToken');'
+      if (!token) {
+        alert('กรุณาเข้าสู่ระบบก่อน');'
+        window.location.href = '/login'; // เปลี่ยนเป็นหน้า login ของคุณ'
+      }
+    })();
+  </script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+    .title {
+      @apply text-2xl font-bold mb-4;
+    }
+    .subtitle {
+      @apply text-gray-500 dark:text-gray-300 mb-4;
+    }
+    .card-custom {
+      @apply bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4;
+    }
+    .section-header {
+      @apply text-lg font-semibold mb-3 border-b-2 border-blue-100 pb-2;
+    }
+    .summary-box {
+      @apply bg-white dark:bg-gray-800 rounded-lg shadow p-4;
+    }
+    .label-text {
+      @apply font-semibold;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+  <!-- Navbar -->
+  <nav class="w-full bg-white dark:bg-gray-800 shadow p-4 flex items-center justify-between">
+    <div>
+      <a
+        href="accounting_dashboard.html"
+        class="btn btn-outline btn-sm"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="inline-block h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        กลับหน้า Dashboard
+      </a>
+    </div>
+    <div class="text-lg font-bold">
+      ใบวางบิล (Billing Note)
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="max-w-4xl mx-auto px-4 py-4">
+    <h1 class="title">ใบวางบิล (Billing Note)</h1>
+    <!-- แสดงเลขที่ใบวางบิล (ตัวอย่างแบบ static) -->
+    <p class="subtitle">
+      เลขที่ใบวางบิล: <span class="text-gray-600 dark:text-gray-300">BN-2025000001</span>
+    </p>
+
+    <!-- ข้อมูลลูกค้า & เอกสาร -->
+    <div class="card-custom">
+      <h2 class="section-header">ข้อมูลลูกค้า & เอกสาร</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label for="customerSelect" class="label-text">ชื่อลูกค้า</label>
+          <select
+            id="customerSelect"
+            class="select select-bordered w-full dark:bg-gray-700 dark:border-gray-600"
+          ></select>
+        </div>
+        <div>
+          <label for="billingNoteDate" class="label-text">วันที่ออกใบวางบิล</label>
+          <input
+            type="date"
+            id="billingNoteDate"
+            class="input input-bordered w-full dark:bg-gray-700 dark:border-gray-600"
+          />
+        </div>
+        <div>
+          <label for="dueDate" class="label-text">วันครบกำหนด</label>
+          <input
+            type="date"
+            id="dueDate"
+            class="input input-bordered w-full dark:bg-gray-700 dark:border-gray-600"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ตารางรายการสินค้า/บริการ -->
+    <div class="card-custom">
+      <h2 class="section-header">รายการสินค้า/บริการ</h2>
+      <div class="overflow-x-auto">
+        <table class="table w-full border border-gray-300 dark:border-gray-600">
+          <thead class="bg-gray-200 dark:bg-gray-700">
+            <tr>
+              <th class="px-2 py-1">สินค้า/บริการ</th>
+              <th class="px-2 py-1">จำนวน</th>
+              <th class="px-2 py-1">ราคาต่อหน่วย</th>
+              <th class="px-2 py-1">ส่วนลด</th>
+              <th class="px-2 py-1">VAT (%)</th>
+              <th class="px-2 py-1">มูลค่าสุทธิ</th>
+              <th class="px-2 py-1"></th>
+            </tr>
+          </thead>
+          <tbody id="billingItems">
+            <!-- แถวรายการจะถูกสร้างโดย JavaScript -->
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-primary mt-3" id="addItem">
+        <svg xmlns="http://www.w3.org/2000/svg" class="inline-block h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        เพิ่มรายการ
+      </button>
+    </div>
+
+    <!-- สรุปยอด -->
+    <div class="summary-box mb-4 mt-4">
+      <h2 class="section-header">สรุปยอดรวม</h2>
+      <div class="flex justify-between">
+        <span>ยอดรวม</span>
+        <span id="subTotal">0.00 บาท</span>
+      </div>
+      <div class="flex justify-between">
+        <span>VAT (7%)</span>
+        <span id="vatAmount">0.00 บาท</span>
+      </div>
+      <hr class="my-2" />
+      <div class="flex justify-between font-bold">
+        <span>ยอดสุทธิ</span>
+        <span id="grandTotal">0.00 บาท</span>
+      </div>
+    </div>
+
+    <!-- หมายเหตุ (ถ้ามี) -->
+    <div class="card-custom">
+      <label for="notes" class="label-text">หมายเหตุสำหรับลูกค้า</label>
+      <textarea
+        class="textarea textarea-bordered w-full dark:bg-gray-700 dark:border-gray-600"
+        id="notes"
+        rows="2"
+        placeholder="ระบุหมายเหตุเพิ่มเติม"
+      ></textarea>
+    </div>
+
+    <!-- ปุ่ม Action -->
+    <div class="flex justify-between mt-4">
+      <button class="btn btn-error">
+        ยกเลิก
+      </button>
+      <div>
+        <button class="btn btn-secondary mr-2">บันทึกร่าง</button>
+        <button class="btn btn-success" id="approveBillingNote">
+          อนุมัติใบวางบิล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-white dark:bg-gray-800 py-3 mt-6 shadow text-center text-sm text-gray-600 dark:text-gray-400">
+    © 2025 ระบบบัญชี. สงวนลิขสิทธิ์.
+  </footer>
+
+  <!-- Socket.IO Logic -->
+  <script>
+    const socket = io();
+    socket.on('connect', () => {'
+      console.log('Socket.IO connected (Billing Note page).');'
+    });
+    socket.on('disconnect', () => {'
+      console.warn('Socket.IO disconnected (Billing Note page).');'
+    });
+    socket.on('billingNoteUpdate', (payload) => {'
+      console.log('Realtime billing note update:', payload);'
+      // อาจ reload หรือ update UI
+    });
+  </script>
+
+  <!-- Main Logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {'
+      loadCustomers();
+      document.getElementById('addItem').addEventListener('click', addRow);'
+      document.getElementById('approveBillingNote').addEventListener('click', saveBillingNote);'
+    });
+
+    // โหลดรายชื่อลูกค้าจาก API (/api/customers)
+    async function loadCustomers() {
+      try {
+        const res = await fetch('/api/customers');'
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'ไม่สามารถโหลดรายชื่อลูกค้าได้');'
+        const sel = document.getElementById('customerSelect');'
+        sel.innerHTML = json.data.map(c => `<option value="${c._id}">${c.first_name} ${c.last_name}</option>`).join('');'
+      } catch (err) {
+        console.error('Error loading customers:', err);'
+      }
+    }
+
+    // เพิ่มแถวรายการสินค้า/บริการ
+    function addRow() {
+      const tbody = document.getElementById('billingItems');'
+      const tr = document.createElement('tr');'
+      tr.innerHTML = `
+        <td><input type="text" class="input input-bordered w-full itemName" placeholder="สินค้า/บริการ"></td>
+        <td><input type="number" class="input input-bordered w-20 qty" value="1" min="1"></td>
+        <td><input type="number" class="input input-bordered w-24 price" value="0" step="0.01"></td>
+        <td><input type="number" class="input input-bordered w-24 discount" value="0" step="0.01"></td>
+        <td>7</td>
+        <td class="netVal text-right">0.00</td>
+        <td>
+          <button class="btn btn-xs btn-error" onclick="removeRow(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" class="inline-block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-7 7-7-7" />
+            </svg>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      tr.querySelectorAll('input').forEach(inp => {'
+        inp.addEventListener('input', updateTotals);'
+      });
+      updateTotals();
+    }
+
+    function removeRow(btn) {
+      btn.closest('tr').remove();'
+      updateTotals();
+    }
+
+    // คำนวณยอดรวมในแต่ละแถวและสรุปยอดรวม
+    function updateTotals() {
+      let subTotal = 0;
+      document.querySelectorAll('#billingItems tr').forEach(row => {'
+        const qty = parseFloat(row.querySelector('.qty')?.value) || 0;'
+        const price = parseFloat(row.querySelector('.price')?.value) || 0;'
+        const discount = parseFloat(row.querySelector('.discount')?.value) || 0;'
+        const lineTotal = (qty * price) - discount;
+        const netValCell = row.querySelector('.netVal');'
+        if (netValCell) {
+          netValCell.textContent = lineTotal.toFixed(2);
+        }
+        subTotal += lineTotal;
+      });
+      const vat = subTotal * 0.07; // VAT 7%
+      const grand = subTotal + vat;
+      document.getElementById('subTotal').textContent = subTotal.toFixed(2) + ' บาท';'
+      document.getElementById('vatAmount').textContent = vat.toFixed(2) + ' บาท';'
+      document.getElementById('grandTotal').textContent = grand.toFixed(2) + ' บาท';'
+    }
+
+    // ส่งข้อมูลใบวางบิลไปยัง API (/api/billing_note)
+    async function saveBillingNote() {
+      const payload = {
+        customer_id: document.getElementById('customerSelect').value,'
+        billing_date: document.getElementById('billingNoteDate')?.value || null,'
+        due_date: document.getElementById('dueDate')?.value || null,'
+        notes: document.getElementById('notes')?.value || '','
+        items: [],
+        total_amount: parseFloat(document.getElementById('grandTotal').textContent) || 0'
+      };
+
+      document.querySelectorAll('#billingItems tr').forEach(row => {'
+        const name = row.querySelector('.itemName')?.value.trim() || '';'
+        const qty = parseFloat(row.querySelector('.qty')?.value) || 0;'
+        const price = parseFloat(row.querySelector('.price')?.value) || 0;'
+        const discount = parseFloat(row.querySelector('.discount')?.value) || 0;'
+        payload.items.push({ name, qty, price, discount });
+      });
+
+      try {
+        const res = await fetch('/api/billing_note', {'
+          method: 'POST','
+          headers: { 'Content-Type': 'application/json' },'
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || 'ไม่สามารถสร้างใบวางบิลได้');'
+        }
+        alert('สร้างใบวางบิลเรียบร้อย!');'
+        // Optionally reset form or redirect
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);'
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จัดการผู้ใช้ - User Management</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+  
+  <!-- Google Fonts - Prompt (Thai) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    
+    .online-indicator {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 10001;
+      pointer-events: auto;
+    }
+
+    .loading-overlay.loading-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-overlay.loading-hiding {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loading-content {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      min-width: 250px;
+      max-width: 90vw;
+    }
+
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e0e0e0;
+      border-top-color: #0d6efd;
+      border-radius: 50%;
+      animation: loading-spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-message {
+      color: #333333;
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+
+    .loading-progress {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .loading-progress-fill {
+      height: 100%;
+      background: #0d6efd;
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    /* Theme Variants */
+    .loading-success .loading-spinner { border-top-color: #10b981; }
+    .loading-success .loading-progress-fill { background: #10b981; }
+
+    .loading-warning .loading-spinner { border-top-color: #f59e0b; }
+    .loading-warning .loading-progress-fill { background: #f59e0b; }
+
+    .loading-error .loading-spinner { border-top-color: #ef4444; }
+    .loading-error .loading-progress-fill { background: #ef4444; }
+
+    @keyframes loading-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Dark mode support */
+    [data-theme="dark"] .loading-content {
+      background: #2a2a2a;
+      color: #ffffff;
+    }
+
+    [data-theme="dark"] .loading-message {
+      color: #ffffff;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .loading-content {
+        padding: 1.5rem;
+        margin: 1rem;
+      }
+    }
+  </style>
+
+  <script>
+    // LoadingSystem v2.0.0 - Inline Version
+    (function(window) {
+      'use strict';
+
+      console.log('🚀 LoadingSystem v2.0.0 (Inline) initializing...');
+
+      let activeLoaders = new Map();
+      let loaderCounter = 0;
+      let defaultContainer = null;
+
+      function createDefaultContainer() {
+        if (defaultContainer && document.body.contains(defaultContainer)) {
+          return defaultContainer;
+        }
+        defaultContainer = document.createElement('div');
+        defaultContainer.id = 'loading-system-container';
+        defaultContainer.className = 'loading-system-container';
+        document.body.appendChild(defaultContainer);
+        return defaultContainer;
+      }
+
+      function generateLoaderId() {
+        return `loader-${Date.now()}-${++loaderCounter}`;
+      }
+
+      function createLoadingOverlay(options = {}) {
+            const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+    
+        const content = document.createElement('div');
+        content.className = 'loading-content';
+    
+        const spinner = document.createElement('div');
+        spinner.className = 'loading-spinner';
+    
+        const message = document.createElement('div');
+        message.className = 'loading-message';
+        message.textContent = options.message || 'กำลังโหลด...';
+    
+        let progressBar = null;
+        if (options.showProgress) {
+          progressBar = document.createElement('div');
+          progressBar.className = 'loading-progress';
+    
+          const progressFill = document.createElement('div');
+          progressFill.className = 'loading-progress-fill';
+          progressBar.appendChild(progressFill);
+        }
+    
+        content.appendChild(spinner);
+        content.appendChild(message);
+        if (progressBar) {
+          content.appendChild(progressBar);
+        }
+        overlay.appendChild(content);
+    
+        return { overlay, progressBar };
+      }
+
+      function updateProgress(loaderId, progress) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (loaderData && loaderData.progressBar) {
+          const fill = loaderData.progressBar.querySelector('.loading-progress-fill');
+          if (fill) {
+            fill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+          }
+        }
+      }
+
+      function startAutoProgress(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData || !loaderData.autoProgress) return;
+
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 15;
+          if (progress >= 95) {
+            progress = 95;
+            clearInterval(interval);
+          }
+          updateProgress(loaderId, progress);
+        }, 200);
+
+        loaderData.progressInterval = interval;
+      }
+
+      const LoadingSystem = {
+        show: function(options = {}) {
+          try {
+            const loaderId = generateLoaderId();
+            const container = createDefaultContainer();
+    
+            const { overlay, progressBar } = createLoadingOverlay(options);
+            overlay.setAttribute('data-loader-id', loaderId);
+    
+            if (options.type && options.type !== 'default') {
+              overlay.classList.add(`loading-${options.type}`);
+            }
+    
+            container.appendChild(overlay);
+    
+            const loaderData = {
+              overlay: overlay,
+              progressBar: progressBar,
+              options: options,
+              createdAt: Date.now(),
+              autoProgress: options.autoProgress,
+              progressInterval: null,
+              timeout: null
+            };
+    
+            activeLoaders.set(loaderId, loaderData);
+    
+            if (options.autoProgress && progressBar) {
+              startAutoProgress(loaderId);
+            }
+    
+            if (options.timeout && options.timeout > 0) {
+              loaderData.timeout = setTimeout(() => {
+                this.hide(loaderId);
+              }, options.timeout);
+            }
+    
+            requestAnimationFrame(() => {
+              overlay.classList.add('loading-visible');
+            });
+    
+            console.log(`✅ LoadingSystem.show() - ID: ${loaderId}`);
+          return loaderId;
+    
+          } catch (error) {
+            console.error('❌ LoadingSystem.show() error:', error);
+            return null;
+          }
+        },
+    
+        hide: function(loaderId) {
+          try {
+            if (!loaderId) return;
+    
+            const loaderData = activeLoaders.get(loaderId);
+            if (!loaderData) return;
+    
+            if (loaderData.progressBar) {
+              updateProgress(loaderId, 100);
+            }
+    
+            if (loaderData.progressInterval) {
+              clearInterval(loaderData.progressInterval);
+            }
+    
+            if (loaderData.timeout) {
+              clearTimeout(loaderData.timeout);
+            }
+    
+            loaderData.overlay.classList.remove('loading-visible');
+            loaderData.overlay.classList.add('loading-hiding');
+    
+            setTimeout(() => {
+              if (loaderData.overlay && loaderData.overlay.parentNode) {
+                loaderData.overlay.parentNode.removeChild(loaderData.overlay);
+              }
+              activeLoaders.delete(loaderId);
+            }, 300);
+    
+            console.log(`✅ LoadingSystem.hide() - ID: ${loaderId}`);
+    
+          } catch (error) {
+            console.error('❌ LoadingSystem.hide() error:', error);
+          }
+        },
+    
+        hideAll: function() {
+          try {
+            const loaderIds = Array.from(activeLoaders.keys());
+            loaderIds.forEach(loaderId => this.hide(loaderId));
+            console.log(`✅ LoadingSystem.hideAll() - ซ่อน ${loaderIds.length} loaders`);
+          } catch (error) {
+            console.error('❌ LoadingSystem.hideAll() error:', error);
+          }
+        },
+
+        updateProgress: function(loaderId, progress) {
+          updateProgress(loaderId, progress);
+        },
+
+        completeProgress: function(loaderId = null) {
+          if (loaderId) {
+            updateProgress(loaderId, 100);
+            setTimeout(() => this.hide(loaderId), 500);
+          } else {
+            activeLoaders.forEach((loaderData, id) => {
+              if (loaderData.progressBar) {
+                updateProgress(id, 100);
+                setTimeout(() => this.hide(id), 500);
+              }
+            });
+          }
+        },
+
+        updateMessage: function(loaderId, message) {
+          try {
+            const loaderData = activeLoaders.get(loaderId);
+            if (loaderData) {
+              const messageEl = loaderData.overlay.querySelector('.loading-message');
+              if (messageEl) {
+                messageEl.textContent = message;
+              }
+            }
+          } catch (error) {
+            console.error('❌ LoadingSystem.updateMessage() error:', error);
+      }
+        },
+
+        isActive: function(loaderId) {
+          return activeLoaders.has(loaderId);
+        },
+
+        getActiveCount: function() {
+          return activeLoaders.size;
+        },
+
+        cleanup: function() {
+          this.hideAll();
+          if (defaultContainer && document.body.contains(defaultContainer)) {
+            document.body.removeChild(defaultContainer);
+            defaultContainer = null;
+          }
+          activeLoaders.clear();
+          loaderCounter = 0;
+          console.log('🧹 LoadingSystem.cleanup() - ล้างข้อมูลทั้งหมดแล้ว');
+        },
+
+        debug: function() {
+          return {
+            activeLoaders: activeLoaders.size,
+            loaderIds: Array.from(activeLoaders.keys()),
+            containerExists: !!defaultContainer,
+            version: '2.0.0-inline'
+          };
+        }
+      };
+
+      // Export LoadingSystem to global scope
+      window.LoadingSystem = LoadingSystem;
+
+      // Auto cleanup เมื่อออกจากหน้า
+      window.addEventListener('beforeunload', () => {
+        if (window.LoadingSystem && typeof window.LoadingSystem.cleanup === 'function') {
+          window.LoadingSystem.cleanup();
+        }
+      });
+
+      console.log('✅ LoadingSystem v2.0.0 (Inline) initialized successfully');
+
+    })(window);
+  </script>
+
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 dark:text-white min-h-screen">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Header -->
+  <div class="bg-white dark:bg-gray-800 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center py-4">
+        <div class="flex items-center space-x-4">
+          <a href="/" class="text-gray-600 dark:text-gray-300 hover:text-primary-600">
+            <i class="bi bi-arrow-left text-xl"></i>
+          </a>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">จัดการผู้ใช้งาน</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+          <button id="refreshBtn" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
+            <i class="bi bi-arrow-clockwise"></i>
+            รีเฟรช
+          </button>
+          <button id="darkModeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <i class="bi bi-moon-fill dark:hidden"></i>
+            <i class="bi bi-sun-fill hidden dark:block"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">ผู้ใช้ออนไลน์</p>
+            <p id="onlineCount" class="text-2xl font-bold text-green-600">0</p>
+          </div>
+          <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-people-fill text-green-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">ผู้ใช้ที่ถูกบล็อก</p>
+            <p id="blockedCount" class="text-2xl font-bold text-red-600">0</p>
+          </div>
+          <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-slash-circle text-red-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">ผู้ใช้ทั้งหมด</p>
+            <p id="totalCount" class="text-2xl font-bold text-blue-600">0</p>
+          </div>
+          <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-person-check text-blue-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">อัตราการใช้งาน</p>
+            <p id="usageRate" class="text-2xl font-bold text-purple-600">0%</p>
+          </div>
+          <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+            <i class="bi bi-graph-up text-purple-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Online Users Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-8">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold flex items-center gap-2">
+            <span class="w-3 h-3 bg-green-500 rounded-full online-indicator"></span>
+            ผู้ใช้ออนไลน์
+          </h2>
+          <div class="flex items-center gap-2">
+            <input type="text" id="searchOnline" placeholder="ค้นหา..." 
+                   class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700">
+            <select id="filterDevice" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700">
+              <option value="">ทุกอุปกรณ์</option>
+              <option value="Desktop">Desktop</option>
+              <option value="Mobile">Mobile</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้ใช้</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เวลาเข้าสู่ระบบ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">อุปกรณ์</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ระยะเวลา</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">IP Address</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="onlineUsersTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- Dynamic content -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Blocked Users Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold flex items-center gap-2">
+            <i class="bi bi-slash-circle text-red-500"></i>
+            ผู้ใช้ที่ถูกบล็อก
+          </h2>
+          <input type="text" id="searchBlocked" placeholder="ค้นหา..." 
+                 class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700">
+        </div>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้ใช้</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">วันที่บล็อก</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เหตุผล</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้บล็อก</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="blockedUsersTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- Dynamic content -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <!-- User Sessions Modal -->
+  <div id="sessionsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold">Sessions ของผู้ใช้</h3>
+          <button onclick="closeSessions()" class="text-gray-500 hover:text-gray-700">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+      <div class="p-6 overflow-y-auto max-h-[60vh]">
+        <div id="sessionsContent">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let onlineUsers = [];
+    let blockedUsers = [];
+    let refreshInterval = null;
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      let pageLoaderId = null;
+    
+      if (window.LoadingSystem && typeof window.LoadingSystem.show === 'function') {
+        pageLoaderId = window.LoadingSystem.show({
+          message: 'กำลังโหลดหน้าเว็บ...',
+          showProgress: true,
+          autoProgress: true
+        });
+      }
+    
+      try {
+        checkAuth();
+        setupEventListeners();
+        loadData();
+        startAutoRefresh();
+        setupDarkMode();
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        if (window.LoadingSystem && pageLoaderId) {
+          window.LoadingSystem.completeProgress();
+        }
+      }
+    });
+    
+    // Check authentication
+    function checkAuth() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+    }
+    
+    // Setup event listeners
+    function setupEventListeners() {
+      document.getElementById('refreshBtn').addEventListener('click', loadData);
+      document.getElementById('searchOnline').addEventListener('input', filterOnlineUsers);
+      document.getElementById('searchBlocked').addEventListener('input', filterBlockedUsers);
+      document.getElementById('filterDevice').addEventListener('change', filterOnlineUsers);
+    
+      // เพิ่มปุ่มทดสอบ LoadingSystem
+      if (window.LoadingSystem && typeof window.LoadingSystem.show === 'function') {
+        const loadingBtn = document.createElement('button');
+        loadingBtn.textContent = '🔄 Test Loading';
+        loadingBtn.className = 'fixed top-4 right-80 z-50 bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition';
+        loadingBtn.onclick = () => {
+          console.log('🔄 Testing LoadingSystem...');
+          if (window.LoadingSystem) {
+            const testLoaderId = window.LoadingSystem.show({
+              message: 'ทดสอบ Loading System...',
+              showProgress: true,
+              autoProgress: true
+            });
+            console.log('✅ Test loading ID:', testLoaderId);
+    
+            // ซ่อนหลังจาก 3 วินาที
+            setTimeout(() => {
+              window.LoadingSystem.hide(testLoaderId);
+              console.log('✅ Test loading hidden');
+              showToast('LoadingSystem ทำงานปกติ!', 'success');
+            }, 3000);
+          } else {
+            alert('❌ LoadingSystem ไม่พร้อมใช้งาน');
+          }
+        };
+        document.body.appendChild(loadingBtn);
+      }
+    }
+    
+    // Dark mode setup
+    function setupDarkMode() {
+      const darkModeToggle = document.getElementById('darkModeToggle');
+    
+      // Load saved preference
+      if (localStorage.getItem('darkMode') === 'true') {
+        document.documentElement.classList.add('dark');
+      }
+    
+      darkModeToggle.addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+      });
+    }
+    
+    // Load all data
+    async function loadData() {
+      let loaderId = null;
+    
+      if (window.LoadingSystem && typeof window.LoadingSystem.show === 'function') {
+        loaderId = window.LoadingSystem.show({
+          message: 'กำลังโหลดข้อมูลผู้ใช้...',
+          showProgress: true,
+          autoProgress: true
+        });
+      }
+    
+      try {
+        await Promise.all([
+          loadOnlineUsers(),
+          loadBlockedUsers()
+        ]);
+        updateStats();
+      } catch (error) {
+        console.error('Load data error:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+      } finally {
+        if (window.LoadingSystem && loaderId) {
+          window.LoadingSystem.hide(loaderId);
+        }
+        hideLoading();
+      }
+    }
+    
+    // Load online users
+    async function loadOnlineUsers() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/users/online', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+    
+        if (response.status === 403) {
+          // ซ่อน section ถ้าไม่มีสิทธิ์
+          document.querySelector('#onlineUsersTableBody').closest('.bg-white').style.display = 'none';
+          return;
+        }
+    
+        if (!response.ok) throw new Error('Failed to load online users');
+    
+        const data = await response.json();
+        if (data.success) {
+          onlineUsers = data.data;
+          renderOnlineUsers();
+        }
+      } catch (error) {
+        console.error('Error loading online users:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ออนไลน์', 'error');
+      }
+    }
+    
+    // Load blocked users
+    async function loadBlockedUsers() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/users/blocked', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+    
+        if (response.status === 403) {
+          // User doesn't have permission
+          document.querySelector('#blockedUsersTableBody').parentElement.parentElement.parentElement.style.display = 'none';
+          return;
+        }
+    
+        if (!response.ok) throw new Error('Failed to load blocked users');
+    
+        const data = await response.json();
+        if (data.success) {
+          blockedUsers = data.data;
+          renderBlockedUsers();
+        }
+      } catch (error) {
+        console.error('Error loading blocked users:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ที่ถูกบล็อก', 'error');
+      }
+    }
+    
+    // Render online users
+    function renderOnlineUsers() {
+      const tbody = document.getElementById('onlineUsersTableBody');
+      tbody.innerHTML = '';
+    
+      if (onlineUsers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+              ไม่มีผู้ใช้ออนไลน์ในขณะนี้
+            </td>
+          </tr>
+        `;
+        return;
+      }
+    
+      onlineUsers.forEach(user => {
+        const row = createOnlineUserRow(user);
+        tbody.appendChild(row);
+      });
+    }
+    
+    // Create online user row
+    function createOnlineUserRow(user) {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors fade-in';
+    
+      const loginTime = new Date(user.sessionInfo?.loginTime || user.lastLogin);
+      const duration = calculateDuration(loginTime);
+    
+      tr.innerHTML = `
+        <td class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="relative">
+              ${user.photoUrl ?
+                `<img src="${user.photoUrl}" alt="${user.name}" class="w-10 h-10 rounded-full">` :
+                `<div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-600 dark:text-primary-300 font-medium">
+                  ${user.name.charAt(0).toUpperCase()}
+                </div>`
+              }
+              <span class="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-400 ring-2 ring-white dark:ring-gray-800"></span>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">${user.name}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">${user.username}</p>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          ${formatDateTime(loginTime)}
+        </td>
+        <td class="px-6 py-4">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            user.sessionInfo?.device === 'Mobile'
+              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+          }">
+            <i class="bi bi-${user.sessionInfo?.device === 'Mobile' ? 'phone' : 'laptop'} mr-1"></i>
+            ${user.sessionInfo?.device || 'Unknown'}
+          </span>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          ${duration}
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          ${user.sessionInfo?.ipAddress || '-'}
+        </td>
+        <td class="px-6 py-4 text-sm">
+          ${renderActions(user)}
+        </td>
+      `;
+    
+      return tr;
+    }
+    
+    // Render blocked users
+    function renderBlockedUsers() {
+      const tbody = document.getElementById('blockedUsersTableBody');
+      tbody.innerHTML = '';
+    
+      if (blockedUsers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+              ไม่มีผู้ใช้ที่ถูกบล็อก
+            </td>
+          </tr>
+        `;
+        return;
+      }
+    
+      blockedUsers.forEach(user => {
+        const row = createBlockedUserRow(user);
+        tbody.appendChild(row);
+      });
+    }
+    
+    // Create blocked user row
+    function createBlockedUserRow(user) {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors fade-in';
+    
+      tr.innerHTML = `
+        <td class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="relative">
+              ${user.photoUrl ?
+                `<img src="${user.photoUrl}" alt="${user.name}" class="w-10 h-10 rounded-full opacity-50">` :
+                `<div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 font-medium">
+                  ${user.name.charAt(0).toUpperCase()}
+                </div>`
+              }
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">${user.name}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">${user.username}</p>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          ${formatDateTime(new Date(user.blockedAt))}
+        </td>
+        <td class="px-6 py-4 text-sm text-red-600 dark:text-red-400">
+          ${user.blockReason || 'ไม่ระบุ'}
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+          ${user.blockedBy || '-'}
+        </td>
+        <td class="px-6 py-4 text-sm">
+          <button onclick="unblockUser('${user._id}', '${user.name}')" 
+                  class="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium">
+            ปลดบล็อก
+          </button>
+        </td>
+      `;
+    
+      return tr;
+    }
+    
+    // Render action buttons
+    function renderActions(user) {
+      const currentUserId = localStorage.getItem('userId');
+      const isAdmin = localStorage.getItem('userRole') === 'admin';
+    
+      if (currentUserId === user._id) {
+        return '<span class="text-gray-500">(คุณ)</span>';
+      }
+    
+      if (!isAdmin) {
+        return '<span class="text-gray-500">-</span>';
+      }
+    
+      return `
+        <div class="flex items-center space-x-2">
+          <button onclick="viewSessions('${user._id}', '${user.name}')" 
+                  class="text-blue-600 hover:text-blue-700 dark:text-blue-400" 
+                  title="ดู Sessions">
+            <i class="bi bi-eye"></i>
+          </button>
+          <button onclick="kickUser('${user._id}', '${user.name}')" 
+                  class="text-yellow-600 hover:text-yellow-700 dark:text-yellow-400" 
+                  title="เตะออก">
+            <i class="bi bi-box-arrow-right"></i>
+          </button>
+          <button onclick="blockUser('${user._id}', '${user.name}')" 
+                  class="text-red-600 hover:text-red-700 dark:text-red-400" 
+                  title="บล็อก">
+            <i class="bi bi-slash-circle"></i>
+          </button>
+        </div>
+      `;
+    }
+    
+    // Update statistics
+    function updateStats() {
+      document.getElementById('onlineCount').textContent = onlineUsers.length;
+      document.getElementById('blockedCount').textContent = blockedUsers.length;
+    
+      // ควรดึงจำนวน user ทั้งหมดจาก API แทน
+      // เพราะ online + blocked ไม่ใช่ total users ทั้งหมด
+      getTotalUsers().then(total => {
+        document.getElementById('totalCount').textContent = total;
+        const usageRate = total > 0 ? Math.round((onlineUsers.length / total) * 100) : 0;
+        document.getElementById('usageRate').textContent = usageRate + '%';
+      });
+    }
+
+    async function getTotalUsers() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        return data.success ? data.data.length : 0;
+      } catch (error) {
+        console.error('Error getting total users:', error);
+        return 0;
+      }
+    }
+    
+    // User actions
+    async function kickUser(userId, userName) {
+      if (!confirm(`ต้องการเตะ ${userName} ออกจากระบบใช่หรือไม่?`)) return;
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/users/${userId}/kick`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+    
+        const data = await response.json();
+    
+        if (data.success) {
+          showToast(`เตะ ${userName} ออกจากระบบแล้ว`, 'success');
+          loadOnlineUsers();
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Kick user error:', error);
+        showToast('เกิดข้อผิดพลาดในการเตะผู้ใช้ออก', 'error');
+      }
+    }
+    
+    async function blockUser(userId, userName) {
+      const reason = prompt(`กรุณาระบุเหตุผลในการบล็อก ${userName}:`);
+      if (!reason) return;
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/users/${userId}/block`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ reason })
+        });
+    
+        const data = await response.json();
+    
+        if (data.success) {
+          showToast(`บล็อก ${userName} เรียบร้อยแล้ว`, 'success');
+          loadData();
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Block user error:', error);
+        showToast('เกิดข้อผิดพลาดในการบล็อกผู้ใช้', 'error');
+      }
+    }
+    
+    async function unblockUser(userId, userName) {
+      if (!confirm(`ต้องการปลดบล็อก ${userName} ใช่หรือไม่?`)) return;
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/users/${userId}/unblock`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+    
+        const data = await response.json();
+    
+        if (data.success) {
+          showToast(`ปลดบล็อก ${userName} เรียบร้อยแล้ว`, 'success');
+          loadBlockedUsers();
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Unblock user error:', error);
+        showToast('เกิดข้อผิดพลาดในการปลดบล็อกผู้ใช้', 'error');
+      }
+    }
+    
+    async function viewSessions(userId, userName) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/users/${userId}/sessions`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+    
+        const data = await response.json();
+    
+        if (data.success) {
+          // เปลี่ยนจาก data.data เป็น data.data.sessions
+          showSessionsModal(userName, data.data.sessions);
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('View sessions error:', error);
+        showToast('เกิดข้อผิดพลาดในการดู sessions', 'error');
+      }
+    }
+
+    async function terminateSession(sessionId) {
+      if (!confirm('ต้องการยุติ session นี้ใช่หรือไม่?')) return;
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/users/sessions/${sessionId}/terminate`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+    
+        const data = await response.json();
+    
+        if (data.success) {
+          showToast('ยุติ session เรียบร้อยแล้ว', 'success');
+          closeSessions();
+          loadOnlineUsers();
+        } else {
+          showToast(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Terminate session error:', error);
+        showToast('เกิดข้อผิดพลาดในการยุติ session', 'error');
+      }
+    }
+    
+    // Show sessions modal
+    function showSessionsModal(userName, sessions) {
+      const modal = document.getElementById('sessionsModal');
+      const content = document.getElementById('sessionsContent');
+    
+      content.innerHTML = `
+        <h4 class="font-medium mb-4">Sessions ของ ${userName}</h4>
+        <div class="space-y-3">
+          ${sessions.map(session => `
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400">Session ID:</span>
+                  <span class="font-mono">${session.sessionId}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400">อุปกรณ์:</span>
+                  <span>${session.device}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400">IP:</span>
+                  <span>${session.ipAddress}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400">เวลาเข้าสู่ระบบ:</span>
+                  <span>${formatDateTime(new Date(session.loginTime))}</span>
+                </div>
+              </div>
+              ${session.active ? `
+                <button onclick="terminateSession('${session.sessionId}')" 
+                        class="mt-3 text-red-600 hover:text-red-700 text-sm">
+                  ยุติ Session นี้
+                </button>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    
+      modal.classList.remove('hidden');
+    }
+    
+    function closeSessions() {
+      document.getElementById('sessionsModal').classList.add('hidden');
+    }
+    
+    // Filter functions
+    function filterOnlineUsers() {
+      const searchTerm = document.getElementById('searchOnline').value.toLowerCase();
+      const deviceFilter = document.getElementById('filterDevice').value;
+    
+      const filteredUsers = onlineUsers.filter(user => {
+        const matchesSearch = user.name.toLowerCase().includes(searchTerm) ||
+                            user.username.toLowerCase().includes(searchTerm);
+        const matchesDevice = !deviceFilter || user.sessionInfo?.device === deviceFilter;
+        return matchesSearch && matchesDevice;
+      });
+    
+      renderFilteredOnlineUsers(filteredUsers);
+    }
+    
+    function filterBlockedUsers() {
+      const searchTerm = document.getElementById('searchBlocked').value.toLowerCase();
+    
+      const filteredUsers = blockedUsers.filter(user => {
+        return user.name.toLowerCase().includes(searchTerm) ||
+               user.username.toLowerCase().includes(searchTerm);
+      });
+    
+      renderFilteredBlockedUsers(filteredUsers);
+    }
+    
+    function renderFilteredOnlineUsers(users) {
+      const tbody = document.getElementById('onlineUsersTableBody');
+      tbody.innerHTML = '';
+      users.forEach(user => tbody.appendChild(createOnlineUserRow(user)));
+    }
+    
+    function renderFilteredBlockedUsers(users) {
+      const tbody = document.getElementById('blockedUsersTableBody');
+      tbody.innerHTML = '';
+      users.forEach(user => tbody.appendChild(createBlockedUserRow(user)));
+    }
+    
+    // Utility functions
+    function formatDateTime(date) {
+      return date.toLocaleString('th-TH');
+    }
+    
+    function calculateDuration(startTime) {
+      const diff = Date.now() - startTime;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(minutes / 60);
+    
+      if (hours > 0) {
+        return `${hours} ชั่วโมง ${minutes % 60} นาที`;
+      }
+      return `${minutes} นาที`;
+    }
+    
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+    
+      const colors = {
+        success: 'bg-green-100 text-green-800 border-green-500',
+        error: 'bg-red-100 text-red-800 border-red-500',
+        info: 'bg-blue-100 text-blue-800 border-blue-500'
+      };
+    
+      const icons = {
+        success: 'bi-check-circle-fill',
+        error: 'bi-x-circle-fill',
+        info: 'bi-info-circle-fill'
+      };
+    
+      toast.className = `px-4 py-3 rounded-lg shadow-lg mb-3 flex items-center border-l-4 ${colors[type]} fade-in`;
+      toast.innerHTML = `
+        <i class="bi ${icons[type]} mr-2"></i>
+        <span>${message}</span>
+      `;
+    
+      container.appendChild(toast);
+    
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+    
+    function hideLoading() {
+      // Remove loading indicator
+    }
+    
+    // Auto refresh
+    function startAutoRefresh() {
+      refreshInterval = setInterval(loadData, 30000); // Refresh every 30 seconds
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    });
+  </script>
+</body>
+</html>

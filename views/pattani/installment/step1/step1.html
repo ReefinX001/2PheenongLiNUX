@@ -1,0 +1,4397 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบผ่อน Pattani - ระบบจัดการการผ่อนชำระ</title>
+  
+  <!-- Permissive Content Security Policy for ZK9500 HTTP API -->
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+
+
+
+  <!-- Tailwind CSS CDN -->
+  
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Suppress Tailwind CSS production warning
+    const originalWarn = console.warn;
+    console.warn = function(msg) {
+      if (msg && msg.includes && (
+        msg.includes('should not be used in production') ||
+        msg.includes('cdn.tailwindcss.com')
+      )) {
+        return; // Suppress Tailwind production warnings
+      }
+      originalWarn.apply(console, arguments);
+    };
+  </script>
+
+  <!-- (2) กำหนดค่า Tailwind และ DaisyUI -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8'
+            }
+          }
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  
+  <!-- DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.20/dist/full.min.css" rel="stylesheet" type="text/css" />
+
+  <!-- Sidebar CSS -->
+  <link href="/views/pattani/sidebar/sidebar.css" rel="stylesheet" type="text/css" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  
+  <!-- Installment System Styles - Complete Inline -->
+  <style>
+    /* ========== INSTALLMENT SYSTEM SPECIFIC STYLES ========== */
+    /* ไฟล์ CSS เฉพาะสำหรับระบบผ่อน Pattani */
+
+    /* ========== PERFORMANCE OPTIMIZATIONS ========== */
+    /* Performance optimization: Use will-change for animated elements */
+    .stepper,
+    .step-icon,
+    .loading-spinner,
+    .card,
+    .toast,
+    .modal,
+    .dropdown {
+      will-change: transform, opacity;
+    }
+
+    /* CSS containment for better performance */
+    .card,
+    .product-card,
+    .modal-box,
+    .step-content {
+      contain: layout style paint;
+    }
+
+    /* Optimize transforms with transform3d for hardware acceleration */
+    .toast,
+    .modal,
+    .dropdown,
+    .stepper {
+      transform: translate3d(0, 0, 0);
+    }
+
+    /* Optimize repaints by grouping similar elements */
+    .btn,
+    .input,
+    .select,
+    .textarea {
+      backface-visibility: hidden;
+    }
+
+    /* Use cheaper CSS properties for frequently changing elements */
+    .loading-spinner,
+    .progress-bar {
+      will-change: transform;
+      transform: translateZ(0);
+    }
+
+    /* ========== PDF STYLES ========== */
+    /* กล่อง Customer / Meta */
+    .pdf-header-grid {
+      display: flex;
+      justify-content: space-between;
+      background: #eaf7ff;
+      padding: 8pt;
+      margin-bottom: 12pt;
+    }
+
+    .pdf-box {
+      width: 48%;
+      border: 1pt solid #008cff;
+      padding: 6pt;
+      background: #ffffff;
+    }
+
+    /* ปรับ header ของตาราง */
+    .pdf-table th {
+      background: #008cff;
+      color: #ffffff;
+    }
+
+    /* Totals area */
+    .pdf-totals-grid {
+      display: flex;
+      justify-content: space-between;
+      background: #eaf7ff;
+      padding: 8pt;
+      margin-top: 12pt;
+    }
+
+    .pdf-amount-words {
+      width: 60%;
+      font-size: 12pt;
+    }
+
+    .pdf-grandbox {
+      width: 35%;
+      background: #cce8ff;
+      padding: 6pt;
+      text-align: right;
+      font-size: 12pt;
+    }
+
+    /* เส้นลายจุดที่ signature */
+    .pdf-sign-row .pdf-sign-box {
+      border-top: 1pt dashed #000000;
+      padding-top: 6pt;
+      width: 30%;
+      text-align: center;
+    }
+
+    /* ========== STEPPER STYLES ========== */
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .stepper::before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #e9ecef;
+      z-index: 1;
+    }
+
+    .dark .stepper::before {
+      background: #4b5563;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+      min-width: 120px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 20px;
+      right: -50%;
+      width: 100%;
+      height: 2px;
+      background: #e2e8f0;
+      z-index: 1;
+      transition: background-color 0.3s ease;
+    }
+
+    .step.active:not(:last-child)::after,
+    .step.completed:not(:last-child)::after {
+      background: #4361ee;
+    }
+
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 8px;
+      z-index: 2;
+      position: relative;
+      transition: all 0.3s ease;
+      border: 3px solid transparent;
+    }
+
+    .step.active .step-icon {
+      background: #4361ee;
+      color: white;
+      border-color: #4361ee;
+      transform: scale(1.1);
+      box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.2);
+    }
+
+    .step.completed .step-icon {
+      background: #10b981;
+      color: white;
+      border-color: #10b981;
+    }
+
+    .step.completed .step-icon::before {
+      content: '✓';
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .step-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: #64748b;
+      text-align: center;
+      transition: color 0.3s ease;
+      line-height: 1.2;
+    }
+
+    .step.active .step-text {
+      color: #4361ee;
+      font-weight: 600;
+    }
+
+    .step.completed .step-text {
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    .step-content {
+      display: none !important;
+      width: 100%;
+    }
+
+    .step-content.active {
+      display: block !important;
+    }
+
+    /* ========== PRODUCT CARD STYLES ========== */
+    .product-card {
+      cursor: pointer;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #fff;
+      color: #212529;
+    }
+
+    .dark .product-card {
+      background-color: #2a2a2a;
+      border-color: #555;
+      color: #fff;
+    }
+
+    .product-card:hover {
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .product-img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      border-radius: 0.25rem;
+    }
+
+    /* ========== PROMOTION STYLES ========== */
+    /* 🔥 Fire Icon */
+    .promo-fire-icon {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      font-size: 32px;
+      z-index: 30;
+      filter: drop-shadow(0 0 10px rgba(255, 69, 0, 0.8));
+    }
+
+    /* Card with promotion */
+    .card.has-promotion {
+      position: relative;
+      overflow: visible !important;
+    }
+    
+    /* Enhanced promotion badge */
+    .promo-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #ff4444;
+      color: white;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      animation: pulse-promo 2s infinite;
+    }
+    
+    @keyframes pulse-promo {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    /* Override card overflow for promotion icons */
+    #level1Items .card,
+    #level2Items .card,
+    #level3Items .card {
+      overflow: visible !important;
+    }
+
+    /* ปรับปรุง Fire Icon animation ใน dark mode */
+    .dark .promo-fire-icon {
+      filter: brightness(1.2);
+    }
+
+    /* Confetti styles */
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      z-index: 1000;
+    }
+
+    /* ========== DARK MODE SUPPORT ========== */
+    /* Input และ Select Dark Mode Support */
+    .input,
+    .select,
+    .textarea {
+      background-color: #ffffff;
+      border: 1px solid #d1d5db;
+      color: #1f2937;
+    }
+
+    .dark .input,
+    .dark .select,
+    .dark .textarea {
+      background-color: #374151 !important;
+      border-color: #4b5563 !important;
+      color: #f9fafb !important;
+    }
+
+    .dark .input:focus,
+    .dark .select:focus,
+    .dark .textarea:focus {
+      background-color: #4b5563 !important;
+      border-color: #6b7280 !important;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    }
+
+    .dark .input::placeholder,
+    .dark .textarea::placeholder {
+      color: #9ca3af !important;
+    }
+
+    /* File Input Dark Mode */
+    .dark .file-input {
+      background-color: #374151 !important;
+      border-color: #4b5563 !important;
+      color: #f9fafb !important;
+    }
+
+    .dark .file-input::file-selector-button {
+      background-color: #4b5563 !important;
+      border-color: #6b7280 !important;
+      color: #f9fafb !important;
+    }
+
+    /* Radio และ Checkbox Dark Mode */
+    .dark .radio,
+    .dark .checkbox {
+      background-color: #374151 !important;
+      border-color: #4b5563 !important;
+    }
+
+    .dark .radio:checked,
+    .dark .checkbox:checked {
+      background-color: var(--primary-color) !important;
+      border-color: var(--primary-color) !important;
+    }
+
+    /* Modal Dark Mode */
+    .dark .modal-box {
+      background-color: #1f2937 !important;
+      color: #f9fafb !important;
+      border: 1px solid #374151 !important;
+    }
+
+    /* ปุ่ม Dark Mode */
+    .dark .btn {
+      border-color: #4b5563 !important;
+    }
+
+    .dark .btn:not(.btn-primary):not(.btn-secondary):not(.btn-accent) {
+      background-color: #374151 !important;
+      color: #f9fafb !important;
+    }
+
+    .dark .btn:not(.btn-primary):not(.btn-secondary):not(.btn-accent):hover {
+      background-color: #4b5563 !important;
+    }
+
+    /* Dropdown Options Dark Mode */
+    .dark .select option {
+      background-color: #374151 !important;
+      color: #f9fafb !important;
+    }
+
+    /* Table Dark Mode */
+    .dark .table {
+      background-color: #1f2937 !important;
+      color: #f9fafb !important;
+    }
+
+    .dark .table th,
+    .dark .table td {
+      border-color: #374151 !important;
+    }
+
+    /* Background containers Dark Mode */
+    .dark .bg-white {
+      background-color: #1f2937 !important;
+    }
+
+    .dark .bg-gray-50 {
+      background-color: #374151 !important;
+    }
+
+    .dark .bg-blue-50 {
+      background-color: #1e3a8a !important;
+    }
+
+    .dark .bg-yellow-50 {
+      background-color: #92400e !important;
+    }
+
+    .dark .bg-green-50 {
+      background-color: #14532d !important;
+    }
+
+    /* Text Colors Dark Mode */
+    .dark .text-gray-600,
+    .dark .text-gray-700,
+    .dark .text-gray-800,
+    .dark .text-gray-900 {
+      color: #d1d5db !important;
+    }
+
+    .dark .text-blue-700 {
+      color: #93c5fd !important;
+    }
+
+    /* Border Colors Dark Mode */
+    .dark .border-gray-200,
+    .dark .border-gray-300 {
+      border-color: #4b5563 !important;
+    }
+
+    /* Main Content Dark Mode */
+    .dark main {
+      background-color: #1f2937 !important;
+      color: #f9fafb !important;
+    }
+
+    /* Container Dark Mode */
+    .dark .container {
+      background-color: #1f2937 !important;
+    }
+
+    /* Force light mode main content */
+    main {
+      background-color: #f9fafb !important;
+      color: #374151 !important;
+    }
+
+    /* ปรับปรุง div และ section containers */
+    .dark div:not([class*="bg-"]):not([style*="background"]) {
+      color: inherit;
+    }
+
+    /* Sidebar Dark Mode ปรับปรุง */
+    .dark aside {
+      background-color: #1f2937 !important;
+    }
+
+    /* Header Dark Mode */
+    .dark header {
+      background-color: #1f2937 !important;
+      color: #f9fafb !important;
+    }
+
+    /* Label Dark Mode */
+    .dark label {
+      color: #f9fafb !important;
+    }
+
+    /* การ์ดใน step4 */
+    .dark #step4 .card {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+
+    #step4.step-content.active {
+      display: flex;
+      justify-content: center;
+      padding-top: 2rem;
+      padding-bottom: 2rem;
+      background-color: transparent !important;
+    }
+
+    .dark #step4.step-content.active {
+      background-color: transparent !important;
+    }
+
+    /* ========== SIDEBAR STYLES ========== */
+    /* สีปกติของลิงก์ใน sidebar */
+    #sidebar ul li a.active {
+      background-color: #3b82f6 !important;
+      color: #ffffff !important;
+    }
+
+    #sidebar ul li a.active span,
+    #sidebar ul li a.active i {
+      color: #ffffff !important;
+    }
+
+    /* ========== RESPONSIVE LAYOUT WITH SIDEBAR ========== */
+    /* จัดการ layout เมื่อ sidebar เปิด/ปิด */
+    #mainContent {
+      transition: margin-left 0.3s ease;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Container สำหรับ padding ทั้งหมด */
+    .container-fluid {
+      width: 100%;
+      max-width: 100%;
+      padding: 1rem;
+    }
+
+    /* ปรับ stepper ให้มี margin bottom */
+    .stepper {
+      margin-bottom: 2rem;
+    }
+
+    /* Enhanced sidebar */
+    .sidebar-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 40;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .sidebar-backdrop.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* ========== STOCK ALERT STYLES ========== */
+    /* Emergency out of stock - Red border only */
+    .out-of-stock-emergency {
+      border: 2px solid #ef4444 !important;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+      position: relative !important;
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15), 0 2px 8px rgba(239, 68, 68, 0.08) !important;
+    }
+
+    .dark .out-of-stock-emergency {
+      border: 2px solid #ef4444 !important;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25), 0 2px 8px rgba(239, 68, 68, 0.15) !important;
+    }
+
+    /* Low stock warning - Yellow border only */
+    .low-stock-warning {
+      border: 2px solid #eab308 !important;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+      position: relative !important;
+      box-shadow: 0 4px 20px rgba(234, 179, 8, 0.15), 0 2px 8px rgba(234, 179, 8, 0.08) !important;
+    }
+
+    .dark .low-stock-warning {
+      border: 2px solid #eab308 !important;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+      box-shadow: 0 4px 20px rgba(234, 179, 8, 0.25), 0 2px 8px rgba(234, 179, 8, 0.15) !important;
+    }
+
+    /* Status Icons - Top right corner minimal style */
+    .status-icon {
+      position: absolute !important;
+      top: 8px !important;
+      right: 8px !important;
+      font-size: 20px !important;
+      z-index: 30 !important;
+      opacity: 0.8 !important;
+      transition: opacity 0.3s ease !important;
+    }
+
+    .card:hover .status-icon {
+      opacity: 1 !important;
+    }
+
+    .warning-icon {
+      color: #eab308 !important;
+      filter: drop-shadow(0 1px 2px rgba(234, 179, 8, 0.3)) !important;
+    }
+
+    .emergency-icon {
+      color: #ef4444 !important;
+      filter: drop-shadow(0 1px 2px rgba(239, 68, 68, 0.3)) !important;
+    }
+
+    /* Badge styles - Minimal design */
+    .badge {
+      display: inline-flex !important;
+      align-items: center !important;
+      padding: 0.375rem 0.75rem !important;
+      font-size: 0.75rem !important;
+      font-weight: 500 !important;
+      border-radius: 12px !important;
+      line-height: 1 !important;
+      backdrop-filter: blur(8px) !important;
+    }
+
+    .warning-badge {
+      background: rgba(234, 179, 8, 0.1) !important;
+      color: #a16207 !important;
+      border: 1px solid rgba(234, 179, 8, 0.2) !important;
+    }
+
+    .emergency-badge {
+      background: rgba(239, 68, 68, 0.1) !important;
+      color: #b91c1c !important;
+      border: 1px solid rgba(239, 68, 68, 0.2) !important;
+    }
+
+    .badge-info {
+      background: rgba(59, 130, 246, 0.1) !important;
+      color: #1d4ed8 !important;
+      border: 1px solid rgba(59, 130, 246, 0.2) !important;
+    }
+
+    /* Dark mode badge styles */
+    .dark .warning-badge {
+      background: rgba(234, 179, 8, 0.2) !important;
+      color: #fbbf24 !important;
+      border: 1px solid rgba(234, 179, 8, 0.3) !important;
+    }
+
+    .dark .emergency-badge {
+      background: rgba(239, 68, 68, 0.2) !important;
+      color: #f87171 !important;
+      border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    }
+
+    .dark .badge-info {
+      background: rgba(59, 130, 246, 0.2) !important;
+      color: #60a5fa !important;
+      border: 1px solid rgba(59, 130, 246, 0.3) !important;
+    }
+
+    /* Text styles for stock status */
+    .warning-text {
+      color: #a16207 !important;
+      font-weight: 500 !important;
+    }
+
+    .emergency-text {
+      color: #b91c1c !important;
+      font-weight: 500 !important;
+    }
+
+    .dark .warning-text {
+      color: #fbbf24 !important;
+    }
+
+    .dark .emergency-text {
+      color: #f87171 !important;
+    }
+
+    /* ========== LAYOUT OVERRIDES ========== */
+    /* ป้องกันการล้นสำหรับทุก step */
+    #step1, #step2, #step3, #step4 {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    /* Override card padding for consistency */
+    .card.p-4 {
+      padding: 1.5rem !important;
+    }
+
+    /* Grid spacing adjustments */
+    #level1Items .card,
+    #level2Items .card,
+    #level3Items .card {
+      overflow: visible !important;
+      min-height: 120px !important;
+    }
+
+    /* Loading overlay */
+    [data-theme="dark"] .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ========== ENHANCED CARD STYLES ========== */
+    .card {
+      transition: all 0.2s ease;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 12px;
+      background: white;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      font-weight: 600;
+      font-size: 16px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(248, 250, 252, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .dark .card {
+      background: #1f2937;
+      border-color: #374151;
+    }
+
+    .dark .card-header {
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom-color: #374151;
+      color: #e5e7eb;
+    }
+
+    /* ========== ENHANCED DARK MODE SUPPORT ========== */
+    .dark .stepper {
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+      border-color: #374151 !important;
+    }
+
+    .dark .stepper::before {
+      background: #4b5563 !important;
+    }
+
+    .dark .step-icon {
+      background: #374151 !important;
+      color: #9ca3af !important;
+    }
+
+    .dark .step.active .step-icon {
+      background: #2563eb !important;
+      color: white !important;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2) !important;
+    }
+
+    .dark .step.completed .step-icon {
+      background: #059669 !important;
+      color: white !important;
+    }
+
+    .dark .step-text {
+      color: #9ca3af !important;
+    }
+
+    .dark .step.active .step-text {
+      color: #60a5fa !important;
+    }
+
+    .dark .step.completed .step-text {
+      color: #34d399 !important;
+    }
+
+    .dark .product-card {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark .product-card:hover {
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3) !important;
+      border-color: #2563eb !important;
+    }
+
+    /* ========== MAIN CONTENT ADJUSTMENTS ========== */
+    @media (max-width: 768px) {
+      #mainContent {
+        margin-left: 0 !important;
+      }
+    }
+
+    #mainContent.ml-0 {
+      margin-left: 0 !important;
+    }
+
+    #mainContent.ml-64 {
+      margin-left: 16rem !important;
+    }
+  </style>
+
+  <!-- Modal Z-Index Fix -->
+  <style>
+    /* ปรับ z-index ของ modal ให้ไม่ conflict กัน */
+    #cameraModal {
+      z-index: 9998 !important;
+    }
+    
+    /* ปรับปรุงการแสดงผลของ modal */
+    .modal:not(.hidden) {
+      display: flex !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    
+    .modal.hidden {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+  </style>
+
+  <!-- Enhanced Dark Mode Styles for Installment System -->
+  <style>
+    /* ===== ENHANCED DARK MODE SUPPORT ===== */
+    /* Dark mode body and main areas */
+    .dark body {
+      background-color: #111827;
+      color: #f3f4f6;
+    }
+
+    .dark #mainContent {
+      background-color: #111827;
+    }
+
+    /* Dark mode card header styles */
+    .dark .card-header {
+      color: #f3f4f6 !important;
+    }
+
+    /* Dark mode stepper */
+    .dark .step-text {
+      color: #9ca3af;
+    }
+
+    .dark .step.active .step-text {
+      color: #60a5fa;
+    }
+
+    .dark .step-icon {
+      background: #374151;
+      color: #9ca3af;
+    }
+
+    .dark .step.active .step-icon {
+      background: #2563eb;
+      color: white;
+    }
+
+    /* Dark mode form elements */
+    .dark .input,
+    .dark .select,
+    .dark .textarea {
+      background-color: #374151 !important;
+      border-color: #4b5563 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark .input:focus,
+    .dark .select:focus,
+    .dark .textarea:focus {
+      border-color: #2563eb !important;
+      box-shadow: 0 0 0 1px #2563eb !important;
+    }
+
+    .dark .input::placeholder {
+      color: #9ca3af !important;
+    }
+
+    .dark .label-text {
+      color: #d1d5db !important;
+    }
+
+    /* Dark mode backgrounds */
+    .dark .bg-blue-50 {
+      background-color: #1e3a8a !important;
+    }
+
+    .dark .bg-green-50 {
+      background-color: #14532d !important;
+    }
+
+    .dark .bg-gray-50 {
+      background-color: #374151 !important;
+    }
+
+    .dark .bg-orange-50 {
+      background-color: #9a3412 !important;
+    }
+
+    /* Dark mode button states */
+    .dark .btn-primary {
+      background-color: #2563eb !important;
+      border-color: #2563eb !important;
+      color: white !important;
+    }
+
+    .dark .btn-primary:hover {
+      background-color: #1d4ed8 !important;
+      border-color: #1d4ed8 !important;
+    }
+
+    .dark .btn-secondary {
+      background-color: #6b7280 !important;
+      border-color: #6b7280 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark .btn-secondary:hover {
+      background-color: #4b5563 !important;
+      border-color: #4b5563 !important;
+    }
+
+    .dark .btn-outline {
+      border-color: #4b5563 !important;
+      color: #d1d5db !important;
+    }
+
+    .dark .btn-outline:hover {
+      background-color: #4b5563 !important;
+      border-color: #4b5563 !important;
+      color: #f3f4f6 !important;
+    }
+
+    /* Dark mode table styles */
+    .dark .table th {
+      background-color: #374151 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark .table td {
+      border-color: #4b5563 !important;
+      color: #e5e7eb !important;
+    }
+
+    .dark .table tr:hover {
+      background-color: #374151 !important;
+    }
+
+    /* Dark mode card styles */
+    .dark .card {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+
+    .dark .card-title {
+      color: #f3f4f6 !important;
+    }
+
+    .dark .card-body {
+      color: #e5e7eb !important;
+    }
+
+    /* Dark mode badge styles */
+    .dark .badge {
+      background-color: #4b5563 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark .badge-primary {
+      background-color: #2563eb !important;
+      color: white !important;
+    }
+
+    .dark .badge-success {
+      background-color: #059669 !important;
+      color: white !important;
+    }
+
+    .dark .badge-warning {
+      background-color: #d97706 !important;
+      color: white !important;
+    }
+
+    .dark .badge-error {
+      background-color: #dc2626 !important;
+      color: white !important;
+    }
+
+    /* Dark mode modal styles */
+    .dark .modal-box {
+      background-color: #1f2937 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark .modal-backdrop {
+      background-color: rgba(0, 0, 0, 0.7) !important;
+    }
+
+    /* Dark mode dropdown styles */
+    .dark .dropdown-content {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+
+    .dark .dropdown-content a {
+      color: #e5e7eb !important;
+    }
+
+    .dark .dropdown-content a:hover {
+      background-color: #374151 !important;
+    }
+
+    /* Dark mode alert styles */
+    .dark .alert {
+      background-color: #374151 !important;
+      border-color: #4b5563 !important;
+      color: #f3f4f6 !important;
+    }
+
+    .dark .alert-info {
+      background-color: #1e40af !important;
+      border-color: #2563eb !important;
+    }
+
+    .dark .alert-success {
+      background-color: #059669 !important;
+      border-color: #10b981 !important;
+    }
+
+    .dark .alert-warning {
+      background-color: #d97706 !important;
+      border-color: #f59e0b !important;
+    }
+
+    .dark .alert-error {
+      background-color: #dc2626 !important;
+      border-color: #ef4444 !important;
+    }
+
+    /* Dark mode text colors */
+    .dark .text-gray-600 {
+      color: #9ca3af !important;
+    }
+
+    .dark .text-gray-700 {
+      color: #d1d5db !important;
+    }
+
+    .dark .text-gray-800 {
+      color: #e5e7eb !important;
+    }
+
+    .dark .text-gray-900 {
+      color: #f3f4f6 !important;
+    }
+
+    /* Dark mode border colors */
+    .dark .border-gray-200 {
+      border-color: #374151 !important;
+    }
+
+    .dark .border-gray-300 {
+      border-color: #4b5563 !important;
+    }
+
+    .dark .border-gray-400 {
+      border-color: #6b7280 !important;
+    }
+
+    /* Dark mode hover states */
+    .dark .hover\:bg-gray-50:hover {
+      background-color: #374151 !important;
+    }
+
+    .dark .hover\:bg-gray-100:hover {
+      background-color: #4b5563 !important;
+    }
+
+    .dark .hover\:text-gray-700:hover {
+      color: #e5e7eb !important;
+    }
+  </style>
+
+  <!-- Loading System - Remove problematic CSS link -->
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <script>
+    // New Lottie Loading State with State Management (same as addNewProduct_pattani.html)
+    let loadingCount = 0; // Track loading state to prevent multiple overlays
+    let lottieAnimation = null;
+
+    // Initialize Lottie animation
+    function initLottieLoading() {
+      const container = document.getElementById('lottieContainer');
+      if (!container || lottieAnimation) return;
+
+      try {
+        lottieAnimation = lottie.loadAnimation({
+          container: container,
+          renderer: 'svg',
+          loop: true,
+          autoplay: false,
+          path: '/Loading/Loading.json'
+        });
+      } catch (error) {
+        console.warn('Lottie animation failed to load, using fallback:', error);
+        container.innerHTML = '<div class="loading loading-lg"></div>';
+      }
+    }
+
+    // Show/Hide loading with state management
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+
+      if (show) {
+        loadingCount++;
+        if (loadingCount === 1) { // Only show when first request
+          loader.style.display = 'flex';
+          loader.classList.remove('animate__fadeOut');
+          loader.classList.add('animate__fadeIn');
+
+          if (lottieAnimation) {
+            lottieAnimation.play();
+          }
+        }
+      } else {
+        loadingCount = Math.max(0, loadingCount - 1);
+        if (loadingCount === 0) { // Only hide when all requests complete
+          loader.classList.remove('animate__fadeIn');
+          loader.classList.add('animate__fadeOut');
+
+          setTimeout(() => {
+            if (loadingCount === 0) {
+              loader.style.display = 'none';
+              if (lottieAnimation) {
+                lottieAnimation.stop();
+              }
+            }
+          }, 500);
+        }
+      }
+    }
+
+    // Safe functions for backward compatibility
+    function safeShowLoading(show, message) {
+      showLoading(show);
+    }
+
+    function safeHideLoading() {
+      showLoading(false);
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      initLottieLoading();
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+      }
+    });
+  </script>
+
+  <!-- Loading Overlay CSS (Updated from addNewProduct_pattani.html) -->
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* Loading spinner for fallback */
+    .loading {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    .loading-lg {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <script>
+    // Early function definitions to prevent ReferenceError
+    console.log('🔧 Setting up early function definitions...');
+    
+    // Retry mechanism for API calls with rate limiting handling
+    async function fetchWithRetry(url, options = {}, maxRetries = 3, delay = 1000) {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const response = await fetch(url, options);
+    
+          // Check for rate limiting (429) or server errors (5xx)
+          if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After');
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay * Math.pow(2, i);
+    
+            if (i < maxRetries - 1) {
+              console.log(`⏳ Rate limited. Waiting ${waitTime}ms before retry ${i + 1}/${maxRetries}...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
+            } else {
+              // Last retry failed
+              const errorText = await response.text();
+              if (errorText.toLowerCase().includes('too many requests')) {
+                throw new Error('ระบบมีการใช้งานหนักเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง');
+              }
+              throw new Error(`Too many requests. Please wait ${Math.ceil(waitTime/1000)} seconds and try again.`);
+            }
+          }
+    
+          // Handle server errors with retry
+          if (response.status >= 500 && i < maxRetries - 1) {
+            console.log(`⚠️ Server error ${response.status}. Retrying ${i + 1}/${maxRetries}...`);
+            await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+            continue;
+          }
+    
+          // Check response body for rate limit message
+          if (!response.ok) {
+            const responseText = await response.text();
+            if (responseText.toLowerCase().includes('too many requests')) {
+              if (i < maxRetries - 1) {
+                const waitTime = delay * Math.pow(2, i);
+                console.log(`⏳ Rate limit detected in response. Waiting ${waitTime}ms before retry ${i + 1}/${maxRetries}...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+              } else {
+                throw new Error('ระบบมีการใช้งานหนักเกินไป กรุณารอ 30 วินาที แล้วลองใหม่อีกครั้ง');
+              }
+            }
+            // Re-create response with the text we already read
+            return new Response(responseText, {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers
+            });
+          }
+    
+          return response;
+        } catch (error) {
+          if (i === maxRetries - 1) {
+            // Final retry failed
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+              throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+            }
+            throw error;
+          }
+          console.log(`🔄 Attempt ${i + 1} failed: ${error.message}. Retrying...`);
+          await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+        }
+      }
+    }
+    
+    // Email document functions - early definitions
+    window.initializeEmailDocumentSettings = window.initializeEmailDocumentSettings || function() {
+      console.log('🔄 Early initializeEmailDocumentSettings called - will be replaced later');
+      return true;
+    };
+    
+    window.updateEmailDocumentSelection = window.updateEmailDocumentSelection || function() {
+      console.log('🔄 Early updateEmailDocumentSelection called');
+    };
+    
+    window.updateEmailPreview = window.updateEmailPreview || function() {
+      console.log('🔄 Early updateEmailPreview called');
+    };
+    
+    window.checkEmailRequirement = window.checkEmailRequirement || function() {
+      console.log('🔄 Early checkEmailRequirement called');
+      return true;
+    };
+    
+    window.getSelectedEmailDocuments = window.getSelectedEmailDocuments || function() {
+      console.log('🔄 Early getSelectedEmailDocuments called');
+      return [];
+    };
+    
+    window.updateEmailAutomationIndicator = window.updateEmailAutomationIndicator || function() {
+      console.log('🔄 Early updateEmailAutomationIndicator called');
+    };
+    
+    console.log('✅ Early function definitions ready');
+  </script>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+  
+
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+
+  <main id="mainContent" class="flex-1 overflow-y-auto transition-all duration-300 ml-64">
+    <!-- Header -->
+    <header class="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold" id="pageTitle">ระบบผ่อน Pattani</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">กำลังโหลดสาขา...</p>
+      </div>
+      
+      <!-- Modular Notifications & Actions -->
+      <div class="flex items-center gap-4">
+        <!-- Connection Status Indicator -->
+        <div class="flex items-center gap-2 px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <div class="flex items-center gap-1">
+            <span id="connectionStatus" class="connection-status offline text-xs font-medium">🔴 เชื่อมต่อ...</span>
+            <div class="flex gap-1 ml-2">
+              <div id="firebaseStatus" class="w-2 h-2 rounded-full bg-gray-400" title="Firebase Status"></div>
+              <div id="socketStatus" class="w-2 h-2 rounded-full bg-gray-400" title="Socket.IO Status"></div>
+              <div id="printerStatus" class="w-2 h-2 rounded-full bg-gray-400" title="Printer Status"></div>
+            </div>
+          </div>
+          <div id="onlineUserCount" class="text-xs text-gray-500" title="ผู้ใช้ออนไลน์">1</div>
+        </div>
+
+        <!-- Quick Actions Menu -->
+        <div class="relative">
+          <button id="quickActionsBtn" class="btn btn-outline flex items-center gap-2 px-4 py-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-300">
+            <i class="bi bi-list text-lg"></i>
+            <span class="hidden md:inline">เมนูด่วน</span>
+            <i class="bi bi-chevron-down text-sm ml-1"></i>
+          </button>
+          
+          <!-- Dropdown Menu -->
+          <div id="quickActionsDropdown" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+            <div class="px-4 py-2 text-sm font-semibold text-gray-600 border-b border-gray-100 flex items-center justify-between">
+              <span>เลือกหน้าที่ต้องการ</span>
+              <span id="dropdownBranchInfo" class="text-xs text-gray-400">สาขา: สำนักงานใหญ่</span>
+            </div>
+            
+            <a href="/History_installment" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200">
+              <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <i class="bi bi-receipt text-blue-600"></i>
+              </div>
+              <div>
+                <div class="font-medium">ใบเสร็จ/ใบกำกับภาษี</div>
+                <div class="text-xs text-gray-500">ดูประวัติและจัดการใบเสร็จ</div>
+              </div>
+            </a>
+            
+            <a href="/Installment_on_use" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors duration-200">
+              <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <i class="bi bi-arrow-repeat text-orange-600"></i>
+              </div>
+              <div>
+                <div class="font-medium">ผ่อนไปใช้ไป</div>
+                <div class="text-xs text-gray-500">ระบบผ่อนชำระแบบใช้ไปจ่ายไป</div>
+              </div>
+            </a>
+            
+            <a href="/Installment_complete_pickup" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
+              <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <i class="bi bi-check-circle text-green-600"></i>
+              </div>
+              <div>
+                <div class="font-medium">ผ่อนหมดรับของ</div>
+                <div class="text-xs text-gray-500">ระบบผ่อนชำระแบบรับของเมื่อจ่ายครบ</div>
+              </div>
+            </a>
+            
+            <!-- Footer with shortcuts -->
+            <div class="px-4 py-2 border-t border-gray-100 mt-2">
+              <div class="flex items-center justify-between text-xs text-gray-400">
+                <span>กด Alt+M เพื่อเปิดเมนูด่วน</span>
+                <span>v1.0.0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+      <div class="container-fluid p-4">
+        <!-- Stepper -->
+        <div class="stepper" role="navigation" aria-label="ขั้นตอนการทำงาน">
+          <div class="step active" data-step="1" role="tab" aria-selected="true" aria-label="ขั้นตอนที่ 1 เลือกสินค้า">
+            <div class="step-icon" aria-hidden="true">1</div>
+            <div class="step-text">เลือกสินค้า</div>
+          </div>
+          <div class="step" data-step="2" role="tab" aria-selected="false" aria-label="ขั้นตอนที่ 2 ข้อมูลลูกค้า">
+            <div class="step-icon" aria-hidden="true">2</div>
+            <div class="step-text">ข้อมูลลูกค้า</div>
+          </div>
+          <div class="step" data-step="3" role="tab" aria-selected="false" aria-label="ขั้นตอนที่ 3 รายละเอียดผ่อน">
+            <div class="step-icon" aria-hidden="true">3</div>
+            <div class="step-text">รายละเอียดผ่อน</div>
+          </div>
+          <div class="step" data-step="4" role="tab" aria-selected="false" aria-label="ขั้นตอนที่ 4 ยืนยันและพิมพ์">
+            <div class="step-icon" aria-hidden="true">4</div>
+            <div class="step-text">ยืนยันและพิมพ์</div>
+          </div>
+        </div>
+
+
+
+        <!-- STEP 1: Product Selection -->
+        <div id="step1" class="step-content active">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Left: Product Browser -->
+            <div class="lg:col-span-2 space-y-4">
+              <!-- Search Card -->
+              <div class="card p-4">
+                <div class="flex gap-2">
+                  <div class="flex-1 relative">
+                    <input id="productSearchQuery" class="input input-bordered w-full pr-10"
+                      placeholder="ค้นหาสินค้าผ่อนด้วยชื่อรุ่นหรือ IMEI..." aria-label="ค้นหาสินค้าผ่อน" autocomplete="off" />
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <i class="bi bi-search text-gray-400"></i>
+                    </div>
+                  </div>
+                  <button id="btnProductSearch" class="btn btn-primary" aria-label="ค้นหาสินค้า">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <span class="hidden sm:inline">ค้นหา</span>
+                  </button>
+                  <button id="btnProductReset" class="btn btn-secondary" aria-label="รีเซ็ตการค้นหา">
+                    <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                    <span class="hidden sm:inline">รีเซ็ต</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Search Results Container -->
+              <div id="imeiResultContainer" class="card p-4 hidden">
+                <h5 class="mb-3 font-semibold"><i class="bi bi-search"></i> ผลลัพธ์การค้นหา</h5>
+                <div id="imeiResultList" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <!-- Search results will be rendered here -->
+                </div>
+              </div>
+
+              <!-- Level 1 Container -->
+              <div id="level1Container" class="card p-4">
+                <h5 class="mb-3 font-semibold text-green-700 dark:text-green-300"><i class="bi bi-credit-card-2-front"></i> Level 1 – หมวดหมู่สินค้าผ่อนชำระ</h5>
+                <div id="level1Items" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <!-- Products will be rendered here -->
+                </div>
+              </div>
+
+              <!-- Level 2 Container -->
+              <div id="level2Container" class="card p-4 hidden">
+                <div class="flex justify-between items-center mb-3">
+                  <h5 id="level2Title" class="font-semibold"><i class="bi bi-menu-button-wide"></i> รายการของ ...</h5>
+                  <button class="btn btn-sm" id="btnBackToLevel1">
+                    <i class="bi bi-arrow-left mr-1"></i> ย้อนกลับ
+                  </button>
+                </div>
+                <div id="level2Items" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <!-- Level 2 items will be rendered here -->
+                </div>
+              </div>
+
+              <!-- Level 3 Container -->
+              <div id="level3Container" class="card p-4 hidden">
+                <div class="flex justify-between items-center mb-3">
+                  <h5 id="level3Title" class="font-semibold"><i class="bi bi-phone"></i> รายละเอียดสินค้า</h5>
+                  <button class="btn btn-sm" id="btnBackToLevel2">
+                    <i class="bi bi-arrow-left mr-1"></i> ย้อนกลับ
+                  </button>
+                </div>
+                <div id="level3Items" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <!-- Level 3 items will be rendered here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Cart Summary -->
+            <div>
+              <div class="card p-4">
+                <h5 class="flex items-center gap-2 mb-4 font-semibold">
+                  <i class="bi bi-cart"></i> สรุปรายการสินค้าผ่อน
+                  <span class="text-sm font-normal text-gray-500 ml-2">(<span id="cartCount">0</span> รายการ)</span>
+                </h5>
+                
+                <!-- Barcode Scanner -->
+                <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <label class="label">
+                    <span class="label-text font-semibold">
+                      <i class="bi bi-upc-scan"></i> สแกนบาร์โค้ด / IMEI
+                    </span>
+                  </label>
+                  <div class="flex gap-2">
+                    <input type="text" id="barcodeInput" class="input input-bordered flex-1"
+                      placeholder="สแกนหรือพิมพ์ IMEI สินค้าผ่อน..." autocomplete="off" />
+                    <button id="btnAddBarcode" class="btn btn-primary" title="เพิ่มสินค้าผ่อนจาก IMEI">
+                      <i class="bi bi-plus-circle"></i> เพิ่ม
+                    </button>
+                    <button id="btnClearBarcode" class="btn btn-secondary" title="ล้าง IMEI">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    💡 <strong>เคล็ดลับ:</strong> สแกนหรือพิมพ์ IMEI แล้วกด Enter | สินค้าจะถูกเพิ่มลงตะกร้าโดยอัตโนมัติ
+                  </div>
+                  
+                  <!-- Barcode Results -->
+                  <div id="barcodeResults" class="mt-3 hidden">
+                    <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                      <div class="flex items-center gap-2">
+                        <i class="bi bi-check-circle text-green-600"></i>
+                        <span class="text-sm font-semibold text-green-800 dark:text-green-200">พบสินค้าผ่อน</span>
+                      </div>
+                      <div id="barcodeProductInfo" class="text-sm text-green-700 dark:text-green-300 mt-1">
+                        <!-- Product info will be displayed here -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Customer Search Section -->
+                <div class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <label class="label">
+                    <span class="label-text font-semibold">
+                      <i class="bi bi-person-search"></i> ค้นหาลูกค้า
+                    </span>
+                  </label>
+                  <div class="flex gap-2">
+                    <input type="text" id="customerSearch" class="input input-bordered flex-1"
+                      placeholder="ค้นหาลูกค้าด้วยชื่อ, นามสกุล, เบอร์โทร..." autocomplete="off" />
+                    <button id="btnSearchCustomer" class="btn btn-primary" title="ค้นหาลูกค้า">
+                      <i class="bi bi-search"></i> ค้นหา
+                    </button>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    💡 <strong>เคล็ดลับ:</strong> ค้นหาลูกค้าที่มีในระบบเพื่อเลือกใช้ข้อมูล
+                  </div>
+
+                  <!-- Customer Search Results -->
+                  <div id="customerSearchResults" class="mt-3 hidden">
+                    <!-- Search results will be displayed here -->
+                  </div>
+
+                  <!-- Selected Customer Display -->
+                  <div id="selectedCustomerDisplay" class="mt-3 hidden">
+                    <!-- Selected customer info will be displayed here -->
+                  </div>
+                </div>
+
+                <div class="cart-summary">
+                  <p class="text-gray-500">ยังไม่มีสินค้าในตะกร้า</p>
+                </div>
+
+
+
+                <div class="mt-4">
+                  <button id="btnStep1ToStep2" class="btn btn-primary btn-block" disabled>
+                    <i class="bi bi-x-circle mr-2"></i> กรุณาเลือกสินค้าผ่อน
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </main>
+
+  <!-- Scripts -->
+  
+  <!-- Global Data Manager -->
+  <script src="/views/pattani/installment/js/global-data-manager.js?v=2"></script>
+
+  <!-- Installment API Module -->
+  <script src="/views/pattani/installment-api.js"></script>
+
+  <!-- Shared Promotion Manager -->
+  <script src="/views/shared/js/promotion-manager.js"></script>
+  
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+  <script>
+    // Global Data Manager will be initialized by global-data-manager.js
+    // Use window.globalInstallmentManager instead
+    
+    // Get branch code from URL and validate
+    const urlParams = new URLSearchParams(window.location.search);
+    const branchFromURL = urlParams.get('branch');
+    
+    // Check for invalid branch code and redirect if needed
+    // '00000' is valid as it's the main office branch code
+    if (!branchFromURL || branchFromURL === 'undefined' || branchFromURL === 'null') {
+      console.error('❌ Invalid branch code:', branchFromURL);
+      alert('รหัสสาขาไม่ถูกต้อง กรุณาเลือกสาขาใหม่');
+      // Redirect to branch selection (using frontstore_index instead of branch-selection)
+      window.location.href = '/frontstore_index';
+    } else {
+      // Set valid branch code (including '00000' for main office)
+      window.BRANCH_CODE = branchFromURL;
+      console.log('✅ Branch code set:', branchFromURL);
+    }
+    
+    // Global variables
+    let cartItems = [];
+    let branchInstallments = [];
+    let currentParentKey = null;
+    let currentLevel = 1;
+    let hiddenProductIds = new Set();
+    let currentLevel3Items = [];
+    
+    // 🔧 เพิ่ม Simple Cache System
+    const simpleCache = {
+      data: new Map(),
+      timestamps: new Map(),
+      maxAge: 5 * 60 * 1000, // 5 นาที
+    
+      set(key, value) {
+        this.data.set(key, value);
+        this.timestamps.set(key, Date.now());
+        console.log(`💾 Cached: ${key}`);
+      },
+    
+      get(key) {
+        const timestamp = this.timestamps.get(key);
+        const data = this.data.get(key);
+    
+        if (!timestamp || !data) return null;
+    
+        if (Date.now() - timestamp > this.maxAge) {
+          this.data.delete(key);
+          this.timestamps.delete(key);
+          console.log(`🗑️ Cache expired: ${key}`);
+          return null;
+        }
+    
+        console.log(`✅ Cache hit: ${key}`);
+        return data;
+      },
+    
+      clear() {
+        this.data.clear();
+        this.timestamps.clear();
+        console.log('🧹 Cache cleared');
+      }
+    };
+    
+    // Define getImageUrl early to avoid undefined errors
+    function getImageUrl(imagePath) {
+      if (!imagePath) return '/uploads/Logo2.png';
+      if (imagePath.startsWith('http')) return imagePath;
+    
+      let url = imagePath;
+    
+      // Debug logging
+      console.log('🖼️ Original image path:', imagePath);
+    
+      // Convert all backslashes to forward slashes first
+      url = url.replace(/\\/g, '/');
+    
+      // Remove any existing domain or protocol
+      url = url.replace(/^https?:\/\/[^\/]+/, '');
+    
+      // More aggressive cleanup of duplicate path segments
+      // Remove multiple consecutive uploads/products segments
+      url = url.replace(/(\/?uploads\/products\/)+/g, '/uploads/products/');
+      url = url.replace(/(\/?uploads\\products\\)+/g, '/uploads/products/');
+      url = url.replace(/(uploads\/products\/)+/g, 'uploads/products/');
+    
+      // Clean up any remaining duplicates
+      url = url.replace(/uploads\/products\/uploads\/products\//g, 'uploads/products/');
+      url = url.replace(/\/uploads\/products\/uploads\/products\//g, '/uploads/products/');
+    
+      // Ensure leading slash
+      if (!url.startsWith('/')) {
+        url = '/' + url;
+      }
+    
+      // Add uploads/products prefix if not present
+      if (!url.startsWith('/uploads/products/')) {
+        // Remove any leading slashes before adding the prefix
+        url = '/uploads/products/' + url.replace(/^\/+/, '');
+      }
+    
+      // Final cleanup: remove duplicate slashes
+      url = url.replace(/\/{2,}/g, '/');
+    
+      console.log('🖼️ Cleaned image path:', url);
+      return url;
+    }
+    
+    // Branch code setup - will be handled by global-data-manager.js
+    // Placeholder - initializeBranchInfo() will be called in DOMContentLoaded
+    
+          // Wait for Global Data Manager initialization
+      const initGlobalManager = () => {
+        if (window.globalInstallmentManager) {
+    // Update global data manager with branch code
+          window.globalInstallmentManager.updateStepData(1, { branchCode: BRANCH_CODE });
+        } else {
+          setTimeout(initGlobalManager, 100);
+        }
+      };
+      initGlobalManager();
+
+
+    // Toast function
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+          <span>${message}</span>
+        </div>
+      `;
+    
+      container.appendChild(toast);
+    
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 100);
+    
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+    }
+
+    // Utility functions
+    function formatPrice(num) {
+      return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getBranchCode() {
+      return window.BRANCH_CODE || 'PATTANI';
+    }
+
+    // getImageUrl function already defined above
+    
+    // Notification system
+    function setupNotifications() {
+      // Handle notification elements only if they exist
+      const notificationButton = document.getElementById('notificationButton');
+      const notificationDropdown = document.getElementById('notificationDropdown');
+    
+      if (notificationButton && notificationDropdown) {
+        notificationButton.addEventListener('click', function(e) {
+          e.stopPropagation();
+          notificationDropdown.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', function() {
+          notificationDropdown.classList.add('hidden');
+        });
+      }
+
+      // Handle quick actions - these elements exist
+      const quickActionsBtn = document.getElementById('quickActionsBtn');
+      const quickActionsDropdown = document.getElementById('quickActionsDropdown');
+    
+      if (quickActionsBtn && quickActionsDropdown) {
+        quickActionsBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          quickActionsDropdown.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', function() {
+          quickActionsDropdown.classList.add('hidden');
+        });
+      }
+    }
+
+    // Helper functions for data transformation
+    function extractBrand(productName) {
+      if (!productName) return 'ไม่มีแบรนด์';
+    
+      const brandKeywords = {
+        'iPhone': 'Apple',
+        'iPad': 'Apple',
+        'MacBook': 'Apple',
+        'AirPods': 'Apple',
+        'Samsung': 'Samsung',
+        'Galaxy': 'Samsung',
+        'Huawei': 'Huawei',
+        'Xiaomi': 'Xiaomi',
+        'Oppo': 'Oppo',
+        'Vivo': 'Vivo',
+        'Realme': 'Realme',
+        'OnePlus': 'OnePlus'
+      };
+    
+      for (const [keyword, brand] of Object.entries(brandKeywords)) {
+        if (productName.toLowerCase().includes(keyword.toLowerCase())) {
+          return brand;
+        }
+      }
+    
+      // ถ้าไม่พบแบรนด์ที่รู้จัก ให้ใช้คำแรกเป็นแบรนด์
+      const firstWord = productName.split(' ')[0];
+      return firstWord || 'ไม่มีแบรนด์';
+    }
+    
+    function extractProductName(productName) {
+      if (!productName) return 'ไม่มีชื่อสินค้า';
+    
+      const productKeywords = [
+        'iPhone', 'iPad', 'MacBook', 'AirPods', 'Apple Watch', 'iMac', 'Mac', 'iPod',
+        'Galaxy', 'Samsung', 'Note',
+        'Huawei', 'Honor', 'Nova', 'Mate', 'P Series',
+        'Xiaomi', 'Redmi', 'Mi', 'POCO',
+        'Oppo', 'Find', 'Reno', 'A Series',
+        'Vivo', 'X Series', 'Y Series', 'V Series',
+        'Realme', 'OnePlus'
+      ];
+    
+      const name = productName.toLowerCase();
+    
+      for (const keyword of productKeywords) {
+        if (name.includes(keyword.toLowerCase())) {
+          return keyword;
+        }
+      }
+    
+      // ถ้าไม่พบคีย์เวิร์ดที่รู้จัก ให้ใช้คำสองคำแรก
+      const words = productName.split(' ');
+      if (words.length >= 2) {
+        return words.slice(0, 2).join(' ');
+      }
+    
+      return words[0] || 'ไม่มีชื่อสินค้า';
+    }
+    
+    function determineCategory(productName, productType) {
+      if (productType === 'mobile') return 'มือถือ';
+      if (productType === 'accessory') return 'อุปกรณ์เสริม';
+      if (productType === 'boxset') return 'ชุดสินค้า';
+      if (productType === 'gift') return 'ของแถม';
+    
+      // ถ้าไม่มี productType ให้ดูจากชื่อสินค้า
+      if (!productName) return 'อื่นๆ';
+    
+      const name = productName.toLowerCase();
+      if (name.includes('iphone') || name.includes('samsung') || name.includes('galaxy') ||
+          name.includes('huawei') || name.includes('xiaomi') || name.includes('oppo') ||
+          name.includes('vivo') || name.includes('phone') || name.includes('มือถือ')) {
+        return 'มือถือ';
+      }
+    
+      if (name.includes('ipad') || name.includes('tablet') || name.includes('แท็บเล็ต')) {
+        return 'แท็บเล็ต';
+      }
+    
+      if (name.includes('macbook') || name.includes('laptop') || name.includes('คอมพิวเตอร์') ||
+          name.includes('notebook')) {
+        return 'คอมพิวเตอร์';
+      }
+    
+      if (name.includes('airpods') || name.includes('headphone') || name.includes('earphone') ||
+          name.includes('case') || name.includes('charger') || name.includes('สายชาร์จ') ||
+          name.includes('หูฟัง') || name.includes('เคส')) {
+        return 'อุปกรณ์เสริม';
+      }
+    
+      return 'อื่นๆ';
+    }
+
+    async function loadBranchInfo() {
+      let js = null;
+      let branchCode = null;
+      try {
+        branchCode = window.BRANCH_CODE;
+        if (!branchCode) {
+          throw new Error('ไม่พบรหัสสาขา กรุณาเลือกสาขาจากหน้าหลัก');
+        }
+        const token = localStorage.getItem('authToken') || '';
+        // เรียก /api/branch เพื่อดึง list สาขา
+        const res = await fetch(`/api/branch`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        js = await res.json();
+        if (res.ok && js.success) {
+          // หา record ที่ตรงกับ BRANCH_CODE
+          const branch = js.data.find(b => b.branch_code === branchCode);
+          if (branch) {
+            document.getElementById('branchInfo').textContent =
+              `${branch.name} — ${branch.address}`;
+            // อัพเดท title ของหน้าด้วยชื่อสาขาจริง
+                          document.title = `ระบบผ่อน - ${branch.name}`;
+              document.getElementById('pageTitle').textContent = `ระบบผ่อน - ${branch.name}`;
+    
+              // อัพเดท dropdown branch info ใน Receipt Menu
+              const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+              if (dropdownBranchInfo) {
+                dropdownBranchInfo.textContent = `สาขา: ${branch.name}`;
+              }
+            return;
+          }
+        }
+        throw new Error(`ไม่พบสาขา ${branchCode}`);
+      } catch (err) {
+        console.error('❌ loadBranchInfo error:', err);
+        console.error('🔍 Available branches:', js?.data?.map(b => ({ code: b.branch_code, name: b.name })) || 'No data');
+        document.getElementById('branchInfo').textContent =
+          `สาขา: ไม่พบข้อมูลสาขา "${branchCode}"`;
+    
+        // Show available branches for debugging
+        if (js?.data) {
+          console.log('📋 Available branch codes:', js.data.map(b => b.branch_code));
+          showToast(`ไม่พบสาขา "${branchCode}" กรุณาเลือกสาขาจากหน้าหลัก`, 'error');
+        }
+      }
+    }
+    
+    // Load branch installments - ดึงข้อมูลจาก BranchStock และ product-image
+    async function loadBranchInstallments() {
+      showLoading(true);
+    
+      try {
+        const branchCode = getBranchCode();
+        console.log(`📦 Loading installment products for branch: ${branchCode}`);
+    
+        // Check authentication first
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          showToast('กรุณาเข้าสู่ระบบก่อนใช้งาน', 'warning');
+          // Redirect to login or show login modal
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
+        }
+    
+        // Continue showing loading
+    
+        // ✅ ดึงข้อมูลสต๊อกจาก BranchStock API เพื่อตรวจสอบความพร้อมใช้งาน (เฉพาะสินค้าผ่อน)
+        const [branchStockRes, productImageRes, actualStockRes, boxsetRes] = await Promise.all([
+          fetchWithRetry(`/api/branch-stock/taxType?branch_code=${branchCode}&purchaseType=installment&verified=true`, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetchWithRetry('/api/product-image', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // ✅ เพิ่มการตรวจสอบสต๊อกจริงจาก BranchStock API (เฉพาะสินค้าผ่อน)
+          fetchWithRetry(`/api/branch-stock/taxType?branch_code=${branchCode}&purchaseType=installment&verified=true`, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // ✅ เพิ่มการโหลด Boxset ที่รองรับการผ่อน
+          fetchWithRetry(`/api/branch-stock/boxset/${branchCode}`, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ]);
+    
+        // Handle authentication errors specifically
+        if (branchStockRes.status === 401) {
+          showToast('กรุณาเข้าสู่ระบบใหม่ (Token หมดอายุ)', 'error');
+          localStorage.removeItem('authToken');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
+        }
+    
+        if (productImageRes.status === 401) {
+          console.warn('Product image API authentication failed, using default images');
+        }
+    
+        // ✅ ตรวจสอบสต๊อกจริงก่อนแสดงสินค้า
+        // Continue showing loading
+    
+        if (branchStockRes.ok) {
+          const branchStockData = await branchStockRes.json();
+          let productImageData = { status: 'error', data: [] };
+          let actualStockData = { success: false, data: [] };
+    
+          // Get actual stock data for verification
+          if (actualStockRes.ok) {
+            try {
+              actualStockData = await actualStockRes.json();
+              console.log(`📊 Found ${actualStockData.data?.length || 0} verified stock items with installment support`);
+            } catch (e) {
+              console.warn('Failed to parse actual stock data:', e);
+            }
+          } else {
+            console.warn(`⚠️ Actual stock API failed: ${actualStockRes.status}`);
+          }
+    
+          // Try to get product images, but don't fail if it doesn't work
+          if (productImageRes.ok) {
+            try {
+              productImageData = await productImageRes.json();
+            } catch (e) {
+              console.warn('Failed to parse product image data:', e);
+            }
+          }
+    
+          if (branchStockData.success && branchStockData.data && branchStockData.data.length > 0) {
+            // ✅ สร้าง Set ของสินค้าที่มีในสต๊อกจริงและยืนยันแล้ว
+            const verifiedStockItems = new Set();
+            const stockAvailabilityMap = new Map();
+    
+            if (actualStockData.success && actualStockData.data) {
+              actualStockData.data.forEach(stockItem => {
+                // Create unique identifier for stock verification
+                const stockKey = stockItem.imei ?
+                  `${stockItem.name}-${stockItem.imei}` :
+                  `${stockItem.name}-${stockItem.brand || ''}-${stockItem.model || ''}`;
+    
+                verifiedStockItems.add(stockKey);
+                stockAvailabilityMap.set(stockKey, {
+                  stock_value: stockItem.stock_value || 0,
+                  verified: true,
+                  id: stockItem._id,
+                  productId: stockItem.product_id, // เพิ่ม Product ID ที่แท้จริง
+                  imei: stockItem.imei,
+                  price: stockItem.price
+                });
+    
+                // Also add by name only for products without IMEI
+                if (!stockItem.imei) {
+                  verifiedStockItems.add(stockItem.name);
+                  stockAvailabilityMap.set(stockItem.name, {
+                    stock_value: stockItem.stock_value || 0,
+                    verified: true,
+                    id: stockItem._id,
+                    productId: stockItem.product_id, // เพิ่ม Product ID ที่แท้จริง
+                    imei: null,
+                    price: stockItem.price
+                  });
+                }
+              });
+            }
+    
+            console.log(`✅ Verified ${verifiedStockItems.size} stock items available for installment`);
+    
+            // สร้าง Map ของข้อมูลรูปจาก product-image
+            const productImageMap = new Map();
+            if (productImageData.status === 'success' && productImageData.data) {
+              productImageData.data.forEach(item => {
+                productImageMap.set(item.name, item);
+              });
+            }
+    
+            // Continue showing loading
+    
+            // ✅ ประมวลผล Boxset ที่รองรับการผ่อน
+            let boxsetInstallments = [];
+            if (boxsetRes.ok) {
+              const boxsetData = await boxsetRes.json();
+              if (boxsetData.success && boxsetData.data) {
+                boxsetInstallments = boxsetData.data
+                  .filter(boxset => {
+                    // กรองเฉพาะ Boxset ที่รองรับการผ่อน
+                    const supportsInstallment = boxset.saleTypes && boxset.saleTypes.includes('installment');
+                    const hasStock = boxset.stock_value > 0;
+                    const isActive = boxset.status === 'active';
+    
+                    console.log(`🎁 Boxset "${boxset.name}":`, {
+                      supportsInstallment,
+                      hasStock,
+                      isActive,
+                      saleTypes: boxset.saleTypes
+                    });
+    
+                    return supportsInstallment && hasStock && isActive;
+                  })
+                  .map(boxset => ({
+                    // แปลงรูปแบบให้เหมือนกับสินค้าปกติ
+                    _id: boxset._id,
+                    name: boxset.name,
+                    brand: 'Boxset',
+                    model: 'Standard',
+                    category: 'Boxset',
+                    price: boxset.boxsetPrice,
+                    cost: boxset.totalCost,
+                    stock: boxset.stock_value,
+                    stock_value: boxset.stock_value,
+                    verified: true,
+                    productType: 'boxset',
+                    stockType: 'boxset',
+                    purchaseType: boxset.saleTypes,
+                    taxType: boxset.taxType || 'แยกภาษี',
+                    // ข้อมูลการผ่อนจาก installmentConfig
+                    downAmount: boxset.installmentConfig?.downAmount || (boxset.boxsetPrice * 0.3),
+                    downInstallment: boxset.installmentConfig?.downInstallment || 0,
+                    downInstallmentCount: boxset.installmentConfig?.downInstallmentCount || 0,
+                    creditThreshold: boxset.installmentConfig?.creditThreshold || 0,
+                    payUseInstallment: boxset.installmentConfig?.payUseInstallment || 0,
+                    payUseInstallmentCount: boxset.installmentConfig?.payUseInstallmentCount || 0,
+                    pricePayOff: boxset.installmentConfig?.pricePayOff || boxset.boxsetPrice,
+                    docFee: boxset.installmentConfig?.docFee || 0,
+                    payoffDiscount: boxset.installmentConfig?.payoffDiscount || 0,
+                    // ข้อมูลเพิ่มเติม
+                    boxsetProducts: boxset.products || [],
+                    isBoxset: true,
+                    image: boxset.image || null
+                  }));
+    
+                console.log(`✅ Processed ${boxsetInstallments.length} installment boxsets`);
+              }
+            }
+    
+            // ✅ แปลงข้อมูลและกรองเฉพาะสินค้าที่มีในสต๊อกจริง (เข้มงวด)
+            branchInstallments = branchStockData.data
+              .filter(item => {
+                // ✅ 1. ตรวจสอบ stock_value พื้นฐาน
+                if (!item.stock_value || item.stock_value <= 0) {
+                  console.log(`❌ No stock: ${item.name} (stock: ${item.stock_value})`);
+                  return false;
+                }
+    
+                // ✅ 2. ตรวจสอบว่าเป็นสินค้าผ่อนหรือไม่ (ตรวจก่อน)
+                const supportsInstallment = item.purchaseType &&
+                  (Array.isArray(item.purchaseType) ?
+                    item.purchaseType.includes('installment') :
+                    item.purchaseType === 'installment');
+    
+                if (!supportsInstallment) {
+                  console.log(`❌ Not installment: ${item.name} (type: ${JSON.stringify(item.purchaseType)})`);
+                  return false;
+                }
+    
+                console.log(`✅ Installment product: ${item.name}`);
+    
+                // ✅ 3. ตรวจสอบว่าสินค้ามีในสต๊อกจริงหรือไม่ (ผ่อนปรนมากขึ้น)
+                const stockKey = item.imei ?
+                  `${item.name}-${item.imei}` :
+                  `${item.name}-${item.brand || ''}-${item.model || ''}`;
+
+                // ตรวจสอบทั้ง stockKey และ name
+                const hasStockByKey = verifiedStockItems.has(stockKey);
+                const hasStockByName = verifiedStockItems.has(item.name);
+                const stockInfo = stockAvailabilityMap.get(stockKey) || stockAvailabilityMap.get(item.name);
+
+                // ✅ 4. ใช้ stock_value จาก API เป็นหลัก (ถ้ามี verified stock ก็ใช้เป็นตัวช่วย)
+                const primaryStock = item.stock_value || 0;
+                const verifiedStock = stockInfo?.stock_value || 0;
+                const finalStock = Math.max(primaryStock, verifiedStock); // ใช้ค่าที่สูงกว่า
+
+                if (finalStock <= 0) {
+                  console.log(`❌ No final stock: ${item.name} (primary: ${primaryStock}, verified: ${verifiedStock})`);
+                  return false;
+                }
+    
+                // ✅ 5. Optional IMEI check สำหรับสินค้าที่มี IMEI (ไม่บังคับ)
+                if (item.imei && item.stockType === 'imei') {
+                  const imeiExists = Array.from(stockAvailabilityMap.keys()).some(key =>
+                    key.includes(item.imei) || stockAvailabilityMap.get(key)?.imei === item.imei
+                  );
+
+                  if (!imeiExists) {
+                    console.warn(`⚠️ IMEI not found in verified stock (allowing anyway): ${item.name} (IMEI: ${item.imei})`);
+                    // ไม่ return false - อนุญาตให้ผ่าน
+                  }
+                }
+
+                console.log(`✅ Accepted: ${item.name} (final stock: ${finalStock})`);
+                return true;
+              })
+              .map(item => {
+                // Get verified stock info
+                const stockKey = item.imei ?
+                  `${item.name}-${item.imei}` :
+                  `${item.name}-${item.brand || ''}-${item.model || ''}`;
+    
+                const stockInfo = stockAvailabilityMap.get(stockKey) || stockAvailabilityMap.get(item.name);
+    
+                // หารูปจาก product-image collection
+                const productImageItem = productImageMap.get(item.name);
+                let imageUrl = '/uploads/Logo2.png'; // default image
+    
+                if (productImageItem && productImageItem.image) {
+                  // ใช้รูปจาก product-image - ใช้ getImageUrl เพื่อจัดการ path
+                  imageUrl = window.getImageUrl ? window.getImageUrl(productImageItem.image) : productImageItem.image;
+                } else if (item.image) {
+                  // ใช้รูปจาก BranchStock - ใช้ getImageUrl เพื่อจัดการ path
+                  imageUrl = window.getImageUrl ? window.getImageUrl(item.image) : item.image;
+                }
+    
+                return {
+                  id: item._id, // BranchStock ID สำหรับการแสดงผล
+                  branchStockId: item._id, // เพิ่ม branchStockId สำหรับการอ้างอิง
+                  productId: stockInfo?.productId || item.product_id || null, // ใช้ Product ID จาก stockInfo หรือ item.product_id
+                  name: item.name || 'ไม่มีชื่อ',
+                  brand: extractBrand(item.name) || 'ไม่มีแบรนด์',
+                  category: determineCategory(item.name, item.productType),
+                  price: stockInfo?.price || item.price || 0,
+                  stock: Math.max(stockInfo?.stock_value || 0, item.stock_value || 0),
+                  barcode: item.imei || `${item.name}_${item._id}`,
+                  imei: stockInfo?.imei || item.imei || null,
+                  image: imageUrl,
+                  hasPromotion: false,
+                  isHidden: false,
+                  stockType: item.stockType || 'imei',
+                  verified: stockInfo?.verified || false,
+                  // ข้อมูลเฉพาะสำหรับผ่อน
+                  downAmount: item.downAmount || 0,
+                  downInstallment: item.downInstallment || 0,
+                  downInstallmentCount: item.downInstallmentCount || 0,
+                  creditThreshold: item.creditThreshold || 0,
+                  payUseInstallment: item.payUseInstallment || 0,
+                  payUseInstallmentCount: item.payUseInstallmentCount || 0,
+                  pricePayOff: item.pricePayOff || 0,
+                  docFee: item.docFee || 0,
+                  purchaseType: item.purchaseType || ['installment'],
+                  productType: item.productType || 'mobile',
+                  taxType: item.taxType || 'included',
+                  taxRate: item.taxRate || 7
+                };
+              });
+    
+            // ✅ รวม Boxset เข้ากับสินค้าปกติ
+            branchInstallments = [...branchInstallments, ...boxsetInstallments];
+    
+            // ✅ กรองเฉพาะสินค้าผ่อนที่มีในสต๊อก (รวม Boxset)
+            const installmentOnlyProducts = branchInstallments.filter(item =>
+              item.purchaseType &&
+              (Array.isArray(item.purchaseType) ?
+                item.purchaseType.includes('installment') :
+                item.purchaseType === 'installment') &&
+              item.stock > 0 &&
+              item.verified
+            );
+    
+            console.log(`✅ Final result: ${branchInstallments.length} total (including ${boxsetInstallments.length} boxsets), ${installmentOnlyProducts.length} verified installment products`);
+
+            // ✅ Debug: แสดงสินค้าผ่อนที่ถูกกรองออก
+            const filteredOutCount = branchInstallments.length - installmentOnlyProducts.length;
+            console.log(`📊 Debug: ${filteredOutCount} products filtered out due to stock/verification checks`);
+
+            // ✅ ผ่อนปรนการกรอง: หากไม่มีสินค้าที่ verified ให้ใช้สินค้าทั้งหมดที่มี stock > 0
+            if (installmentOnlyProducts.length === 0) {
+              console.warn('⚠️ No verified products, falling back to all products with stock');
+              const fallbackProducts = branchInstallments.filter(item =>
+                item.purchaseType &&
+                (Array.isArray(item.purchaseType) ?
+                  item.purchaseType.includes('installment') :
+                  item.purchaseType === 'installment') &&
+                item.stock > 0
+              );
+              console.log(`📦 Fallback: Found ${fallbackProducts.length} products with stock (ignoring verification)`);
+
+              if (fallbackProducts.length === 0) {
+                throw new Error('ไม่พบสินค้าผ่อนที่มีสต๊อกในสาขานี้');
+              }
+            }
+    
+            await loadLevel1();
+            showToast(`โหลดสินค้าผ่อนชำระ ${installmentOnlyProducts.length} รายการสำเร็จ`, 'success');
+          } else {
+            throw new Error('No installment products found in stock');
+          }
+        } else {
+          throw new Error(`API Error: ${branchStockRes.status} - ${branchStockRes.statusText}`);
+        }
+      } catch (error) {
+        console.error('Error loading branch installments:', error);
+    
+        // Handle different types of errors
+        if (error.message.includes('401') || error.message.includes('authentication')) {
+          showToast('เกิดปัญหาการยืนยันตัวตน กรุณาเข้าสู่ระบบใหม่', 'error');
+          localStorage.removeItem('authToken');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          showToast('เกิดปัญหาการเชื่อมต่อเครือข่าย กรุณาลองใหม่อีกครั้ง', 'error');
+        } else {
+          showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'error');
+        }
+    
+        // ถ้าเกิดข้อผิดพลาด ให้แสดงข้อมูลว่างแทน mockdata
+        branchInstallments = [];
+        await loadLevel1();
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Product hierarchy functions matching original
+    async function loadLevel1() {
+      // ✅ กรองเฉพาะสินค้าที่รองรับการผ่อนและมีสต๊อกจริง (เข้มงวด)
+      const installmentProducts = branchInstallments.filter(item => {
+        // ตรวจสอบพื้นฐาน
+        if (!item.purchaseType ||
+            !(Array.isArray(item.purchaseType) ?
+              item.purchaseType.includes('installment') :
+              item.purchaseType === 'installment')) {
+          return false;
+        }
+    
+        // ตรวจสอบสต๊อกอย่างเข้มงวด
+        if (!item.stock || item.stock <= 0) {
+          console.log(`⚠️ Level1 filter: No stock for ${item.name} (stock: ${item.stock})`);
+          return false;
+        }
+    
+        // ตรวจสอบการยืนยัน
+        if (item.verified === false) {
+          console.log(`⚠️ Level1 filter: Not verified for ${item.name}`);
+          return false;
+        }
+    
+        return true;
+      });
+    
+      // ✅ หาหมวดหมู่ที่มีสินค้าจริงๆ เท่านั้น
+      const categoriesWithStock = new Map();
+      installmentProducts.forEach(item => {
+        if (!categoriesWithStock.has(item.category)) {
+          categoriesWithStock.set(item.category, {
+            count: 0,
+            stock: 0
+          });
+        }
+        const cat = categoriesWithStock.get(item.category);
+        cat.count++;
+        cat.stock += item.stock;
+      });
+    
+      const categories = Array.from(categoriesWithStock.keys()).filter(category => {
+        const catInfo = categoriesWithStock.get(category);
+        return catInfo.count > 0 && catInfo.stock > 0;
+      });
+    
+      console.log(`✅ Loading level 1: ${categories.length} categories with stock available`);
+      console.log('Categories with stock:', Object.fromEntries(categoriesWithStock));
+    
+      renderLevel1(categories, categoriesWithStock);
+      currentLevel = 1;
+    }
+    
+    function renderLevel1(categories, categoriesWithStock) {
+      const container = document.getElementById('level1Items');
+      if (!container) return;
+    
+      container.innerHTML = '';
+    
+      // Show level1Container, hide others
+      document.getElementById('level1Container').classList.remove('hidden');
+      document.getElementById('level2Container').classList.add('hidden');
+      document.getElementById('level3Container').classList.add('hidden');
+    
+      // ตรวจสอบว่ามีสินค้าหรือไม่
+      if (categories.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12">
+            <div class="text-gray-400 dark:text-gray-500">
+              <i class="bi bi-credit-card-2-front text-6xl mb-4"></i>
+              <h3 class="text-xl font-semibold mb-2">ไม่มีสินค้าผ่อนชำระในสต๊อก</h3>
+              <p class="text-sm">ไม่พบสินค้าที่สามารถขายแบบผ่อนชำระได้ในสาขานี้</p>
+              <div class="text-xs text-gray-400 mt-2">สินค้าทั้งหมดอาจเป็นประเภทซื้อสดเท่านั้น หรือสินค้าหมดสต๊อก</div>
+              <button onclick="loadBranchInstallments()" class="btn btn-primary mt-4">
+                <i class="bi bi-arrow-clockwise mr-2"></i>โหลดข้อมูลใหม่
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+    
+      categories.forEach(category => {
+        // ✅ ใช้ข้อมูลสต๊อกที่คำนวณไว้แล้ว
+        const categoryInfo = categoriesWithStock.get(category);
+        const totalItems = categoryInfo.count;
+        const totalStock = categoryInfo.stock;
+    
+        // ✅ กรองเฉพาะสินค้าผ่อนในหมวดหมู่นี้ที่มีสต๊อก (ตรวจสอบซ้ำ)
+        const categoryItems = branchInstallments.filter(item =>
+          item.category === category &&
+          item.purchaseType &&
+          (Array.isArray(item.purchaseType) ?
+            item.purchaseType.includes('installment') :
+            item.purchaseType === 'installment') &&
+          item.stock > 0 &&
+          item.verified !== false
+        );
+        const availableItems = categoryItems.length;
+    
+        // Stock Alert Logic
+        const isOutOfStock = totalStock <= 0;
+        const isLowStock = totalStock > 0 && totalStock <= 20; // เพิ่มเกณฑ์สำหรับหมวดหมู่
+    
+        // Status Icon
+        let statusIcon = '';
+        if (isOutOfStock) {
+          statusIcon = '<div class="status-icon emergency-icon">🚨</div>';
+        } else if (isLowStock) {
+          statusIcon = '<div class="status-icon warning-icon">⚠️</div>';
+        }
+    
+        const categoryCard = document.createElement('div');
+        categoryCard.className = 'card product-card cursor-pointer hover:shadow-lg transition-shadow';
+    
+        // Add stock alert classes
+        if (isOutOfStock) {
+          categoryCard.className += ' out-of-stock-emergency';
+        } else if (isLowStock) {
+          categoryCard.className += ' low-stock-warning';
+        }
+    
+        categoryCard.innerHTML = `
+          <div class="card-body p-4">
+            ${statusIcon}
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="card-title text-lg font-semibold ${isOutOfStock ? 'emergency-text' : isLowStock ? 'warning-text' : ''}">${category}</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">${availableItems}/${totalItems} รายการ</p>
+                ${isOutOfStock ? '<span class="text-xs emergency-text">🚨 สินค้าหมดทั้งหมด</span>' : isLowStock ? '<span class="text-xs warning-text">⚠️ สต๊อกในหมวดต่ำ</span>' : ''}
+              </div>
+              <div class="text-3xl">
+                <i class="bi bi-${getCategoryIcon(category)}"></i>
+              </div>
+            </div>
+            <div class="mt-4">
+              <div class="badge badge-success">${totalItems} สินค้าผ่อน</div>
+              ${availableItems === 0 ? '<div class="badge badge-error ml-2">หมดสต๊อก</div>' : ''}
+            </div>
+          </div>
+        `;
+    
+        // ปิดการคลิกถ้าไม่มีสินค้า
+        if (availableItems > 0) {
+          categoryCard.addEventListener('click', () => loadLevel2(category));
+        } else {
+          categoryCard.classList.add('cursor-not-allowed', 'opacity-50');
+          categoryCard.addEventListener('click', () => {
+            showToast('ไม่มีสินค้าผ่อนในหมวดนี้', 'warning');
+          });
+        }
+    
+        container.appendChild(categoryCard);
+      });
+    }
+    
+    function getCategoryIcon(category) {
+      const icons = {
+        'มือถือ': 'phone',
+        'แท็บเล็ต': 'tablet',
+        'คอมพิวเตอร์': 'laptop',
+        'อุปกรณ์เสริม': 'headphones',
+        'อื่นๆ': 'box'
+      };
+      return icons[category] || 'box';
+    }
+
+    function loadLevel2(category) {
+              // ✅ กรองเฉพาะสินค้าผ่อนในหมวดหมู่นี้ที่มีสต๊อกและได้รับการยืนยัน (เข้มงวด)
+        const categoryItems = branchInstallments.filter(item => {
+          // ตรวจสอบหมวดหมู่
+          if (item.category !== category) {
+            return false;
+          }
+    
+          // ตรวจสอบประเภทการซื้อ
+          if (!item.purchaseType ||
+              !(Array.isArray(item.purchaseType) ?
+                item.purchaseType.includes('installment') :
+                item.purchaseType === 'installment')) {
+            return false;
+          }
+    
+          // ตรวจสอบสต๊อกอย่างเข้มงวด
+          if (!item.stock || item.stock <= 0) {
+            console.log(`⚠️ Level2 filter: No stock for ${item.name} in ${category} (stock: ${item.stock})`);
+            return false;
+          }
+    
+          // ตรวจสอบการยืนยัน
+          if (item.verified === false) {
+            console.log(`⚠️ Level2 filter: Not verified for ${item.name} in ${category}`);
+            return false;
+          }
+    
+          return true;
+        });
+    
+      const productNames = [...new Set(categoryItems.map(item => extractProductName(item.name)))];
+    
+      console.log(`🔍 Loading level 2 for ${category}: found ${categoryItems.length} items, ${productNames.length} unique products with stock`);
+    
+      if (productNames.length === 0) {
+        console.warn(`⚠️ No products with stock available for category: ${category}`);
+      }
+    
+      renderLevel2(productNames, category);
+      currentLevel = 2;
+      currentParentKey = category;
+    }
+    
+    function renderLevel2(productNames, category) {
+      const container = document.getElementById('level2Items');
+      const title = document.getElementById('level2Title');
+    
+      if (!container || !title) return;
+    
+      container.innerHTML = '';
+              title.innerHTML = `<i class="bi bi-menu-button-wide"></i> สินค้าผ่อนในหมวด ${category}`;
+    
+      // Show level2Container, hide others
+      document.getElementById('level1Container').classList.add('hidden');
+      document.getElementById('level2Container').classList.remove('hidden');
+      document.getElementById('level3Container').classList.add('hidden');
+    
+      productNames.forEach(productName => {
+        // กรองเฉพาะสินค้าผ่อน
+        const productItems = branchInstallments.filter(item =>
+          item.category === category &&
+          extractProductName(item.name) === productName &&
+          item.purchaseType &&
+          item.purchaseType.includes('installment')
+        );
+    
+        // Calculate total stock for this product name
+        const totalStock = productItems.reduce((sum, item) => sum + item.stock, 0);
+        const availableItems = productItems.filter(item => item.stock > 0).length;
+    
+        // Stock Alert Logic
+        const isOutOfStock = totalStock <= 0;
+        const isLowStock = totalStock > 0 && totalStock <= 5;
+    
+        // Status Icon
+        let statusIcon = '';
+        if (isOutOfStock) {
+          statusIcon = '<div class="status-icon emergency-icon">🚨</div>';
+        } else if (isLowStock) {
+          statusIcon = '<div class="status-icon warning-icon">⚠️</div>';
+        }
+    
+        const productCard = document.createElement('div');
+        productCard.className = 'card product-card cursor-pointer hover:shadow-lg transition-shadow';
+    
+        // Add stock alert classes
+        if (isOutOfStock) {
+          productCard.className += ' out-of-stock-emergency';
+        } else if (isLowStock) {
+          productCard.className += ' low-stock-warning';
+        }
+    
+        productCard.innerHTML = `
+          <div class="card-body p-4">
+            ${statusIcon}
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="card-title text-lg font-semibold ${isOutOfStock ? 'emergency-text' : isLowStock ? 'warning-text' : ''}">${productName}</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">${availableItems}/${productItems.length} รายการ พร้อมขาย</p>
+                ${isOutOfStock ? '<span class="text-xs emergency-text">🚨 สินค้าหมด</span>' : isLowStock ? '<span class="text-xs warning-text">⚠️ สินค้าใกล้หมด</span>' : ''}
+                ${productItems.length > 0 && productItems[0].downAmount > 0 ? `
+                  <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    ดาวน์เริ่มต้น: ฿${formatPrice(productItems[0].downAmount)}
+                  </div>
+                ` : ''}
+              </div>
+              <div class="text-3xl">
+                <i class="bi bi-${getProductIcon(productName)}"></i>
+              </div>
+            </div>
+            <div class="mt-4">
+              <div class="badge badge-success">${productItems.length} สินค้าผ่อน</div>
+              <div class="badge ${isOutOfStock ? 'emergency-badge' : isLowStock ? 'warning-badge' : 'badge-info'} ml-2">คงเหลือ ${totalStock}</div>
+            </div>
+          </div>
+        `;
+    
+        productCard.addEventListener('click', async () => await loadLevel3(category, productName));
+        container.appendChild(productCard);
+      });
+    }
+    
+    function getBrandIcon(brand) {
+      const icons = {
+        'Apple': 'apple',
+        'Samsung': 'phone',
+        'Huawei': 'phone',
+        'Xiaomi': 'phone',
+        'Oppo': 'phone',
+        'Vivo': 'phone'
+      };
+      return icons[brand] || 'box';
+    }
+    
+    function getProductIcon(productName) {
+      const icons = {
+        'iPhone': 'phone',
+        'iPad': 'tablet',
+        'MacBook': 'laptop',
+        'Mac': 'laptop',
+        'iMac': 'pc-display',
+        'AirPods': 'headphones',
+        'Apple Watch': 'smartwatch',
+        'Galaxy': 'phone',
+        'Samsung': 'phone',
+        'Note': 'phone',
+        'Huawei': 'phone',
+        'Honor': 'phone',
+        'Nova': 'phone',
+        'Mate': 'phone',
+        'P Series': 'phone',
+        'Xiaomi': 'phone',
+        'Redmi': 'phone',
+        'Mi': 'phone',
+        'POCO': 'phone',
+        'Oppo': 'phone',
+        'Find': 'phone',
+        'Reno': 'phone',
+        'A Series': 'phone',
+        'Vivo': 'phone',
+        'X Series': 'phone',
+        'Y Series': 'phone',
+        'V Series': 'phone',
+        'Realme': 'phone',
+        'OnePlus': 'phone'
+      };
+      return icons[productName] || 'phone';
+    }
+
+    async function loadLevel3(category, productName) {
+      // ✅ กรองเฉพาะสินค้าผ่อนที่มีสต๊อกและได้รับการยืนยัน (เข้มงวด)
+      const items = branchInstallments.filter(item => {
+        // ตรวจสอบหมวดหมู่และชื่อสินค้า
+        if (item.category !== category || extractProductName(item.name) !== productName) {
+          return false;
+        }
+    
+        // ตรวจสอบประเภทการซื้อ
+        if (!item.purchaseType ||
+            !(Array.isArray(item.purchaseType) ?
+              item.purchaseType.includes('installment') :
+              item.purchaseType === 'installment')) {
+          return false;
+        }
+    
+        // ตรวจสอบสต๊อกอย่างเข้มงวด
+        if (!item.stock || item.stock <= 0) {
+          console.log(`⚠️ Level3 filter: No stock for ${item.name} in ${category}/${productName} (stock: ${item.stock})`);
+          return false;
+        }
+    
+        // ตรวจสอบการยืนยัน
+        if (item.verified === false) {
+          console.log(`⚠️ Level3 filter: Not verified for ${item.name} in ${category}/${productName}`);
+          return false;
+        }
+    
+        return true;
+      });
+    
+      console.log(`🔍 Loading level 3 for ${category}/${productName}: found ${items.length} items with stock`);
+    
+      if (items.length === 0) {
+        console.warn(`⚠️ No stock available for ${category}/${productName}`);
+      }
+    
+      await renderLevel3(items);
+      currentLevel = 3;
+      currentLevel3Items = items;
+    }
+    
+    async function renderLevel3(items) {
+      const container = document.getElementById('level3Items');
+      const title = document.getElementById('level3Title');
+    
+      if (!container || !title) return;
+    
+      container.innerHTML = '';
+      title.innerHTML = `<i class="bi bi-phone"></i> รายละเอียดสินค้าผ่อน ${currentParentKey}`;
+    
+      // Show level3Container, hide others
+      document.getElementById('level1Container').classList.add('hidden');
+      document.getElementById('level2Container').classList.add('hidden');
+      document.getElementById('level3Container').classList.remove('hidden');
+    
+      // Group items by product name - กรองเฉพาะสินค้าผ่อน
+      const groupedItems = items.reduce((groups, item) => {
+        if (hiddenProductIds.has(item.id)) return groups;
+    
+        // กรองเฉพาะสินค้าที่มีประเภทการซื้อเป็นผ่อน
+        if (!item.purchaseType || !item.purchaseType.includes('installment')) return groups;
+    
+        const key = item.name.trim();
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(item);
+        return groups;
+      }, {});
+    
+      // ถ้าไม่มีสินค้าผ่อน
+      if (Object.keys(groupedItems).length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-8">
+            <div class="text-gray-400 dark:text-gray-500">
+              <i class="bi bi-cart-x text-4xl mb-4"></i>
+              <h3 class="text-lg font-semibold mb-2">ไม่มีสินค้าผ่อนในหมวดนี้</h3>
+              <p class="text-sm">สินค้าในหมวดนี้ไม่รองรับการขายแบบผ่อนชำระ</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+    
+      // Render grouped products
+      for (const [productName, productItems] of Object.entries(groupedItems)) {
+        // Calculate totals for this product group
+        const totalStock = productItems.reduce((sum, item) => sum + item.stock, 0);
+        const imeiList = productItems
+          .map(item => item.imei)
+          .filter(imei => imei && imei.trim() !== '')
+          .join(', ');
+    
+        // Use first item for common data
+        const sampleItem = productItems[0];
+    
+        // Check for promotions using promotion manager
+        let hasPromotion = false;
+        let promotionDetails = [];
+    
+        if (window.promotionManager && window.promotionManager.isInitialized) {
+          try {
+            hasPromotion = await window.promotionManager.checkPromotionsForProduct(sampleItem._id);
+            if (hasPromotion) {
+              // Get promotion details for tooltip/display
+              promotionDetails = await window.promotionManager.getPromotionsForProduct(sampleItem._id);
+              console.log(`🎁 Found ${promotionDetails.length} promotions for product:`, sampleItem.name);
+            }
+          } catch (error) {
+            console.warn('Error checking promotion for product:', sampleItem._id, error);
+            hasPromotion = productItems.some(item => item.hasPromotion); // fallback
+          }
+        } else {
+          hasPromotion = productItems.some(item => item.hasPromotion); // fallback
+        }
+    
+        // Get image URL before using in template literal
+        const imageUrl = getImageUrl(sampleItem.image);
+    
+        const stockStatus = getStockStatus(totalStock);
+    
+        // Stock Alert Logic
+        const isOutOfStock = totalStock <= 0;
+        const isLowStock = totalStock > 0 && totalStock <= 5;
+    
+        // Status Icon
+        let statusIcon = '';
+        if (isOutOfStock) {
+          statusIcon = '<div class="status-icon emergency-icon">🚨</div>';
+        } else if (isLowStock) {
+          statusIcon = '<div class="status-icon warning-icon">⚠️</div>';
+        }
+    
+        const productCard = document.createElement('div');
+        productCard.className = `card product-card ${hasPromotion ? 'has-promotion' : ''}`;
+    
+        // Add stock alert classes
+        if (isOutOfStock) {
+          productCard.className += ' out-of-stock-emergency';
+        } else if (isLowStock) {
+          productCard.className += ' low-stock-warning';
+        }
+    
+        // สร้างข้อมูลการผ่อนแบบละเอียด - เฉพาะ ดาวน์ (ขั้นต่ำ/งวด/ผ่อน)
+        let installmentDetails = '';
+    
+        // ดาวน์ (ขั้นต่ำ/งวด/ผ่อน) - เฉพาะข้อมูลนี้เท่านั้น
+        if (sampleItem.downAmount > 0 || sampleItem.downInstallment > 0 || sampleItem.downInstallmentCount > 0) {
+          installmentDetails += `
+            <div class="space-y-2">
+              <span class="text-sm text-gray-600 block">ดาวน์ (ขั้นต่ำ/งวด/ผ่อน):</span>
+              <div class="grid grid-cols-3 gap-2 bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                <div class="text-center">
+                  <div class="text-xs text-gray-500 mb-1">ขั้นต่ำ</div>
+                  <div class="font-semibold text-green-600">฿${formatPrice(sampleItem.downAmount || 0)}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-xs text-gray-500 mb-1">งวด</div>
+                  <div class="font-semibold text-blue-600">${sampleItem.downInstallmentCount || 0}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-xs text-gray-500 mb-1">ผ่อน/เดือน</div>
+                  <div class="font-semibold text-purple-600">฿${formatPrice(sampleItem.downInstallment || 0)}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+    
+        // Create promotion tooltip content
+        let promotionTooltip = '';
+        if (hasPromotion && promotionDetails.length > 0) {
+          const promoNames = promotionDetails.map(p => p.name).join(', ');
+          const promoCount = promotionDetails.length;
+          promotionTooltip = `title="🎁 โปรโมชั่น: ${promoNames} (${promoCount} รายการ)" data-promotion-count="${promoCount}"`;
+        }
+    
+        productCard.innerHTML = `
+          <div class="card-body p-4">
+            ${hasPromotion ? `<div class="promo-fire-icon" ${promotionTooltip}>🔥<span class="promo-badge">${promotionDetails.length || 1}</span></div>` : ''}
+            ${statusIcon}
+            <div class="product-img-container mb-3">
+              <img src="${imageUrl}" alt="${productName}" 
+                   class="w-full h-32 object-cover rounded-lg"
+                   onerror="this.src='/uploads/Logo2.png'">
+            </div>
+            <h3 class="card-title text-sm font-semibold mb-2 ${isOutOfStock ? 'emergency-text' : isLowStock ? 'warning-text' : ''}">${productName}</h3>
+            ${hasPromotion && promotionDetails.length > 0 ? `
+              <div class="promotion-preview text-xs text-orange-600 mb-2">
+                <i class="bi bi-gift"></i> ${promotionDetails[0].name}
+                ${promotionDetails.length > 1 ? ` +${promotionDetails.length - 1} อื่นๆ` : ''}
+              </div>
+            ` : ''}
+            
+            <!-- ข้อมูลพื้นฐาน -->
+            <div class="space-y-1 mb-3">
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600">แบรนด์:</span>
+                <span class="text-sm font-medium">${sampleItem.brand}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600">คงเหลือ:</span>
+                <span class="badge ${stockStatus.class}">${totalStock} ${sampleItem.stockType === 'imei' ? 'เครื่อง' : 'ชิ้น'}</span>
+              </div>
+            </div>
+
+            <!-- Boxset Products Display (if it's a boxset) -->
+            ${sampleItem.productType === 'boxset' && sampleItem.boxsetProducts && sampleItem.boxsetProducts.length > 0 ? `
+              <div class="boxset-products mt-3 mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div class="flex items-center gap-1 mb-2">
+                  <span class="text-sm font-semibold text-blue-700 dark:text-blue-300">🎁 สินค้าใน Boxset:</span>
+                  <span class="badge badge-info badge-sm">${sampleItem.boxsetProducts.length} รายการ</span>
+                </div>
+                <div class="boxset-products-list text-xs space-y-1">
+                  ${sampleItem.boxsetProducts.map((product, idx) => {
+                    const productName = product.name || product.productName || product.itemName || product.title || 'ไม่ระบุชื่อ';
+                    const productQty = product.quantity || product.qty || product.amount || 1;
+
+                    return `
+                      <div class="flex items-center justify-between py-1 px-2 bg-white dark:bg-gray-800 rounded border border-blue-100 dark:border-blue-700">
+                        <div class="flex-1">
+                          <span class="font-medium text-gray-800 dark:text-gray-200">${productName}</span>
+                          ${product.brand ? `<span class="text-gray-500 ml-1">(${product.brand})</span>` : ''}
+                        </div>
+                        <span class="text-blue-600 dark:text-blue-400 font-medium">${productQty} ชิ้น</span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- ข้อมูลการผ่อน -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-3">
+              <h4 class="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center">
+                <i class="bi bi-credit-card mr-1"></i> ข้อมูลการผ่อนชำระ
+              </h4>
+              <div class="space-y-1">
+                ${installmentDetails}
+              </div>
+            </div>
+            
+            ${imeiList ? `
+              <div class="mt-2 mb-3">
+                <span class="text-sm text-gray-600 block mb-1">IMEI:</span>
+                <div class="text-xs font-mono text-gray-500 bg-gray-50 dark:bg-gray-700 p-2 rounded max-h-16 overflow-y-auto">
+                  ${imeiList}
+                </div>
+              </div>
+            ` : ''}
+            
+            <!-- ข้อมูลวิธีการซื้อ -->
+            <div class="flex flex-wrap gap-1 mb-3">
+              ${sampleItem.purchaseType.map(type => {
+                const typeMap = {
+                  'cash': { text: 'ซื้อสด', class: 'badge-primary' },
+                  'installment': { text: 'ผ่อนชำระ', class: 'badge-success' }
+                };
+                const typeInfo = typeMap[type] || { text: type, class: 'badge-secondary' };
+                return `<span class="badge ${typeInfo.class} text-xs">${typeInfo.text}</span>`;
+              }).join('')}
+            </div>
+            
+            <div class="mt-4">
+              <div class="text-center text-sm text-gray-500 bg-green-50 dark:bg-green-900/20 p-2 rounded border border-green-200 dark:border-green-800">
+                <i class="bi bi-upc-scan"></i>
+                สแกนหรือพิมพ์ IMEI เพื่อเพิ่มลงตะกร้าผ่อน
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(productCard);
+      }
+    }
+
+    function getStockStatus(stock) {
+      if (stock <= 0) return { class: 'badge-error', text: 'หมด' };
+      if (stock <= 5) return { class: 'badge-warning', text: 'น้อย' };
+      return { class: 'badge-success', text: 'พร้อม' };
+    }
+
+    // Navigation functions
+    function backToLevel1() {
+      loadLevel1();
+    }
+
+    function backToLevel2() {
+      if (currentParentKey) {
+        loadLevel2(currentParentKey);
+      } else {
+        loadLevel1();
+      }
+    }
+
+    // Add to cart function
+    async function addToCart(itemId) {
+      const item = branchInstallments.find(p => p.id === itemId);
+      if (!item) {
+        showToast('ไม่พบสินค้าผ่อน', 'error');
+        return;
+      }
+    
+      // ✅ ตรวจสอบสต๊อกเบื้องต้น
+      if (item.stock <= 0) {
+        showToast('สินค้าผ่อนหมด', 'error');
+        return;
+      }
+    
+      // ✅ ตรวจสอบสต๊อกแบบ Real-time
+      showLoading(true);
+    
+      try {
+        const hasStock = await verifyProductStock(item.id, item.name, item.imei);
+    
+        if (!hasStock) {
+          showLoading(false);
+          showToast(`สินค้า '${item.name}' หมดสต๊อกแล้ว กรุณาเลือกสินค้าอื่น`, 'error');
+    
+          // รีเฟรชข้อมูลสินค้า
+          await loadBranchInstallments();
+          return;
+        }
+    
+        showLoading(false);
+      } catch (error) {
+        showLoading(false);
+        console.error('Error verifying stock:', error);
+        showToast('เกิดข้อผิดพลาดในการตรวจสอบสต๊อก', 'error');
+        return;
+      }
+
+      // For IMEI products, check if specific IMEI already in cart
+      if (item.imei) {
+        const existingIMEI = cartItems.find(cartItem =>
+          cartItem.imei === item.imei ||
+          cartItem.barcode === item.imei
+        );
+    
+        if (existingIMEI) {
+          showToast(`สินค้า '${item.name}' (IMEI: ${item.imei}) มีอยู่ในตะกร้าแล้ว`, 'warning');
+          return;
+        }
+      }
+
+      // Check if same product already in cart (for non-IMEI products)
+      const existingIndex = cartItems.findIndex(cartItem =>
+        cartItem.id === itemId && !cartItem.imei && !item.imei
+      );
+    
+      if (existingIndex > -1 && !item.imei) {
+        // Update quantity for non-IMEI products only
+        cartItems[existingIndex].quantity += 1;
+        cartItems[existingIndex].totalPrice = cartItems[existingIndex].quantity * item.price;
+      } else {
+        // Add new item
+        const cartItem = {
+          id: item.id,
+          branchStockId: item.branchStockId, // เพิ่ม branchStockId สำหรับการตัดสต๊อก
+          productId: item.productId, // Product ID ของสินค้าหลัก
+          name: item.name,
+          brand: item.brand,
+          price: item.price,
+          quantity: 1,
+          totalPrice: item.price,
+          image: item.image,
+          barcode: item.barcode,
+          maxStock: item.stock,
+          // Installment specific data
+          downAmount: item.downAmount || 0,
+          downInstallment: item.downInstallment || 0,
+          downInstallmentCount: item.downInstallmentCount || 0,
+          pricePayOff: item.pricePayOff || 0,
+          purchaseType: item.purchaseType || ['installment'],
+          stockType: item.stockType || 'imei'
+        };
+    
+        // Add IMEI if available
+        if (item.imei) {
+          cartItem.imei = item.imei;
+        }
+    
+        cartItems.push(cartItem);
+      }
+
+      // Update displays
+      renderCart();
+      updateCartCount();
+      updateStep1Button();
+    
+      // Save to localStorage with multiple keys for step2 compatibility
+      // 🔧 แก้ไข: บันทึกแค่ key เดียว และใช้ alias สำหรับ backward compatibility
+      const cartDataStr = JSON.stringify(cartItems);
+      localStorage.setItem('cartItems', cartDataStr);
+    
+      // สร้าง pointer แทนการ duplicate data
+      localStorage.setItem('cartData_pointer', 'cartItems');
+      localStorage.setItem('step1_selectedProducts_pointer', 'cartItems');
+    
+      // Sync with Global Data Manager
+      const totalAmount = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      if (window.globalInstallmentManager) {
+        window.globalInstallmentManager.updateStepData(1, {
+        cartItems: cartItems,
+        selectedProducts: cartItems.map(item => ({ id: item.id, imei: item.imei })),
+        totalAmount: totalAmount
+        });
+      }
+    
+      console.log('📦 Saved cart data to localStorage:', {
+        cartItems: cartItems.length + ' items',
+        totalAmount: totalAmount,
+        keys: ['cartItems', 'cartData', 'step1_selectedProducts']
+      });
+    
+      showToast(`เพิ่มสินค้าผ่อน '${item.name}' ลงตะกร้าแล้ว`, 'success');
+    
+      // ✅ บันทึกข้อมูลการยืนยันสต๊อก
+      item.stockVerified = true;
+      item.verificationTime = new Date().toISOString();
+    }
+
+    // ✅ ฟังก์ชันตรวจสอบสต๊อกแบบ Real-time
+    async function verifyProductStock(productId, productName, imei = null) {
+      try {
+        const branchCode = getBranchCode();
+        const authToken = localStorage.getItem('authToken');
+    
+        if (!authToken) {
+          console.warn('No auth token for stock verification');
+          return false;
+        }
+    
+        // ตรวจสอบสต๊อกจาก API
+        const response = await fetchWithRetry(`/api/branch-stock/taxType?branch_code=${branchCode}&verified=true&purchaseType=installment`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+    
+        if (!response.ok) {
+          console.warn('Stock verification API failed');
+          return false;
+        }
+    
+        const stockData = await response.json();
+    
+        if (!stockData.success || !stockData.data) {
+          console.warn('No stock data returned');
+          return false;
+        }
+    
+        // ค้นหาสินค้าในข้อมูลสต๊อก
+        const foundStock = stockData.data.find(item => {
+          if (imei && item.imei) {
+            return item.imei === imei && item.name === productName;
+          }
+          return item._id === productId || (item.name === productName && item.stock_value > 0);
+        });
+    
+        const hasStock = foundStock && foundStock.stock_value > 0;
+    
+        if (!hasStock) {
+          console.log(`❌ Real-time verification failed: ${productName} ${imei ? `(IMEI: ${imei})` : `(ID: ${productId})`}`);
+        } else {
+          console.log(`✅ Real-time verification passed: ${productName} (stock: ${foundStock.stock_value})`);
+        }
+    
+        return hasStock;
+    
+      } catch (error) {
+        console.error('Error verifying stock:', error);
+        return false;
+      }
+    }
+    
+    // Enhanced search functions - ใช้ API จาก BranchStock พร้อมรูปจาก product-image
+    async function searchItems() {
+      const query = document.getElementById('productSearchQuery').value.trim();
+      if (!query) {
+        showToast('กรุณาใส่คำค้นหา', 'warning');
+        return;
+      }
+
+      showLoading(true);
+    
+      try {
+        const branchCode = getBranchCode();
+        const authToken = localStorage.getItem('authToken');
+    
+        if (!authToken) {
+          showToast('กรุณาเข้าสู่ระบบก่อนใช้งาน', 'warning');
+          return;
+        }
+    
+        // ✅ ดึงข้อมูลจาก BranchStock search พร้อมตรวจสอบสต๊อกและ product-image
+        const [searchRes, productImageRes, stockVerificationRes] = await Promise.all([
+          fetchWithRetry(`/api/branch-stock/search?branch_code=${branchCode}&q=${encodeURIComponent(query)}&type=all&purchaseType=installment`, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetchWithRetry('/api/product-image', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // ✅ ตรวจสอบสต๊อกจริงเพิ่มเติม
+          fetchWithRetry(`/api/branch-stock/taxType?branch_code=${branchCode}&purchaseType=installment&verified=true`, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ]);
+    
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          let productImageData = { status: 'error', data: [] };
+          let stockVerificationData = { success: false, data: [] };
+    
+          // Get product images (optional)
+          if (productImageRes.ok) {
+            try {
+              productImageData = await productImageRes.json();
+            } catch (e) {
+              console.warn('Failed to parse product image data:', e);
+            }
+          }
+    
+          // Get stock verification data (optional but important)
+          if (stockVerificationRes.ok) {
+            try {
+              stockVerificationData = await stockVerificationRes.json();
+              console.log(`✅ Stock verification: ${stockVerificationData.data?.length || 0} verified items`);
+            } catch (e) {
+              console.warn('Failed to parse stock verification data:', e);
+            }
+          }
+    
+          if (searchData.success && searchData.data) {
+            // ✅ สร้าง Set ของสินค้าที่ได้รับการยืนยันจริง
+            const verifiedStockIds = new Set();
+            const verifiedStockNames = new Set();
+    
+            if (stockVerificationData.success && stockVerificationData.data) {
+              stockVerificationData.data.forEach(item => {
+                verifiedStockIds.add(item._id);
+                verifiedStockNames.add(item.name);
+                if (item.imei) {
+                  verifiedStockIds.add(`${item.name}-${item.imei}`);
+                }
+              });
+            }
+    
+            // สร้าง Map ของข้อมูลรูปจาก product-image
+            const productImageMap = new Map();
+            if (productImageData.status === 'success' && productImageData.data) {
+              productImageData.data.forEach(item => {
+                productImageMap.set(item.name, item);
+              });
+            }
+    
+            // ✅ แปลงข้อมูลและกรองเฉพาะสินค้าที่มีสต๊อกจริง
+            const searchResults = searchData.data
+              .filter(item => {
+                // ตรวจสอบสต๊อก
+                if (!item.stock_value || item.stock_value <= 0) {
+                  return false;
+                }
+    
+                // ✅ ตรวจสอบว่าสินค้าได้รับการยืนยันจริง
+                const hasVerification = verifiedStockIds.has(item._id) ||
+                                      verifiedStockNames.has(item.name) ||
+                                      (item.imei && verifiedStockIds.has(`${item.name}-${item.imei}`));
+    
+                if (!hasVerification) {
+                  console.log(`⚠️ Search result not verified: ${item.name}`);
+                  return false;
+                }
+    
+                return true;
+              })
+              .map(item => {
+                // หารูปจาก product-image collection
+                const productImageItem = productImageMap.get(item.name);
+                let imageUrl = '/uploads/Logo2.png'; // default image
+    
+                if (productImageItem && productImageItem.image) {
+                  // ใช้รูปจาก product-image - ใช้ getImageUrl เพื่อจัดการ path
+                  imageUrl = window.getImageUrl ? window.getImageUrl(productImageItem.image) : productImageItem.image;
+                } else if (item.image) {
+                  // ใช้รูปจาก BranchStock - ใช้ getImageUrl เพื่อจัดการ path
+                  imageUrl = window.getImageUrl ? window.getImageUrl(item.image) : item.image;
+                }
+    
+                return {
+                  id: item._id,
+                  branchStockId: item._id, // เพิ่ม branchStockId สำหรับการตัดสต๊อก
+                  productId: item.productId || null, // Product ID ของสินค้าหลัก
+                  name: item.name || 'ไม่มีชื่อ',
+                  brand: extractBrand(item.name) || 'ไม่มีแบรนด์',
+                  category: determineCategory(item.name, item.productType),
+                  price: item.price || 0,
+                  stock: item.stock_value || 0,
+                  barcode: item.imei || `${item.name}_${item._id}`,
+                  imei: item.imei || null,
+                  image: imageUrl,
+                  hasPromotion: false,
+                  isHidden: false,
+                  stockType: item.stockType || 'imei',
+                  downAmount: item.downAmount || 0,
+                  downInstallment: item.downInstallment || 0,
+                  downInstallmentCount: item.downInstallmentCount || 0,
+                  matchType: item.matchType || 'search',
+                  matchScore: item.matchScore || 50
+                };
+              });
+    
+            renderSearchResults(searchResults);
+    
+            if (searchResults.length === 0) {
+              showToast('ไม่พบสินค้าผ่อนที่ค้นหา', 'info');
+            } else {
+              showToast(`พบสินค้าผ่อน ${searchResults.length} รายการ`, 'success');
+            }
+          } else {
+            showToast('ไม่พบสินค้าที่ค้นหา', 'info');
+            renderSearchResults([]);
+          }
+        } else {
+          throw new Error(`API Error: ${searchRes.status}`);
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+        showToast('เกิดข้อผิดพลาดในการค้นหา: ' + error.message, 'error');
+    
+        // Fallback to local search if API fails
+        const localResults = searchInLocalData(query);
+        renderSearchResults(localResults);
+      } finally {
+        showLoading(false);
+      }
+    }
+    
+    function searchInLocalData(query) {
+      const searchTerm = query.toLowerCase();
+      return branchInstallments.filter(item =>
+        // กรองเฉพาะสินค้าผ่อน
+        item.purchaseType &&
+        item.purchaseType.includes('installment') &&
+        (item.name.toLowerCase().includes(searchTerm) ||
+         item.brand.toLowerCase().includes(searchTerm) ||
+         item.barcode.includes(searchTerm) ||
+         item.category.toLowerCase().includes(searchTerm))
+      );
+    }
+    
+    function renderSearchResults(results) {
+      const container = document.getElementById('imeiResultList');
+      if (!container) return;
+    
+      container.innerHTML = '';
+    
+      // Show search results container
+      document.getElementById('imeiResultContainer').classList.remove('hidden');
+      document.getElementById('level1Container').classList.add('hidden');
+      document.getElementById('level2Container').classList.add('hidden');
+      document.getElementById('level3Container').classList.add('hidden');
+    
+      results.forEach(item => {
+        const productCard = document.createElement('div');
+        productCard.className = `card product-card ${item.hasPromotion ? 'has-promotion' : ''}`;
+    
+        const stockStatus = getStockStatus(item.stock);
+        const priceDisplay = formatPrice(item.price);
+        const imageUrl = getImageUrl(item.image);
+    
+        productCard.innerHTML = `
+          <div class="card-body p-4">
+            ${item.hasPromotion ? '<div class="promo-fire-icon">🔥</div>' : ''}
+            <div class="product-img-container mb-3">
+              <img src="${imageUrl}" alt="${item.name}" 
+                   class="w-full h-32 object-cover rounded-lg"
+                   onerror="this.src='/uploads/Logo2.png'">
+            </div>
+            <h3 class="card-title text-sm font-semibold mb-2">${item.name}</h3>
+            <div class="space-y-1">
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600">แบรนด์:</span>
+                <span class="text-sm font-medium">${item.brand}</span>
+              </div>
+              ${item.downAmount > 0 || item.downInstallment > 0 || item.downInstallmentCount > 0 ? `
+                <div class="space-y-2">
+                  <span class="text-sm text-gray-600 block">ดาวน์ (ขั้นต่ำ/งวด/ผ่อน):</span>
+                  <div class="grid grid-cols-3 gap-1 bg-gray-50 dark:bg-gray-700 p-2 rounded text-xs">
+                    <div class="text-center">
+                      <div class="text-gray-500 mb-1">ขั้นต่ำ</div>
+                      <div class="font-semibold text-green-600">฿${formatPrice(item.downAmount || 0)}</div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-gray-500 mb-1">งวด</div>
+                      <div class="font-semibold text-blue-600">${item.downInstallmentCount || 0}</div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-gray-500 mb-1">ผ่อน/เดือน</div>
+                      <div class="font-semibold text-purple-600">฿${formatPrice(item.downInstallment || 0)}</div>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600">คงเหลือ:</span>
+                <span class="badge ${stockStatus.class}">${item.stock} ${item.stockType === 'imei' ? 'เครื่อง' : 'ชิ้น'}</span>
+              </div>
+              ${item.imei ? `
+                <div class="flex justify-between">
+                  <span class="text-sm text-gray-600">IMEI:</span>
+                  <span class="text-xs font-mono text-gray-500">${item.imei}</span>
+                </div>
+              ` : ''}
+              ${item.matchType ? `
+                <div class="flex justify-between">
+                  <span class="text-sm text-gray-600">ค้นพบ:</span>
+                  <span class="text-xs badge badge-info">${item.matchType === 'imei' ? 'IMEI' : 'ชื่อสินค้า'}</span>
+                </div>
+              ` : ''}
+            </div>
+            <div class="mt-4">
+              <div class="text-center text-sm text-gray-500 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                <i class="bi bi-upc-scan"></i>
+                สแกนหรือพิมพ์ IMEI เพื่อเพิ่มลงตะกร้า
+              </div>
+            </div>
+          </div>
+        `;
+    
+        container.appendChild(productCard);
+      });
+    }
+
+    function resetSearch() {
+      document.getElementById('productSearchQuery').value = '';
+      document.getElementById('imeiResultContainer').classList.add('hidden');
+      loadLevel1();
+    }
+
+    // ======================= BARCODE INPUT PROCESSING =======================
+    async function processBarcodeInput() {
+      const barcodeInput = document.getElementById('barcodeInput');
+      const barcodeResults = document.getElementById('barcodeResults');
+      const barcodeProductInfo = document.getElementById('barcodeProductInfo');
+    
+      if (!barcodeInput) return;
+    
+      const barcode = barcodeInput.value.trim();
+    
+      if (!barcode) {
+        showToast('กรุณาใส่ IMEI สินค้าผ่อน', 'warning');
+        barcodeInput.focus();
+        return;
+      }
+    
+      // Show loading state
+      let loaderId = null;
+      try {
+        showLoading(true);
+    
+        // Validate IMEI format (basic validation)
+        if (barcode.length < 10) {
+          showToast('IMEI ต้องมีอย่างน้อย 10 ตัวอักษร', 'warning');
+          barcodeInput.focus();
+          return;
+        }
+    
+        // Check if installment products data is available
+        if (!branchInstallments || branchInstallments.length === 0) {
+          showToast('ไม่พบข้อมูลสินค้าผ่อน กรุณารอสักครู่แล้วลองใหม่', 'warning');
+          return;
+        }
+    
+        // Find product by IMEI first (local search)
+        let product = branchInstallments.find(p =>
+          p.imei === barcode ||
+          p.barcode === barcode ||
+          p.name.toLowerCase().includes(barcode.toLowerCase())
+        );
+    
+        // If not found locally, search via API
+        if (!product) {
+          await findAndAddToCartByBarcode(barcode);
+          return;
+        }
+    
+        // Check if product is already in cart
+        const inCart = cartItems.some(item =>
+          item.imei === product.imei ||
+          (item.id === product.id && product.imei)
+        );
+    
+        if (inCart) {
+          showToast(`สินค้า '${product.name}' (IMEI: ${product.imei}) มีอยู่ในตะกร้าแล้ว`, 'warning');
+          barcodeResults.classList.add('hidden');
+          barcodeInput.focus();
+          barcodeInput.select();
+          return;
+        }
+    
+        // Check stock
+        if (product.stock <= 0) {
+          showToast(`สินค้า '${product.name}' หมดจากสต๊อก`, 'error');
+          barcodeResults.classList.add('hidden');
+          barcodeInput.focus();
+          return;
+        }
+    
+        // Show product found message
+        barcodeProductInfo.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-medium">${product.name}</div>
+              ${product.downAmount > 0 || product.downInstallment > 0 || product.downInstallmentCount > 0 ? `
+                <div class="mt-2">
+                  <div class="text-xs text-gray-600 mb-1">ดาวน์ (ขั้นต่ำ/งวด/ผ่อน):</div>
+                  <div class="grid grid-cols-3 gap-1 text-xs">
+                    <div>ขั้นต่ำ: ฿${formatPrice(product.downAmount || 0)}</div>
+                    <div>งวด: ${product.downInstallmentCount || 0}</div>
+                    <div>ผ่อน: ฿${formatPrice(product.downInstallment || 0)}</div>
+                  </div>
+                </div>
+              ` : ''}
+              ${product.imei ? `<div class="text-xs">IMEI: ${product.imei}</div>` : ''}
+              ${product.brand ? `<div class="text-xs">แบรนด์: ${product.brand}</div>` : ''}
+            </div>
+            <div class="text-right">
+              <div class="badge badge-success">พบสินค้าผ่อน</div>
+              <div class="text-xs mt-1">คงเหลือ: ${product.stock}</div>
+            </div>
+          </div>
+        `;
+        barcodeResults.classList.remove('hidden');
+    
+        // Add to cart
+        await addToCart(product.id);
+    
+        // Show success message
+        showToast(`เพิ่มสินค้าผ่อน '${product.name}' ลงตะกร้าแล้ว`, 'success');
+    
+        // Clear input after successful scan
+        barcodeInput.value = '';
+    
+        // Auto-hide results after 3 seconds
+        setTimeout(() => {
+          barcodeResults.classList.add('hidden');
+        }, 3000);
+    
+        // Focus back to barcode input for next scan
+        setTimeout(() => {
+          barcodeInput.focus();
+        }, 100);
+    
+      } catch (error) {
+        console.error('❌ Barcode processing error:', error);
+        showToast('เกิดข้อผิดพลาดในการประมวลผล IMEI', 'error');
+        barcodeResults.classList.add('hidden');
+        barcodeInput.focus();
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Clear barcode input
+    function clearBarcodeInput() {
+      const barcodeInput = document.getElementById('barcodeInput');
+      const barcodeResults = document.getElementById('barcodeResults');
+    
+      if (barcodeInput) {
+        barcodeInput.value = '';
+        barcodeInput.focus();
+      }
+    
+      if (barcodeResults) {
+        barcodeResults.classList.add('hidden');
+      }
+    }
+    
+    async function findAndAddToCartByBarcode(barcode) {
+      showLoading(true);
+      const barcodeInput = document.getElementById('barcodeInput');
+      const barcodeResults = document.getElementById('barcodeResults');
+      const barcodeProductInfo = document.getElementById('barcodeProductInfo');
+    
+      try {
+        const branchCode = getBranchCode();
+    
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          showToast('กรุณาเข้าสู่ระบบก่อนใช้งาน', 'warning');
+          return;
+        }
+    
+        // ดึงข้อมูล product-image สำหรับรูปภาพ
+        const productImageRes = await fetch('/api/product-image', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+    
+        let productImageMap = new Map();
+        if (productImageRes.ok) {
+          const productImageData = await productImageRes.json();
+          if (productImageData.status === 'success' && productImageData.data) {
+            productImageData.data.forEach(item => {
+              productImageMap.set(item.name, item);
+            });
+          }
+        }
+    
+        // ค้นหาด้วย IMEI ก่อน (สำหรับสินค้าที่มี IMEI)
+        let response = await fetchWithRetry(`/api/branch-stock/search?branch_code=${branchCode}&q=${encodeURIComponent(barcode)}&type=imei&purchaseType=installment`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+    
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.length > 0) {
+            const foundItem = data.data[0]; // ใช้ผลลัพธ์แรก
+    
+            // Check if already in cart
+            const inCart = cartItems.some(item =>
+              item.imei === foundItem.imei ||
+              (foundItem.imei && item.barcode === foundItem.imei)
+            );
+    
+            if (inCart) {
+              showToast(`สินค้า '${foundItem.name}' (IMEI: ${foundItem.imei}) มีอยู่ในตะกร้าแล้ว`, 'warning');
+              if (barcodeResults) barcodeResults.classList.add('hidden');
+              if (barcodeInput) {
+                barcodeInput.focus();
+                barcodeInput.select();
+              }
+              return;
+            }
+    
+            if (foundItem.stock_value > 0) {
+              // หารูปจาก product-image collection
+              const productImageItem = productImageMap.get(foundItem.name);
+              let imageUrl = '/uploads/Logo2.png'; // default image
+    
+              if (productImageItem && productImageItem.image) {
+                // ใช้รูปจาก product-image
+                imageUrl = productImageItem.image.startsWith('/uploads/')
+                  ? productImageItem.image
+                  : `/uploads/${productImageItem.image.replace(/^.*uploads[\\/]/, '')}`;
+              } else if (foundItem.image) {
+                // ใช้รูปจาก BranchStock ถ้าไม่มีใน product-image
+                imageUrl = foundItem.image.startsWith('/uploads/')
+                  ? foundItem.image
+                  : `/uploads/products/${foundItem.image}`;
+              }
+    
+              // แปลงข้อมูลและเพิ่มลงตะกร้า
+              const product = {
+                id: foundItem._id,
+                branchStockId: foundItem._id, // เพิ่ม branchStockId สำหรับการตัดสต๊อก
+                productId: foundItem.productId || foundItem._id, // เพิ่ม productId สำหรับ reference
+                name: foundItem.name || 'ไม่มีชื่อ',
+                brand: extractBrand(foundItem.name) || 'ไม่มีแบรนด์',
+                category: determineCategory(foundItem.name, foundItem.productType),
+                price: foundItem.price || 0,
+                stock: foundItem.stock_value || 0,
+                barcode: foundItem.imei || `${foundItem.name}_${foundItem._id}`,
+                imei: foundItem.imei || null,
+                image: imageUrl,
+                hasPromotion: false,
+                isHidden: false,
+                stockType: foundItem.stockType || 'imei',
+                downAmount: foundItem.downAmount || 0,
+                downInstallment: foundItem.downInstallment || 0,
+                downInstallmentCount: foundItem.downInstallmentCount || 0
+              };
+    
+              // เพิ่มลงใน branchInstallments ถ้ายังไม่มี
+              if (!branchInstallments.find(item => item.id === product.id)) {
+                branchInstallments.push(product);
+              }
+    
+              // Show product found message
+              if (barcodeProductInfo) {
+                barcodeProductInfo.innerHTML = `
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="font-medium">${product.name}</div>
+                      ${product.downAmount > 0 || product.downInstallment > 0 || product.downInstallmentCount > 0 ? `
+                        <div class="mt-2">
+                          <div class="text-xs text-gray-600 mb-1">ดาวน์ (ขั้นต่ำ/งวด/ผ่อน):</div>
+                          <div class="grid grid-cols-3 gap-1 text-xs">
+                            <div>ขั้นต่ำ: ฿${formatPrice(product.downAmount || 0)}</div>
+                            <div>งวด: ${product.downInstallmentCount || 0}</div>
+                            <div>ผ่อน: ฿${formatPrice(product.downInstallment || 0)}</div>
+                          </div>
+                        </div>
+                      ` : ''}
+                      ${product.imei ? `<div class="text-xs">IMEI: ${product.imei}</div>` : ''}
+                      ${product.brand ? `<div class="text-xs">แบรนด์: ${product.brand}</div>` : ''}
+                    </div>
+                    <div class="text-right">
+                      <div class="badge badge-success">พบสินค้าผ่อน</div>
+                      <div class="text-xs mt-1">API: ${barcode}</div>
+                    </div>
+                  </div>
+                `;
+                barcodeResults.classList.remove('hidden');
+              }
+    
+              await addToCart(product.id);
+              if (barcodeInput) barcodeInput.value = '';
+              showToast(`เพิ่มสินค้าผ่อน '${product.name}' ลงตะกร้าแล้ว`, 'success');
+    
+              // Auto-hide results after 3 seconds
+              setTimeout(() => {
+                if (barcodeResults) barcodeResults.classList.add('hidden');
+              }, 3000);
+    
+              // Focus back to input
+              setTimeout(() => {
+                if (barcodeInput) barcodeInput.focus();
+              }, 100);
+    
+            } else {
+              showToast('สินค้าผ่อนหมดจากสต๊อก', 'error');
+              if (barcodeResults) barcodeResults.classList.add('hidden');
+            }
+          } else {
+            // ถ้าไม่พบด้วย IMEI ให้ลองค้นหาด้วยชื่อ
+            response = await fetchWithRetry(`/api/branch-stock/search?branch_code=${branchCode}&q=${encodeURIComponent(barcode)}&type=name&purchaseType=installment`, {
+              headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+              }
+            });
+    
+            if (response.ok) {
+              const nameData = await response.json();
+              if (nameData.success && nameData.data && nameData.data.length > 0) {
+                showToast(`พบสินค้าผ่อน ${nameData.data.length} รายการ กรุณาเลือกจากรายการค้นหา`, 'info');
+                // Render search results instead of auto-adding
+                const searchResults = nameData.data.map(item => {
+                  const productImageItem = productImageMap.get(item.name);
+                  let imageUrl = '/uploads/Logo2.png';
+    
+                  if (productImageItem && productImageItem.image) {
+                    imageUrl = productImageItem.image.startsWith('/uploads/')
+                      ? productImageItem.image
+                      : `/uploads/${productImageItem.image.replace(/^.*uploads[\\/]/, '')}`;
+                  } else if (item.image) {
+                    imageUrl = item.image.startsWith('/uploads/')
+                      ? item.image
+                      : `/uploads/products/${item.image}`;
+                  }
+    
+                  return {
+                    id: item._id,
+                    branchStockId: item._id, // เพิ่ม branchStockId สำหรับการตัดสต๊อก
+                    productId: item.productId || item._id, // เพิ่ม productId สำหรับ reference
+                    name: item.name || 'ไม่มีชื่อ',
+                    brand: extractBrand(item.name) || 'ไม่มีแบรนด์',
+                    category: determineCategory(item.name, item.productType),
+                    price: item.price || 0,
+                    stock: item.stock_value || 0,
+                    barcode: item.imei || `${item.name}_${item._id}`,
+                    imei: item.imei || null,
+                    image: imageUrl,
+                    downAmount: item.downAmount || 0,
+                    downInstallment: item.downInstallment || 0,
+                    downInstallmentCount: item.downInstallmentCount || 0,
+                    matchType: 'name'
+                  };
+                });
+                renderSearchResults(searchResults);
+              } else {
+                showToast('ไม่พบสินค้าผ่อนจาก IMEI นี้', 'error');
+              }
+            } else {
+              showToast('ไม่พบสินค้าผ่อนจาก IMEI นี้', 'error');
+            }
+    
+            if (barcodeResults) barcodeResults.classList.add('hidden');
+          }
+        } else {
+          showToast('เกิดข้อผิดพลาดในการค้นหา', 'error');
+          if (barcodeResults) barcodeResults.classList.add('hidden');
+        }
+      } catch (error) {
+        console.error('Barcode search error:', error);
+        showToast('เกิดข้อผิดพลาดในการค้นหา: ' + error.message, 'error');
+        if (barcodeResults) barcodeResults.classList.add('hidden');
+      } finally {
+        showLoading(false);
+        // Focus back to input
+        if (barcodeInput) {
+          barcodeInput.focus();
+        }
+      }
+    }
+
+    // Cart display functions
+    function renderCart() {
+      const cartContainer = document.querySelector('.cart-summary');
+      if (!cartContainer) return;
+
+      if (cartItems.length === 0) {
+        cartContainer.innerHTML = `
+          <div class="text-center py-8">
+            <i class="bi bi-cart text-4xl text-gray-400"></i>
+            <p class="text-gray-500 mt-2">ตะกร้าสินค้าผ่อนว่าง</p>
+            <p class="text-xs text-gray-400 mt-1">เลือกสินค้าที่ต้องการผ่อนจากด้านซ้าย</p>
+          </div>
+        `;
+        return;
+      }
+
+      let totalAmount = 0;
+      cartContainer.innerHTML = '';
+    
+      cartItems.forEach((item, index) => {
+        totalAmount += item.totalPrice;
+    
+        const cartItem = document.createElement('div');
+        cartItem.className = 'cart-item bg-white dark:bg-gray-800 rounded-lg p-4 border';
+    
+        const imageUrl = getImageUrl(item.image);
+    
+        cartItem.innerHTML = `
+          <div class="flex items-center space-x-4">
+            <img src="${imageUrl}" alt="${item.name}"
+                 class="w-16 h-16 object-cover rounded-lg"
+                 onerror="this.src='/uploads/Logo2.png'">
+            <div class="flex-1">
+              <h4 class="font-semibold text-sm">${item.name}</h4>
+              <p class="text-xs text-gray-600 dark:text-gray-400">${item.brand}</p>
+              ${item.imei ? `<p class="text-xs text-blue-600 dark:text-blue-400 font-mono">IMEI: ${item.imei}</p>` : ''}
+              <div class="flex gap-2 mt-1">
+                <span class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">ผ่อน</span>
+              </div>
+              ${item.downAmount > 0 || item.downInstallment > 0 || item.downInstallmentCount > 0 ? `
+                <div class="mt-2 bg-gray-50 dark:bg-gray-700 p-2 rounded text-xs">
+                  <div class="text-gray-600 dark:text-gray-400 mb-1">ดาวน์ (ขั้นต่ำ/งวด/ผ่อน)</div>
+                  <div class="grid grid-cols-3 gap-1 text-center">
+                    <div>
+                      <div class="text-gray-500">ขั้นต่ำ</div>
+                      <div class="font-medium text-green-600">฿${formatPrice(item.downAmount || 0)}</div>
+                    </div>
+                    <div>
+                      <div class="text-gray-500">งวด</div>
+                      <div class="font-medium text-blue-600">${item.downInstallmentCount || 0}</div>
+                    </div>
+                    <div>
+                      <div class="text-gray-500">ผ่อน/เดือน</div>
+                      <div class="font-medium text-purple-600">฿${formatPrice(item.downInstallment || 0)}</div>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+              <p class="text-xs text-gray-500 mt-1">฿${formatPrice(item.price)} × ${item.quantity}</p>
+            </div>
+            <div class="text-right">
+              <p class="font-semibold text-primary">฿${formatPrice(item.totalPrice)}</p>
+              <div class="flex items-center space-x-2 mt-1">
+                ${!item.imei ? `
+                  <button onclick="updateQuantity(${index}, -1)" 
+                          class="btn btn-xs btn-circle" ${item.quantity <= 1 ? 'disabled' : ''}>
+                    <i class="bi bi-dash"></i>
+                  </button>
+                  <span class="text-sm">${item.quantity}</span>
+                  <button onclick="updateQuantity(${index}, 1)" 
+                          class="btn btn-xs btn-circle" ${item.quantity >= item.maxStock ? 'disabled' : ''}>
+                    <i class="bi bi-plus"></i>
+                  </button>
+                ` : `
+                  <span class="text-xs text-gray-500">IMEI ไม่สามารถเปลี่ยนจำนวนได้</span>
+                `}
+                <button onclick="removeFromCart(${index})" 
+                        class="btn btn-xs btn-circle btn-error">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+    
+        cartContainer.appendChild(cartItem);
+      });
+    
+      // Add total display
+      const totalDiv = document.createElement('div');
+      totalDiv.className = 'border-t pt-3 mt-3';
+      totalDiv.innerHTML = `
+        <div class="flex justify-between items-center font-bold">
+          <span>รวมทั้งหมด:</span>
+          <span class="text-primary">฿${formatPrice(totalAmount)}</span>
+        </div>
+      `;
+      cartContainer.appendChild(totalDiv);
+    }
+    
+    function updateQuantity(index, change) {
+      const item = cartItems[index];
+    
+      // IMEI products cannot change quantity
+      if (item.imei) {
+        showToast('สินค้า IMEI ไม่สามารถเปลี่ยนจำนวนได้ (1 IMEI = 1 ชิ้น)', 'warning');
+        return;
+      }
+    
+      const newQuantity = item.quantity + change;
+    
+      if (newQuantity <= 0) {
+        removeFromCart(index);
+        return;
+      }
+    
+      if (newQuantity > item.maxStock) {
+        showToast('จำนวนสินค้าผ่อนเกินที่มีในสต็อก', 'warning');
+        return;
+      }
+    
+      item.quantity = newQuantity;
+      item.totalPrice = item.quantity * item.price;
+    
+      renderCart();
+      updateCartCount();
+      updateStep1Button();
+    
+      // Save to localStorage with multiple keys for step2 compatibility
+      // 🔧 แก้ไข: บันทึกแค่ key เดียว และใช้ alias สำหรับ backward compatibility
+      const cartDataStr = JSON.stringify(cartItems);
+      localStorage.setItem('cartItems', cartDataStr);
+    
+      // สร้าง pointer แทนการ duplicate data
+      localStorage.setItem('cartData_pointer', 'cartItems');
+      localStorage.setItem('step1_selectedProducts_pointer', 'cartItems');
+    
+      // Sync with Global Data Manager
+      const totalAmount = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      if (window.globalInstallmentManager) {
+        window.globalInstallmentManager.updateStepData(1, {
+        cartItems: cartItems,
+        selectedProducts: cartItems.map(item => ({ id: item.id, imei: item.imei })),
+        totalAmount: totalAmount
+      });
+      }
+    }
+    
+    function clearCart() {
+      console.log('🧹 Clearing all cart items...');
+      cartItems = [];
+    
+      // Clear from localStorage
+      localStorage.removeItem('cartItems');
+      localStorage.removeItem('cartData');
+      localStorage.removeItem('step1_selectedProducts');
+      localStorage.removeItem('cartData_pointer');
+      localStorage.removeItem('step1_selectedProducts_pointer');
+      localStorage.removeItem('installmentData_step1');
+    
+      // Clear from globalInstallmentManager safely
+      if (window.globalInstallmentManager) {
+        try {
+          if (typeof window.globalInstallmentManager.updateStepData === 'function') {
+            window.globalInstallmentManager.updateStepData(1, {
+              cartItems: [],
+              selectedProducts: [],
+              totalAmount: 0
+            });
+          }
+        } catch (e) {
+          console.log('Note: globalInstallmentManager clear skipped');
+        }
+      }
+    
+      // Update UI
+      renderCart();
+      updateCartCount();
+      updateStep1Button();
+    
+      showToast('ล้างตะกร้าสินค้าเรียบร้อย', 'success');
+    }
+    
+    function updateCartCount() {
+      const count = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      document.getElementById('cartCount').textContent = count;
+    }
+
+    function updateStep1Button() {
+      const btn = document.getElementById('btnStep1ToStep2');
+      if (btn) {
+        btn.disabled = cartItems.length === 0;
+        if (cartItems.length === 0) {
+          btn.innerHTML = '<i class="bi bi-x-circle mr-2"></i> กรุณาเลือกสินค้าผ่อน';
+        } else {
+          btn.innerHTML = '<i class="bi bi-arrow-right mr-2"></i> ไปขั้นตอนถัดไป (ใบเสนอราคาผ่อน)';
+        }
+      }
+    }
+    
+    function removeFromCart(index) {
+      const item = cartItems[index];
+      cartItems.splice(index, 1);
+    
+      renderCart();
+      updateCartCount();
+      updateStep1Button();
+    
+      // Save to localStorage with multiple keys for step2 compatibility
+      // 🔧 แก้ไข: บันทึกแค่ key เดียว และใช้ alias สำหรับ backward compatibility
+      const cartDataStr = JSON.stringify(cartItems);
+      localStorage.setItem('cartItems', cartDataStr);
+    
+      // สร้าง pointer แทนการ duplicate data
+      localStorage.setItem('cartData_pointer', 'cartItems');
+      localStorage.setItem('step1_selectedProducts_pointer', 'cartItems');
+    
+      // Sync with Global Data Manager
+      const totalAmount = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      if (window.globalInstallmentManager) {
+        window.globalInstallmentManager.updateStepData(1, {
+        cartItems: cartItems,
+        selectedProducts: cartItems.map(item => ({ id: item.id, imei: item.imei })),
+        totalAmount: totalAmount
+      });
+      }
+    
+      showToast(`ลบสินค้าผ่อน '${item.name}' ${item.imei ? `(IMEI: ${item.imei})` : ''} ออกจากตะกร้าแล้ว`, 'info');
+    }
+
+    // Navigation
+    function goToStep2() {
+      // Validate using Global Data Manager
+      if (window.globalInstallmentManager) {
+        const errors = window.globalInstallmentManager.getValidationErrors(1);
+      if (errors.length > 0) {
+        showToast(errors[0].replace('กรุณาเลือกสินค้า', 'กรุณาเลือกสินค้าผ่อน'), 'warning');
+        return;
+      }
+    
+      // Complete step 1
+        window.globalInstallmentManager.completeStep(1);
+      }
+    
+      // Save cart data with multiple keys for step2 compatibility
+      // 🔧 แก้ไข: บันทึกแค่ key เดียว และใช้ alias สำหรับ backward compatibility
+      const cartDataStr = JSON.stringify(cartItems);
+      localStorage.setItem('cartItems', cartDataStr);
+    
+      // สร้าง pointer แทนการ duplicate data
+      localStorage.setItem('cartData_pointer', 'cartItems');
+      localStorage.setItem('step1_selectedProducts_pointer', 'cartItems');
+    
+      console.log('🚀 Proceeding to Step 2 with cart data:', {
+        cartItems: cartItems.length + ' items',
+        totalAmount: cartItems.reduce((sum, item) => sum + item.totalPrice, 0),
+        savedKeys: ['cartItems', 'cartData', 'step1_selectedProducts']
+      });
+    
+      // Show loading before navigation
+      showLoading(true);
+
+      // Include branch code in URL when navigating to step2
+      const branchCode = window.BRANCH_CODE || getBranchCode();
+      const branchName = document.getElementById('branchInfo')?.textContent || '';
+
+      // Navigate after showing loading animation
+      setTimeout(() => {
+        window.location.href = `/step2?branch=${encodeURIComponent(branchCode)}&name=${encodeURIComponent(branchName)}`;
+      }, 500);
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', async function() {
+      console.log('🚀 Step 1 initialized');
+
+      // Show main loading at start
+      showLoading(true);
+    
+      // Helper function to get branch code from URL
+      function getBranchCodeFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchFromURL = urlParams.get('branch');
+
+        if (branchFromURL && branchFromURL !== 'undefined' && branchFromURL !== 'null') {
+          return branchFromURL;
+        }
+
+        // Try to get from global variable or localStorage as fallback
+        return window.BRANCH_CODE || localStorage.getItem('activeBranch') || null;
+      }
+
+      // Initialize branch info first
+      if (window.globalInstallmentManager) {
+        window.globalInstallmentManager.initializeBranchInfo();
+      }
+
+      // Initialize promotion manager
+      if (window.promotionManager) {
+        const branchCode = getBranchCodeFromURL() || 'PTN01';
+        await window.promotionManager.initialize(branchCode);
+        console.log('✅ Promotion manager initialized for step1');
+      }
+    
+      // Initialize theme
+      const savedTheme = localStorage.getItem('darkMode');
+      if (savedTheme === 'true') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    
+      // ล้างตะกร้าอัตโนมัติทุกครั้งที่เข้าหน้า step1 (ไม่มีเงื่อนไข)
+      console.log('🧹 Auto-clearing cart data on page load...');
+      cartItems = [];
+    
+      // ล้างข้อมูลทั้งหมดจาก localStorage
+      localStorage.removeItem('cartItems');
+      localStorage.removeItem('cartData');
+      localStorage.removeItem('step1_selectedProducts');
+      localStorage.removeItem('cartData_pointer');
+      localStorage.removeItem('step1_selectedProducts_pointer');
+      localStorage.removeItem('installmentData_step1');
+    
+      // ล้างข้อมูลจาก globalInstallmentManager (ถ้ามีฟังก์ชัน)
+      if (window.globalInstallmentManager) {
+        try {
+          // ใช้ updateStepData แทน clearStepData
+          if (typeof window.globalInstallmentManager.updateStepData === 'function') {
+            window.globalInstallmentManager.updateStepData(1, {
+              cartItems: [],
+              selectedProducts: [],
+              totalAmount: 0
+            });
+          }
+        } catch (e) {
+          console.log('Note: globalInstallmentManager clear skipped', e);
+        }
+      }
+    
+      // อัปเดต UI ทันที
+      setTimeout(() => {
+        renderCart();
+        updateCartCount();
+        updateStep1Button();
+      }, 100);
+    
+      // Setup event listeners
+      setupNotifications();
+      document.getElementById('btnStep1ToStep2').addEventListener('click', goToStep2);
+      document.getElementById('btnProductSearch').addEventListener('click', searchItems);
+      document.getElementById('btnProductReset').addEventListener('click', resetSearch);
+      document.getElementById('btnAddBarcode').addEventListener('click', processBarcodeInput);
+      document.getElementById('btnClearBarcode').addEventListener('click', clearBarcodeInput);
+
+      // Customer search event handlers
+      document.getElementById('btnSearchCustomer').addEventListener('click', async function() {
+        const searchTerm = document.getElementById('customerSearch').value.trim();
+        if (searchTerm) {
+          if (window.InstallmentAPI && window.InstallmentAPI.searchExistingCustomer) {
+            await window.InstallmentAPI.searchExistingCustomer(searchTerm);
+          } else {
+            console.warn('InstallmentAPI.searchExistingCustomer not available');
+          }
+        }
+      });
+
+      // Customer search on Enter key
+      document.getElementById('customerSearch').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          document.getElementById('btnSearchCustomer').click();
+        }
+      });
+      document.getElementById('btnBackToLevel1').addEventListener('click', backToLevel1);
+      document.getElementById('btnBackToLevel2').addEventListener('click', backToLevel2);
+    
+      // No button needed - auto clear only
+    
+      // Setup search input
+      document.getElementById('productSearchQuery').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          searchItems();
+        }
+      });
+    
+      // Setup barcode input
+      document.getElementById('barcodeInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          processBarcodeInput();
+        }
+      });
+    
+      // Auto-focus barcode input on page load
+      setTimeout(() => {
+        document.getElementById('barcodeInput').focus();
+      }, 1000);
+    
+      // Load branch info
+      await loadBranchInfo();
+    
+      // Update connection status
+      document.getElementById('connectionStatus').textContent = '🟢 เชื่อมต่อแล้ว';
+      document.getElementById('connectionStatus').classList.remove('offline');
+      document.getElementById('firebaseStatus').classList.remove('bg-gray-400');
+      document.getElementById('firebaseStatus').classList.add('bg-green-400');
+      document.getElementById('socketStatus').classList.remove('bg-gray-400');
+      document.getElementById('socketStatus').classList.add('bg-green-400');
+    
+      // Setup step data change listener
+      document.addEventListener('installmentStepChanged', function(event) {
+        const { stepNumber, stepData } = event.detail;
+        if (window.globalInstallmentManager) {
+          updateStepProgress(window.globalInstallmentManager.data);
+          updateNavigationButtons(window.globalInstallmentManager.data);
+        }
+      });
+    
+      // Load products
+      await loadBranchInstallments();
+    
+      // Update initial step status if Global Manager is ready
+      if (window.globalInstallmentManager) {
+        updateStepProgress(window.globalInstallmentManager.data);
+        updateNavigationButtons(window.globalInstallmentManager.data);
+      }
+    
+      showToast('ระบบเลือกสินค้าผ่อนพร้อมใช้งาน', 'success');
+
+      // Hide main loading when initialization is complete
+      setTimeout(() => {
+        showLoading(false);
+      }, 1000);
+    });
+
+    // Step Progress and Navigation Functions
+    function updateStepProgress(stepData) {
+      // Update stepper progress
+      const steppers = document.querySelectorAll('.step');
+      steppers.forEach((stepper, index) => {
+        const stepNumber = index + 1;
+        const stepKey = `step${stepNumber}`;
+    
+        if (stepData && stepData[stepKey] && stepData[stepKey].completed) {
+          stepper.classList.add('completed');
+        } else {
+          stepper.classList.remove('completed');
+        }
+    
+        if (stepNumber === 1) {
+          stepper.classList.add('active');
+        } else {
+          stepper.classList.remove('active');
+        }
+      });
+    
+      // Update progress indicator if available
+      if (window.globalInstallmentManager) {
+        const percentage = window.globalInstallmentManager.getProgressPercentage();
+      const progressBar = document.querySelector('.progress-bar');
+      if (progressBar) {
+        progressBar.style.width = percentage + '%';
+        }
+      }
+    }
+    
+    function updateNavigationButtons(stepData) {
+      const nextBtn = document.getElementById('btnStep1ToStep2');
+      if (nextBtn && window.globalInstallmentManager) {
+        const canProceed = window.globalInstallmentManager.validateStep(1);
+        nextBtn.disabled = !canProceed;
+        nextBtn.classList.toggle('btn-disabled', !canProceed);
+    
+        // Update button text based on validation
+        const errors = window.globalInstallmentManager.getValidationErrors(1);
+        if (errors.length > 0) {
+          nextBtn.title = errors[0];
+        } else {
+          nextBtn.title = 'ไปขั้นตอนถัดไป';
+        }
+      }
+    }
+
+    // ✅ ฟังก์ชันรีเฟรชสต๊อกเมื่อมีสินค้าหมด
+    async function refreshStockIfNeeded() {
+      try {
+        const outOfStockItems = branchInstallments.filter(item =>
+          item.stock <= 0 || item.verified === false
+        );
+    
+        if (outOfStockItems.length > 0) {
+          console.log(`🔄 Found ${outOfStockItems.length} items out of stock, refreshing...`);
+    
+          showLoading(true);
+          await loadBranchInstallments();
+          showLoading(false);
+    
+          showToast(`อัพเดทข้อมูลสต๊อกเรียบร้อย`, 'info');
+        }
+      } catch (error) {
+        console.error('Error refreshing stock:', error);
+      }
+    }
+    
+    // ✅ Auto-refresh สต๊อกทุก 30 วินาที (เฉพาะเมื่อไม่มี loading)
+    setInterval(async () => {
+      if (branchInstallments.length > 0) {
+        const hasOutOfStock = branchInstallments.some(item =>
+          item.stock <= 0 || item.verified === false
+        );
+    
+        if (hasOutOfStock) {
+          console.log('🔄 Auto-refreshing stock due to out-of-stock items');
+          await refreshStockIfNeeded();
+        }
+      }
+    }, 30000); // ทุก 30 วินาที
+    
+    // Make functions globally available
+    window.showToast = showToast;
+    window.removeFromCart = removeFromCart;
+    window.updateQuantity = updateQuantity;
+    window.addToCart = addToCart;
+    window.backToLevel1 = backToLevel1;
+    window.backToLevel2 = backToLevel2;
+    window.processBarcodeInput = processBarcodeInput;
+    window.clearBarcodeInput = clearBarcodeInput;
+    window.refreshStockIfNeeded = refreshStockIfNeeded;
+    window.verifyProductStock = verifyProductStock;
+    window.findAndAddToCartByBarcode = findAndAddToCartByBarcode;
+    
+    // Signature functionality removed - signatures are handled in step2.html
+
+// Old loading system code removed - using new Lottie loading
+  </script>
+
+</body>
+</html> 

@@ -1,0 +1,2380 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Management - สรุปกราฟสต๊อก</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+    
+
+<script src="../js/activity-tracker.js"></script>
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt','sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Lottie Web for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css for smooth animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+  <!-- Global socket initialization -->
+  <script>
+    // Global socket declaration with enhanced error handling
+    let socket;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const RECONNECT_DELAY = 5000; // 5 seconds
+
+    function initializeSocket() {
+      try {
+        // Configure socket with options
+        socket = io({
+          reconnection: true,
+          reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
+          reconnectionDelay: RECONNECT_DELAY,
+          timeout: 10000,
+          transports: ['websocket', 'polling']
+        });
+
+        // Connection event handlers
+        socket.on('connect', () => {
+          console.log('✅ Socket connected successfully');
+          reconnectAttempts = 0;
+        });
+
+        socket.on('connect_error', (error) => {
+          console.warn('⚠️ Socket connection error:', error);
+          reconnectAttempts++;
+    
+          if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            console.error('❌ Max reconnection attempts reached');
+            // Create fallback socket object
+            socket = {
+              on: () => {},
+              emit: () => {},
+              disconnect: () => {},
+              connected: false
+            };
+          }
+        });
+
+        socket.on('disconnect', (reason) => {
+          console.log('🔌 Socket disconnected:', reason);
+          if (reason === 'io server disconnect') {
+            // Server disconnected us, try to reconnect
+            setTimeout(() => {
+              if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                console.log('🔄 Attempting to reconnect...');
+                socket.connect();
+              }
+            }, RECONNECT_DELAY);
+          }
+        });
+
+        // Error event handler
+        socket.on('error', (error) => {
+          console.error('🚨 Socket error:', error);
+        });
+
+      } catch (error) {
+        console.error('❌ Socket initialization error:', error);
+        // Create fallback socket object
+        socket = {
+          on: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connected: false
+        };
+      }
+    }
+
+    // Initialize socket connection
+    initializeSocket();
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    details summary i {
+      transition: transform 0.2s;
+    }
+    details[open] summary i {
+      transform: rotate(180deg);
+    }
+
+    /* Logo styling */
+    .Logo { max-width:100%; height:auto; }
+
+    /* Mobile Menu Overlay */
+    .menu-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5); z-index: 15; display: none;
+    }
+    .menu-overlay.active { display: block; }
+
+    /* Stock type badges */
+    .stock-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .stock-badge-imei {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+    .dark .stock-badge-imei {
+      background-color: #1e3a8a;
+      color: #bfdbfe;
+    }
+    .stock-badge-quantity {
+      background-color: #dcfce7;
+      color: #166534;
+    }
+    .dark .stock-badge-quantity {
+      background-color: #14532d;
+      color: #bbf7d0;
+    }
+    
+    /* สไตล์สำหรับข้อมูลผู้แก้ไข */
+    .last-edited-info {
+      max-width: 120px;
+      word-wrap: break-word;
+    }
+    .last-edited-info .editor-name {
+      font-weight: 500;
+      color: #2563eb;
+    }
+    .last-edited-info .edit-date {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    .dark .last-edited-info .editor-name {
+      color: #60a5fa;
+    }
+    .dark .last-edited-info .edit-date {
+      color: #9ca3af;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      aside { z-index: 30; }
+      #mainContent { margin-left: 0 !important; }
+      aside:not(.translate-x-0) { transform: translateX(-100%); }
+      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 600px; }
+    }
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- Mobile Menu Overlay -->
+  <div id="menuOverlay" class="menu-overlay"></div>
+
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+          class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition md:p-2 p-3">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="flex flex-1">
+    <!-- Sidebar -->
+    <div class="flex w-full">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+       class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+              transform transition-transform duration-300 translate-x-0 z-20">
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-hidden">
+        <ul class="flex flex-col w-full space-y-1">
+
+        <li class="my-px">
+                    <a href="branch_stock_overview"
+                      class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                      <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                        <i class="bi bi-grid text-xl"></i>
+                      </span>
+                      <span class="ml-3">สต๊อกคงเหลือ</span>
+                    </a>
+                  </li>
+
+          <!-- เมนู: ตรวจสินค้า/อนุมัติ -->
+          <li class="my-px">
+            <a href="inventory_dashboard"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+                <i class="bi bi-clipboard-check text-xl"></i>
+              </span>
+              <span class="ml-3">ตรวจสินค้า/อนุมัติ</span>
+            </a>
+          </li>
+
+          <!-- เมนู:PO -->
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+                <i class="bi bi-file-earmark-text text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+          <!-- เมนู: Quotation -->
+          <li class="my-px">
+            <a href="quotation_Stock"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+                <i class="bi bi-file-earmark-richtext text-xl"></i>
+              </span>
+              <span class="ml-3">สร้างใบเสนอราคา</span>
+            </a>
+          </li>
+          <!-- เมนู: Transfer -->
+          <li class="my-px">
+            <a href="Transfer"
+                    class="flex flex-row items-center h-12 px-4 rounded-lg
+            text-gray-600 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-700 transition-all sidebar-link">
+              <span class="flex items-center justify-center text-lg text-primary-500 dark:text-primary-400">
+                <i class="bi bi-truck text-xl"></i>
+              </span>
+              <span class="ml-3">ย้ายสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="product_Image"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-yellow-500 dark:text-yellow-400">
+                <i class="bi bi-upc-scan text-xl"></i>
+              </span>
+              <span class="ml-3">ลงทะเบียนสินค้า</span>
+            </a>
+          </li>
+          <!-- เมนู: เพิ่มเติม -->
+          <li class="my-px">
+            <a href="StockAdditional"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-three-dots text-xl"></i>
+              </span>
+              <span class="ml-3">เพิ่มเติม</span>
+            </a>
+          </li>
+
+
+          <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <!-- Dark Mode Toggle -->
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+                <i class="bi bi-moon-stars text-xl"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+                <i class="bi bi-box-arrow-right text-xl"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px mt-2">
+            <div id="profile"
+                 class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+              <div class="avatar mr-3">
+                <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+                  <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium" id="employeeName">Loading...</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ส่วนเนื้อหา (Main Content) -->
+    <div id="mainContent"
+         class="flex-1 flex flex-col ml-0 md:ml-56 transition-all duration-300 ease-in-out">
+      <!-- Header -->
+      <header class="p-4 bg-white dark:bg-gray-800  flex justify-between items-center transition-colors">
+        <h1 class="text-xl font-bold" id="pageTitle">ตรวจสินค้า/อนุมัติ</h1>
+      </header>
+
+   <!-- Container หลัก -->
+<div class="container mx-auto p-4 md:p-6 space-y-6">
+
+  <!-- Card: เลือกสาขา + ตัวกรอง -->
+  <section class="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
+      <div class="px-6 py-4">
+        <h2 class="text-lg font-semibold text-white flex items-center">
+          <i class="bi bi-building-fill mr-2 text-2xl"></i> เลือกสาขา &amp; ตัวกรอง
+        </h2>
+      </div>
+    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 items-end">
+      <!-- สาขา -->
+      <div>
+        <label for="branchSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สาขา</label>
+        <select id="branchSelect"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-300 transition">
+          <option value="all">-- ทั้งหมด --</option>
+        </select>
+      </div>
+     <!-- 1. โหลด Flatpickr CSS -->
+<link
+rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+/>
+
+<!-- 2. โหลด Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
+
+
+
+      <!-- ปุ่ม ค้นหา / ล้าง -->
+      <div class="sm:col-span-2 lg:col-span-2 flex space-x-4">
+        <button id="btnFilter"
+                class="flex-1 inline-flex justify-center items-center px-6 py-2 bg-gradient-to-r from-blue-400 to-blue-600 hover:from-green-600 hover:to-green-700 text-white font-medium rounded-lg shadow-lg transition">
+          <i class="bi bi-search mr-2"></i> ค้นหา
+        </button>
+        <button id="btnReset"
+                class="flex-1 inline-flex justify-center items-center px-6 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium rounded-lg shadow transition">
+          <i class="bi bi-arrow-counterclockwise mr-2"></i> ล้าง
+        </button>
+      </div>
+    </div>
+  </section>
+
+   <!-- Card: รายการสต๊อก (Grouped) แบบการ์ด -->
+   <section class="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
+    <div class="px-6 py-4 flex justify-between items-center">
+      <h2 class="text-xl font-semibold text-white flex items-center">
+        <i class="bi bi-box-seam-fill mr-3 text-2xl"></i> รายการสต๊อก (Grouped)
+      </h2>
+      <!-- ปุ่มแสดง/ย่อทั้งหมด -->
+      <button id="btnExpandAll" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+        แสดงทั้งหมด
+      </button>
+    </div>
+    <!-- Ensure only one groupedStockContainer exists -->
+    <div id="groupedStockContainer" class="px-6 py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- การ์ดแต่ละใบจะถูกเติมผ่าน JS -->
+    </div>
+  </section>
+
+  <!-- Hidden input สำหรับยิงบาร์โค้ด -->
+<input
+  type="text"
+  id="barcodeInput"
+  autofocus
+  class="absolute top-0 left-0 w-px h-px opacity-0 border-0"
+/>
+
+<!-- Modal แก้ไข Item -->
+<div
+  id="editItemModal"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm hidden"
+>
+  <!-- กล่อง Modal ด้านใน -->
+  <div
+    class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+           rounded-lg shadow-2xl w-full max-w-2xl mx-4 md:mx-auto
+           max-h-[90vh] overflow-y-auto animate-fadeIn p-6 transition-colors"
+  >
+    <form id="editItemForm" class="space-y-6">
+      <!-- Header -->
+      <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h5 class="text-xl font-bold">แก้ไขข้อมูลสินค้าใน PO</h5>
+        <button
+          type="button"
+          id="btnCloseEditItemModal"
+          class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition"
+        >
+          <i class="bi bi-x-lg text-2xl"></i>
+        </button>
+      </div>
+
+      <!-- Hidden fields -->
+      <input type="hidden" id="editPoId" />
+      <input type="hidden" id="editItemIndex" />
+      <input type="hidden" id="editProductId" />
+
+      <!-- ฟอร์มเป็นกริด 2 คอลัมน์ บนมือถือ 1 คอลัมน์ -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Barcode -->
+        <div>
+          <label for="editBarcode" class="block text-sm font-medium mb-1">Barcode</label>
+          <input
+            type="text"
+            id="editBarcode"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-300 transition-colors"
+          />
+        </div>
+        <!-- SKU (read-only) -->
+        <div>
+          <label for="editSku" class="block text-sm font-medium mb-1">SKU</label>
+          <input
+            type="text"
+            id="editSku"
+            readonly
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 transition-colors"
+          />
+        </div>
+        <!-- IMEI -->
+        <div id="editImeiContainer">
+          <label for="editImei" class="block text-sm font-medium mb-1">IMEI</label>
+          <input
+            type="text"
+            id="editImei"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-300 transition-colors"
+          />
+        </div>
+        <!-- Name -->
+        <div>
+          <label for="editName" class="block text-sm font-medium mb-1">Name</label>
+          <input
+            type="text"
+            id="editName"
+            required
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-300 transition-colors"
+          />
+        </div>
+        <!-- Invoice Number -->
+        <div>
+          <label for="editInvoiceNumber" class="block text-sm font-medium mb-1">Invoice Number (IN)</label>
+          <input
+            type="text"
+            id="editInvoiceNumber"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-300 transition-colors"
+          />
+        </div>
+        <!-- Brand -->
+        <div>
+          <label for="editBrand" class="block text-sm font-medium mb-1">Brand</label>
+          <input
+            type="text"
+            id="editBrand"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-300 transition-colors"
+          />
+        </div>
+      </div>
+
+      <!-- ปุ่มบันทึก/ยกเลิก -->
+      <div class="flex justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <button
+          type="button"
+          id="btnCancelEdit"
+          class="px-4 py-2 bg-gray-500 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-600 dark:hover:bg-gray-500 transition"
+        >
+          ยกเลิก
+        </button>
+        <button
+          type="submit"
+          class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          <i class="bi bi-save mr-1"></i>บันทึก
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+  <!-- Footer อยู่ใน flex layout -->
+  <footer class="bg-white dark:bg-gray-800 py-2 text-center text-sm text-gray-600 dark:text-gray-400 mt-auto">
+    © 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์.
+  </footer>
+
+  <!-- Toast Container สำหรับ showToast() -->
+  <div id="toastContainer" class="fixed top-5 right-5 space-y-2 z-50"></div>
+
+  <script>
+    // -------------------------------------------
+    // 1) ฟังก์ชันแสดง Toast Notification
+    // -------------------------------------------
+    function showToast(message, type = 'info') {
+      const toastContainer = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      let alertClass = 'alert alert-info';
+      if (type === 'success') alertClass = 'alert alert-success';
+      else if (type === 'error') alertClass = 'alert alert-error';
+      else if (type === 'warning') alertClass = 'alert alert-warning';
+      toast.className = `${alertClass} shadow-lg mb-4 animate-fadeIn`;
+      toast.textContent = message;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition', 'duration-500');
+        setTimeout(() => {
+          toast.remove();
+        }, 500);
+      }, 3000);
+    }
+
+    // --------------------
+    // ฟังก์ชัน Dark Mode
+    // --------------------
+    function loadDarkModeSetting() {
+      const darkMode = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.classList.toggle('dark', darkMode);
+      document.getElementById('darkModeLabel').textContent = darkMode ? 'Light Mode' : 'Dark Mode';
+    }
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('darkMode', isDark);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+
+    // --------------------
+    // โหลดข้อมูลพนักงาน -> แสดงชื่อและรูป
+    // --------------------
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const res = await fetch('/api/users/me', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const result = await res.json();
+
+        // ถ้าเซิร์ฟเวอร์ตอบว่า Unauthorized (401) หรือ success=false พร้อมข้อความโทเค็นถูกยกเลิก
+        if (res.status === 401 || (!res.ok && result.error?.includes('โทเค็นถูกยกเลิกแล้ว'))) {
+          // ลบโทเค็นเก่า
+          localStorage.removeItem('authToken');
+          // บอกผู้ใช้
+          showToast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', 'warning');
+          // ไปหน้าล็อกอินอีกครั้ง (รอสักครู่ก่อน redirect เผื่อ toast จะแสดง)
+          setTimeout(() => {
+            window.location.href = 'login.html';
+          }, 1500);
+          return;
+        }
+
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');
+        }
+
+        const user = result.data;
+        document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+
+        let photoUrl = user.photoUrl || '';
+        if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+          photoUrl = '/' + photoUrl;
+        }
+        document.getElementById('employeePhoto').src = photoUrl;
+
+      } catch (err) {
+        console.error('Load Employee Profile Error:', err);
+        // ถ้าเกิดข้อผิดพลาดอื่นๆ ก็แสดง toast ได้ (แต่ไม่ต้อง redirect ทันที)
+        showToast('ไม่สามารถโหลดข้อมูลผู้ใช้: ' + err.message, 'error');
+      }
+    }
+
+    // ดึง user ID ปัจจุบันจาก token
+    async function getCurrentUserId() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return null;
+        const res = await fetch('/api/users/me', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const result = await res.json();
+        if (res.ok && result.success) return result.data._id;
+        return null;
+      } catch (err) {
+        console.error('Error getting user ID:', err);
+        return null;
+      }
+    }
+
+    // --------------------
+    // Global Variables
+    // --------------------
+    let allStocks = [];
+    let originalValues = {};
+    let currentLang = 'th';
+
+    // --------------------
+    // โหลดข้อมูลสาขา
+    // --------------------
+    async function loadBranches() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/branch', {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + token
+          }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถโหลดสาขา');
+        }
+        const branchSelect = document.getElementById('branchSelect');
+        branchSelect.innerHTML = '<option value="all">-- ทั้งหมด --</option>';
+        data.data.forEach((b) => {
+          const opt = document.createElement('option');
+          opt.value = b.branch_code;
+          opt.textContent = `[${b.branch_code}] ${b.name}`;
+          branchSelect.appendChild(opt);
+        });
+      } catch (err) {
+        showToast('Error loading branches: ' + err.message, 'error');
+      }
+    }
+
+    // --------------------
+    // โหลดข้อมูลสต๊อก
+    // --------------------
+    async function loadStock() {
+  // 1) เก็บอันที่เปิดอยู่ก่อน
+  const openIds = getOpenStockIds();
+
+  const branchCode = document.getElementById('branchSelect').value;
+  if (!branchCode) return;
+
+  showLoading(true);
+  try {
+    const token = localStorage.getItem('authToken');
+    let url = branchCode === 'all'
+      ? '/api/branch-stock?include_unverified=1&populate=supplier,poNumber'  // เพิ่ม populate supplier และ poNumber
+      : `/api/branch-stock?branch_code=${branchCode}&include_unverified=1&populate=supplier,poNumber`;
+
+    console.log('Loading stock from:', url);
+
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token
+      }
+    });
+
+    const data = await res.json();
+    
+    // Debug: แสดงข้อมูล supplier
+    if (data.data && data.data.length > 0) {
+      console.log('Sample stock supplier data:', {
+        stockId: data.data[0]._id,
+        supplier: data.data[0].supplier
+      });
+    }
+
+    if (!res.ok || !data.success) throw new Error(data.error || 'โหลดสต๊อกไม่สำเร็จ');
+
+    const rawStocks = data.data || [];
+
+    // กรองแยกประเภท
+    const pendingStocks    = rawStocks.filter(s => s.pending === true);
+    const unverifiedStocks = rawStocks.filter(s => s.pending !== true && s.verified !== true);
+
+    console.log('Pending stocks:', pendingStocks.length);
+    console.log('Unverified stocks:', unverifiedStocks.length);
+
+    // เก็บข้อมูลทั้งหมดใน allStocks
+    allStocks = [...pendingStocks, ...unverifiedStocks];
+
+    // ล้าง container ก่อน
+    const container = document.getElementById('groupedStockContainer');
+    container.innerHTML = '';
+
+    // แสดงกลุ่ม pending ถ้ามี
+    if (pendingStocks.length > 0) {
+      renderPendingStocks(pendingStocks);
+    }
+
+    // แสดงกลุ่ม unverified ถ้ามี
+    if (unverifiedStocks.length > 0) {
+      const grouped = groupStockByBrand(unverifiedStocks);
+      renderGroupedStocks(grouped);
+    } else if (pendingStocks.length === 0) {
+      // ถ้าไม่มีข้อมูลเลย
+      container.innerHTML = `<div class="col-span-full text-center text-gray-500">
+        ไม่มีสินค้าที่ต้องตรวจสอบ
+      </div>`;
+    }
+
+    // คืนสถานะ "เปิด" ของ <details>
+    openIds.forEach(id => {
+      const detail = Array.from(
+        document.querySelectorAll('#groupedStockContainer details')
+      ).find(d => d.querySelector(`[data-stock-id="${id}"]`));
+      if (detail) detail.open = true;
+    });
+
+  } catch (err) {
+    console.error('Error loading stock:', err);
+    showToast('Error loading stock: ' + err.message, 'error');
+  } finally {
+    setTimeout(() => { showLoading(false); }, 600);
+  }
+
+      // Debug: แสดงข้อมูล stock ที่ได้รับ
+    console.log('📊 All stocks received:', allStocks);
+    if (allStocks.length > 0) {
+      console.log('📋 First stock sample:', allStocks[0]);
+      console.log('📋 Barcode:', allStocks[0].barcode);
+      console.log('📋 SKU:', allStocks[0].sku);
+    }
+}
+
+
+    /**
+     * แสดงรายการสินค้ารออนุมัติ (pending=true)
+     */
+    function renderPendingStocks(pendingArray) {
+      const container = document.getElementById('groupedStockContainer');
+      const oldHdr = document.getElementById('pendingSectionHeader');
+      const oldLst = document.getElementById('pendingSectionList');
+      if (oldHdr) oldHdr.remove();
+      if (oldLst) oldLst.remove();
+
+      const hdr = document.createElement('h3');
+      hdr.id = 'pendingSectionHeader';
+      hdr.className = 'col-span-full text-lg font-semibold text-red-600 dark:text-red-400';
+      hdr.textContent = `📌 สินค้ารออนุมัติ (${pendingArray.length} รายการ)`;
+
+      const list = document.createElement('div');
+      list.id = 'pendingSectionList';
+      list.className = 'grid grid-cols-1 gap-4 mb-6';
+
+      pendingArray.forEach(stock => {
+        // ดึงข้อมูล supplier จาก stock และ log เพื่อ debug
+        console.log('Pending stock supplier data:', {
+          stockId: stock._id,
+          supplier: stock.supplier,
+          rawData: stock
+        });
+
+        // ดึงชื่อ supplier อย่างถูกต้อง
+        let supplierName = '–';
+        if (stock.supplier) {
+          if (typeof stock.supplier === 'object' && stock.supplier.name) {
+            supplierName = stock.supplier.name;
+          } else if (typeof stock.supplier === 'string') {
+            supplierName = stock.supplier;
+          }
+        }
+
+        const card = document.createElement('details');
+        card.className = 'bg-yellow-50 dark:bg-yellow-800 rounded-lg shadow p-4 transition group';
+        const sum = document.createElement('summary');
+        sum.className = 'flex justify-between items-center cursor-pointer';
+        // ดึง stockType จาก product_id (ProductImage) หรือ stockType field ใน BranchStock
+        let stockTypeBadge = '';
+        let stockType = stock.stockType || 'imei'; // default to imei
+    
+        // ถ้า product_id populated และมี stockType
+        if (stock.product_id && stock.product_id.stockType) {
+          stockType = stock.product_id.stockType;
+        }
+    
+        // Debug logging
+        console.log('Stock name:', stock.name, 'stockType:', stockType, 'product_id:', stock.product_id);
+    
+        stockTypeBadge = stockType === 'imei'
+          ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><i class="bi bi-qr-code mr-1"></i>สินค้าที่มีเลข IMEI</span>'
+          : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><i class="bi bi-boxes mr-1"></i>สินค้าที่ไม่มีเลข IMEI</span>';
+    
+        // สำหรับสินค้าประเภท quantity ไม่แสดง IMEI เลย
+        const imeiDisplay = (stockType === 'quantity') ? null : (stock.imei || '-');
+    
+        sum.innerHTML = `
+          <div>
+            <div class="font-medium text-gray-800 dark:text-gray-100">${stock.name}</div>
+            ${imeiDisplay ? `<div class="text-sm text-gray-500 dark:text-gray-400">IMEI: ${imeiDisplay}</div>` : ''}
+            ${stockTypeBadge ? `<div class="mt-1">${stockTypeBadge}</div>` : ''}
+          </div>
+          <i class="bi bi-exclamation-circle text-red-500 text-xl"></i>
+        `;
+        card.appendChild(sum);
+
+        const detail = document.createElement('div');
+        detail.className = 'mt-3 grid grid-cols-1 gap-1 text-sm text-gray-700 dark:text-gray-200';
+        console.log('🔍 Pending stock data:', stock.name, 'barcode:', stock.barcode, 'sku:', stock.sku);
+        detail.innerHTML = `
+          <div><strong>Supplier:</strong> ${supplierName}</div>
+          <div><strong>Barcode:</strong> ${stock.barcode||'ไม่มี'}</div>
+          <div><strong>SKU:</strong> ${stock.sku||'ไม่มี'}</div>
+          <div><strong>Brand:</strong> ${stock.brand||'ไม่มี'}</div>
+          <div class="flex items-center space-x-2 mt-2">
+            <button class="btn-approve-stock btn btn-sm btn-outline btn-success" data-stock-id="${stock._id}">
+              <i class="bi bi-check-lg mr-1"></i> อนุมัติ
+            </button>
+            <button class="btn-reject-stock btn btn-sm btn-outline btn-error" data-stock-id="${stock._id}">
+              <i class="bi bi-trash mr-1"></i> ปฏิเสธ
+            </button>
+          </div>
+        `;
+        card.appendChild(detail);
+        card.addEventListener('toggle', function() {
+          if (!this.open) return;
+          document.querySelectorAll('#groupedStockContainer details')
+            .forEach(d => { if (d!==this) d.open = false; });
+        });
+        list.appendChild(card);
+      });
+
+      container.prepend(list);
+      container.prepend(hdr);
+
+      document.querySelectorAll('.btn-approve-stock')
+        .forEach(btn => btn.addEventListener('click', () => approvePending(btn.dataset.stockId)));
+      document.querySelectorAll('.btn-reject-stock')
+        .forEach(btn => btn.addEventListener('click', () => rejectPending(btn.dataset.stockId)));
+    }
+
+// ==================== INVENTORY DUPLICATE VALIDATION SYSTEM ====================
+
+// Enhanced duplicate validation cache for performance
+const duplicateCheckCache = new Map();
+const CACHE_DURATION = 30000; // 30 seconds
+
+// Comprehensive duplicate validation for inventory items
+async function validateInventoryItemDuplicate(stockId, stockData) {
+  try {
+    console.log('🔍 Validating duplicate for stock:', stockId, stockData);
+    
+    // 1. ตรวจสอบซ้ำในสาขาปัจจุบัน
+    const currentBranchDuplicate = await checkCurrentBranchDuplicate(stockData);
+    if (currentBranchDuplicate.isDuplicate) {
+      return {
+        isDuplicate: true,
+        source: 'current_branch',
+        duplicateInfo: currentBranchDuplicate.data,
+        message: createInventoryDuplicateMessage(currentBranchDuplicate.data, 'current_branch'),
+        recommendation: getInventoryDuplicateRecommendation(currentBranchDuplicate.data)
+      };
+    }
+    
+    // 2. ตรวจสอบซ้ำข้ามสาขา
+    const crossBranchDuplicate = await checkCrossBranchDuplicate(stockData);
+    if (crossBranchDuplicate.isDuplicate) {
+      return {
+        isDuplicate: true,
+        source: 'cross_branch',
+        duplicateInfo: crossBranchDuplicate.data,
+        message: createInventoryDuplicateMessage(crossBranchDuplicate.data, 'cross_branch'),
+        recommendation: getInventoryDuplicateRecommendation(crossBranchDuplicate.data)
+      };
+    }
+    
+    return {
+      isDuplicate: false,
+      source: null,
+      duplicateInfo: null,
+      message: null,
+      recommendation: null
+    };
+    
+  } catch (error) {
+    console.error('Inventory duplicate validation error:', error);
+    return {
+      isDuplicate: false,
+      source: null,
+      duplicateInfo: null,
+      message: null,
+      recommendation: null
+    };
+  }
+}
+
+// ตรวจสอบซ้ำในสาขาปัจจุบัน
+async function checkCurrentBranchDuplicate(stockData) {
+  try {
+    const branchCode = stockData.branch_code;
+    const cacheKey = `current_branch_${branchCode}_${stockData.barcode}_${stockData.imei}`;
+    
+    // ตรวจสอบ cache
+    if (duplicateCheckCache.has(cacheKey)) {
+      const cached = duplicateCheckCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < CACHE_DURATION) {
+        console.log('🚀 Using cached current branch duplicate check');
+        return cached.result;
+      }
+    }
+    
+    const url = `/api/branch-stock?branch_code=${branchCode}&include_all=1&verified=true`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      const fallbackResult = { isDuplicate: false, data: null };
+      duplicateCheckCache.set(cacheKey, { result: fallbackResult, timestamp: Date.now() });
+      return fallbackResult;
+    }
+    
+    const existingStocks = result.data || [];
+    let duplicate = null;
+    
+    const stockType = stockData.stockType || 'imei';
+    
+    if (stockType === 'imei') {
+      duplicate = existingStocks.find(s =>
+        s._id !== stockData._id && // ไม่ใช่ตัวเอง
+        s.barcode === stockData.barcode &&
+        s.imei === stockData.imei &&
+        s.verified === true // เฉพาะที่ verified แล้ว
+      );
+    } else if (stockType === 'quantity') {
+      duplicate = existingStocks.find(s =>
+        s._id !== stockData._id && // ไม่ใช่ตัวเอง
+        s.barcode === stockData.barcode &&
+        s.stockType === 'quantity' &&
+        s.verified === true // เฉพาะที่ verified แล้ว
+      );
+    }
+    
+    const duplicateResult = {
+      isDuplicate: !!duplicate,
+      data: duplicate
+    };
+    
+    // Cache result
+    duplicateCheckCache.set(cacheKey, { result: duplicateResult, timestamp: Date.now() });
+    
+    return duplicateResult;
+    
+  } catch (error) {
+    console.error('Current branch duplicate check error:', error);
+    return { isDuplicate: false, data: null };
+  }
+}
+
+// ตรวจสอบซ้ำข้ามสาขา
+async function checkCrossBranchDuplicate(stockData) {
+  try {
+    const cacheKey = `cross_branch_${stockData.barcode}_${stockData.imei}`;
+    
+    // ตรวจสอบ cache
+    if (duplicateCheckCache.has(cacheKey)) {
+      const cached = duplicateCheckCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < CACHE_DURATION) {
+        console.log('🚀 Using cached cross branch duplicate check');
+        return cached.result;
+      }
+    }
+    
+    // ลองใช้ API ใหม่ถ้ามี
+    try {
+      const response = await fetch('/api/branch-stock/check-cross-branch-duplicate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+        },
+        body: JSON.stringify({
+          barcode: stockData.barcode,
+          imei: stockData.imei,
+          stockType: stockData.stockType || 'imei',
+          excludeBranch: stockData.branch_code,
+          excludeStockId: stockData._id
+        })
+      });
+    
+      if (response.status === 404) {
+        // Fallback หากไม่มี API endpoint
+        return await checkCrossBranchDuplicateFallback(stockData);
+      }
+    
+      const result = await response.json();
+    
+      if (!response.ok || !result.success) {
+        const fallbackResult = { isDuplicate: false, data: null };
+        duplicateCheckCache.set(cacheKey, { result: fallbackResult, timestamp: Date.now() });
+        return fallbackResult;
+      }
+    
+      const duplicateResult = {
+        isDuplicate: result.data.isDuplicate,
+        data: result.data.duplicateInfo
+      };
+    
+      // Cache result
+      duplicateCheckCache.set(cacheKey, { result: duplicateResult, timestamp: Date.now() });
+    
+      return duplicateResult;
+    
+    } catch (apiError) {
+      console.warn('Cross branch duplicate API failed, using fallback:', apiError.message);
+      return await checkCrossBranchDuplicateFallback(stockData);
+    }
+    
+  } catch (error) {
+    console.error('Cross branch duplicate check error:', error);
+    return { isDuplicate: false, data: null };
+  }
+}
+
+// Fallback สำหรับตรวจสอบข้ามสาขา
+async function checkCrossBranchDuplicateFallback(stockData) {
+  try {
+    // ดึงข้อมูลทุกสาขา (อาจช้า แต่เป็น fallback)
+    const response = await fetch('/api/branch-stock?include_all=1&verified=true&limit=1000', {
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      return { isDuplicate: false, data: null };
+    }
+    
+    const allStocks = result.data || [];
+    const stockType = stockData.stockType || 'imei';
+    
+    let duplicate = null;
+    
+    if (stockType === 'imei') {
+      duplicate = allStocks.find(s =>
+        s._id !== stockData._id && // ไม่ใช่ตัวเอง
+        s.branch_code !== stockData.branch_code && // ต่างสาขา
+        s.barcode === stockData.barcode &&
+        s.imei === stockData.imei &&
+        s.verified === true // เฉพาะที่ verified แล้ว
+      );
+    } else if (stockType === 'quantity') {
+      duplicate = allStocks.find(s =>
+        s._id !== stockData._id && // ไม่ใช่ตัวเอง
+        s.branch_code !== stockData.branch_code && // ต่างสาขา
+        s.barcode === stockData.barcode &&
+        s.stockType === 'quantity' &&
+        s.verified === true // เฉพาะที่ verified แล้ว
+      );
+    }
+    
+    return {
+      isDuplicate: !!duplicate,
+      data: duplicate
+    };
+    
+  } catch (error) {
+    console.error('Cross branch duplicate fallback error:', error);
+    return { isDuplicate: false, data: null };
+  }
+}
+
+// สร้างข้อความแสดงสินค้าซ้ำสำหรับ inventory
+function createInventoryDuplicateMessage(duplicateInfo, source) {
+  if (!duplicateInfo) return 'พบสินค้าซ้ำในระบบ';
+
+  let message = `🚫 พบสินค้าซ้ำในระบบคลังสินค้า!\n\n`;
+
+  message += `📦 ชื่อสินค้า: ${duplicateInfo.name || 'ไม่ระบุ'}\n`;
+  message += `🏷️ บาร์โค้ด: ${duplicateInfo.barcode || 'ไม่ระบุ'}\n`;
+
+  if (duplicateInfo.imei && (duplicateInfo.stockType === 'imei' || !duplicateInfo.stockType)) {
+    message += `📱 IMEI: ${duplicateInfo.imei}\n`;
+  }
+
+  message += `🏢 สาขา: ${duplicateInfo.branch_code || 'ไม่ระบุ'}\n`;
+
+  if (duplicateInfo.verified) {
+    message += `✅ สถานะ: อนุมัติแล้ว\n`;
+  } else if (duplicateInfo.pending) {
+    message += `⏳ สถานะ: รอการอนุมัติ\n`;
+  } else {
+    message += `⏱️ สถานะ: รออนุมัติ\n`;
+  }
+
+  if (duplicateInfo.created_at) {
+    message += `📅 วันที่เพิ่ม: ${new Date(duplicateInfo.created_at).toLocaleString('th-TH')}\n`;
+  }
+
+  if (duplicateInfo.scanned_by_name) {
+    message += `👤 เพิ่มโดย: ${duplicateInfo.scanned_by_name}\n`;
+  }
+
+  if (source === 'cross_branch') {
+    message += `\n⚠️ สินค้านี้ได้รับการอนุมัติที่สาขาอื่นแล้ว`;
+  } else {
+    message += `\n⚠️ สินค้านี้ได้รับการอนุมัติในสาขานี้แล้ว`;
+  }
+
+  message += `\n\n💡 การอนุมัติสินค้าซ้ำอาจทำให้เกิดปัญหาในการจัดการสต็อก`;
+
+  return message;
+}
+
+// แนะนำการดำเนินการสำหรับสินค้าซ้ำใน inventory
+function getInventoryDuplicateRecommendation(duplicateInfo) {
+  if (!duplicateInfo) return null;
+
+  if (duplicateInfo.verified) {
+    return {
+      type: 'warning',
+      message: 'สินค้านี้ได้รับการอนุมัติแล้ว การอนุมัติซ้ำอาจทำให้เกิดปัญหาในสต็อก',
+      canProceed: false
+    };
+  } else {
+    return {
+      type: 'info',
+      message: 'สินค้านี้มีอยู่ในระบบแล้ว แต่ยังไม่ได้รับการอนุมัติ กรุณาตรวจสอบก่อนดำเนินการ',
+      canProceed: true
+    };
+  }
+}
+
+// แสดง Alert สำหรับสินค้าซ้ำใน inventory
+function showInventoryDuplicateAlert(duplicateResult) {
+  const { duplicateInfo, source, message, recommendation } = duplicateResult;
+
+  const existingAlert = document.querySelector('.inventory-duplicate-alert');
+  if (existingAlert) existingAlert.remove();
+
+  const alertModal = document.createElement('div');
+  alertModal.className = 'inventory-duplicate-alert fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+
+  let recommendationHtml = '';
+  if (recommendation) {
+    const iconClass = recommendation.type === 'warning' ? 'bi-exclamation-triangle-fill text-yellow-500' :
+                     'bi-info-circle-fill text-blue-500';
+    
+    recommendationHtml = `
+      <div class="mt-3 p-3 rounded-lg ${recommendation.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200' :
+                                        'bg-blue-50 dark:bg-blue-900/20 border border-blue-200'}">
+        <div class="flex items-start gap-2">
+          <i class="bi ${iconClass} mt-0.5"></i>
+          <span class="text-sm">${recommendation.message}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  let actionButtons = '';
+  if (source === 'current_branch' && duplicateInfo) {
+    actionButtons += `
+      <button onclick="showItemHistory('${duplicateInfo._id}')" 
+              class="btn btn-info btn-sm mr-2">
+        <i class="bi bi-clock-history mr-1"></i> ดูประวัติ
+      </button>
+    `;
+  } else if (source === 'cross_branch' && duplicateInfo) {
+    actionButtons += `
+      <button onclick="showBranchStockDetails('${duplicateInfo.branch_code}')" 
+              class="btn btn-warning btn-sm mr-2">
+        <i class="bi bi-building mr-1"></i> ดูสาขา ${duplicateInfo.branch_code}
+      </button>
+    `;
+  }
+
+  alertModal.innerHTML = `
+    <div class="modal-box max-w-lg">
+      <div class="flex items-start gap-3">
+        <i class="bi bi-exclamation-triangle-fill text-red-500 text-3xl flex-shrink-0 mt-1"></i>
+        <div class="flex-1">
+          <h3 class="text-lg font-bold mb-3 text-red-600">พบสินค้าซ้ำในคลังสินค้า!</h3>
+          <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+            <pre class="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-medium">${message}</pre>
+          </div>
+          
+          ${recommendationHtml}
+          
+          ${actionButtons ? `
+            <div class="mt-4">
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">ตัวเลือกการดำเนินการ:</p>
+              <div class="flex flex-wrap gap-2">
+                ${actionButtons}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+      <div class="modal-action mt-4">
+        ${recommendation && recommendation.canProceed ? `
+          <button onclick="proceedWithDuplicateApproval('${duplicateInfo._id}')" 
+                  class="btn btn-warning mr-2">
+            <i class="bi bi-exclamation-triangle mr-1"></i> อนุมัติต่อไป
+          </button>
+        ` : ''}
+        <button onclick="this.closest('.inventory-duplicate-alert').remove()"
+                class="btn btn-primary">
+          <i class="bi bi-check mr-1"></i> เข้าใจแล้ว
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(alertModal);
+}
+
+// แสดงประวัติสินค้า
+async function showItemHistory(stockId) {
+  try {
+    const response = await fetch(`/api/branch-stock-history?product_id=${stockId}`, {
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      // แสดงประวัติ (สร้าง modal ใหม่หรือใช้ existing modal)
+      console.log('Item history:', result.data);
+      showToast('ดูประวัติสินค้าในคอนโซล', 'info');
+    } else {
+      showToast('ไม่สามารถโหลดประวัติสินค้าได้', 'error');
+    }
+  } catch (error) {
+    console.error('Error loading item history:', error);
+    showToast('เกิดข้อผิดพลาดในการโหลดประวัติ', 'error');
+  }
+}
+
+// แสดงรายละเอียดสาขา
+function showBranchStockDetails(branchCode) {
+  // เปิดหน้าใหม่ไปยัง branch นั้น
+  window.open(`inventory_dashboard.html?branch=${branchCode}`, '_blank');
+}
+
+// ดำเนินการอนุมัติต่อไปแม้จะมีสินค้าซ้ำ
+async function proceedWithDuplicateApproval(stockId) {
+  const modal = document.querySelector('.inventory-duplicate-alert');
+  if (modal) modal.remove();
+
+  // เรียก approvePending โดยข้าม duplicate check
+  await approvePendingWithoutDuplicateCheck(stockId);
+}
+
+// ตั้งค่าระบบตรวจสอบสินค้าซ้ำ
+function setupDuplicateValidationSystem() {
+  console.log('🔧 Setting up duplicate validation system for inventory');
+
+  // Clear cache ทุก 5 นาที
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of duplicateCheckCache.entries()) {
+      if (now - value.timestamp > CACHE_DURATION) {
+        duplicateCheckCache.delete(key);
+      }
+    }
+  }, 300000); // 5 minutes
+
+  console.log('✅ Duplicate validation system initialized');
+}
+
+// ==================== END INVENTORY DUPLICATE VALIDATION SYSTEM ====================
+
+// อนุมัติรายการ pending (pending→false & verified=true)
+async function approvePending(stockId) {
+  if (!confirm('ต้องการอนุมัติรายการนี้หรือไม่?')) return;
+
+  console.log('กำลังอนุมัติ stock ID:', stockId);
+  try {
+    // ดึงข้อมูลสินค้าก่อนอนุมัติ
+    const token = localStorage.getItem('authToken');
+    const stockRes = await fetch(`/api/branch-stock/${stockId}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const stockResult = await stockRes.json();
+    
+    if (!stockRes.ok || !stockResult.success) {
+      throw new Error(stockResult.error || 'ไม่สามารถดึงข้อมูลสินค้าได้');
+    }
+    
+    const stockData = stockResult.data;
+    
+    // ตรวจสอบสินค้าซ้ำ
+    const duplicateCheck = await validateInventoryItemDuplicate(stockId, stockData);
+    if (duplicateCheck.isDuplicate) {
+      showInventoryDuplicateAlert(duplicateCheck);
+      return;
+    }
+    
+    // ดำเนินการอนุมัติ
+    await approvePendingWithoutDuplicateCheck(stockId);
+    
+  } catch (err) {
+    console.error('Error approving stock:', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+// อนุมัติรายการโดยไม่ตรวจสอบซ้ำ (สำหรับกรณีที่ผู้ใช้ยืนยันให้อนุมัติต่อไป)
+async function approvePendingWithoutDuplicateCheck(stockId) {
+  console.log('กำลังอนุมัติ stock ID (bypass duplicate check):', stockId);
+  try {
+    const token = localStorage.getItem('authToken');
+    const res = await fetch(`/api/branch-stock/${stockId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log('Response status:', res.status);
+    const result = await res.json();
+    console.log('Response data:', result);
+    if (!res.ok || !result.success) {
+      throw new Error(result.error || result.message || 'อนุมัติไม่สำเร็จ');
+    }
+    showToast('อนุมัติสินค้ารายการนี้เรียบร้อย', 'success');
+
+    // 📡 ส่งสัญญาณ Socket ไปยัง POS และ product.html
+    try {
+      if (socket && socket.connected && typeof socket.emit === 'function') {
+        console.log('📡 Sending socket events for approved stock:', stockId);
+    
+        // สร้าง Promise สำหรับการส่งข้อมูลทั้งหมด
+        const emitPromises = [
+          new Promise((resolve) => {
+            socket.emit('stockUpdate', null, () => resolve());
+          }),
+          new Promise((resolve) => {
+            socket.emit('stockApproved', {
+              stockId,
+              branchCode: document.getElementById('branchSelect').value,
+              timestamp: new Date().toISOString()
+            }, () => resolve());
+          }),
+          new Promise((resolve) => {
+            socket.emit('stockStatusChanged', {
+              stockId,
+              status: 'approved',
+              branchCode: document.getElementById('branchSelect').value,
+              timestamp: new Date().toISOString()
+            }, () => resolve());
+          })
+        ];
+
+        // รอให้ส่งข้อมูลทั้งหมดเสร็จ
+        Promise.all(emitPromises)
+          .then(() => {
+            console.log('✅ All socket events sent successfully');
+          })
+          .catch((error) => {
+            console.warn('⚠️ Some socket events failed:', error);
+          });
+
+      } else {
+        if (!socket) {
+          console.warn('⚠️ Socket object not initialized');
+        } else if (!socket.connected) {
+          console.warn('⚠️ Socket not connected - attempting to reconnect');
+          initializeSocket(); // พยายามเชื่อมต่อใหม่
+        } else {
+          console.warn('⚠️ Socket emit function not available');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error emitting socket events:', error);
+    }
+
+    await loadStock();
+  } catch (err) {
+    console.error('Error approving stock (without duplicate check):', err);
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+    // --------------------
+    // Group สต๊อกตาม Brand, Name, Category
+    // --------------------
+    function groupStockByBrand(stocks) {
+      const grouped = {};
+      stocks.forEach((st) => {
+        if (st.verified) return;
+        const brand = st.brand || 'Unknown Brand';
+        const name = st.name || 'NoName';
+        const category = st.category || 'Default';
+        if (!grouped[brand]) grouped[brand] = {};
+        if (!grouped[brand][name]) grouped[brand][name] = {};
+        if (!grouped[brand][name][category]) {
+          grouped[brand][name][category] = [];
+        }
+        grouped[brand][name][category].push(st);
+      });
+      return grouped;
+    }
+
+    // --------------------
+    // Render ตารางสต๊อกแบบ Grouped (UX/UI เวอร์ชัน 2)
+    // --------------------
+    function renderGroupedStocks(groupedData) {
+  const container = document.getElementById('groupedStockContainer');
+  container.innerHTML = '';
+  const brands = Object.keys(groupedData);
+
+  if (!brands.length) {
+    container.innerHTML = `<div class="text-center text-gray-500">ยังไม่มีสต๊อกในสาขานี้</div>`;
+    return;
+  }
+
+  brands.forEach(brand => {
+    // หัวข้อแบรนด์
+    const brandHeader = document.createElement('h3');
+    brandHeader.className = 'col-span-full text-lg font-semibold text-gray-700 dark:text-gray-200';
+    brandHeader.textContent = `Brand: ${brand}`;
+    container.appendChild(brandHeader);
+
+    const products = groupedData[brand];
+    Object.keys(products).forEach(prodName => {
+      const categories = products[prodName];
+      Object.keys(categories).forEach(catKey => {
+        const list = categories[catKey];
+
+        list.forEach(stock => {
+          const card = document.createElement('details');
+          card.className = 'bg-white dark:bg-gray-700 rounded-lg shadow p-4 transition group';
+
+          // ส่วน summary (หัวการ์ด)
+          const summary = document.createElement('summary');
+          summary.className = 'flex justify-between items-center cursor-pointer';
+          // ดึง stockType จาก product_id (ProductImage) หรือ stockType field ใน BranchStock
+          let stockTypeBadge = '';
+          let stockType = stock.stockType || 'imei'; // default to imei
+    
+          // ถ้า product_id populated และมี stockType
+          if (stock.product_id && stock.product_id.stockType) {
+            stockType = stock.product_id.stockType;
+          }
+    
+          stockTypeBadge = stockType === 'imei'
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mt-1"><i class="bi bi-qr-code mr-1"></i>สินค้าที่มีเลข IMEI</span>'
+            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mt-1"><i class="bi bi-boxes mr-1"></i>สินค้าที่ไม่มีเลข IMEI</span>';
+    
+          // สำหรับสินค้าประเภท quantity ไม่แสดง IMEI เลย
+          const imeiDisplay = (stockType === 'quantity') ? null : (stock.imei || '-');
+    
+          summary.innerHTML = `
+            <div>
+              <div class="font-medium text-gray-800 dark:text-gray-100">${stock.name}</div>
+              ${imeiDisplay ? `<div class="text-sm text-gray-500 dark:text-gray-400">IMEI: ${imeiDisplay}</div>` : ''}
+              ${stockTypeBadge}
+            </div>
+            <i class="bi bi-chevron-down transition-transform group-open:rotate-180"></i>
+          `;
+          card.appendChild(summary);
+
+          // เนื้อหาที่ซ่อน
+          const detailContent = document.createElement('div');
+          detailContent.className = 'mt-3 grid grid-cols-1 gap-2 text-sm text-gray-700 dark:text-gray-200';
+          console.log('🔍 Grouped stock data:', stock.name, 'barcode:', stock.barcode, 'sku:', stock.sku);
+          // Debug log for supplier data
+          console.log('Stock supplier data:', {
+            stockId: stock._id,
+            supplier: stock.supplier,
+            supplierName: stock.supplier?.name,
+            rawSupplier: stock.supplier
+          });
+
+          // ดึงชื่อ supplier อย่างถูกต้อง
+          let supplierName = '–';
+          if (stock.supplier) {
+            if (typeof stock.supplier === 'object' && stock.supplier.name) {
+              supplierName = stock.supplier.name;
+            } else if (typeof stock.supplier === 'string') {
+              supplierName = stock.supplier;
+            }
+          }
+
+          detailContent.innerHTML = `
+            <div><strong>Supplier:</strong> ${supplierName}</div>
+            <div><strong>Barcode:</strong> ${stock.barcode || 'ไม่มี'}</div>
+            <div><strong>SKU:</strong> ${stock.sku || 'ไม่มี'}</div>
+            <div><strong>Brand:</strong> ${stock.brand || 'ไม่มี'}</div>
+            <div><strong>Category:</strong> ${catKey}</div>
+            <div><strong>Stock:</strong> ${stock.stock_value || 0}</div>
+            <div class="flex items-center space-x-2 mt-2">
+              ${
+                stock.verified
+                  ? `<span class="badge badge-success flex items-center gap-1">
+                       <i class="bi bi-check-circle-fill"></i> ตรวจแล้ว
+                     </span>`
+                  : `<button 
+                       class="btn-verify-stock btn btn-sm btn-outline btn-primary flex items-center" 
+                       data-stock-id="${stock._id}"
+                     >
+                       <i class="bi bi-check-lg mr-1"></i> ตรวจสอบ
+                     </button>`
+              }
+              <button 
+                class="btn-open-edit-modal btn btn-sm btn-outline btn-warning flex items-center" 
+                data-stock-id="${stock._id}"
+              >
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button 
+                class="btn-delete-stock btn btn-sm btn-outline btn-error flex items-center" 
+                data-stock-id="${stock._id}"
+              >
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          `;
+          card.appendChild(detailContent);
+
+          container.appendChild(card);
+
+         // Accordion: เมื่อเปิดการ์ดนี้ ให้ปิดการ์ดอื่นทั้งหมด
+         card.addEventListener('toggle', function() {
+           if (!this.open) return;
+           document
+             .querySelectorAll('#groupedStockContainer details')
+             .forEach(d => { if (d !== this) d.open = false; });
+         });
+        });
+
+      });
+    });
+  });
+}
+
+
+function getOpenStockIds() {
+  return Array.from(
+    document.querySelectorAll('#groupedStockContainer details[open]')
+  )
+  .map(detail => {
+    const btn = detail.querySelector('[data-stock-id]');
+    return btn?.dataset.stockId;
+  })
+  .filter(id => id);
+}
+
+    // --------------------
+    // Inline edit สำหรับ IMEI (ปรับให้ไม่แก้ไขได้สำหรับสินค้า quantity)
+    // --------------------
+    function enableCellEdit(e) {
+      const cell = e.currentTarget;
+      const originalText = cell.textContent.trim();
+      const row = cell.closest('tr');
+      const stockId = row.dataset.stockId;
+    
+      // ตรวจสอบว่าเป็นสินค้าประเภท quantity หรือไม่
+      if (originalText === 'ไม่ใช้') {
+        showToast('สินค้าประเภทนับจำนวนไม่สามารถแก้ไข IMEI ได้', 'warning');
+        return;
+      }
+    
+      if (cell.querySelector('input')) return;
+      if (!originalValues[stockId]) {
+        originalValues[stockId] = { imei: originalText === '-' ? '' : originalText };
+      }
+      cell.innerHTML = '';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = originalValues[stockId].imei;
+      input.className = 'p-1 border rounded w-24';
+      cell.appendChild(input);
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'px-2 py-1 border rounded text-green-600 hover:bg-green-50 transition text-xs ml-1 inline-edit-confirm';
+      confirmBtn.innerHTML = '<i class="bi bi-check"></i>';
+      cell.appendChild(confirmBtn);
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'px-2 py-1 border rounded text-gray-600 hover:bg-gray-50 transition text-xs ml-1 inline-edit-cancel';
+      cancelBtn.innerHTML = '<i class="bi bi-x"></i>';
+      cell.appendChild(cancelBtn);
+      row.classList.add('editing');
+      input.focus();
+    }
+    function cancelInlineEdit(cell) {
+      const row = cell.closest('tr');
+      const stockId = row.dataset.stockId;
+      const oldVal = (originalValues[stockId] || {}).imei || '';
+      cell.textContent = oldVal || '-';
+      row.classList.remove('editing');
+      delete originalValues[stockId];
+    }
+    async function saveInlineEdit(cell, newVal) {
+      const row = cell.closest('tr');
+      const stockId = row.dataset.stockId;
+      const oldVal = (originalValues[stockId] || {}).imei || '';
+      try {
+        const token = localStorage.getItem('authToken') || '';
+        const res = await fetch(`/api/branch-stock/${stockId}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ imei: newVal })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'แก้ไขสต๊อกไม่สำเร็จ');
+        }
+        cell.textContent = newVal || '-';
+        row.classList.remove('editing');
+        delete originalValues[stockId];
+        showToast('บันทึกการแก้ไข IMEI เรียบร้อย', 'success');
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+        cell.textContent = oldVal || '-';
+        row.classList.remove('editing');
+      }
+    }
+
+    // Socket event listeners for real-time updates
+    try {
+      if (socket && typeof socket.on === 'function') {
+        socket.on('stockUpdate', () => {
+          console.log('ได้รับสัญญาณ update สต๊อกแบบ realtime');
+          loadStock();
+        });
+
+        // เพิ่มการรับสัญญาณจากหน้าร้าน
+        socket.on('stockSentForApproval', (data) => {
+          console.log('📨 ได้รับสินค้าที่ส่งมาจากหน้าร้าน:', data);
+          showToast(`ได้รับสินค้า ${data.stockIds.length} รายการจาก ${data.sentByName} รอการตรวจสอบ`, 'info');
+          loadStock(); // รีเฟรชข้อมูล
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Error setting up real-time socket listeners:', error);
+    }
+
+    // --------------------
+    // Verify สต๊อก และบันทึกประวัติการตรวจสอบลง BranchStockHistory
+    // --------------------
+    // แก้ไขฟังก์ชัน verifyStock ในไฟล์ Frontend
+async function verifyStock(stockId) {
+  // หา button ตัวนั้น และป้องกันกรณีกดซ้ำ
+  const btn = document.querySelector(`.btn-verify-stock[data-stock-id="${stockId}"]`);
+  if (!btn || btn.disabled) return;
+
+  // แสดงสถานะกำลังตรวจสอบ
+  btn.disabled = true;
+  btn.innerHTML = `<i class="bi bi-hourglass-split mr-1"></i> กำลังตรวจ...`;
+
+  try {
+    const token = localStorage.getItem('authToken') || '';
+    const stock = allStocks.find(s => s._id === stockId);
+    
+    if (!stock) {
+      throw new Error('ไม่พบข้อมูลสต๊อก');
+    }
+
+    // เพิ่มส่วนนี้ - ดึง userId
+    const userId = await getCurrentUserId();
+    const costValue = stock.cost || 0;
+
+    // เรียก API patch ค่า verified พร้อม verified_by
+    const res = await fetch(`/api/branch-stock/${stockId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        verified: true,
+        cost: costValue,
+        verified_by: userId   // ← เพิ่มบรรทัดนี้
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Verify stock failed');
+    }
+
+    const updatedStock = data.data;
+
+    // แทนที่ปุ่มด้วย badge "ตรวจแล้ว"
+    const badge = document.createElement('span');
+    badge.className = 'badge badge-success flex items-center gap-1';
+    badge.innerHTML = `<i class="bi bi-check-circle-fill"></i> ตรวจแล้ว`;
+    btn.replaceWith(badge);
+
+    showToast('Verify สำเร็จ: ' + stockId, 'success');
+
+    // 📡 ส่งสัญญาณ Socket ไปยัง POS (ส่งอย่างเดียว ไม่ต้อง emit หลายครั้ง)
+    try {
+      if (socket && typeof socket.emit === 'function') {
+        console.log('📡 Sending socket events for verified stock:', stockId);
+        socket.emit('stockVerified', { stockId, stockData: updatedStock });
+        console.log('✅ Socket event sent: stockVerified');
+      } else {
+        console.warn('⚠️ Socket not available - cannot emit stockVerified event');
+      }
+    } catch (error) {
+      console.warn('⚠️ Error emitting socket event:', error);
+    }
+
+    // สร้างประวัติ BranchStockHistory แบบถูกต้อง
+    if (updatedStock) {
+      // ดึงข้อมูล stock แบบเต็ม
+      const stockRes = await fetch(`/api/branch-stock/${stockId}`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const stockJson = await stockRes.json();
+      const fullStock = stockJson.data;
+
+      // ใช้ supplier ID ที่ถูกต้อง
+      const supplierId = fullStock.supplier?._id || fullStock.supplier;
+      if (!supplierId) console.warn('Warning: No supplier ID for stock', stockId);
+
+      // เตรียม payload
+      const historyPayload = {
+        branch_code:   fullStock.branch_code,
+        change_type:   'IN',
+        supplier:      supplierId,                       // ← ส่ง ObjectId
+        invoiceNumber: fullStock.invoiceNumber || '',
+        items: [{
+          product_id:     fullStock._id,
+          poNumber:       fullStock.poNumber   || '',
+          name:           fullStock.name       || 'NoName',
+          brand:          fullStock.brand      || '',
+          model:          fullStock.model      || '',
+          sku:            fullStock.sku        || '',
+          barcode:        fullStock.barcode    || '',
+          imei:           fullStock.imei       || '',
+          price:          fullStock.price      || 0,
+          cost:           fullStock.cost       || 0,
+          qty:            1,
+          remainQty:      1,
+          documentNumber: fullStock.documentNumber || '',
+          unit:           fullStock.unit       || 'ชิ้น'
+        }],
+        reason:        'ตรวจสอบสินค้าเข้าคลัง (Verified)',
+        performed_by:  userId,
+        quantity:      1,
+        stock_value:   1,
+        categoryGroup: fullStock.categoryGroup?._id || fullStock.categoryGroup,
+        taxType:       fullStock.taxType     || 'แยกภาษี'
+    };
+
+      // เรียก API สร้างประวัติ
+      const createHistoryRes = await fetch('/api/branch-stock-history', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(historyPayload)
+      });
+
+      if (!createHistoryRes.ok) {
+        const errorText = await createHistoryRes.text();
+        console.error('สร้าง branch-stock-history ไม่สำเร็จ:', errorText);
+        showToast('แจ้งเตือน: ตรวจสินค้าสำเร็จแต่ไม่สามารถบันทึกประวัติได้', 'warning');
+      } else {
+        const createHistoryData = await createHistoryRes.json();
+        if (!createHistoryData.success) {
+          console.error('สร้าง branch-stock-history ไม่สำเร็จ:', createHistoryData.error);
+          showToast('แจ้งเตือน: ตรวจสินค้าสำเร็จแต่ไม่สามารถบันทึกประวัติได้', 'warning');
+        } else {
+          console.log('สร้างประวัติ IN เรียบร้อย:', createHistoryData.data);
+          showToast('ตรวจสินค้าและบันทึกประวัติสำเร็จ', 'success');
+        }
+      }
+    }
+
+    // รีเฟรชข้อมูลสต๊อก
+    loadStock();
+
+  } catch (err) {
+    showToast('Error verifyStock: ' + err.message, 'error');
+    
+    // ถ้า error ก็คืนปุ่มกลับเป็น "ตรวจสอบ"
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="bi bi-check-lg mr-1"></i> ตรวจสอบ`;
+    }
+  }
+}
+
+    async function openEditModal(stockId) {
+      try {
+        const token = localStorage.getItem('authToken') || '';
+        const res = await fetch(`/api/branch-stock/${stockId}`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถดึงข้อมูลสต๊อก');
+        }
+    
+        const stock = data.data;
+    
+        // เติมข้อมูลในฟอร์ม
+        document.getElementById('editPoId').value = stock.poId || '';
+        document.getElementById('editItemIndex').value = stock.itemIndex || '';
+        document.getElementById('editProductId').value = stock.productId || '';
+        document.getElementById('editBarcode').value = stock.barcode || '';
+        document.getElementById('editSku').value = stock.sku || '';
+        document.getElementById('editName').value = stock.name || '';
+        document.getElementById('editInvoiceNumber').value = stock.invoiceNumber || '';
+        document.getElementById('editBrand').value = stock.brand || '';
+    
+        // จัดการ IMEI field ตาม stockType
+        const imeiContainer = document.getElementById('editImeiContainer');
+        const imeiInput = document.getElementById('editImei');
+    
+        // Reset modal state
+        imeiContainer.style.display = 'block';
+        const oldHelpText = imeiContainer.querySelector('.help-text');
+        if (oldHelpText) {
+          oldHelpText.remove();
+        }
+    
+        // ดึง stockType จาก product_id (ProductImage) หรือ stockType field ใน BranchStock
+        let stockType = stock.stockType || 'imei'; // default to imei
+    
+        // ถ้า product_id populated และมี stockType
+        if (stock.product_id && stock.product_id.stockType) {
+          stockType = stock.product_id.stockType;
+        }
+    
+        if (stockType === 'quantity') {
+          imeiContainer.style.display = 'none';
+          imeiInput.value = '';
+          imeiInput.removeAttribute('required');
+        } else {
+          imeiContainer.style.display = 'block';
+          imeiInput.value = stock.imei || '';
+    
+          // เพิ่มคำอธิบายใต้ช่อง IMEI
+          let helpText = imeiContainer.querySelector('.help-text');
+          if (!helpText) {
+            helpText = document.createElement('p');
+            helpText.className = 'help-text text-sm text-gray-500 dark:text-gray-400 mt-1';
+            helpText.innerHTML = '<i class="bi bi-info-circle mr-1"></i>สำหรับสินค้าที่มีเลข IMEI แต่ละเครื่อง';
+            imeiContainer.appendChild(helpText);
+          }
+        }
+    
+        // อัพเดต modal title
+        const modalTitle = document.querySelector('#editItemModal h3');
+        if (modalTitle) {
+          const stockTypeBadge = stockType === 'imei'
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mt-2"><i class="bi bi-qr-code mr-1"></i>สินค้าที่มีเลข IMEI</span>'
+            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mt-2"><i class="bi bi-boxes mr-1"></i>สินค้าที่ไม่มีเลข IMEI</span>';
+    
+          modalTitle.innerHTML = `
+            แก้ไขข้อมูลสินค้า
+            <div>${stockTypeBadge}</div>
+          `;
+        }
+    
+        toggleModal('editItemModal', true);
+    
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    }
+
+    async function deleteStock(stockId) {
+      if (!confirm('ยืนยันลบสต๊อกนี้?')) return;
+      try {
+        const token = localStorage.getItem('authToken') || '';
+        const res = await fetch(`/api/branch-stock/${stockId}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: 'Bearer ' + token
+          }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ลบสต๊อกไม่สำเร็จ');
+        }
+        showToast('ลบสต๊อกเรียบร้อย', 'success');
+        loadStock();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    }
+
+    // --------------------
+    // Modal สำหรับแก้ไขข้อมูล Item (PO)
+    // --------------------
+    function openEditItemModal(poId, itemIndex) {
+      const po = allPO.find((p) => p._id === poId);
+      if (!po) {
+        alert('ไม่พบ PO นี้');
+        return;
+      }
+      const item = po.items[itemIndex];
+      if (!item) {
+        alert('ไม่พบ item index = ' + itemIndex);
+        return;
+      }
+      document.getElementById('editPoId').value = poId;
+      document.getElementById('editItemIndex').value = itemIndex;
+      let productIdValue = item.productId;
+      if (typeof productIdValue === 'object' && productIdValue !== null && productIdValue._id) {
+        productIdValue = productIdValue._id;
+      }
+      document.getElementById('editProductId').value = productIdValue || '';
+      document.getElementById('editBarcode').value = item.barcode || '';
+      document.getElementById('editSku').value = item.sku || '';  // แสดง SKU (Auto Generated)
+      document.getElementById('editImei').value = item.imei || '';
+      document.getElementById('editName').value = item.name || '';
+      document.getElementById('editInvoiceNumber').value = item.invoiceNumber || '';
+      document.getElementById('editBrand').value = item.brand || '';
+      toggleModal('editItemModal', true);
+    }
+
+    async function onEditItemSubmit(e) {
+      e.preventDefault();
+      const token = localStorage.getItem('authToken') || '';
+      const poId = document.getElementById('editPoId').value;
+      const itemIndex = parseInt(document.getElementById('editItemIndex').value, 10);
+      const productId = document.getElementById('editProductId').value.trim();
+      const barcode = document.getElementById('editBarcode').value.trim();
+      // SKU เป็น read-only (Auto Generated) แต่เราจะรับค่า SKU จาก backend response หากมี
+      const sku = document.getElementById('editSku').value.trim();
+      const imei = document.getElementById('editImei').value.trim();
+      const name = document.getElementById('editName').value.trim();
+      const invoiceNumber = document.getElementById('editInvoiceNumber').value.trim();
+      const brand = document.getElementById('editBrand').value.trim();
+      const po = allPO.find((p) => p._id === poId);
+      if (!po) {
+        alert('ไม่พบ PO นี้ใน allPO');
+        return;
+      }
+      // ตรวจสอบเฉพาะ IMEI ซ้ำ (SKU ไม่ให้แก้ไข)
+      for (let i = 0; i < po.items.length; i++) {
+        if (i === itemIndex) continue;
+        const other = po.items[i];
+        if (imei && other.imei === imei) {
+          alert('IMEI ซ้ำกับรายการอื่นใน PO นี้แล้ว!');
+          return;
+        }
+      }
+      // ตรวจสอบ stockType สำหรับการส่ง IMEI
+      let finalImei = imei;
+      const imeiContainer = document.getElementById('editImeiContainer');
+      if (imeiContainer.style.display === 'none') {
+        finalImei = ''; // สำหรับสินค้าประเภท quantity
+      }
+    
+      try {
+        const formData = new FormData();
+        formData.append('productId', productId);
+        formData.append('barcode', barcode);
+        // ไม่ส่ง SKU, Price, สถานะ และ Upload รูป
+        formData.append('imei', finalImei);
+        formData.append('name', name);
+        formData.append('invoiceNumber', invoiceNumber);
+        formData.append('brand', brand);
+        const res = await fetch(`/api/purchase-order/${poId}/items/${itemIndex}`, {
+          method: 'PATCH',
+          headers: { Authorization: 'Bearer ' + token },
+          body: formData,
+        });
+        const contentType = res.headers.get('content-type') || '';
+        let data;
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const errorText = await res.text();
+          throw new Error(errorText || 'แก้ไข item ไม่สำเร็จ (ไม่ใช่ JSON)');
+        }
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'แก้ไข item ไม่สำเร็จ');
+        }
+        // หาก backend ส่งกลับค่า SKU ใหม่ ให้ update ค่า SKU ใน modal
+        if (data.data && data.data.sku) {
+          document.getElementById('editSku').value = data.data.sku;
+        }
+        alert('บันทึกการแก้ไข item เรียบร้อย');
+        toggleModal('editItemModal', false);
+        const branchCode = document.getElementById('selectBranch').value;
+        loadPurchaseOrders(branchCode);
+      } catch (err) {
+        alert('Error update item: ' + err.message);
+      }
+    }
+
+    // --------------------
+    // Toggle Sidebar + shift mainContent
+    // --------------------
+    function toggleMenu() {
+      const sb   = document.getElementById('sidebar');
+      const mc   = document.getElementById('mainContent');
+      const icon = document.querySelector('#btnToggleMenu i');
+      const overlay = document.getElementById('menuOverlay');
+
+      sb.classList.toggle('-translate-x-full');
+      sb.classList.toggle('translate-x-0');
+      if (window.innerWidth >= 768) {
+        mc.classList.toggle('ml-64');
+        mc.classList.toggle('ml-0');
+      }
+      if (window.innerWidth < 768) {
+        overlay.classList.toggle('active');
+      }
+      icon.classList.toggle('bi-chevron-left');
+      icon.classList.toggle('bi-chevron-right');
+    }
+    document.getElementById('menuOverlay')
+      .addEventListener('click', () => { if (window.innerWidth < 768) toggleMenu(); });
+
+    // Global Lottie animation variable
+    let lottieAnimation = null;
+
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => response.json())
+            .then(animationData => {
+              console.log('✅ Lottie animation data loaded successfully');
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: false,
+                animationData: animationData
+              });
+            })
+            .catch(error => {
+              console.warn('Failed to load Lottie animation:', error);
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        }
+        if (lottieAnimation) lottieAnimation.play();
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 300);
+      }
+    }
+
+    // Make showLoading globally accessible
+    window.showLoading = showLoading;
+
+    // --------------------
+    // DOMContentLoaded
+    // --------------------
+    document.addEventListener('DOMContentLoaded', async () => {
+      showLoading(true);
+      loadDarkModeSetting();
+      document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        localStorage.removeItem('authToken');
+        window.location.href = 'login.html';
+      });
+      document.getElementById('btnToggleMenu').addEventListener('click', toggleMenu);
+      document.getElementById('branchSelect').addEventListener('change', loadStock);
+
+      // ตั้งค่าระบบป้องกันสินค้าซ้ำ
+      setupDuplicateValidationSystem();
+
+      await loadEmployeeProfile();
+      await loadBranches();
+      loadStock();
+
+      // Socket listeners with error handling
+      try {
+        if (socket && typeof socket.on === 'function') {
+          socket.on('stockUpdate', () => {
+            console.log('ได้รับสัญญาณ stockUpdate');
+            loadStock();
+          });
+          socket.on('stockApproved', data => {
+            console.log('ได้รับสัญญาณ stockApproved:', data);
+            loadStock();
+          });
+          socket.on('stockRejected', data => {
+            console.log('ได้รับสัญญาณ stockRejected:', data);
+            loadStock();
+          });
+    
+          // เพิ่ม listener สำหรับ product.html
+          socket.on('stockStatusChanged', data => {
+            console.log('ได้รับสัญญาณ stockStatusChanged:', data);
+            loadStock();
+          });
+    
+          socket.on('connect_error', error => {
+            console.error('Socket connection error:', error);
+          });
+          socket.on('disconnect', reason => {
+            console.log('Socket disconnected:', reason);
+          });
+          console.log('✅ Socket event listeners initialized successfully');
+        } else {
+          console.warn('⚠️ Socket.io not available - real-time updates disabled');
+        }
+      } catch (error) {
+        console.warn('⚠️ Error setting up socket listeners:', error);
+      }
+
+      // Sidebar link highlighting
+      const sidebarLinks = document.querySelectorAll('aside a');
+      function highlightSidebar(link) {
+        sidebarLinks.forEach(l => {
+          l.style.backgroundColor = '';
+          l.style.color = '';
+          const ico = l.querySelector('i');
+          if (ico) ico.style.color = '';
+        });
+        const icon = link.querySelector('i');
+        if (icon) {
+          const c = getComputedStyle(icon).color;
+          link.style.backgroundColor = c;
+          link.style.color = '#fff';
+          icon.style.color = '#fff';
+        }
+      }
+      sidebarLinks.forEach(link => {
+        link.addEventListener('click', () => highlightSidebar(link));
+      });
+      // initial highlight based on href
+      const page = window.location.pathname.split('/').pop();
+      sidebarLinks.forEach(link => {
+        if (link.getAttribute('href') === page) highlightSidebar(link);
+      });
+
+      // Complete initial loading
+      setTimeout(() => { showLoading(false); }, 1000);
+    });
+
+    // --------------------
+    // Event Delegation
+    // --------------------
+    document.addEventListener('click', (e) => {
+      const verifyBtn = e.target.closest('.btn-verify-stock');
+      if (verifyBtn) {
+        const id = verifyBtn.dataset.stockId;
+        verifyStock(id);
+        return;
+      }
+      const editBtn = e.target.closest('.btn-open-edit-modal');
+      if (editBtn) {
+        const id = editBtn.dataset.stockId;
+        openEditModal(id);
+        return;
+      }
+      const delBtn = e.target.closest('.btn-delete-stock');
+      if (delBtn) {
+        const id = delBtn.dataset.stockId;
+        deleteStock(id);
+        return;
+      }
+      const confirmInline = e.target.closest('.inline-edit-confirm');
+      if (confirmInline) {
+        const cell = confirmInline.closest('.editable-cell');
+        if (!cell) return;
+        const input = cell.querySelector('input');
+        if (!input) return;
+        const newVal = input.value.trim();
+        saveInlineEdit(cell, newVal);
+        return;
+      }
+      const cancelInline = e.target.closest('.inline-edit-cancel');
+      if (cancelInline) {
+        const cell = cancelInline.closest('.editable-cell');
+        if (!cell) return;
+        cancelInlineEdit(cell);
+        return;
+      }
+    });
+
+    // --------------------
+    // ฟังก์ชันช่วย format ตัวเลข
+    // --------------------
+    function formatNumber(num) {
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    }
+
+    // ปฏิเสธรายการ pending (ลบออก)
+    async function rejectPending(stockId) {
+      if (!confirm('ต้องการปฏิเสธและลบรายการนี้หรือไม่?')) return;
+
+      console.log('กำลังปฏิเสธ stock ID:', stockId);
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/branch-stock/${stockId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('Response status:', res.status);
+        const result = await res.json();
+        console.log('Response data:', result);
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || result.message || 'ปฏิเสธไม่สำเร็จ');
+        }
+        showToast('ปฏิเสธสินค้าและลบรายการเรียบร้อย', 'success');
+
+        try {
+          if (socket && typeof socket.emit === 'function') {
+            socket.emit('stockUpdate');
+            socket.emit('stockRejected', {
+    
+              stockId,
+              branchCode: document.getElementById('branchSelect').value,
+              timestamp: new Date().toISOString()
+            });
+    
+            // ส่งสัญญาณพิเ ษให้ product.html   -
+    
+            socket.emit('stockStatusChanged', {
+              stockId,
+              status: 'rejected',
+              branchCode: document.getElementById('branchSelect').value,
+              timestamp: new Date().toISOString()
+            });
+    
+            console.log('✅ Socket events sent: stockUpdate, stockRejected, stockStatusChanged');
+          } else {
+            console.warn('⚠️ Socket not available - cannot emit rejection events');
+          }
+        } catch (error) {
+          console.warn('⚠️ Error emitting socket events:', error);
+        }
+
+        await loadStock();
+      } catch (err) {
+        console.error('Error rejecting stock:', err);
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        setTimeout(() => { showLoading(false); }, 600);
+      }
+    }
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

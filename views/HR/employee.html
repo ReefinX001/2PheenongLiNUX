@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบเพิ่มพนักงานใหม่ | HR System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt','sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  
+  <!-- Google Fonts - Prompt & Sarabun -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- animate.css for Loading Effects -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Early theme detection to prevent flash -->
+  <script>
+    // Early theme detection - run immediately to prevent flash
+    (function() {
+      const storedTheme = localStorage.getItem('theme');
+      const storedDarkMode = localStorage.getItem('darkMode');
+
+      let theme = 'light'; // Default
+
+      if (storedTheme) {
+        theme = storedTheme;
+      } else if (storedDarkMode !== null) {
+        theme = storedDarkMode === 'true' ? 'dark' : 'light';
+      } else {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+
+      console.log('⚡ Early theme detection (employee.html):', theme);
+
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.body.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.body.classList.remove('dark');
+      }
+
+      // Store the determined theme immediately
+      localStorage.setItem('theme', theme);
+    })();
+  </script>
+
+  <style>
+    :root {
+      --primary-color: #6b7280;
+      --primary-dark: #4b5563;
+      --danger-color: #ef4444;
+      --success-color: #10b981;
+      --gray-light: #f8fafc;
+      --gray-medium: #e2e8f0;
+      --gray-dark: #64748b;
+      --text-dark: #374151;
+      --text-light: #f1f5f9;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+      --minimal-border: #e2e8f0;
+      --minimal-bg: #ffffff;
+      --minimal-card: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    /* Dark mode variables */
+    .dark {
+      --primary-color: #9ca3af;
+      --primary-dark: #6b7280;
+      --danger-color: #f87171;
+      --success-color: #34d399;
+      --gray-light: #1f2937;
+      --gray-medium: #374151;
+      --gray-dark: #9ca3af;
+      --text-dark: #f9fafb;
+      --text-light: #1f2937;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+      --minimal-border: #374151;
+      --minimal-bg: #1f2937;
+      --minimal-card: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      line-height: 1.6;
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--gray-light) 0%, var(--gray-medium) 100%);
+      color: var(--text-dark);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .calendar-day {
+      width: 60px; height: 60px; border-radius: 10px; background-color: #f3f4f6;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .dark .calendar-day { background-color: #374151; }
+    .calendar-day-holiday {
+      background-color: #fee2e2; color: #ef4444;
+    }
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d; color: #fca5a5;
+    }
+
+    .card { 
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: var(--minimal-card);
+      border: 1px solid var(--minimal-border);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    #notificationBtn span.badge-notification { animation: pulse 2s infinite; }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    .dark ::-webkit-scrollbar-track { background: #1e1e1e; }
+    ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    .status-indicator {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px;
+    }
+    .status-active { background-color: #10b981; }
+    .status-away { background-color: #f59e0b; }
+    .status-offline { background-color: #6b7280; }
+
+    .modal {
+      display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+      width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: #fefefe; margin: 10% auto; padding: 20px;
+      border: 1px solid #888; width: 80%; max-width: 800px; border-radius: 8px;
+    }
+    .dark .modal-content {
+      background-color: #2d3748; color: #f7fafc;
+    }
+    .close {
+      color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;
+    }
+    .close:hover, .close:focus { color: black; }
+    .dark .close:hover, .dark .close:focus { color: white; }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; }
+    .dark .form-group input, .dark .form-group select {
+      background-color: #4a5568; color: white; border-color: #4a5568;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+
+
+    .form-container.card {
+      margin-bottom: 1.5rem; 
+      background: var(--minimal-card);
+      border-radius: 16px; 
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+      border: 1px solid var(--minimal-border);
+    }
+    .dark .form-container.card { 
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border-color: #374151;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--minimal-border);
+    }
+    .dark .card-header {
+      background: linear-gradient(135deg, #374151 0%, #2d3748 100%);
+      border-bottom-color: #4b5563;
+    }
+
+    .card-title {
+      font-size: 1.125rem; 
+      display: flex;
+      align-items: center; 
+      gap: 0.5rem; 
+      color: var(--text-dark);
+      font-weight: 500;
+    }
+    .dark .card-title { color: var(--text-light); }
+
+    .card-body { padding: 2rem; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .full-width { grid-column: 1 / -1; }
+
+    label {
+      display: block; 
+      margin-bottom: 0.75rem; 
+      font-weight: 500;
+      color: var(--text-dark);
+      font-size: 0.875rem;
+    }
+
+    .form-control {
+      width: 100%; 
+      padding: 1rem; 
+      border-radius: 12px;
+      border: 1px solid var(--minimal-border); 
+      font-size: 0.875rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: #ffffff;
+      color: var(--text-dark);
+    }
+    .dark .form-control {
+      background-color: #374151; 
+      color: #f1f5f9; 
+      border-color: #4b5563;
+    }
+    .form-control:focus {
+      outline: none; 
+      border-color: var(--gray-dark);
+      box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+      transform: translateY(-1px);
+    }
+
+    textarea.form-control { min-height: 100px; resize: vertical; }
+
+    .btn {
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center;
+      gap: 0.5rem; 
+      padding: 1rem 2rem; 
+      border-radius: 12px;
+      font-weight: 500; 
+      font-size: 0.875rem; 
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+      border: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .btn-primary { 
+      background: linear-gradient(135deg, var(--gray-dark) 0%, var(--primary-dark) 100%); 
+      color: white; 
+    }
+    .btn-primary:hover { 
+      background: linear-gradient(135deg, var(--primary-dark) 0%, #374151 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+    .btn-danger { 
+      background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%); 
+      color: white; 
+    }
+    .btn-danger:hover { 
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2);
+    }
+
+    .form-actions {
+      display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;
+    }
+
+    .file-upload {
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .preview-container {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: var(--minimal-card);
+      display: flex; justify-content: center; align-items: center;
+      margin-bottom: 1rem; overflow: hidden;
+      border: 2px solid var(--minimal-border);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .dark .preview-container {
+      background: linear-gradient(135deg, #374151 0%, #2d3748 100%); 
+      border-color: #4b5563;
+    }
+    .preview-container:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+    .preview-container img { width: 100%; height: 100%; object-fit: cover; }
+    .upload-icon { font-size: 3rem; color: var(--gray-dark); }
+    .dark .upload-icon { color: var(--gray-light); }
+
+    .file-upload-label {
+      display: flex; 
+      align-items: center; 
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem; 
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--gray-light) 0%, #f1f5f9 100%); 
+      color: var(--gray-dark);
+      font-weight: 500; 
+      cursor: pointer; 
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid var(--minimal-border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    .dark .file-upload-label {
+      background: linear-gradient(135deg, #374151 0%, #2d3748 100%); 
+      color: var(--gray-light);
+      border-color: #4b5563;
+    }
+    .file-upload-label:hover { 
+      background: linear-gradient(135deg, #f1f5f9 0%, var(--gray-medium) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+    .dark .file-upload-label:hover { 
+      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      transform: translateY(-2px);
+    }
+    input[type="file"] { display: none; }
+
+    .alert {
+      padding: 1.25rem; 
+      border-radius: 12px; 
+      margin-bottom: 1.5rem;
+      display: flex; 
+      align-items: center; 
+      gap: 0.75rem; 
+      display: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      border: 1px solid;
+    }
+    .alert-success {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); 
+      color: #065f46;
+      border-color: var(--success-color);
+    }
+    .alert-danger {
+      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); 
+      color: #991b1b;
+      border-color: var(--danger-color);
+    }
+
+    .page-title { margin-bottom: 1.5rem; }
+    .page-title h2 {
+      font-size: 1.75rem; color: var(--text-dark); margin-bottom: 0.5rem;
+    }
+    .dark .page-title h2 { color: var(--text-light); }
+    .page-title p { color: var(--gray-dark); }
+    .dark .page-title p { color: var(--gray-medium); }
+
+    footer {
+      background-color: white; padding: 1.5rem 0;
+      margin-top: 3rem; border-top: 1px solid var(--gray-medium);
+      text-align: center; color: var(--gray-dark);
+    }
+    .dark footer {
+      background-color: #1f2937; border-top-color: var(--gray-dark);
+      color: var(--gray-medium);
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    .dark .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+    .spinner {
+      width: 50px; height: 50px; border: 5px solid var(--gray-medium);
+      border-top-color: var(--primary-color); border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .progress-container { margin-bottom: 2rem; }
+    .progress-steps { display: flex; justify-content: space-between; margin-bottom: 1rem; }
+    .step {
+      flex: 1; text-align: center; padding: 0.5rem; position: relative;
+    }
+    .step-number {
+      display: inline-flex; justify-content: center; align-items: center;
+      width: 30px; height: 30px; background-color: var(--gray-light);
+      color: var(--gray-dark); border-radius: 50%; margin-bottom: 0.5rem;
+      font-weight: bold; position: relative; z-index: 1;
+    }
+    .dark .step-number {
+      background-color: var(--gray-dark); color: var(--gray-light);
+    }
+    .step.active .step-number {
+      background-color: var(--primary-color); color: white;
+    }
+    .step.completed .step-number {
+      background-color: var(--success-color); color: white;
+    }
+    .step-title { font-size: 0.875rem; font-weight: 500; }
+
+    .step::before {
+      content: ''; position: absolute; top: 15px; left: 0; right: 0;
+      height: 2px; background-color: var(--gray-medium); z-index: 0;
+    }
+    .dark .step::before { background-color: var(--gray-dark); }
+    .step:first-child::before { left: 50%; }
+    .step:last-child::before { right: 50%; }
+    .step.active::before, .step.completed::before {
+      background-color: var(--primary-color);
+    }
+    .dark .step.active::before, .dark .step.completed::before {
+      background-color: var(--primary-color);
+    }
+    .step.completed::before { background-color: var(--success-color); }
+
+    .required { color: var(--danger-color); margin-left: 0.25rem; }
+
+    .tooltip {
+      position: relative; display: inline-block;
+      margin-left: 0.5rem; color: var(--gray-dark);
+    }
+    .dark .tooltip { color: var(--gray-medium); }
+    .tooltip .tooltiptext {
+      visibility: hidden; width: 200px; background-color: #333; color: #fff;
+      text-align: center; border-radius: 6px; padding: 5px; position: absolute;
+      z-index: 10; bottom: 125%; left: 50%; margin-left: -100px; opacity: 0;
+      transition: opacity 0.3s; font-size: 0.75rem; font-weight: normal;
+    }
+    .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+
+    @media (max-width: 768px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-actions { flex-direction: column-reverse; }
+      .btn { width: 100%; }
+      
+      
+      /* Sidebar responsive */
+      #sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+      }
+      
+      #sidebar.show {
+        transform: translateX(0);
+      }
+      
+      #mainContent {
+        margin-left: 0;
+      }
+      
+      /* Mobile toggle button */
+      .mobile-menu-btn {
+        display: block;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 20;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .dark .mobile-menu-btn {
+        background: #1f2937;
+        border-color: #374151;
+        color: white;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .mobile-menu-btn {
+        display: none;
+      }
+    }
+  </style>
+
+  <!-- เพิ่ม resolvePhotoUrl & loadEmployeeProfile -->
+  <script>
+    // ช่วยแปลง photoUrl ให้เป็น path ที่ถูกต้อง
+    function resolvePhotoUrl(raw) {
+      if (!raw) return '/api/placeholder/36/36';
+      if (/^https?:\/\//.test(raw)) return raw;
+      return raw.startsWith('/') ? raw : '/' + raw;
+    }
+
+    // โหลดข้อมูลผู้ใช้ปัจจุบันจาก /api/users/me
+    async function loadEmployeeProfile() {
+      showLoading(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        const res = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) throw new Error(result.message || 'Fetch profile failed');
+        const user = result.data;
+        const nameEl  = document.getElementById('employeeName');
+        const photoEl = document.getElementById('employeePhoto');
+        if (nameEl)  nameEl.textContent = user.name || 'ไม่ระบุชื่อ';
+        if (photoEl) photoEl.src         = resolvePhotoUrl(user.photoUrl);
+      } catch (err) {
+        console.error('Load profile error:', err);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // ── เพิ่ม: ฟังก์ชันดึงรหัสพนักงานถัดไป ────────────────────────
+    async function getNextEmployeeCode() {
+      showLoading(true);
+      try {
+        console.log('🔐 Requesting next employee code with JWT authentication...');
+
+        // ต้องใช้ JWT token สำหรับความปลอดภัย
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          console.error('❌ No authentication token found');
+          throw new Error('กรุณาเข้าสู่ระบบก่อนใช้งาน');
+        }
+
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+          'X-Request-ID': Date.now().toString()
+        };
+    
+        const res = await fetch('/api/hr/employees/next-code', {
+          method: 'GET',
+          headers: headers
+        });
+    
+        console.log('Response status:', res.status);
+    
+        if (res.ok) {
+          const result = await res.json();
+          console.log('Response data:', result);
+    
+          if (result.success && result.nextCode) {
+            const employeeIdInput = document.getElementById('employeeId');
+            employeeIdInput.value = result.nextCode;
+            employeeIdInput.placeholder = result.nextCode;
+            console.log('✅ Employee ID set to:', result.nextCode);
+    
+            // ลบ styling แบบ warning ถ้ามี
+            employeeIdInput.style.borderColor = '';
+            employeeIdInput.style.backgroundColor = '';
+            employeeIdInput.classList.remove('border-yellow-500', 'bg-yellow-100');
+    
+            const helpText = employeeIdInput.parentNode.parentNode.querySelector('.text-xs');
+            if (helpText) {
+              helpText.textContent = 'รหัสจะถูกสร้างให้อัตโนมัติในรูปแบบ EMP001, EMP002, ...';
+              helpText.style.color = '';
+              helpText.classList.remove('text-yellow-600');
+            }
+            return result.nextCode;
+          } else {
+            console.warn('⚠️ Invalid response from API:', result);
+            return generateTemporaryCode();
+          }
+        } else {
+          console.error('❌ API error:', res.status, res.statusText);
+          const errorText = await res.text();
+          console.error('Error response:', errorText);
+
+          if (res.status === 401) {
+            console.warn('🔒 Authentication failed - redirecting to login');
+            localStorage.removeItem('authToken');
+            showAlert('Error', 'กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+            // window.location.href = '/login';
+            return generateTemporaryCode();
+          }
+
+          return generateTemporaryCode();
+        }
+      } catch (error) {
+        console.error('❌ Network error fetching next employee code:', error);
+
+        if (error.message.includes('กรุณาเข้าสู่ระบบ')) {
+          showAlert('Error', error.message);
+        }
+
+        return generateTemporaryCode();
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function generateTemporaryCode() {
+      const ts = Date.now().toString().slice(-6);
+      const tmp = `EMP${ts}`;
+      const employeeIdInput = document.getElementById('employeeId');
+    
+      employeeIdInput.value = tmp;
+      employeeIdInput.placeholder = 'รหัสชั่วคราว: ' + tmp;
+      console.log('🔧 Generated temporary employee code:', tmp);
+    
+      // แสดง warning styling
+      employeeIdInput.style.borderColor = '#f59e0b';
+      employeeIdInput.style.backgroundColor = '#fef3c7';
+      employeeIdInput.classList.add('border-yellow-500', 'bg-yellow-100');
+    
+      // แสดงข้อความคำอธิบาย
+      const helpText = employeeIdInput.parentNode.parentNode.querySelector('.text-xs');
+      if (helpText) {
+        helpText.textContent = '⚠️ ใช้รหัสชั่วคราว - ระบบจะสร้างรหัสถาวรให้อัตโนมัติเมื่อบันทึกข้อมูล';
+        helpText.style.color = '#f59e0b';
+        helpText.classList.add('text-yellow-600');
+      }
+    
+      return tmp;
+    }
+  </script>
+</head>
+
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 font-sans">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <div class="min-h-screen">
+    <!-- Mobile Menu Toggle Button -->
+    <button id="mobileMenuBtn" class="mobile-menu-btn">
+      <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed left-0 top-0 h-screen w-64 bg-white dark:bg-gray-800 flex flex-col shadow-lg border-r border-gray-200 dark:border-gray-700 z-10">
+      <a href="hr_dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="hr_dashboard" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-speedometer2 text-xl text-gray-500 dark:text-gray-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="employee_directory" class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-people-fill text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">พนักงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="attendance" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+            </a>
+          </li>
+          <li>
+            <a href="leave_requests" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+              <span class="ml-3">การลา</span>
+            </a>
+          </li>
+          <li>
+            <a href="payroll" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+              <span class="ml-3">เงินเดือน</span>
+            </a>
+          </li>
+          <li>
+            <a href="performance_reviews" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">ประเมินผลงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="bonus_list" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>รายการโบนัส</span>
+            </a>
+          </li>
+          <li class="mt-4">
+            <a href="role_management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i id="darkModeIcon" class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-red-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <li class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div id="profile" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+              <img id="employeePhoto" src="/api/placeholder/36/36" alt="Employee Photo" class="w-10 h-10 rounded-full mr-3 border border-gray-300 dark:border-gray-600"/>
+              <span id="employeeName" class="text-sm font-medium">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main id="mainContent" class="ml-64 min-h-screen p-6 overflow-y-auto">
+      <div class="container mx-auto">
+        <div class="page-title mb-6">
+          <h2 class="text-xl md:text-2xl font-semibold text-gray-800 dark:text-gray-200">เพิ่มพนักงานใหม่</h2>
+          <p class="text-sm md:text-base text-gray-600 dark:text-gray-400">
+            กรอกข้อมูลพนักงานใหม่เพื่อเพิ่มเข้าระบบ ข้อมูลที่มีเครื่องหมาย
+            <span class="required text-red-500">*</span> เป็นข้อมูลที่จำเป็นต้องกรอก
+          </p>
+        </div>
+
+        <div id="alertSuccess" class="alert alert-success bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm hidden items-center">
+          <i class="fas fa-check-circle text-green-500 mr-2 text-xl"></i> <span id="alertSuccessText">บันทึกข้อมูลพนักงานสำเร็จ</span>
+        </div>
+        
+        <div id="alertError" class="alert alert-danger bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm hidden items-center">
+          <i class="fas fa-exclamation-triangle text-red-500 mr-2 text-xl"></i> <span id="alertErrorText">เกิดข้อผิดพลาด กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง</span>
+        </div>
+
+        <!-- เพิ่ม enctype="multipart/form-data" -->
+        <form id="employeeForm" enctype="multipart/form-data">
+          <!-- ข้อมูลส่วนตัว -->
+          <div class="form-container card bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden mb-6 border border-gray-200 dark:border-gray-700">
+            <div class="card-header">
+              <h3 class="card-title flex items-center"><i class="fas fa-user-circle mr-2 text-gray-500"></i>ข้อมูลส่วนตัว</h3>
+            </div>
+            <div class="card-body p-6">
+              <div class="form-grid grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- รูปภาพพนักงาน -->
+                <div class="form-group full-width flex flex-col items-center md:col-span-2">
+                  <div class="file-upload mb-4">
+                    <div class="preview-container w-36 h-36 rounded-full border-4 border-blue-300 dark:border-blue-700 shadow-md bg-gray-200 dark:bg-gray-700 flex items-center justify-center" id="previewContainer">
+                      <div class="w-full h-full rounded-full bg-gray-300 flex items-center justify-center text-gray-500">
+                        <i class="fas fa-user text-4xl"></i>
+                      </div>
+                    </div>
+                    <label for="photoUpload" class="file-upload-label mt-2">
+                      <i class="fas fa-upload mr-2"></i>อัพโหลดรูปภาพ
+                    </label>
+                    <input type="file" id="photoUpload" name="image" accept="image/*" onchange="previewImage(this)" class="hidden">
+                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">ไฟล์ JPG, PNG, GIF ไม่เกิน 2MB</p>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="employeeId" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    รหัสพนักงาน
+                    <span class="text-green-500 text-xs ml-2">
+                      <i class="fas fa-magic"></i> สร้างอัตโนมัติ
+                    </span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-fingerprint text-gray-400"></i>
+                    </div>
+                    <input 
+                      type="text" 
+                      id="employeeId" 
+                      name="employeeId" 
+                      class="form-control pl-10 w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 dark:bg-gray-700 cursor-not-allowed" 
+                      readonly
+                      placeholder="กำลังโหลด..."
+                      value="">
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                      <span class="text-xs text-gray-500">
+                        <i class="fas fa-lock"></i>
+                      </span>
+                    </div>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">รหัสจะถูกสร้างให้อัตโนมัติในรูปแบบ EMP001, EMP002, ...</p>
+                </div>
+
+                <div class="form-group">
+                  <label for="fullName" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ชื่อ-นามสกุล <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-signature text-gray-400"></i>
+                    </div>
+                    <input type="text" id="fullName" name="name" class="form-control pl-10 w-full px-4 py-2" required placeholder="ชื่อ นามสกุล">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="idCard" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    เลขบัตรประชาชน <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-id-card text-gray-400"></i>
+                    </div>
+                    <input type="text" id="idCard" name="citizenId" class="form-control pl-10 w-full px-4 py-2" maxlength="13" required placeholder="เลขบัตรประชาชน 13 หลัก">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="email" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    อีเมล <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-at text-gray-400"></i>
+                    </div>
+                    <input type="email" id="email" name="email" class="form-control pl-10 w-full px-4 py-2" required placeholder="example@company.com" pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" title="กรุณากรอกอีเมลในรูปแบบที่ถูกต้อง เช่น user@domain.com">
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">รูปแบบ: user@domain.com (ไม่อนุญาตให้ใช้เครื่องหมาย - หลัง @)</p>
+                </div>
+
+                <div class="form-group">
+                  <label for="birthDate" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    วันเกิด <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-calendar-alt text-gray-400"></i>
+                    </div>
+                    <input type="text" id="birthDate" name="birthDate" class="form-control pl-10 w-full px-4 py-2" required placeholder="วว/ดด/ปปปป (พ.ศ)" maxlength="10" onkeyup="formatThaiDate(this)" onblur="validateThaiDate(this)">
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">รูปแบบ: วัน/เดือน/ปี (พ.ศ) เช่น 15/05/2543</p>
+                </div>
+
+                <div class="form-group">
+                  <label for="phone" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    เบอร์โทร <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-mobile-alt text-gray-400"></i>
+                    </div>
+                    <input type="tel" id="phone" name="phone" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น 0812345678">
+                  </div>
+                </div>
+
+                <div class="form-group md:col-span-2">
+                  <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ที่อยู่ <span class="required text-red-500">*</span>
+                  </label>
+                  
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- บ้านเลขที่ -->
+                    <div class="form-group">
+                      <label for="houseNumber" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        บ้านเลขที่ <span class="required text-red-500">*</span>
+                      </label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <i class="fas fa-home text-gray-400"></i>
+                        </div>
+                        <input type="text" id="houseNumber" name="houseNumber" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น 123/45">
+                      </div>
+                    </div>
+
+                    <!-- ถนน -->
+                    <div class="form-group">
+                      <label for="street" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        ถนน
+                      </label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <i class="fas fa-road text-gray-400"></i>
+                        </div>
+                        <input type="text" id="street" name="street" class="form-control pl-10 w-full px-4 py-2" placeholder="เช่น ถนนสุขุมวิท">
+                      </div>
+                    </div>
+
+                    <!-- ตำบล/แขวง -->
+                    <div class="form-group">
+                      <label for="subDistrict" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        ตำบล/แขวง <span class="required text-red-500">*</span>
+                      </label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <i class="fas fa-map-marker-alt text-gray-400"></i>
+                        </div>
+                        <input type="text" id="subDistrict" name="subDistrict" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น คลองเตย">
+                      </div>
+                    </div>
+
+                    <!-- อำเภอ/เขต -->
+                    <div class="form-group">
+                      <label for="district" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        อำเภอ/เขต <span class="required text-red-500">*</span>
+                      </label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <i class="fas fa-city text-gray-400"></i>
+                        </div>
+                        <input type="text" id="district" name="district" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น คลองเตย">
+                      </div>
+                    </div>
+
+                    <!-- จังหวัด -->
+                    <div class="form-group">
+                      <label for="province" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        จังหวัด <span class="required text-red-500">*</span>
+                      </label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <i class="fas fa-map text-gray-400"></i>
+                        </div>
+                        <input type="text" id="province" name="province" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น กรุงเทพมหานคร">
+                      </div>
+                    </div>
+
+                    <!-- รหัสไปรษณีย์ -->
+                    <div class="form-group">
+                      <label for="postalCode" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        รหัสไปรษณีย์ <span class="required text-red-500">*</span>
+                      </label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <i class="fas fa-envelope text-gray-400"></i>
+                        </div>
+                        <input type="text" id="postalCode" name="postalCode" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น 10110" maxlength="5" pattern="[0-9]{5}">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ข้อมูลการทำงาน -->
+          <div class="form-container card bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden mb-6 border border-gray-200 dark:border-gray-700">
+            <div class="card-header">
+              <h3 class="card-title flex items-center"><i class="fas fa-briefcase mr-2 text-gray-500"></i>ข้อมูลการทำงาน</h3>
+            </div>
+            <div class="card-body p-6">
+              <div class="form-grid grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                  <label for="position" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ตำแหน่ง <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-user-tag text-gray-400"></i>
+                    </div>
+                    <input type="text" id="position" name="position" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น ผู้จัดการฝ่ายทรัพยากรบุคคล">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="department" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    แผนก <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-building text-gray-400"></i>
+                    </div>
+                    <select id="department" name="department" class="form-control pl-10 w-full px-4 py-2 appearance-none" required>
+                      <option value="">-- เลือกแผนก --</option>
+                      <option value="hr">ทรัพยากรบุคคล</option>
+                      <option value="it">ไอที</option>
+                      <option value="accounting">บัญชี</option>
+                      <option value="marketing">การตลาด</option>
+                      <option value="sales">ขาย</option>
+                      <option value="production">ฝ่ายผลิต</option>
+                      <option value="logistics">โลจิสติกส์</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <i class="fas fa-chevron-down text-gray-400"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="startDate" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    วันที่เริ่มงาน <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-calendar-check text-gray-400"></i>
+                    </div>
+                    <input type="text" id="startDate" name="startDate" class="form-control pl-10 w-full px-4 py-2" required placeholder="วว/ดด/ปปปป (พ.ศ)" maxlength="10" onkeyup="formatThaiDate(this)" onblur="validateThaiDate(this)">
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">รูปแบบ: วัน/เดือน/ปี (พ.ศ) เช่น 01/01/2568</p>
+                </div>
+
+                <div class="form-group">
+                  <label for="salary" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    เงินเดือน (บาท) <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-coins text-gray-400"></i>
+                    </div>
+                    <input type="number" id="salary" name="salary" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น 30000" min="0">
+                  </div>
+                </div>
+
+
+              </div>
+            </div>
+          </div>
+
+          <!-- ผู้ติดต่อฉุกเฉิน -->
+          <div class="form-container card bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden mb-6 border border-gray-200 dark:border-gray-700">
+            <div class="card-header">
+              <h3 class="card-title flex items-center"><i class="fas fa-exclamation-triangle mr-2 text-gray-500"></i>ผู้ติดต่อฉุกเฉิน</h3>
+            </div>
+            <div class="card-body p-6">
+              <div class="form-grid grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="form-group">
+                  <label for="emergencyContact" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ชื่อผู้ติดต่อฉุกเฉิน <span class="text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-user-shield text-gray-400"></i>
+                    </div>
+                    <input type="text" id="emergencyContact" name="emergencyContactName" class="form-control pl-10 w-full px-4 py-2" required placeholder="ชื่อ-นามสกุล ผู้ติดต่อฉุกเฉิน">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="relationship" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ความสัมพันธ์ <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-people-arrows text-gray-400"></i>
+                    </div>
+                    <input type="text" id="relationship" name="emergencyContactRelationship" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น บิดา, มารดา, คู่สมรส">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="emergencyPhone" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    เบอร์ติดต่อฉุกเฉิน <span class="required text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <i class="fas fa-phone-square-alt text-gray-400"></i>
+                    </div>
+                    <input type="tel" id="emergencyPhone" name="emergencyContactPhone" class="form-control pl-10 w-full px-4 py-2" required placeholder="เช่น 0812345678">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mt-6 bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div class="card-body p-6">
+              <div class="form-actions flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4">
+                <button type="button" id="resetBtn" class="btn btn-danger">
+                  <i class="fas fa-times mr-2"></i> ยกเลิก
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save mr-2"></i> บันทึกข้อมูล
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Image Preview
+    function previewImage(input) {
+      const previewContainer = document.getElementById('previewContainer');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewContainer.innerHTML = `<img src="${e.target.result}" alt="รูปภาพพนักงาน" class="w-full h-full rounded-full object-cover">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        // Reset to placeholder if no file is selected
+        previewContainer.innerHTML = `<div class="w-full h-full rounded-full bg-gray-300 flex items-center justify-center text-gray-500"><i class="fas fa-user text-4xl"></i></div>`;
+      }
+    }
+
+    function resetForm() {
+      if (confirm('คุณต้องการล้างข้อมูลทั้งหมดในฟอร์มใช่หรือไม่?')) {
+        const form = document.getElementById('employeeForm');
+        if (form) form.reset();
+        const previewContainer = document.getElementById('previewContainer');
+        if (previewContainer) {
+          previewContainer.innerHTML = '<div class="w-full h-full rounded-full bg-gray-300 flex items-center justify-center text-gray-500"><i class="fas fa-user text-4xl"></i></div>';
+        }
+        hideAlerts();
+      }
+    }
+
+    function validateIdCard(raw) {
+      const id = String(raw).replace(/\D/g, '').trim();
+    
+      // ตรวจสอบความยาว 13 หลัก
+      if (id.length !== 13) return false;
+    
+      // ตรวจสอบความถูกต้องตามหลักการคำนวณ (Thai National ID)
+      let sum = 0;
+      for (let i = 0; i < 12; i++) {
+        sum += parseInt(id.charAt(i)) * (13 - i);
+      }
+      const remainder = sum % 11;
+      const checkDigit = (11 - remainder) % 10;
+    
+      return checkDigit === parseInt(id.charAt(12));
+    }
+
+    function validatePhone(phone) {
+      const p = String(phone).replace(/\D/g, '').trim();
+      return /^0\d{9}$/.test(p);
+    }
+
+    function validateEmail(email) {
+      const emailStr = String(email).trim();
+    
+      // ตรวจสอบรูปแบบพื้นฐาน
+      const basicPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!basicPattern.test(emailStr)) {
+        return false;
+      }
+    
+      // ตรวจสอบว่าไม่มี -- หรือ .- หรือ -. ใน domain
+      const domain = emailStr.split('@')[1];
+      if (domain.includes('--') || domain.includes('.-') || domain.includes('-.')) {
+        return false;
+      }
+    
+      // ตรวจสอบว่า domain ไม่เริ่มหรือจบด้วย - หรือ .
+      if (domain.startsWith('-') || domain.endsWith('-') ||
+          domain.startsWith('.') || domain.endsWith('.')) {
+        return false;
+      }
+    
+      return true;
+    }
+
+    // Alerts
+    function showAlert(type, message) {
+      hideAlerts(); // Hide any existing alerts first
+      const alertElId = type.toLowerCase() === 'success' ? 'alertSuccess' : 'alertError';
+      const alertTextElId = type.toLowerCase() === 'success' ? 'alertSuccessText' : 'alertErrorText';
+    
+      const alertEl = document.getElementById(alertElId);
+      const alertTextEl = document.getElementById(alertTextElId);
+
+      if (alertEl && alertTextEl) {
+        alertTextEl.textContent = message;
+        alertEl.style.display = 'flex'; // Use flex to align icon and text
+    
+        // Scroll to the alert
+        alertEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Auto-hide after 8 seconds
+        setTimeout(() => {
+          alertEl.style.display = 'none';
+        }, 8000);
+      }
+    }
+
+    function hideAlerts() {
+      const successAlert = document.getElementById('alertSuccess');
+      const errorAlert = document.getElementById('alertError');
+      if (successAlert) successAlert.style.display = 'none';
+      if (errorAlert) errorAlert.style.display = 'none';
+    }
+
+    let lottieAnimation = null;
+
+    // ====== Show/Hide Loading Function ======
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // Dark Mode Toggle
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnToggleDark = document.getElementById('btnToggleDark');
+      const darkModeLabel = document.getElementById('darkModeLabel');
+      const darkModeIcon  = document.getElementById('darkModeIcon');
+      const btnLogoutSidebar = document.getElementById('btnLogoutSidebar');
+      const employeeForm  = document.getElementById('employeeForm');
+      const htmlElement = document.documentElement;
+    
+      // Mobile menu toggle
+      const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+      const sidebar = document.getElementById('sidebar');
+    
+      if (mobileMenuBtn && sidebar) {
+        mobileMenuBtn.addEventListener('click', () => {
+          sidebar.classList.toggle('show');
+        });
+    
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+          if (window.innerWidth <= 768) {
+            if (!sidebar.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+              sidebar.classList.remove('show');
+            }
+          }
+        });
+      }
+
+      function updateDarkModeUI(isDark) {
+        console.log('🎨 Updating theme to:', isDark ? 'dark' : 'light');
+
+        if (isDark) {
+          htmlElement.classList.add('dark');
+          htmlElement.setAttribute('data-theme', 'dark'); // For DaisyUI
+          document.body.classList.add('dark');
+          if(darkModeLabel) darkModeLabel.textContent = 'Light Mode';
+          if(darkModeIcon) {
+            darkModeIcon.classList.remove('bi-moon');
+            darkModeIcon.classList.add('bi-sun');
+          }
+        } else {
+          htmlElement.classList.remove('dark');
+          htmlElement.setAttribute('data-theme', 'light'); // For DaisyUI
+          document.body.classList.remove('dark');
+          if(darkModeLabel) darkModeLabel.textContent = 'Dark Mode';
+          if(darkModeIcon) {
+            darkModeIcon.classList.remove('bi-sun');
+            darkModeIcon.classList.add('bi-moon');
+          }
+        }
+
+        // Apply transition and force repaint
+        document.body.style.transition = 'background 0.3s ease, color 0.3s ease';
+
+        // Trigger a reflow to ensure the theme change is applied
+        void document.body.offsetHeight;
+      }
+    
+      // Theme is already initialized by early detection script
+      const currentTheme = localStorage.getItem('theme') || 'light';
+      console.log('🎨 Current theme from localStorage:', currentTheme);
+
+      // Update UI elements to match current theme
+      updateDarkModeUI(currentTheme === 'dark');
+
+      // Listen for system theme changes
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+          console.log('🔄 System theme changed to:', e.matches ? 'dark' : 'light');
+          const newTheme = e.matches ? 'dark' : 'light';
+          localStorage.setItem('theme', newTheme);
+          updateDarkModeUI(newTheme === 'dark');
+        }
+      });
+
+
+      if(btnToggleDark) {
+        btnToggleDark.addEventListener('click', () => {
+          console.log('🔄 Dark mode toggle clicked');
+          const currentTheme = localStorage.getItem('theme') || 'light';
+          const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+          console.log('🎯 Switching from', currentTheme, 'to', newTheme);
+
+          localStorage.setItem('theme', newTheme);
+          updateDarkModeUI(newTheme === 'dark');
+        });
+      }
+
+      // Logout
+      if(btnLogoutSidebar) {
+        btnLogoutSidebar.addEventListener('click', () => {
+          if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+            alert('ดำเนินการออกจากระบบ...');
+            // Placeholder for actual logout logic
+            // For example: localStorage.removeItem('authToken'); window.location.href = '/login.html';
+          }
+        });
+      }
+
+      // Form Submission
+      if (employeeForm) {
+        employeeForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+
+          // Show confirmation dialog before proceeding
+          if (!confirmFormSubmission()) {
+            return;
+          }
+
+          showLoading(true);
+          showProgressIndicator('กำลังบันทึกข้อมูลพนักงาน...');
+          hideAlerts();
+
+          const idCardInput = document.getElementById('idCard');
+          const emailInput = document.getElementById('email');
+          const phoneInput = document.getElementById('phone');
+          const emergencyPhoneInput = document.getElementById('emergencyPhone');
+
+          if (!validateIdCard(idCardInput.value)) {
+            showAlert('Error', 'เลขบัตรประชาชนไม่ถูกต้อง กรุณาตรวจสอบหมายเลขบัตรประชาชน 13 หลัก');
+            idCardInput.focus();
+            hideProgressIndicator();
+            showLoading(false);
+            return;
+          }
+          if (!validateEmail(emailInput.value)) {
+            showAlert('Error', 'รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีเมลให้ถูกต้องตามรูปแบบ user@domain.com');
+            emailInput.focus();
+            hideProgressIndicator();
+            showLoading(false);
+            return;
+          }
+          if (!validatePhone(phoneInput.value)) {
+            showAlert('Error', 'เบอร์โทรศัพท์ไม่ถูกต้อง กรุณาตรวจสอบ (เช่น 0812345678)');
+            phoneInput.focus();
+            hideProgressIndicator();
+            showLoading(false);
+            return;
+          }
+          if (!validatePhone(emergencyPhoneInput.value)) {
+            showAlert('Error', 'เบอร์โทรศัพท์ฉุกเฉินไม่ถูกต้อง กรุณาตรวจสอบ (เช่น 0812345678)');
+            emergencyPhoneInput.focus();
+            hideProgressIndicator();
+            showLoading(false);
+            return;
+          }
+
+          // Sanitize all input fields before creating FormData
+          const sanitizedPhone = sanitizePhoneNumber(phoneInput.value);
+          const sanitizedEmergencyPhone = sanitizePhoneNumber(emergencyPhoneInput.value);
+
+          const formData = new FormData(employeeForm);
+
+          // Apply sanitization to text fields
+          const textFields = ['name', 'position', 'department', 'emergencyContactName', 'emergencyContactRelationship'];
+          textFields.forEach(field => {
+            const value = formData.get(field);
+            if (value) {
+              formData.set(field, sanitizeInput(value));
+            }
+          });
+
+          formData.set('phone', sanitizedPhone); // Set sanitized value
+          formData.set('emergencyContactPhone', sanitizedEmergencyPhone); // Set sanitized value
+
+          // รวมข้อมูลที่อยู่จากช่องแยกเป็นข้อมูลเดียว
+          const houseNumber = document.getElementById('houseNumber').value;
+          const street = document.getElementById('street').value;
+          const subDistrict = document.getElementById('subDistrict').value;
+          const district = document.getElementById('district').value;
+          const province = document.getElementById('province').value;
+          const postalCode = document.getElementById('postalCode').value;
+    
+          const fullAddress = [
+            houseNumber,
+            street ? `ถนน${street}` : '',
+            `ตำบล${subDistrict}`,
+            `อำเภอ${district}`,
+            `จังหวัด${province}`,
+            postalCode
+          ].filter(part => part).join(' ');
+    
+          formData.set('address', fullAddress);
+
+          // แปลงวันที่จากรูปแบบไทยเป็น ISO format
+          const birthDateInput = document.getElementById('birthDate');
+          const startDateInput = document.getElementById('startDate');
+    
+          if (birthDateInput.value) {
+            const isobirthDate = convertThaiDateToISO(birthDateInput.value);
+            if (isobirthDate) {
+              formData.set('birthDate', isobirthDate);
+            } else {
+              showAlert('Error', 'รูปแบบวันเกิดไม่ถูกต้อง');
+              hideProgressIndicator();
+              return;
+            }
+          }
+    
+          if (startDateInput.value) {
+            const isoStartDate = convertThaiDateToISO(startDateInput.value);
+            if (isoStartDate) {
+              formData.set('startDate', isoStartDate);
+            } else {
+              showAlert('Error', 'รูปแบบวันที่เริ่มงานไม่ถูกต้อง');
+              hideProgressIndicator();
+              return;
+            }
+          }
+
+          // เพิ่ม console.log เพื่อ debug
+          console.log('Form data before sending:');
+          for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+          }
+
+          // ตรวจสอบว่า employeeId มีค่าหรือไม่ ถ้าไม่มีให้สร้างใหม่
+          const employeeIdInput = document.getElementById('employeeId');
+          if (!employeeIdInput.value || employeeIdInput.value === 'กำลังโหลด...') {
+            console.log('🔧 EmployeeId not found, generating temporary code...');
+            generateTemporaryCode();
+            // รอให้สร้างเสร็จ
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+    
+          // ตรวจสอบอีกครั้งว่า employeeId มีค่าแล้ว
+          if (employeeIdInput.value) {
+            formData.set('employeeId', employeeIdInput.value);
+            console.log('✅ EmployeeId set to:', employeeIdInput.value);
+          }
+
+          // ตรวจสอบว่าค่าที่จำเป็นมีอยู่ใน FormData (ไม่รวม employeeId เพราะจะถูกสร้างใน backend)
+          const requiredFields = [
+            'name', 'citizenId', 'email', 'birthDate',
+            'phone', 'address', 'position', 'department', 'startDate',
+            'salary', 'emergencyContactName',
+            'emergencyContactRelationship', 'emergencyContactPhone'
+          ];
+
+          for (const field of requiredFields) {
+            if (!formData.has(field) || !formData.get(field)) {
+              showAlert('Error', `ข้อมูล ${field} หายไป กรุณาตรวจสอบและกรอกข้อมูลให้ครบถ้วน`);
+              hideProgressIndicator();
+              return;
+            }
+          }
+
+          // เพิ่ม branch เป็นค่าเริ่มต้น เนื่องจากเอาออกจากฟอร์มแล้ว
+          formData.set('branch', 'HEAD_OFFICE');
+
+          try {
+            console.log('🔐 Submitting employee data with JWT authentication...');
+
+            // ต้องใช้ JWT token สำหรับการสร้างพนักงาน
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+              console.error('❌ No authentication token found');
+              showAlert('Error', 'กรุณาเข้าสู่ระบบก่อนทำการบันทึกข้อมูล');
+              hideProgressIndicator();
+              return;
+            }
+
+            const headers = {
+              'Authorization': 'Bearer ' + token,
+              'X-Request-ID': Date.now().toString()
+            };
+
+            const response = await fetch('/api/hr/employees', {
+              method: 'POST',
+              headers: headers, // 'Content-Type': 'multipart/form-data' is set automatically by browser when using FormData
+              body: formData
+            });
+    
+            const result = await response.json();
+
+            if (!response.ok) {
+              // Enhanced error handling
+              let errorMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+
+              if (response.status === 401) {
+                console.warn('🔒 Authentication failed during form submission');
+                localStorage.removeItem('authToken');
+                errorMessage = 'กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+                showAlert('Error', errorMessage);
+                // window.location.href = '/login';
+                return;
+              }
+
+              if (result.code === 'EMP_DUPLICATE' || result.code === 'EMP_DUPLICATE_KEY') {
+                errorMessage = result.message || 'มีข้อมูลซ้ำในระบบ';
+              } else if (result.code === 'EMP_VALIDATION' && result.details) {
+                errorMessage = `ข้อมูลไม่ถูกต้อง: ${result.details.join(', ')}`;
+              } else if (result.message) {
+                errorMessage = result.message;
+              } else if (result.error) {
+                if (Array.isArray(result.error)) {
+                  errorMessage = result.error.map(d => d.message || d).join(', ');
+                } else {
+                  errorMessage = result.error;
+                }
+              } else {
+                errorMessage = `เกิดข้อผิดพลาด (${response.status})`;
+              }
+
+              showAlert('Error', errorMessage);
+              console.error('Server error details:', {
+                status: response.status,
+                code: result.code,
+                message: result.message,
+                error: result.error
+              });
+              return;
+            }
+    
+            // Success
+            showAlert('Success', result.message || 'บันทึกข้อมูลพนักงานสำเร็จ!');
+            employeeForm.reset(); // Reset form fields
+            // Reset image preview to placeholder
+            const previewContainer = document.getElementById('previewContainer');
+            if (previewContainer) {
+              previewContainer.innerHTML = '<div class="w-full h-full rounded-full bg-gray-300 flex items-center justify-center text-gray-500"><i class="fas fa-user text-4xl"></i></div>';
+            }
+            // Optionally, redirect or update UI further
+            // window.location.href = 'employee_directory.html';
+
+          } catch (err) {
+            console.error('Submission error:', err);
+            showAlert('Error', 'เกิดข้อผิดพลาดในการเชื่อมต่อหรือประมวลผล: ' + err.message);
+          } finally {
+            hideProgressIndicator();
+            showLoading(false);
+          }
+        });
+              }
+
+        // โหลดโปรไฟล์แทนอ่านจาก localStorage
+        loadEmployeeProfile();
+
+      // Reset button event listener
+      const resetBtn = document.getElementById('resetBtn');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', resetForm);
+      }
+
+      // เรียกดึงรหัสพนักงานถัดไป (รอ 1 วินาทีให้ auth token โหลดจาก localStorage)
+      setTimeout(async () => {
+        try {
+          const code = await getNextEmployeeCode();
+          console.log('🎯 Employee code loaded:', code);
+        } catch (error) {
+          console.error('❌ Failed to load employee code:', error);
+          generateTemporaryCode();
+        }
+      }, 1000);
+    
+     // ตั้งค่าวันที่เริ่มงานเป็นวันปัจจุบัน (พ.ศ)
+     setDefaultStartDate();
+    
+     // เพิ่ม event listener สำหรับตรวจสอบอีเมล real-time
+     const emailInput = document.getElementById('email');
+     if (emailInput) {
+       emailInput.addEventListener('blur', function() {
+         if (this.value && !validateEmail(this.value)) {
+           this.setCustomValidity('รูปแบบอีเมลไม่ถูกต้อง กรุณาใช้รูปแบบ user@domain.com');
+           this.reportValidity();
+         } else {
+           this.setCustomValidity('');
+         }
+       });
+    
+       emailInput.addEventListener('input', function() {
+         if (this.value && validateEmail(this.value)) {
+           this.setCustomValidity('');
+         }
+       });
+     }
+    });
+
+    // ฟังก์ชันจัดการรูปแบบวันที่แบบไทย
+    function formatThaiDate(input) {
+      let value = input.value.replace(/\D/g, ''); // เอาตัวที่ไม่ใช่ตัวเลขออก
+    
+      if (value.length >= 2) {
+        value = value.substring(0, 2) + '/' + value.substring(2);
+      }
+      if (value.length >= 5) {
+        value = value.substring(0, 5) + '/' + value.substring(5);
+      }
+      if (value.length > 10) {
+        value = value.substring(0, 10);
+      }
+    
+      input.value = value;
+    }
+
+    function validateThaiDate(input) {
+      const value = input.value;
+      const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      const match = value.match(datePattern);
+    
+      if (!match) {
+        input.setCustomValidity('กรุณากรอกวันที่ในรูปแบบ วว/ดด/ปปปป (พ.ศ)');
+        return false;
+      }
+    
+      const day = parseInt(match[1]);
+      const month = parseInt(match[2]);
+      const buddhistYear = parseInt(match[3]);
+      const christianYear = buddhistYear - 543;
+    
+      // ตรวจสอบช่วงปี
+      if (buddhistYear < 2400 || buddhistYear > 2700) {
+        input.setCustomValidity('ปี พ.ศ ต้องอยู่ในช่วง 2400-2700');
+        return false;
+      }
+    
+      // ตรวจสอบเดือน
+      if (month < 1 || month > 12) {
+        input.setCustomValidity('เดือนต้องอยู่ในช่วง 01-12');
+        return false;
+      }
+    
+      // ตรวจสอบวัน
+      if (day < 1 || day > 31) {
+        input.setCustomValidity('วันต้องอยู่ในช่วง 01-31');
+        return false;
+      }
+    
+      // ตรวจสอบวันที่จริง
+      const date = new Date(christianYear, month - 1, day);
+      if (date.getFullYear() !== christianYear ||
+          date.getMonth() !== month - 1 ||
+          date.getDate() !== day) {
+        input.setCustomValidity('วันที่ไม่ถูกต้อง');
+        return false;
+      }
+    
+      input.setCustomValidity('');
+      return true;
+    }
+
+    // ฟังก์ชันแปลงวันที่ไทยเป็น ISO format สำหรับส่งไปยัง backend
+    function convertThaiDateToISO(thaiDate) {
+      const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      const match = thaiDate.match(datePattern);
+    
+      if (!match) return null;
+    
+      const day = match[1];
+      const month = match[2];
+      const buddhistYear = parseInt(match[3]);
+      const christianYear = buddhistYear - 543;
+    
+      return `${christianYear}-${month}-${day}`;
+    }
+
+    // ฟังก์ชันตั้งค่าวันที่เริ่มงานเป็นวันปัจจุบัน
+    function setDefaultStartDate() {
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const buddhistYear = today.getFullYear() + 543;
+
+      const startDateInput = document.getElementById('startDate');
+      if (startDateInput) {
+        startDateInput.value = `${day}/${month}/${buddhistYear}`;
+      }
+    }
+
+    // ===== INPUT SANITIZATION FUNCTIONS =====
+    function sanitizeInput(input) {
+      if (typeof input !== 'string') return input;
+      return input.trim()
+        .replace(/[<>\"']/g, '') // Remove potential XSS characters
+        .replace(/\s+/g, ' '); // Normalize whitespace
+    }
+
+    function sanitizePhoneNumber(phone) {
+      return String(phone).replace(/\D/g, ''); // Keep only digits
+    }
+
+    // Enhanced form confirmation
+    function confirmFormSubmission() {
+      const form = document.getElementById('employeeForm');
+      const formData = new FormData(form);
+
+      const name = formData.get('name');
+      const email = formData.get('email');
+
+      return confirm(
+        `คุณต้องการบันทึกข้อมูลพนักงานใช่หรือไม่?\n\n` +
+        `ชื่อ: ${name}\n` +
+        `อีเมล: ${email}\n\n` +
+        `กดตกลงเพื่อดำเนินการต่อ`
+      );
+    }
+
+    // Progress indicator
+    function showProgressIndicator(message = 'กำลังประมวลผล...') {
+      const progressHtml = `
+        <div id="progressIndicator" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-700">${message}</p>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', progressHtml);
+    }
+
+    function hideProgressIndicator() {
+      const indicator = document.getElementById('progressIndicator');
+      if (indicator) indicator.remove();
+    }
+
+
+    // Load current user profile
+    async function loadCurrentUser() {
+      showLoading(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          showLoading(false);
+          return;
+        }
+
+        const response = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.warn('⚠️ Token expired, user might need to login again');
+            return;
+          }
+          throw new Error(`Failed to load user profile: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          console.log('✅ Current user loaded:', result.data.name);
+          // Update any UI elements that need user info if necessary
+        }
+      } catch (error) {
+        console.error('❌ Error loading current user:', error);
+        // Don't show error to user as this is not critical for form functionality
+      } finally {
+        showLoading(false);
+      }
+    }
+
+  </script>
+</body>
+</html>

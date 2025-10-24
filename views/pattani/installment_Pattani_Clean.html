@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light" class="scroll-smooth">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบผ่อน Pattani</title>
+  <meta name="description" content="ระบบผ่อนชำระสินค้าสำหรับสาขา Pattani">
+  <meta name="author" content="บริษัท โมบายล์ พลัส จำกัด">
+
+  <!-- Core Dependencies -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.0.0/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <script src="/js/activity-tracker.js"></script>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            secondary: '#64748b'
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- External Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@latest/dist/signature_pad.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+  
+  <!-- Separated JavaScript Modules -->
+  <script src="/views/pattani/installment-core.js"></script>
+  <script src="/views/pattani/installment-api.js"></script>
+  <script src="/views/pattani/installment-ui.js"></script>
+  <script src="/views/pattani/installment-product.js"></script>
+  <script src="/views/pattani/installment-business.js"></script>
+  <script src="/views/pattani/installment-main.js"></script>
+
+  <!-- Loading System -->
+  <script src="/js/loading-system.js"></script>
+
+  <style>
+    /* Lottie Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+      <div class="text-center">
+        <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+      </div>
+    </div>
+    </div>
+  
+  <!-- Sidebar Container - จะถูกเติมด้วย sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <main id="mainContent" class="flex-1 overflow-y-auto transition-all duration-300 ml-56">
+    <!-- Header -->
+    <header class="p-4 bg-white dark:bg-gray-800"
+                    border-b border-gray-200 dark:border-gray-700
+"
+                    flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold" id="pageTitle">ระบบผ่อน Pattani</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+          กำลังโหลดสาขา...
+        </p>
+      </div>
+
+      <!-- Enhanced Quick Actions with Network Status -->
+      <div class="flex items-center gap-3">
+        <!-- Network Status Indicator -->
+        <div id="networkStatus" class="flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 transition-all duration-300">
+          <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span class="text-xs font-medium">Online</span>
+        </div>
+
+        <!-- Quick Action Buttons -->
+        <a href="History_installment"
+          class="btn btn-primary flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-300 hover:scale-105">
+          <i class="bi bi-receipt text-lg"></i>
+          <span class="hidden md:inline">ใบเสร็จ/ใบกำกับภาษี</span>
+        </a>
+        <a href="Installment_on_use"
+          class="btn btn-secondary flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-all duration-300 hover:scale-105">
+          <i class="bi bi-arrow-repeat text-lg"></i>
+          <span class="hidden md:inline">ผ่อนไปใช้ไป</span>
+        </a>
+        <a href="Installment_complete_pickup"
+          class="btn btn-secondary flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-300 hover:scale-105">
+          <i class="bi bi-check-circle text-lg"></i>
+          <span class="hidden md:inline">ผ่อนหมดรับของ</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+      <div class="container-fluid p-4">
+        <!-- Enhanced Stepper with ARIA -->
+        <div class="stepper" role="navigation" aria-label="ขั้นตอนการทำงาน">
+        <div class="step active" data-step="1" role="tab" aria-selected="true" aria-label="ขั้นตอนที่ 1 เลือกสินค้า">
+          <div class="step-icon" aria-hidden="true">1</div>
+          <div class="step-text">เลือกสินค้า</div>
+        </div>
+        <div class="step" data-step="2" role="tab" aria-selected="false" aria-label="ขั้นตอนที่ 2 ใบเสนอราคา">
+          <div class="step-icon" aria-hidden="true">2</div>
+          <div class="step-text">ใบเสนอราคา</div>
+        </div>
+        <div class="step" data-step="3" role="tab" aria-selected="false" aria-label="ขั้นตอนที่ 3 ใบแจ้งหนี้">
+          <div class="step-icon" aria-hidden="true">3</div>
+          <div class="step-text">ใบแจ้งหนี้</div>
+        </div>
+        <div class="step" data-step="4" role="tab" aria-selected="false" aria-label="ขั้นตอนที่ 4 เสร็จสิ้น">
+          <div class="step-icon" aria-hidden="true">4</div>
+          <div class="step-text">เสร็จสิ้น</div>
+        </div>
+      </div>
+
+      <!-- STEP 1 -->
+      <div id="step1" class="step-content active">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- ซ้าย: Level1 + ค้นหา -->
+          <div class="lg:col-span-2 space-y-4">
+            <!-- Enhanced Search Card -->
+            <div class="card p-4">
+              <div class="flex gap-2">
+                <div class="flex-1 relative">
+                  <input id="productSearchQuery" class="input input-bordered w-full pr-10"
+                    placeholder="ค้นหาด้วยชื่อรุ่นหรือ IMEI..." aria-label="ค้นหาสินค้า" autocomplete="off" />
+                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <i class="bi bi-search text-gray-400"></i>
+                  </div>
+                </div>
+                <button id="btnProductSearch" class="btn btn-primary" aria-label="ค้นหาสินค้า">
+                  <i class="bi bi-search" aria-hidden="true"></i>
+                  <span class="hidden sm:inline">ค้นหา</span>
+                </button>
+                <button id="btnProductReset" class="btn btn-secondary" aria-label="รีเซ็ตการค้นหา">
+                  <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                  <span class="hidden sm:inline">รีเซ็ต</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Container Level1 -->
+            <div id="level1Container" class="card">
+              <div class="card-header">
+                <i class="bi bi-box-seam"></i> แบรนด์สินค้า (Level 1)
+              </div>
+              <div class="card-body">
+                <div id="level1Grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <!-- renderLevel1() -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Container Level2 -->
+            <div id="level2Container" class="card hidden">
+              <div class="card-header flex justify-between items-center">
+                <div>
+                  <i class="bi bi-menu-button-wide"></i>
+                  <span id="level2Title">รายการของ ...</span>
+                </div>
+                <button class="btn btn-sm" id="btnBackToLevel1">
+                  <i class="bi bi-arrow-left mr-1"></i> ย้อนกลับ
+                </button>
+              </div>
+              <div class="card-body">
+                <div id="level2Grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <!-- renderLevel2() -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Container Level3 -->
+            <div id="level3Container" class="card hidden">
+              <div class="card-header flex justify-between items-center">
+                <div>
+                  <i class="bi bi-phone"></i>
+                  <span id="level3Title">รายละเอียดสินค้า</span>
+                </div>
+                <button class="btn btn-sm" id="btnBackToLevel2">
+                  <i class="bi bi-arrow-left mr-1"></i> ย้อนกลับ
+                </button>
+              </div>
+              <div class="card-body">
+                <div id="level3Grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                </div>
+              </div>
+            </div>
+
+            <!-- Container ผลลัพธ์การค้นหา -->
+            <div id="imeiResultContainer" class="card hidden">
+              <div class="card-header">
+                <i class="bi bi-search"></i> ผลลัพธ์การค้นหา
+              </div>
+              <div class="card-body">
+                <div id="imeiResultGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ขวา: ตะกร้าสินค้า/สรุป/ไป Step2 -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <i class="bi bi-cart"></i> สรุปรายการสินค้า
+                <span class="text-sm font-normal text-gray-500 ml-2">(<span id="cartCount">0</span> รายการ)</span>
+              </div>
+              <div class="card-body">
+
+                <!-- Manual Barcode Scanner Input -->
+                <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <label class="label">
+                    <span class="label-text font-semibold">
+                      <i class="bi bi-upc-scan"></i> สแกนบาร์โค้ด
+                    </span>
+                  </label>
+                  <div class="flex gap-2">
+                    <input type="text" id="manualBarcodeInput" class="input input-bordered flex-1"
+                      placeholder="สแกนหรือพิมพ์บาร์โค้ด/SKU/IMEI" autocomplete="off" />
+                    <button id="btnAddBarcode" class="btn btn-primary" title="เพิ่มสินค้าจากบาร์โค้ด">
+                      <i class="bi bi-plus-circle"></i>
+                    </button>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    💡 <strong>เคล็ดลับ:</strong> กดทั้งเครื่องสแกนบาร์โค้ดหรือพิมพ์ด้วยมือ แล้วกด Enter หรือปุ่มเพิ่ม
+                  </div>
+                </div>
+
+                <div class="cart-summary">
+                  <p class="text-gray-500">ยังไม่มีสินค้าในตะกร้า</p>
+                </div>
+
+                <div class="mt-4">
+                  <button id="btnStep1ToStep2" class="btn btn-primary btn-block" disabled>
+                    <i class="bi bi-x-circle mr-2"></i> กรุณาเลือกสินค้า
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div id="step2" class="step-content">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- ซ้าย: ข้อมูลลูกค้า -->
+          <div class="lg:col-span-2 space-y-4">
+            <div class="card">
+              <div class="card-header">
+                <i class="bi bi-person"></i> ข้อมูลลูกค้า
+              </div>
+              <div class="card-body">
+                <!-- Customer Form -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="label">
+                      <span class="label-text">คำนำหน้าชื่อ</span>
+                    </label>
+                    <select id="customerPrefix" class="select select-bordered w-full">
+                      <option value="">เลือกคำนำหน้า</option>
+                      <option value="นาย">นาย</option>
+                      <option value="นาง">นาง</option>
+                      <option value="นางสาว">นางสาว</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="label">
+                      <span class="label-text">ชื่อ <span class="text-red-500">*</span></span>
+                    </label>
+                    <input type="text" id="customerFirstName" class="input input-bordered w-full" placeholder="ชื่อ" required>
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="label">
+                      <span class="label-text">นามสกุล <span class="text-red-500">*</span></span>
+                    </label>
+                    <input type="text" id="customerLastName" class="input input-bordered w-full" placeholder="นามสกุล" required>
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="label">
+                      <span class="label-text">เลขบัตรประชาชน <span class="text-red-500">*</span></span>
+                    </label>
+                    <div class="flex gap-2">
+                      <input type="text" id="customerIdCard" class="input input-bordered flex-1" placeholder="เลขบัตรประชาชน 13 หลัก" maxlength="13" required>
+                      <button id="btnReadCard" class="btn btn-secondary">
+                        <i class="bi bi-credit-card"></i> อ่านบัตร
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="label">
+                      <span class="label-text">โทรศัพท์ <span class="text-red-500">*</span></span>
+                    </label>
+                    <input type="tel" id="customerPhone" class="input input-bordered w-full" placeholder="หมายเลขโทรศัพท์" required>
+                  </div>
+                  <div>
+                    <label class="label">
+                      <span class="label-text">อีเมล</span>
+                    </label>
+                    <input type="email" id="customerEmail" class="input input-bordered w-full" placeholder="อีเมล">
+                  </div>
+                </div>
+
+                <!-- Address Section -->
+                <div class="mt-6">
+                  <h4 class="text-lg font-semibold mb-4">ที่อยู่</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="label">
+                        <span class="label-text">บ้านเลขที่ <span class="text-red-500">*</span></span>
+                      </label>
+                      <input type="text" id="houseNo" class="input input-bordered w-full" placeholder="บ้านเลขที่" required>
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text">หมู่</span>
+                      </label>
+                      <input type="text" id="moo" class="input input-bordered w-full" placeholder="หมู่">
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text">ตำบล/แขวง <span class="text-red-500">*</span></span>
+                      </label>
+                      <input type="text" id="subDistrict" class="input input-bordered w-full" placeholder="ตำบล/แขวง" required>
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text">อำเภอ/เขต <span class="text-red-500">*</span></span>
+                      </label>
+                      <input type="text" id="district" class="input input-bordered w-full" placeholder="อำเภอ/เขต" required>
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text">จังหวัด <span class="text-red-500">*</span></span>
+                      </label>
+                      <input type="text" id="province" class="input input-bordered w-full" placeholder="จังหวัด" required>
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text">รหัสไปรษณีย์</span>
+                      </label>
+                      <input type="text" id="zipcode" class="input input-bordered w-full" placeholder="รหัสไปรษณีย์" maxlength="5">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ขวา: สรุป + ไป Step3 -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <i class="bi bi-clipboard-check"></i> สรุปรายการสินค้า
+              </div>
+              <div class="card-body">
+                <div class="cart-summary">
+                  <!-- สินค้าจะแสดงที่นี่ -->
+                </div>
+                <div class="mt-4">
+                  <button id="btnStep2ToStep3" class="btn btn-primary btn-block">
+                    <i class="bi bi-arrow-right mr-2"></i> ไปขั้นตอนถัดไป
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div id="step3" class="step-content">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- ซ้าย: แผนผ่อน -->
+          <div class="lg:col-span-2 space-y-4">
+            <div class="card">
+              <div class="card-header">
+                <i class="bi bi-calculator"></i> แผนการผ่อนชำระ
+              </div>
+              <div class="card-body">
+                <!-- Auto Plans -->
+                <div id="autoPlansContainer" class="space-y-3">
+                  <!-- แผนผ่อนอัตโนมัติจะแสดงที่นี่ -->
+                </div>
+
+                <!-- Manual Plan -->
+                <div class="mt-6 p-4 border border-dashed border-gray-300 rounded-lg">
+                  <h4 class="font-semibold mb-4">กำหนดแผนเอง</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="label">
+                        <span class="label-text">เงินดาวน์ (บาท)</span>
+                      </label>
+                      <input type="number" id="manualDown" class="input input-bordered w-full" placeholder="0" min="0">
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text">จำนวนงวด</span>
+                      </label>
+                      <select id="manualTerms" class="select select-bordered w-full">
+                        <!-- จำนวนงวดจะถูกสร้างอัตโนมัติ -->
+                      </select>
+                    </div>
+                    <div class="md:col-span-2">
+                      <label class="label">
+                        <span class="label-text">ค่างวดต่อเดือน</span>
+                      </label>
+                      <div class="text-2xl font-bold text-primary">
+                        ฿<span id="manualInstallmentAmount">0</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Additional Fees -->
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <h4 class="font-semibold mb-4">ค่าใช้จ่ายเพิ่มเติม</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="label">
+                        <span class="label-text">ค่าธรรมเนียมเอกสาร (บาท)</span>
+                      </label>
+                      <input type="number" id="documentFee" class="input input-bordered w-full" placeholder="0" min="0">
+                    </div>
+                    <div>
+                      <label class="label">
+                        <span class="label-text">ค่าจัดส่ง (บาท)</span>
+                      </label>
+                      <input type="number" id="shippingFee" class="input input-bordered w-full" placeholder="0" min="0">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ขวา: สรุป + ไป Step4 -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <i class="bi bi-receipt"></i> สรุปการผ่อนชำระ
+              </div>
+              <div class="card-body">
+                <div id="step3ProductSummary">
+                  <!-- สรุปสินค้าจะแสดงที่นี่ -->
+                </div>
+                <div class="mt-4">
+                  <button id="btnStep3ToStep4" class="btn btn-primary btn-block">
+                    <i class="bi bi-check-circle mr-2"></i> บันทึกการผ่อนชำระ
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div id="step4" class="step-content">
+        <div class="max-w-4xl mx-auto">
+          <div class="card">
+            <div class="card-header">
+              <i class="bi bi-check-circle-fill text-green-500"></i> สำเร็จ!
+            </div>
+            <div class="card-body">
+              <div id="step4Summary">
+                <!-- สรุปการทำรายการจะแสดงที่นี่ -->
+              </div>
+              <div class="mt-6 text-center">
+                <button id="btnNewTransaction" class="btn btn-primary">
+                  <i class="bi bi-plus-circle mr-2"></i> สร้างรายการใหม่
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      </div>
+    </main>
+  </main>
+
+  <!-- เก็บ URL จากการอัปโหลดไว้ส่งใน payload -->
+  <input type="hidden" id="idCardImageUrl" name="idCardImageUrl" />
+  <input type="hidden" id="salarySlipUrl" name="salarySlipUrl" />
+  <input type="hidden" id="selfieUrl" name="selfieUrl" />
+  <input type="hidden" id="customerSignatureUrl" name="customerSignatureUrl" />
+  <input type="hidden" id="salespersonSignatureUrl" name="salespersonSignatureUrl" />
+
+  <!-- Simple initialization script -->
+  <script>
+    // Wait for all modules to load
+    window.addEventListener('load', async () => {
+      console.log('🚀 Starting Installment System...');
+    
+      // Check for authentication
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+    
+      // Wait for modules to load
+      const modules = ['InstallmentCore', 'InstallmentAPI', 'InstallmentUI', 'InstallmentProduct', 'InstallmentBusiness', 'InstallmentMain'];
+      const maxWait = 10000; // 10 seconds max
+      const checkInterval = 100;
+      let elapsed = 0;
+    
+      while (elapsed < maxWait) {
+        const allLoaded = modules.every(module => window[module]);
+        if (allLoaded) {
+          console.log('✅ All modules loaded');
+    
+          // Initialize the main system
+          if (window.InstallmentMain?.initialize) {
+            try {
+              await window.InstallmentMain.initialize();
+              console.log('✅ System ready');
+            } catch (error) {
+              console.error('❌ Initialization error:', error);
+              alert('เกิดข้อผิดพลาดในการเริ่มต้นระบบ');
+            }
+          }
+          return;
+        }
+    
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        elapsed += checkInterval;
+      }
+    
+      console.error('❌ Failed to load modules');
+      alert('ไม่สามารถโหลดระบบได้ กรุณาลองใหม่อีกครั้ง');
+    });
+  </script>
+
+  <script>
+    // Lottie Loading Animation Function
+    let lottieAnimation = null;
+
+    function showLoading(message = 'กำลังโหลด...') {
+      const overlay = document.getElementById('loadingOverlay');
+      const container = document.getElementById('lottieContainer');
+
+      if (overlay && container) {
+        overlay.style.display = 'flex';
+        overlay.classList.remove('animate__fadeOut');
+        overlay.classList.add('animate__fadeIn');
+
+        if (!lottieAnimation && window.lottie) {
+          lottieAnimation = window.lottie.loadAnimation({
+            container: container,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: 'https://assets2.lottiefiles.com/packages/lf20_x62chJ.json'
+          });
+        }
+
+        if (message) {
+          console.log('Loading:', message);
+        }
+      }
+    }
+
+    function hideLoading() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.classList.remove('animate__fadeIn');
+        overlay.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 500);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      showLoading('กำลังโหลดระบบผ่อน...');
+
+      window.addEventListener('load', function() {
+        setTimeout(hideLoading, 1000);
+      });
+    });
+
+    window.showLoading = showLoading;
+    window.hideLoading = hideLoading;
+  </script>
+
+</body>
+</html> 

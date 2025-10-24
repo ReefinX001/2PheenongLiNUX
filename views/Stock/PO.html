@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Management - สรุปกราฟสต๊อก</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <!-- Flatpickr CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script src="../js/activity-tracker.js"></script>
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt','sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Socket.io CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    
+    /* สไตล์สำหรับ input เลขที่เอกสารในตาราง */
+    .document-number-input {
+      transition: all 0.2s ease;
+    }
+    
+    .document-number-input:focus {
+      background-color: #f0f9ff !important;
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+    }
+    
+    .dark .document-number-input:focus {
+      background-color: #1e293b !important;
+      border-color: #60a5fa !important;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.1) !important;
+    }
+    
+    .document-number-input:hover {
+      border-color: #9ca3af;
+    }
+    
+    .dark .document-number-input:hover {
+      border-color: #6b7280;
+    }
+    
+    /* เพิ่มไอคอนสำหรับ input ที่มีค่า */
+    .document-number-input:not(:placeholder-shown) {
+      padding-right: 2.5rem;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'%3e%3c/path%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.5rem center;
+      background-size: 1rem 1rem;
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+          class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="flex">
+    <!-- Sidebar -->
+<div class="flex w-full">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+       class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+              transform transition-transform duration-300 translate-x-0 z-20">
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-hidden">
+        <ul class="flex flex-col w-full space-y-1">
+
+      <li class="my-px">
+                  <a href="branch_stock_overview"
+                    class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                    <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                      <i class="bi bi-grid text-xl"></i>
+                    </span>
+                    <span class="ml-3">สต๊อกคงเหลือ</span>
+                  </a>
+                </li>
+
+          <!-- เมนู: ตรวจสินค้า/อนุมัติ -->
+          <li class="my-px">
+            <a href="inventory_dashboard"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+                <i class="bi bi-clipboard-check text-xl"></i>
+              </span>
+              <span class="ml-3">ตรวจสินค้า/อนุมัติ</span>
+            </a>
+          </li>
+
+          <!-- เมนู:PO -->
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+                <i class="bi bi-file-earmark-text text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+          <!-- เมนู: Quotation -->
+          <li class="my-px">
+            <a href="quotation_Stock"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+                <i class="bi bi-file-earmark-richtext text-xl"></i>
+              </span>
+              <span class="ml-3">สร้างใบเสนอราคา</span>
+            </a>
+          </li>
+          <!-- เมนู: Transfer -->
+          <li class="my-px">
+            <a href="Transfer"
+                    class="flex flex-row items-center h-12 px-4 rounded-lg
+            text-gray-600 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-700 transition-all sidebar-link">
+              <span class="flex items-center justify-center text-lg text-primary-500 dark:text-primary-400">
+                <i class="bi bi-truck text-xl"></i>
+              </span>
+              <span class="ml-3">ย้ายสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="product_Image"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-yellow-500 dark:text-yellow-400">
+                <i class="bi bi-upc-scan text-xl"></i>
+              </span>
+              <span class="ml-3">ลงทะเบียนสินค้า</span>
+            </a>
+          </li>
+
+          <!-- เมนู: เพิ่มเติม -->
+          <li class="my-px">
+            <a href="StockAdditional"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-three-dots text-xl"></i>
+              </span>
+              <span class="ml-3">เพิ่มเติม</span>
+            </a>
+          </li>
+
+
+          <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <!-- Dark Mode Toggle -->
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+                <i class="bi bi-moon-stars text-xl"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+                <i class="bi bi-box-arrow-right text-xl"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px mt-2">
+            <div id="profile"
+                 class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+              <div class="avatar mr-3">
+                <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+                  <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium" id="employeeName">Loading...</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+     <!-- ส่วนเนื้อหา (Main Content) -->
+    <div id="mainContent"
+      class="flex-1 ml-56 p-6 pb-20 space-y-6 transition-all duration-300 ease-in-out">  <!-- ← เพิ่ม pb-20 -->
+  <!-- Header -->
+  <header class="p-6 bg-white dark:bg-gray-800  rounded-lg flex items-center justify-between transition-colors">
+    <h1 id="pageTitle" class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+      <i class="bi bi-gear-fill text-blue-500 mr-2"></i>ใบสั่งซื้อ
+    </h1>
+    
+    <!-- ปุ่มร่วม (Dropdown Menu) -->
+    <div class="relative">
+      <button id="dropdownMenuButton" 
+              class="px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transition flex items-center">
+        <i class="bi bi-gear mr-2"></i>
+        เครื่องมือ
+        <i class="bi bi-chevron-down ml-2"></i>
+      </button>
+      
+      <!-- Dropdown Menu -->
+      <div id="dropdownMenu" 
+           class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 hidden">
+        <div class="py-2">
+          <a href="/po-creation" 
+             class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-lightning-charge text-orange-500 mr-3"></i>
+            <div>
+              <div class="font-medium">สร้าง PO จากขายด่วน</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">สร้างใบสั่งซื้อจากสินค้าขายด่วน</div>
+            </div>
+          </a>
+          
+          <hr class="my-2 border-gray-200 dark:border-gray-600">
+          
+          <a href="register_supplier" 
+             class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-person-plus text-green-500 mr-3"></i>
+            <div>
+              <div class="font-medium">ลงทะเบียนซัพลายเออร์</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">เพิ่มซัพลายเออร์ใหม่</div>
+            </div>
+          </a>
+          
+          <hr class="my-2 border-gray-200 dark:border-gray-600">
+          
+          <a href="PO_Report" 
+             class="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-graph-up text-blue-500 mr-3"></i>
+            <div>
+              <div class="font-medium">รายงานใบสั่งซื้อ</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">ดูสถิติและรายงาน PO</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+
+         
+                <div class="bg-white dark:bg-gray-800  rounded-xl p-6 mb-8">
+                  <h6 class="flex items-center text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
+                    <svg class="w-5 h-5 mr-2 text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M3 3h18v2H3V3zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z" />
+                    </svg>
+                    <span id="createPOFormTitle">สร้างใบสั่งซื้อ</span>
+                  </h6>
+                  <form id="createPOForm" class="space-y-6">
+              
+                   <!-- Row 1: PO Number / Document Number / Date / Branch -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div>
+                    <label for="poNumber" class="block text-sm font-medium text-gray-600 dark:text-gray-300">
+                      เลขที่ใบสั่งซื้อ (PO Number)
+                    </label>
+                    <input
+                      type="text"
+                      id="poNumber"
+                      disabled
+                      placeholder="ระบบจะ Generate อัตโนมัติ"
+                      class="mt-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <!-- <label for="documentNumber" class="block text-sm font-medium text-gray-600 dark:text-gray-300">
+                      เลขที่เอกสาร <span class="text-xs text-gray-500">(ไม่บังคับ)</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="documentNumber"
+                      placeholder="กรอกเลขที่เอกสาร"
+                      class="mt-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div> -->
+                    <label for="docDate" class="block text-sm font-medium text-gray-600 dark:text-gray-300">
+                      วันที่ออกใบสั่งซื้อ
+                    </label>
+                    <!-- เปลี่ยน type เป็น text เพื่อให้ Flatpickr ทำงานได้ -->
+                    <input
+                      type="text"
+                      id="docDate"
+                      class="mt-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      placeholder="เลือกวันที่..."
+                    />
+                  </div>
+                  <div>
+                    <label for="selectBranchForPO" class="block text-sm font-medium text-gray-600 dark:text-gray-300">
+                      เลือกสาขา
+                    </label>
+                    <select
+                      id="selectBranchForPO"
+                      required
+                      class="mt-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">-- เลือกสาขา --</option>
+                    </select>
+                  </div>
+                </div>
+              
+                    <!-- Row 2: Supplier / Category Group -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <label for="selectSupplierForPO" class="block text-sm font-medium text-gray-600 dark:text-gray-300">เลือกซัพพลายเออร์</label>
+                        <select id="selectSupplierForPO" required class="mt-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                          <option value="">-- เลือกซัพพลายเออร์ --</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label for="categoryGroup" class="block text-sm font-medium text-gray-600 dark:text-gray-300">กลุ่มจัดประเภท</label>
+                        <select id="categoryGroup" class="mt-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                          <option value="">-- เลือกกลุ่ม --</option>
+                        </select>
+                      </div>
+                    </div>
+              
+                    <!-- Row 3: หมายเหตุ -->
+                    <div>
+                      <label for="orderNotes" class="block text-sm font-medium text-gray-600 dark:text-gray-300">หมายเหตุ</label>
+                      <input type="text" id="orderNotes" placeholder="ระบุหมายเหตุ (ถ้ามี)" class="mt-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                    <!-- รายการสินค้า/บริการ -->
+                    <div>
+                      <h6 class="flex items-center text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                        <svg class="w-5 h-5 mr-2 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4z" />
+                          <path d="M3 18v-2c0-2 4-3 9-3s9 1 9 3v2H3z" />
+                        </svg>
+                        <span id="poItemsTitle">รายการสินค้า/บริการ</span>
+                      </h6>
+                      <button type="button" id="btnAddItem" class="inline-flex items-center px-4 py-2 mb-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+                        + เพิ่มรายการ
+                      </button>
+                      <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                          <thead class="bg-gray-100 dark:bg-gray-700">
+                            <tr>
+                              <th class="px-4 py-2">Brand</th>
+                              <th class="px-4 py-2">ชื่อสินค้า (Name)</th>
+                              <th class="px-4 py-2">จำนวน (Qty)</th>
+                              <th class="px-4 py-2">ต้นทุน/หน่วย</th>
+                              <th class="px-4 py-2">ส่วนลด/หน่วย</th>
+                              <th class="px-4 py-2">ภาษี (%)</th>
+                              <th class="px-4 py-2">ประเภทภาษี</th>
+                              <th class="px-4 py-2">มูลค่าก่อนภาษี</th>
+                              <th class="px-4 py-2">ภาษี (บาท)</th>     <!-- ใหม่ -->
+                              <th class="px-4 py-2">รวมภาษี (บาท)</th> <!-- ใหม่ -->
+                              <th class="px-4 py-2">ลบ</th>
+                            </tr>
+                          </thead>
+                          <tbody id="poItemsTable" class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- แถวจะถูกเติมด้วย JavaScript -->
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <!-- สรุปยอดรวมทั้งหมด -->
+                      <div id="poSummary" class="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border">
+                        <h6 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">
+                          <i class="bi bi-calculator text-green-500 mr-2"></i>
+                          สรุปยอดรวม
+                        </h6>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div class="bg-white dark:bg-gray-800 p-3 rounded border">
+                            <div class="text-sm text-gray-600 dark:text-gray-400">มูลค่าสินค้ารวม</div>
+                            <div class="text-lg font-medium text-blue-600 dark:text-blue-400" id="summarySubtotal">0.00</div>
+                          </div>
+                          <div class="bg-white dark:bg-gray-800 p-3 rounded border">
+                            <div class="text-sm text-gray-600 dark:text-gray-400">ส่วนลดรวม</div>
+                            <div class="text-lg font-medium text-orange-600 dark:text-orange-400" id="summaryDiscount">0.00</div>
+                          </div>
+                          <div class="bg-white dark:bg-gray-800 p-3 rounded border">
+                            <div class="text-sm text-gray-600 dark:text-gray-400">ภาษีรวม</div>
+                            <div class="text-lg font-medium text-purple-600 dark:text-purple-400" id="summaryTax">0.00</div>
+                          </div>
+                          <div class="bg-white dark:bg-gray-800 p-3 rounded border border-green-200 dark:border-green-600">
+                            <div class="text-sm text-gray-600 dark:text-gray-400">ยอดรวมสุทธิ</div>
+                            <div class="text-xl font-bold text-green-600 dark:text-green-400" id="summaryTotal">0.00</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+              
+                    <!-- ปุ่มบันทึกสร้าง PO -->
+                    <div class="text-right">
+                      <button type="submit" class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transition">
+                        สร้างใบสั่งซื้อ
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              
+                <!-- ตารางรายการ PO ทั้งหมด -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6">
+                  <div class="flex items-center justify-between mb-4">
+                    <h6 class="flex items-center text-xl font-semibold text-gray-700 dark:text-gray-200">
+                      <svg class="w-5 h-5 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M3 3h18v2H3V3zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"/>
+                      </svg>
+                      <span id="poListTitle">รายการใบสั่งซื้อทั้งหมด</span>
+                    </h6>
+                    <!-- ลบปุ่มดูประวัติออกแล้ว -->
+                  </div>
+                  <div class="overflow-x-auto">
+                    <table class="min-w-full bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
+                      <thead class="bg-gray-100 dark:bg-gray-700">
+                        <tr>
+                          <th class="px-4 py-2">เลขที่ PO</th>
+                          <th class="px-4 py-2">เลขที่เอกสาร</th>
+                          <th class="px-4 py-2">วันที่</th>
+                          <th class="px-4 py-2">สาขา</th>
+                          <th class="px-4 py-2">ซัพพลายเออร์</th>
+                          <th class="px-4 py-2">กลุ่มจัดประเภท</th>
+                          <th class="px-4 py-2">หมายเหตุ</th>
+                          <th class="px-4 py-2">ยอดรวม</th>
+                          <th class="px-4 py-2">สถานะ</th>
+                          <th class="px-4 py-2">ผู้สร้าง</th>
+                          <th class="px-4 py-2">ลบ</th>
+                          <th class="px-4 py-2">ดาวน์โหลด</th>
+                        </tr>
+                      </thead>
+                      <tbody id="poTable" class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <!-- ข้อมูล PO จะถูก render ด้วย JavaScript -->
+                      </tbody>
+                    </table>
+                  </div>
+                  <!-- Pagination Controls -->
+                  <div class="flex items-center justify-between mt-4">
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                      แสดง <span id="startIndex">0</span> ถึง <span id="endIndex">0</span> จากทั้งหมด <span id="totalPO">0</span> รายการ
+                    </div>
+                    <div class="flex space-x-2">
+                      <button id="btnPrevPage"
+                              class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        <i class="bi bi-chevron-left"></i> ก่อนหน้า
+                      </button>
+                      <div id="pageNumbers" class="flex space-x-1">
+                        <!-- Page numbers will be generated here -->
+                      </div>
+                      <button id="btnNextPage"
+                              class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        ถัดไป <i class="bi bi-chevron-right"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              
+
+    <!-- Footer เปลี่ยนเป็น relative -->
+    <!-- Footer (relative แทน fixed) -->
+    <footer
+      id="footer"
+      class="bg-white dark:bg-gray-800 text-center py-4 mt-8 relative">                  <!-- ← fixed→relative & ลบ left-64/width -->
+      <div class="container mx-auto">
+        <small>© 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์.</small>
+      </div>
+    </footer>
+
+<!-- New Alert Modal -->
+<input type="checkbox" id="alertModal" class="modal-toggle" />
+<div class="modal">
+  <div
+    class="modal-box 
+           bg-white dark:bg-gray-800 
+           text-gray-900 dark:text-gray-100 
+           border border-gray-200 dark:border-gray-700"
+  >
+    <h3 class="font-bold text-lg">แจ้งเตือน</h3>
+    <p class="py-4" id="alertMessage">ข้อความแจ้งเตือนที่นี่</p>
+    <div class="modal-action">
+      <label
+        for="alertModal"
+        class="btn btn-primary
+               bg-blue-600 dark:bg-orange-500
+               text-white
+               hover:bg-blue-700 dark:hover:bg-orange-600"
+        id="okAlertBtn"
+      >
+        ตกลง
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<input type="checkbox" id="confirmActionModal" class="modal-toggle" />
+<div class="modal">
+  <div
+    class="modal-box 
+           bg-white dark:bg-gray-800 
+           text-gray-900 dark:text-gray-100 
+           border border-gray-200 dark:border-gray-700"
+  >
+    <h3 class="font-bold text-lg">ยืนยันการกระทำ</h3>
+    <p class="py-4" id="confirmActionText">ข้อความยืนยันที่นี่</p>
+    <div class="modal-action">
+      <label
+        for="confirmActionModal"
+        class="btn btn-secondary
+               bg-gray-200 dark:bg-gray-700
+               text-gray-800 dark:text-gray-200
+               hover:bg-gray-300 dark:hover:bg-gray-600"
+        id="cancelActionBtn"
+      >
+        ยกเลิก
+      </label>
+      <label
+        for="confirmActionModal"
+        class="btn btn-primary
+               bg-blue-600 dark:bg-orange-500
+               text-white
+               hover:bg-blue-700 dark:hover:bg-orange-600"
+        id="okActionBtn"
+      >
+        ตกลง
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- เพิ่มจุดเดียวสำหรับโหลดโปรไฟล์พนักงาน -->
+<script>
+  // Show/Hide Loading with Lottie animation
+  let lottieAnimation = null;
+  function showLoading(show) {
+    const loader = document.getElementById('loadingOverlay');
+    if (show) {
+      loader.style.display = 'flex';
+      loader.classList.remove('animate__fadeOut');
+      loader.classList.add('animate__fadeIn');
+
+      // โหลดและเล่น Lottie animation
+      if (!lottieAnimation) {
+        console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+        fetch('/Loading/Loading.json')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(animationData => {
+            lottieAnimation = lottie.loadAnimation({
+              container: document.getElementById('lottieContainer'),
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+
+            console.log('✅ Lottie animation loaded successfully');
+          })
+          .catch(error => {
+            console.error('❌ Error loading Lottie animation:', error);
+            // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+            document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+          });
+      } else {
+        lottieAnimation.play();
+      }
+    } else {
+      if (lottieAnimation) {
+        lottieAnimation.pause();
+      }
+      loader.classList.remove('animate__fadeIn');
+      loader.classList.add('animate__fadeOut');
+      setTimeout(() => { loader.style.display = 'none'; }, 600);
+    }
+  }
+
+  // โหลดชื่อ+รูปโปรไฟล์จาก /api/users/me
+  async function loadEmployeeProfile() {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const res = await fetch('/api/users/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || 'Load profile failed');
+      const user = result.data;
+      document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+      let url = user.photoUrl || '';
+      if (!url.startsWith('/') && !/^https?:\/\//.test(url)) url = '/' + url;
+      document.getElementById('employeePhoto').src = url;
+    } catch (err) {
+      console.error('loadEmployeeProfile error:', err);
+    }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    showLoading(true);
+    loadEmployeeProfile();
+    // …เรียกฟังก์ชันอื่นๆ ของเพจตามปกติ…
+    setTimeout(() => showLoading(false), 800);
+  });
+</script>
+
+<!-- Script ส่วนหลัก -->
+<script>
+// === Custom Alert Function ===
+function customAlert(message, callback) {
+  // ใช้ modal ที่มีอยู่แล้ว
+  const modal = document.getElementById('alertModal');
+  const messageEl = document.getElementById('alertMessage');
+  const okBtn = document.getElementById('okAlertBtn');
+
+  // ตั้งค่าข้อความ
+  messageEl.textContent = message;
+
+  // แสดง modal
+  modal.checked = true;
+
+  // ถ้ามี callback ให้เรียกเมื่อกด OK
+  if (callback && typeof callback === 'function') {
+    const handleOk = () => {
+      callback();
+      okBtn.removeEventListener('click', handleOk);
+    };
+    okBtn.addEventListener('click', handleOk);
+  }
+}
+
+// === Custom Confirm Function ===
+function customConfirm(message, onConfirm, onCancel) {
+  const modal = document.getElementById('confirmActionModal');
+  const messageEl = document.getElementById('confirmActionText');
+  const okBtn = document.getElementById('okActionBtn');
+  const cancelBtn = document.getElementById('cancelActionBtn');
+
+  // ตั้งค่าข้อความ
+  messageEl.textContent = message;
+
+  // แสดง modal
+  modal.checked = true;
+
+  // จัดการปุ่ม OK
+  const handleOk = () => {
+    if (onConfirm && typeof onConfirm === 'function') {
+      onConfirm();
+    }
+    okBtn.removeEventListener('click', handleOk);
+    cancelBtn.removeEventListener('click', handleCancel);
+  };
+
+  // จัดการปุ่ม Cancel
+  const handleCancel = () => {
+    if (onCancel && typeof onCancel === 'function') {
+      onCancel();
+    }
+    okBtn.removeEventListener('click', handleOk);
+    cancelBtn.removeEventListener('click', handleCancel);
+  };
+
+  okBtn.addEventListener('click', handleOk);
+  cancelBtn.addEventListener('click', handleCancel);
+}
+
+// === Error Handler Function ===
+function handleError(error, defaultMessage = 'เกิดข้อผิดพลาด') {
+  console.error('Error:', error);
+  customAlert(error.message || defaultMessage);
+}
+
+// --- Dark Mode Persistence ---
+  const darkModePreference = localStorage.getItem('darkMode');
+  const darkModeLabel = document.getElementById('darkModeLabel');
+  if (darkModePreference === 'true') {
+    document.documentElement.classList.add('dark');
+    darkModeLabel.textContent = 'Light Mode';
+  } else {
+    document.documentElement.classList.remove('dark');
+    darkModeLabel.textContent = 'Dark Mode';
+  }
+  const btnToggleDark = document.getElementById('btnToggleDark');
+  btnToggleDark.addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    darkModeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    localStorage.setItem('darkMode', isDark);
+  });
+
+  // 2) โหลดข้อมูลโปรไฟล์พนักงาน
+  async function fetchLoggedInUser() {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const res = await fetch('/api/users/me', {
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        console.error('Cannot fetch /me:', json.error);
+        return;
+      }
+      const user = json.data;
+      // แสดงชื่อ
+      document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+      // แสดงรูปพนักงาน
+      if (user.photoUrl) {
+        document.getElementById('employeePhoto').src = user.photoUrl;
+      } else {
+        document.getElementById('employeePhoto').src = '/uploads/default-avatar.png';
+      }
+    } catch (err) {
+      console.error('fetchLoggedInUser error:', err);
+    }
+  }
+
+  // 3) Logout (ลบ authToken, userEmail และ userId)
+  document.getElementById('btnLogout').addEventListener('click', () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userId');
+    window.location.href = 'login.html';
+  });
+
+  // 4) Toggle Sidebar Menu และปรับตำแหน่ง Footer
+  function toggleMenu() {
+    const sb   = document.getElementById('sidebar');
+    const mc   = document.getElementById('mainContent');
+    const icon = document.querySelector('#btnToggleMenu i');
+
+    // ซ่อน/โชว์ sidebar ด้วย translate-x
+    sb.classList.toggle('-translate-x-full');
+    // ปรับ margin-left ของ content
+    mc.classList.toggle('ml-64');
+    mc.classList.toggle('ml-0');
+    // เปลี่ยนลูกศร
+    icon.classList.toggle('bi-chevron-left');
+    icon.classList.toggle('bi-chevron-right');
+  }
+  document.getElementById('btnToggleMenu')
+          .addEventListener('click', toggleMenu);
+
+  // Dropdown Menu Control
+  const dropdownButton = document.getElementById('dropdownMenuButton');
+  const dropdownMenu = document.getElementById('dropdownMenu');
+
+  if (dropdownButton && dropdownMenu) {
+    dropdownButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownMenu.classList.toggle('hidden');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!dropdownButton.contains(e.target) && !dropdownMenu.contains(e.target)) {
+        dropdownMenu.classList.add('hidden');
+      }
+    });
+
+    // Close dropdown when pressing Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        dropdownMenu.classList.add('hidden');
+      }
+    });
+  }
+
+  // 5) Modal Functions
+  function showModal(modalId) {
+    document.getElementById(modalId).classList.remove('hidden');
+  }
+  function hideModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+  }
+
+  // ---------------------------------------------------------
+  // 6) Logic จัดการ Supplier, PO, Branch, และ *เพิ่ม* Products
+  // ---------------------------------------------------------
+  let allBranches = [];
+  let allSuppliers = [];
+  let poItemsArr = [];
+
+  // เก็บสินค้า
+  let allProducts = [];
+  let allBrands = []; // <-- เพิ่มตัวแปร allBrands
+
+  // ฟังก์ชันโหลด Category Groups จาก API
+  async function loadCategoryGroups() {
+    try {
+      const res = await fetch('/api/category-group');
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถโหลดกลุ่มจัดประเภทได้');
+      }
+      const groups = data.data;
+      const sel = document.getElementById('categoryGroup');
+      sel.innerHTML = `<option value="">-- เลือกกลุ่ม --</option>`;
+      groups.forEach(group => {
+        const opt = document.createElement('option');
+        opt.value = group._id; // ส่ง ObjectId ของ Category Group
+        opt.textContent = group.name;
+        sel.appendChild(opt);
+      });
+    } catch (err) {
+      console.error('Error loading category groups: ', err);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadProducts();
+    loadBranches();
+    loadSuppliers();
+    loadAllPO();
+    loadCategoryGroups();
+
+    // เริ่มต้น Flatpickr สำหรับวันที่ออกใบสั่งซื้อ
+    flatpickr('#docDate', {
+      dateFormat: 'd/m/Y',
+      defaultDate: 'today',
+      locale: 'th', // ใช้ภาษาไทย
+      altInput: true,
+      altFormat: 'j F Y', // แสดงเป็น "1 มกราคม 2568"
+      parseDate: function(datestr) {
+        return new Date(datestr);
+      }
+    });
+
+    document
+      .getElementById('createPOForm')
+      .addEventListener('submit', createPO);
+    document
+      .getElementById('btnAddItem')
+      .addEventListener('click', addItemRow);
+
+    document.querySelectorAll('.btn-close-modal').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const modalId = btn.dataset.modal;
+        hideModal(modalId);
+      });
+    });
+
+    // ปุ่มดูประวัติ
+    const btnViewHistory = document.getElementById('btnViewHistory');
+    if (btnViewHistory) {
+      btnViewHistory.addEventListener('click', () => {
+        window.location.href = 'POHistery.html';
+      });
+    }
+
+    // Socket.IO
+    const socket = io();
+    socket.on('connect', () => {
+      console.log('Socket.IO connected (Supplier & PO page).');
+    });
+    socket.on('disconnect', () => {
+      console.warn('Socket.IO disconnected.');
+    });
+    socket.on('poUpdate', (payload) => {
+      console.log('Realtime PO update:', payload);
+    });
+
+    // Sidebar link highlighting
+    const sidebarLinks = document.querySelectorAll('aside a');
+    function highlightSidebar(link) {
+      // ล้างสีเก่า
+      sidebarLinks.forEach(l => {
+        l.style.backgroundColor = '';
+        l.style.color = '';
+        const ico = l.querySelector('i');
+        if (ico) ico.style.color = '';
+      });
+      // ตั้งพื้นหลังตามสีไอคอนเดิม แล้ว override สีตัวอักษรและไอคอนเป็นขาว
+      const icon = link.querySelector('i');
+      if (icon) {
+        const c = getComputedStyle(icon).color;
+        link.style.backgroundColor = c;
+        link.style.color = '#fff';
+        icon.style.color = '#fff';
+      }
+    }
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => highlightSidebar(link));
+    });
+    // initial highlight based on href
+    const page = window.location.pathname.split('/').pop();
+    sidebarLinks.forEach(link => {
+      if (link.getAttribute('href') === page) highlightSidebar(link);
+    });
+
+    // Pagination event listeners
+    document.getElementById('btnPrevPage').addEventListener('click', () => {
+      if (currentPage > 1) {
+        goToPage(currentPage - 1);
+      }
+    });
+
+    document.getElementById('btnNextPage').addEventListener('click', () => {
+      const totalPages = Math.ceil(allPO.length / itemsPerPage);
+      if (currentPage < totalPages) {
+        goToPage(currentPage + 1);
+      }
+    });
+  });
+
+  // Helper: format number
+  function formatNumber(num) {
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2 });
+  }
+
+  // Helper: format date to dd/mm/yyyy format
+  function formatDateThai(dateString) {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      // ตรวจสอบว่าวันที่ถูกต้องหรือไม่
+      if (isNaN(date.getTime())) return '-';
+
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear(); // ใช้ ค.ศ.
+
+      return `${day}/${month}/${year}`;
+    } catch (err) {
+      console.error('Error formatting date:', err);
+      return '-';
+    }
+  }
+
+  // Helper: จัดเรียงสินค้าตามชื่อรุ่น (iPhone 13, iPhone 14, etc.)
+  function sortProductsByModel(products) {
+    return products.sort((a, b) => {
+      // แยกชื่อผลิตภัณฑ์และหมายเลขรุ่น
+      const getModelInfo = (name) => {
+        if (!name) return { base: '', number: 0 };
+
+        // ตัวอย่าง: "iPhone 13" -> base: "iPhone", number: 13
+        const match = name.match(/^(.+?)\s*(\d+)(.*)$/);
+        if (match) {
+          return {
+            base: match[1].trim().toLowerCase(),
+            number: parseInt(match[2], 10),
+            suffix: match[3].trim()
+          };
+        }
+        // ถ้าไม่มีตัวเลข ให้เรียงตามชื่อปกติ
+        return { base: name.toLowerCase(), number: 0, suffix: '' };
+      };
+
+      const aInfo = getModelInfo(a.name);
+      const bInfo = getModelInfo(b.name);
+
+      // เรียงตามชื่อผลิตภัณฑ์ก่อน
+      if (aInfo.base !== bInfo.base) {
+        return aInfo.base.localeCompare(bInfo.base);
+      }
+
+      // ถ้าชื่อผลิตภัณฑ์เหมือนกัน เรียงตามหมายเลขรุ่น
+      if (aInfo.number !== bInfo.number) {
+        return aInfo.number - bInfo.number;
+      }
+
+      // ถ้าหมายเลขรุ่นเหมือนกัน เรียงตาม suffix
+      return aInfo.suffix.localeCompare(bInfo.suffix);
+    });
+  }
+
+  // ----------------------------------------------------
+  // (A) โหลดสินค้า และเตรียมรายการ capacity / color / brand
+  // ----------------------------------------------------
+  async function loadProducts() {
+    try {
+      const res = await fetch('/api/product-image');
+      const data = await res.json();
+      if (!data.data && !data.success) {
+        throw new Error('ไม่พบข้อมูลสินค้า');
+      }
+      let products = data.data || (data.success && data.success.data) || [];
+
+      // จัดเรียงสินค้าตามชื่อรุ่น
+      allProducts = sortProductsByModel(products);
+
+      // สร้าง Set สำหรับ capacity, color และ brand
+      const capacitySet = new Set();
+      const colorSet = new Set();
+      const brandSet = new Set();
+      allProducts.forEach((p) => {
+        if (p.capacity) capacitySet.add(p.capacity);
+        if (p.color) colorSet.add(p.color);
+        if (p.brand) brandSet.add(p.brand);
+      });
+      allCapacities = Array.from(capacitySet);
+      allColors = Array.from(colorSet);
+      allBrands = Array.from(brandSet); // แปลง Set เป็น Array
+
+      console.log('Loaded products (sorted by model):', allProducts);
+    } catch (err) {
+      console.error('Error loadProducts:', err);
+    }
+  }
+
+  // ----------------------------------------------------
+  // (B) Supplier Logic
+  // ----------------------------------------------------
+  async function registerSupplier(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    try {
+      const res = await fetch('/api/supplier', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        customAlert('ลงทะเบียนซัพพลายเออร์ไม่สำเร็จ: ' + (data.error || 'Error'));
+        return;
+      }
+      customAlert('ลงทะเบียนซัพพลายเออร์เรียบร้อย');
+      e.target.reset();
+      loadSuppliers();
+    } catch (err) {
+      customAlert('Error registerSupplier: ' + err.message);
+    }
+  }
+
+  async function loadSuppliers() {
+    try {
+      const res = await fetch('/api/supplier');
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Error loading suppliers');
+      allSuppliers = json.data;
+
+      // เติม <select> เท่านั้น
+      const sel = document.getElementById('selectSupplierForPO');
+      sel.innerHTML = '<option value="">-- เลือกซัพพลายเออร์ --</option>';
+      allSuppliers.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s._id;
+        opt.textContent = `[${s.code}] ${s.name}`;
+        sel.appendChild(opt);
+      });
+
+    } catch (err) {
+      console.error(err);
+      customAlert('โหลดซัพพลายเออร์ไม่สำเร็จ: ' + err.message);
+    }
+  }
+
+
+  // ----------------------------------------------------
+  // (C) Branch Logic
+  // ----------------------------------------------------
+  async function loadBranches() {
+    try {
+      const res = await fetch('/api/branch');
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        customAlert('ไม่สามารถโหลดสาขาได้: ' + (data.error || 'Error'));
+        return;
+      }
+      allBranches = data.data;
+      populateBranchForPO(allBranches);
+    } catch (err) {
+      customAlert('Error loadBranches: ' + err.message);
+    }
+  }
+
+  function populateBranchForPO(branches) {
+    const sel = document.getElementById('selectBranchForPO');
+    sel.innerHTML = `<option value="">-- เลือกสาขา --</option>`;
+    branches.forEach((b) => {
+      const opt = document.createElement('option');
+      // ใช้ branch_code เป็น value
+      opt.value = b.branch_code;
+      // แสดง branch_code, code และชื่อสาขา
+      opt.textContent = `[${b.branch_code}] ${b.name}`;
+      sel.appendChild(opt);
+    });
+  }
+
+
+  // ----------------------------------------------------
+  // (D) Purchase Order Logic
+  // ----------------------------------------------------
+  let allPO = [];
+
+  // ← Insert pagination variables & functions here, before loadAllPO
+let currentPage = 1;
+const itemsPerPage = 5;
+
+function renderPOTableWithPagination(poList) {
+  const totalPages = Math.ceil(poList.length / itemsPerPage);
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex   = Math.min(startIndex + itemsPerPage, poList.length);
+  renderPOTable(poList.slice(startIndex, endIndex));
+  updatePaginationInfo(startIndex + 1, endIndex, poList.length, totalPages);
+}
+
+function updatePaginationInfo(start, end, total, totalPages) {
+  document.getElementById('startIndex').textContent = total > 0 ? start : 0;
+  document.getElementById('endIndex').textContent   = end;
+  document.getElementById('totalPO').textContent    = total;
+  document.getElementById('btnPrevPage').disabled   = currentPage <= 1;
+  document.getElementById('btnNextPage').disabled   = currentPage >= totalPages;
+  generatePageNumbers(totalPages);
+}
+
+function generatePageNumbers(totalPages) {
+  const container = document.getElementById('pageNumbers');
+  container.innerHTML = '';
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage   = Math.min(totalPages, startPage + 4);
+  if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.className = `px-3 py-1 rounded-lg transition ${
+      i === currentPage
+        ? 'bg-blue-600 text-white'
+        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+    }`;
+    btn.onclick = () => goToPage(i);
+    container.appendChild(btn);
+  }
+}
+
+function goToPage(page) {
+  currentPage = page;
+  renderPOTableWithPagination(allPO);
+}
+
+  async function loadAllPO() {
+    try {
+      const token = localStorage.getItem('authToken');
+
+      // ลบ ?mode=pending ออก เพื่อให้ได้ PO ทั้งหมด
+      const res = await fetch('/api/purchase-order', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+
+      const data = await res.json();
+
+      // === เพิ่ม Debug Code ===
+      console.log('=== RAW API Response ===');
+      console.log('Full Response:', data);
+
+      if (data.data && data.data.length > 0) {
+        console.log('=== First PO Structure ===');
+        console.log(JSON.stringify(data.data[0], null, 2));
+
+        // ตรวจสอบ field ที่เกี่ยวกับผู้สร้าง
+        console.log('=== Creator Fields ===');
+        data.data.forEach((po, idx) => {
+          console.log(`PO ${idx + 1} (${po.poNumber}):`);
+          console.log('- createdBy:', po.createdBy);
+          console.log('- createdByName:', po.createdByName);
+          console.log('- creator:', po.creator);
+          console.log('- user:', po.user);
+          console.log('- All keys:', Object.keys(po));
+        });
+
+        // ตรวจสอบข้อมูลภาษี
+        console.log('=== Tax Data in Items ===');
+        data.data.forEach((po, idx) => {
+          if (po.items && po.items.length > 0) {
+            console.log(`PO ${idx + 1} Items:`);
+            po.items.forEach((item, itemIdx) => {
+              console.log(`  Item ${itemIdx + 1}:`, {
+                name: item.name,
+                taxType: item.taxType,
+                taxRate: item.taxRate
+              });
+            });
+          }
+        });
+      }
+      // === จบ Debug Code ===
+
+      if (!res.ok || !data.success) {
+        customAlert('ไม่สามารถโหลด PO ได้: ' + (data.error || 'Error'));
+        return;
+      }
+
+      allPO = data.data;
+
+      // เพิ่มบรรทัดนี้เพื่อตรวจสอบโครงสร้างข้อมูล PO ที่ได้รับ
+      console.log('PO Data Structure:', allPO[0]);
+
+      renderPOTableWithPagination(allPO);
+    } catch (err) {
+      customAlert('Error: ' + err.message);
+    }
+  }
+
+  // Add helper function for consistent display values
+  function getDisplayValue(value, defaultValue = '-') {
+    if (value === null || value === undefined || value === '') {
+      return defaultValue;
+    }
+    return value;
+  }
+
+  // เพิ่ม helper functions สำหรับแสดงตาราง PO
+  function renderPOTable(poList) {
+    const tbody = document.getElementById('poTable');
+    tbody.innerHTML = '';
+
+    poList.forEach(po => {
+      // เพิ่ม debug เพื่อดูข้อมูลแต่ละ PO
+      console.log('Processing PO:', po);
+
+      const tr = document.createElement('tr');
+      const branchName   = po.branch?.name || po.branch_code || '-';
+      const supplierName = po.supplier?.name || '-';
+      const categoryName = po.categoryGroup?.name || '-';
+
+      // ลองหาชื่อผู้สร้างจากหลายฟิลด์
+      let createdByName = po.createdByName ||
+                         po.createdBy?.name ||
+                         po.createdBy?.fullName ||
+                         po.creator ||
+                         po.userName ||
+                         po.userEmail ||
+                         '';
+
+      // ถ้ายังไม่มีข้อมูล ให้แสดงเป็น "รอข้อมูล..." หรือ email
+      if (!createdByName || createdByName === '-') {
+        createdByName = po.createdByEmail || po.userEmail || 'รอข้อมูล...';
+      }
+
+      console.log(`PO ${po.poNumber} creator:`, {
+        createdByName: po.createdByName,
+        createdBy: po.createdBy,
+        creator: po.creator,
+        final: createdByName
+      });
+
+      const statusText = po.status || 'Pending';
+
+    // คำนวณยอดรวม
+    let totalAmount = 0;
+    if (Array.isArray(po.items) && po.items.length) {
+      po.items.forEach(item => {
+        const baseAmount = item.qty * (item.cost - (item.discount || 0));
+        let itemTotal = baseAmount;
+
+        if (item.taxType === 'แยกภาษี' && item.taxRate) {
+          itemTotal = baseAmount + (baseAmount * (item.taxRate / 100));
+        }
+
+        totalAmount += itemTotal;
+      });
+    } else {
+      totalAmount = po.totalAmount || 0;
+    }
+
+    // กำหนดสีตามสถานะ
+    let statusClass = '';
+    let statusColor = '';
+    if (statusText === 'Pending') {
+      statusClass = 'bg-yellow-100 text-yellow-800';
+      statusColor = 'รออนุมัติ';
+    } else if (statusText === 'Approved') {
+      statusClass = 'bg-green-100 text-green-800';
+      statusColor = 'อนุมัติแล้ว';
+    } else if (statusText === 'Rejected') {
+      statusClass = 'bg-red-100 text-red-800';
+      statusColor = 'ปฏิเสธแล้ว';
+    }
+
+    tr.innerHTML = `
+      <td class="px-2 py-1 border">${po.poNumber || '-'}</td>
+      <td class="px-2 py-1 border">
+        <input type="text" 
+               id="docNumber_${po._id}" 
+               value="${po.documentNumber || ''}" 
+               placeholder="กรอกเลขที่เอกสาร"
+               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400 document-number-input"
+               onblur="updateDocumentNumber('${po._id}', this.value)"
+               onkeypress="if(event.key==='Enter') this.blur()"
+               title="คลิกเพื่อแก้ไขเลขที่เอกสาร - สามารถแก้ไขได้แม้ว่าจะอนุมัติแล้ว">
+      </td>
+      <td class="px-2 py-1 border text-center">${formatDateThai(po.docDate)}</td>
+      <td class="px-2 py-1 border">${branchName}</td>
+      <td class="px-2 py-1 border">${supplierName}</td>
+      <td class="px-2 py-1 border">${categoryName}</td>
+      <td class="px-2 py-1 border">${po.notes || '-'}</td>
+      <td class="px-2 py-1 border">
+        ${totalAmount.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})}
+      </td>
+      <td class="px-2 py-1 border">
+        <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">
+          ${statusColor}
+        </span>
+      </td>
+      <td class="px-2 py-1 border text-xs font-semibold text-blue-600">${createdByName}</td>
+      <td class="px-2 py-1 border">
+        <button class="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                onclick="deletePurchaseOrder('${po._id}')"
+                ${statusText === 'Approved' ? 'disabled' : ''}>
+          ลบ
+        </button>
+      </td>
+      <td class="px-2 py-1 border">
+        <button class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                onclick="downloadPOPDF('${po._id}')">
+          PDF
+        </button>
+      </td>`;
+    tbody.appendChild(tr);
+
+    // แสดงรายการสินค้า
+    if (Array.isArray(po.items) && po.items.length) {
+      const itemRow = document.createElement('tr');
+      itemRow.className = 'bg-gray-50 dark:bg-gray-800';
+      itemRow.innerHTML = `<td colspan="12" class="px-2 py-2">
+        ${createItemTableHtml(po.items)}
+      </td>`;
+      tbody.appendChild(itemRow);
+    }
+  });
+}
+
+// Helper function to create HTML table for PO items
+function createItemTableHtml(items) {
+  if (!items || !items.length) return '<p class="text-gray-500 text-sm">ไม่มีรายการสินค้า</p>';
+
+  let html = `
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-100 dark:bg-gray-700">
+        <tr>
+          <th class="px-2 py-1 text-left">ลำดับ</th>
+          <th class="px-2 py-1 text-left">สินค้า</th>
+          <th class="px-2 py-1 text-left">แบรนด์</th>
+          <th class="px-2 py-1 text-right">จำนวน</th>
+          <th class="px-2 py-1 text-right">ราคา/หน่วย</th>
+          <th class="px-2 py-1 text-right">ส่วนลด</th>
+          <th class="px-2 py-1 text-right">ประเภทภาษี</th>
+          <th class="px-2 py-1 text-right">ภาษี (%)</th>
+          <th class="px-2 py-1 text-right">มูลค่ารวม</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  items.forEach((item, index) => {
+    // คำนวณมูลค่าสินค้าแต่ละรายการ
+    const baseAmount = item.qty * (item.cost - item.discount);
+    let netAmount = baseAmount;
+    let taxAmount = 0;
+
+    // แสดงภาษีเสมอถ้ามีค่า
+    let taxDisplay = '-';
+    if (item.taxRate !== undefined && item.taxRate !== null) {
+      taxDisplay = item.taxRate + '%';
+      // ถ้าไม่มี taxType ให้สันนิษฐานจากค่า taxRate
+      if (!item.taxType && item.taxRate > 0) {
+        item.taxType = 'แยกภาษี'; // default
+      }
+    }
+
+    if (item.taxType === 'แยกภาษี') {
+      taxAmount = baseAmount * (item.taxRate / 100);
+    } else if (item.taxType === 'รวมภาษี') {
+      netAmount = baseAmount / (1 + (item.taxRate / 100));
+      taxAmount = baseAmount - netAmount;
+    }
+
+    const totalWithTax = netAmount + taxAmount;
+
+    html += `
+      <tr class="border-b border-gray-200 dark:border-gray-700">
+        <td class="px-2 py-1">${index + 1}</td>
+        <td class="px-2 py-1">${getDisplayValue(item.name)}</td>
+        <td class="px-2 py-1">${getDisplayValue(item.brand)}</td>
+        <td class="px-2 py-1 text-right">${item.qty}</td>
+        <td class="px-2 py-1 text-right">${formatNumber(item.cost)}</td>
+        <td class="px-2 py-1 text-right">${formatNumber(item.discount)}</td>
+        <td class="px-2 py-1 text-right">${getDisplayValue(item.taxType, 'ไม่มีภาษี')}</td>
+        <td class="px-2 py-1 text-right">${taxDisplay}</td>
+        <td class="px-2 py-1 text-right">${formatNumber(totalWithTax)}</td>
+      </tr>
+    `;
+  });
+
+  // คำนวณยอดรวมทั้งสิ้น
+  const totalAmount = items.reduce((sum, item) => {
+    const baseAmount = item.qty * (item.cost - item.discount);
+    let netAmount = baseAmount;
+    let taxAmount = 0;
+
+    if (item.taxType === 'แยกภาษี') {
+      taxAmount = baseAmount * (item.taxRate / 100);
+    } else if (item.taxType === 'รวมภาษี') {
+      netAmount = baseAmount / (1 + (item.taxRate / 100));
+      taxAmount = baseAmount - netAmount;
+    }
+
+    return sum + netAmount + taxAmount;
+  }, 0);
+
+  html += `
+      </tbody>
+      <tfoot>
+        <tr class="bg-gray-50 dark:bg-gray-800 font-medium">
+          <td colspan="8" class="px-2 py-1 text-right">ยอดรวมทั้งสิ้น:</td>
+          <td class="px-2 py-1 text-right">${formatNumber(totalAmount)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  return html;
+}
+
+// 1) createPO() - ไม่ส่ง taxType ระดับ PO-level (แต่ละ item มี taxType ตามที่ผู้ใช้เลือก)
+async function createPO(e) {
+  e.preventDefault();
+
+  const branch_code     = document.getElementById('selectBranchForPO').value;
+  const supplierId      = document.getElementById('selectSupplierForPO').value;
+  const categoryGroup   = document.getElementById('categoryGroup').value || null;
+  const docDate         = document.getElementById('docDate').value;
+  const notes           = document.getElementById('orderNotes').value.trim();
+
+  // ตรวจสอบว่า documentNumber element มีอยู่หรือไม่
+  const documentNumberElement = document.getElementById('documentNumber');
+  const documentNumber  = documentNumberElement ? documentNumberElement.value.trim() : '';
+
+  if (!branch_code)    return customAlert('กรุณาเลือกสาขา');
+  if (!supplierId)     return customAlert('กรุณาเลือกซัพพลายเออร์');
+  if (poItemsArr.length < 1) return customAlert('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ');
+
+  // ตรวจสอบว่าทุกรายการมีการเลือกประเภทภาษีแล้ว
+  for (let i = 0; i < poItemsArr.length; i++) {
+    const item = poItemsArr[i];
+    if (!item.taxType || item.taxType === '') {
+      return customAlert(`กรุณาเลือกประเภทภาษีสำหรับรายการที่ ${i + 1} (${item.name || 'ยังไม่ได้เลือกสินค้า'})`);
+    }
+    if (!item.name || item.name === '') {
+      return customAlert(`กรุณาเลือกสินค้าสำหรับรายการที่ ${i + 1}`);
+    }
+  }
+
+  try {
+    // ดึงข้อมูลผู้ใช้งานปัจจุบันจาก /api/users/me (เหมือนกับ loadEmployeeProfile)
+    const token = localStorage.getItem('authToken');
+    let currentUser = null;
+
+    try {
+      const userRes = await fetch('/api/users/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const userResult = await userRes.json();
+
+      if (userRes.ok && userResult.success) {
+        currentUser = userResult.data;
+        console.log('Current user from /api/users/me:', currentUser);
+      }
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+    }
+
+    // เตรียมข้อมูลผู้สร้างจาก API response
+    const creatorData = {
+      userId: currentUser?._id || currentUser?.id || '',
+      name: currentUser?.name || currentUser?.fullName || 'ไม่ระบุผู้สร้าง',
+      email: currentUser?.email || ''
+    };
+
+    console.log('Creator data to be sent:', creatorData); // Debug
+
+    const bodyData = {
+      docDate,
+      branch_code,
+      supplierId,
+      categoryGroup,
+      notes,
+      documentNumber, // เพิ่มเลขที่เอกสาร
+      items: poItemsArr.map(item => ({
+        ...item,
+        // ตรวจสอบให้แน่ใจว่าส่ง taxRate และ taxType
+        taxRate: item.taxRate || 0,
+        taxType: item.taxType || 'ไม่มีภาษี'
+      })),
+      // ส่งข้อมูลผู้สร้างในหลายรูปแบบเพื่อให้ backend เลือกใช้
+      createdBy: creatorData.userId,
+      createdByName: creatorData.name,
+      createdByEmail: creatorData.email,
+      // เพิ่มฟิลด์เสริมเผื่อ backend ใช้ชื่ออื่น
+      creator: creatorData.name,
+      userId: creatorData.userId,
+      userName: creatorData.name,
+      userEmail: creatorData.email
+    };
+
+    console.log('=== Full PO Data being sent ===');
+    console.log(JSON.stringify(bodyData, null, 2));
+
+    const res = await fetch('/api/purchase-order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify(bodyData)
+    });
+
+    const data = await res.json();
+    console.log('Response from create PO:', data); // Debug
+
+    if (!res.ok || !data.success) {
+      customAlert('ไม่สามารถสร้างใบสั่งซื้อได้: ' + (data.error || 'Error'));
+      return;
+    }
+
+    customAlert('สร้างใบสั่งซื้อเรียบร้อย', () => {
+      e.target.reset();
+      document.getElementById('documentNumber').value = ''; // ล้างเลขที่เอกสาร
+      poItemsArr = [];
+      renderPoItemsTable();
+      loadAllPO();
+    });
+  } catch (err) {
+    console.error('Error in createPO:', err);
+    customAlert('เกิดข้อผิดพลาด: ' + err.message);
+  }
+}
+
+// 2) addItemRow() - กำหนด taxType เริ่มต้นเป็นค่าว่างเพื่อรอให้ผู้ใช้เลือก
+function addItemRow() {
+  const newItem = {
+    brand: '',
+    name: '',
+    capacity: '',
+    color: '',
+    qty: 1,
+    cost: 0,
+    discount: 0,
+    taxRate: 7,
+    taxType: '',     // ยังไม่ได้เลือก
+    wh: 'ยังไม่ระบุ',
+    status: 'active'
+  };
+  poItemsArr.push(newItem);
+  renderPoItemsTable();
+}
+
+// 3) renderPoItemsTable() - ใช้ item.taxType ในการคำนวณและแสดงผล
+function renderPoItemsTable() {
+  const tbody = document.getElementById('poItemsTable');
+  tbody.innerHTML = '';
+
+  // ตัวแปรสำหรับคำนวณสรุปยอดรวม
+  let totalSubtotal = 0;     // มูลค่าสินค้ารวม (qty * cost)
+  let totalDiscount = 0;     // ส่วนลดรวม
+  let totalTax = 0;          // ภาษีรวม
+  let grandTotal = 0;        // ยอดรวมสุทธิ
+
+  poItemsArr.forEach((item, index) => {
+    const subtotal = item.qty * item.cost;           // มูลค่าสินค้าก่อนลด
+    const discountAmount = item.qty * item.discount; // ยอดส่วนลด
+    const base = subtotal - discountAmount;          // มูลค่าหลังหักส่วนลด
+
+    let net = 0, taxAmount = 0, totalWithTax = 0;
+    if (item.taxType === 'ไม่มีภาษี') {
+      net = base;
+      taxAmount = 0;
+      totalWithTax = base;
+    } else if (item.taxType === 'แยกภาษี') {
+      net = base;
+      taxAmount = base * (item.taxRate / 100);
+      totalWithTax = net + taxAmount;
+    } else if (item.taxType === 'รวมภาษี') {
+      totalWithTax = base;
+      net = totalWithTax / (1 + item.taxRate / 100);
+      taxAmount = totalWithTax - net;
+    } else {
+      // ยังไม่ได้เลือก taxType: ใช้ค่าเหมือน "ไม่มีภาษี"
+      net = base;
+      taxAmount = 0;
+      totalWithTax = base;
+    }
+
+    // เพิ่มเข้าสรุปยอดรวม
+    totalSubtotal += subtotal;
+    totalDiscount += discountAmount;
+    totalTax += taxAmount;
+    grandTotal += totalWithTax;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <!-- Brand -->
+      <td class="px-2 py-1 border">
+        <select class="inp-po-item w-full rounded border bg-white dark:bg-gray-700" data-index="${index}" data-field="brand">
+          <option value="">-- เลือกแบรนด์ --</option>
+          ${allBrands.map(b => `<option value="${b}" ${item.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
+        </select>
+      </td>
+      <!-- Name -->
+      <td class="px-2 py-1 border">
+        <select class="inp-po-item w-full rounded border bg-white dark:bg-gray-700" data-index="${index}" data-field="name">
+          <option value="">-- เลือกสินค้า --</option>
+          ${sortProductsByModel(allProducts.filter(p => p.brand === item.brand))
+            .map(p => `<option value="${p.name}" ${item.name === p.name ? 'selected' : ''}>${p.name}</option>`).join('')}
+        </select>
+      </td>
+      <!-- Qty -->
+      <td class="px-2 py-1 border">
+        <input type="number" class="inp-po-item w-full rounded border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" data-index="${index}" data-field="qty" min="1" value="${item.qty}" />
+      </td>
+      <!-- Cost -->
+      <td class="px-2 py-1 border">
+        <input type="number" class="inp-po-item w-full rounded border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" data-index="${index}" data-field="cost" step="0.01" value="${item.cost}" />
+      </td>
+      <!-- Discount -->
+      <td class="px-2 py-1 border">
+        <input type="number" class="inp-po-item w-full rounded border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" data-index="${index}" data-field="discount" step="0.01" value="${item.discount}" />
+      </td>
+      <!-- Tax Rate -->
+      <td class="px-2 py-1 border">
+        <input type="number" class="inp-po-item w-full rounded border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100" data-index="${index}" data-field="taxRate" step="0.01" value="${item.taxRate || 7}" />
+      </td>
+      <!-- Tax Type -->
+      <td class="px-2 py-1 border">
+        <select class="inp-po-item w-full rounded border bg-white dark:bg-gray-700" data-index="${index}" data-field="taxType">
+          <option value="">-- เลือกประเภทภาษี --</option>
+          <option value="แยกภาษี" ${item.taxType === 'แยกภาษี' ? 'selected' : ''}>แยกภาษี</option>
+          <option value="รวมภาษี" ${item.taxType === 'รวมภาษี' ? 'selected' : ''}>รวมภาษี</option>
+          <option value="ไม่มีภาษี" ${item.taxType === 'ไม่มีภาษี' ? 'selected' : ''}>ไม่มีภาษี</option>
+        </select>
+      </td>
+      <!-- Net Amount -->
+      <td class="px-2 py-1 border">${formatNumber(net)}</td>
+      <!-- Tax Amount -->
+      <td class="px-2 py-1 border">${formatNumber(taxAmount)}</td>
+      <!-- Total With Tax -->
+      <td class="px-2 py-1 border">${formatNumber(totalWithTax)}</td>
+      <!-- Remove Button -->
+      <td class="px-2 py-1 border">
+        <button class="btn-remove-po-item px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition" data-index="${index}">
+          ลบ
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // อัปเดตสรุปยอดรวม
+  updatePOSummary(totalSubtotal, totalDiscount, totalTax, grandTotal);
+  attachPoItemsEvents();
+}
+
+// ฟังก์ชันอัปเดตสรุปยอดรวม
+function updatePOSummary(subtotal, discount, tax, total) {
+  document.getElementById('summarySubtotal').textContent = formatNumber(subtotal);
+  document.getElementById('summaryDiscount').textContent = formatNumber(discount);
+  document.getElementById('summaryTax').textContent = formatNumber(tax);
+  document.getElementById('summaryTotal').textContent = formatNumber(total);
+}
+
+// 4) attachPoItemsEvents() - ผูก event สำหรับ taxType และ input อื่นๆ
+function attachPoItemsEvents() {
+  // (1) เมื่อเปลี่ยนแบรนด์
+  document.querySelectorAll(".inp-po-item[data-field='brand']").forEach(select => {
+    select.addEventListener('change', e => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      poItemsArr[idx].brand = e.target.value;
+      poItemsArr[idx].name = ''; // รีเซ็ตชื่อสินค้า
+      renderPoItemsTable();
+    });
+  });
+  // (2) เมื่อเปลี่ยนชื่อสินค้า
+  document.querySelectorAll(".inp-po-item[data-field='name']").forEach(select => {
+    select.addEventListener('change', e => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      poItemsArr[idx].name = e.target.value;
+      const prod = allProducts.find(p => p.name === e.target.value);
+      if (prod) {
+        poItemsArr[idx].cost    = prod.cost || 0;
+        poItemsArr[idx].taxRate = prod.taxRate || 7;
+      }
+      renderPoItemsTable();
+    });
+  });
+  // (3) เมื่อเปลี่ยนค่า input อื่นๆ (qty, cost, discount, taxRate)
+  document.querySelectorAll('.inp-po-item').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      const field = e.target.dataset.field;
+      if (['qty', 'cost', 'discount', 'taxRate'].includes(field)) {
+        poItemsArr[idx][field] = parseFloat(e.target.value) || 0;
+        renderPoItemsTable();
+      }
+    });
+  });
+  // (4) เมื่อเปลี่ยนประเภทภาษี (taxType)
+  document.querySelectorAll(".inp-po-item[data-field='taxType']").forEach(select => {
+    select.addEventListener('change', e => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      poItemsArr[idx].taxType = e.target.value;
+      renderPoItemsTable();
+    });
+  });
+  // (5) เมื่อคลิกปุ่มลบแถว
+  document.querySelectorAll('.btn-remove-po-item').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      poItemsArr.splice(idx, 1);
+      renderPoItemsTable();
+    });
+  });
+}
+
+// Add stub functions for deletePurchaseOrder and downloadPOPDF at the end of your script:
+function deletePurchaseOrder(poId) {
+  if (!confirm('ยืนยันการลบ PO รหัสนี้?')) return;
+
+  const token = localStorage.getItem('authToken');
+
+  fetch(`/api/purchase-order/${poId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : ''
+    }
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        customAlert('ลบ PO ไม่สำเร็จ: ' + data.error);
+      } else {
+        customAlert('ลบ PO เรียบร้อย', () => loadAllPO());
+      }
+    })
+    .catch(err => customAlert('Error: ' + err.message));
+}
+
+// ฟังก์ชันอัปเดตเลขที่เอกสาร
+async function updateDocumentNumber(poId, documentNumber) {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    const response = await fetch(`/api/purchase-order/${poId}/document-number`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({ documentNumber: documentNumber.trim() })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      customAlert('ไม่สามารถอัปเดตเลขที่เอกสารได้: ' + (data.error || 'Error'));
+      // รีเซ็ตค่าเดิมถ้าอัปเดตไม่สำเร็จ
+      const inputElement = document.getElementById(`docNumber_${poId}`);
+      if (inputElement && data.originalValue !== undefined) {
+        inputElement.value = data.originalValue;
+      }
+      return;
+    }
+
+    // อัปเดตข้อมูลใน allPO array
+    const poIndex = allPO.findIndex(po => po._id === poId);
+    if (poIndex !== -1) {
+      allPO[poIndex].documentNumber = documentNumber.trim();
+    }
+
+    // แสดงข้อความสำเร็จแบบไม่รบกวน
+    if (documentNumber.trim()) {
+      console.log(`✅ อัปเดตเลขที่เอกสาร PO ${data.data?.poNumber || poId} เป็น "${documentNumber.trim()}" เรียบร้อย`);
+    }
+
+  } catch (error) {
+    console.error('Error updating document number:', error);
+    customAlert('เกิดข้อผิดพลาดในการอัปเดตเลขที่เอกสาร: ' + error.message);
+
+    // รีเซ็ตค่าเดิม
+    const inputElement = document.getElementById(`docNumber_${poId}`);
+    const po = allPO.find(p => p._id === poId);
+    if (inputElement && po) {
+      inputElement.value = po.documentNumber || '';
+    }
+  }
+}
+
+// ฟังก์ชันลบ PO
+async function deletePurchaseOrder(poId) {
+  customConfirm(
+    'คุณแน่ใจหรือว่าต้องการลบใบสั่งซื้อนี้?',
+    async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/purchase-order/${poId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          customAlert('ไม่สามารถลบใบสั่งซื้อได้: ' + (data.error || 'Error'));
+          return;
+        }
+
+        customAlert('ลบใบสั่งซื้อเรียบร้อยแล้ว', () => {
+          loadAllPO(); // โหลดข้อมูลใหม่
+        });
+
+      } catch (error) {
+        console.error('Error deleting PO:', error);
+        customAlert('เกิดข้อผิดพลาดในการลบใบสั่งซื้อ: ' + error.message);
+      }
+    }
+  );
+}
+
+function downloadPOPDF(poId) {
+  const token = localStorage.getItem('authToken');
+
+  if (!token) {
+    customAlert('กรุณาเข้าสู่ระบบก่อนดาวน์โหลด PDF');
+    return;
+  }
+
+  // วิธีที่ 1: ใช้ fetch เพื่อดาวน์โหลดไฟล์ PDF
+  fetch(`/api/purchase-order/pdf/${poId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+      return response.json().then(err => {
+        throw new Error(err.error || `HTTP ${response.status}: ${response.statusText}`);
+      });
+    }
+    return response.blob();
+  })
+  .then(blob => {
+    // สร้าง URL สำหรับไฟล์ PDF
+    const url = window.URL.createObjectURL(blob);
+
+    // สร้าง link สำหรับดาวน์โหลด
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `PO_${poId}.pdf`;
+
+    // เพิ่ม link ไปยัง DOM และคลิก
+    document.body.appendChild(link);
+    link.click();
+
+    // ลบ link และ URL object
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  })
+  .catch(error => {
+    console.error('Error downloading PDF (method 1):', error);
+
+    // วิธีที่ 2: หากวิธีแรกไม่ได้ผล ให้เปิดใน tab ใหม่
+    console.log('Trying alternative method...');
+    const url = `/api/purchase-order/pdf/${poId}?token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
+  });
+}
+
+// เพิ่ม default date ใน DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  loadEmployeeProfile();
+  // …existing init…
+
+  const today        = new Date();
+  const docDateInput = document.getElementById('docDate');
+
+  flatpickr(docDateInput, {
+    dateFormat: 'd/m/Y',      // รูปแบบ วันที่/เดือน/ปี ค.ศ.
+    defaultDate: today,
+    locale: {
+      firstDayOfWeek: 1,
+      weekdays: {
+        shorthand: ['อา','จ','อ','พ','พฤ','ศ','ส'],
+        longhand: ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
+      },
+      months: {
+        shorthand: ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'],
+        longhand: ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                   'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+      }
+    },
+    allowInput: true,
+    altInput: true,
+    altFormat: 'j F Y',       // แสดงเป็น "25 ธันวาคม 2567"
+    onReady: function(selectedDates, dateStr, instance) {
+      instance.altInput.value = formatThaiDate(selectedDates[0] || today);
+    },
+    onChange: function(selectedDates, dateStr, instance) {
+      instance.altInput.value = formatThaiDate(selectedDates[0]);
+    }
+  });
+
+  function formatThaiDate(date) {
+    if (!date) return '';
+    const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                    'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    const d     = new Date(date);
+    const day   = d.getDate();
+    const month = months[d.getMonth()];
+    const year  = d.getFullYear() + 543; // พุทธศักราช
+    return `${day} ${month} ${year}`;
+  }
+
+  // ปรับปรุงฟังก์ชัน downloadPOPDF ให้ใช้ Fetch API
+  function downloadPOPDF(poId) {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      customAlert('กรุณาเข้าสู่ระบบก่อนดาวน์โหลด PDF');
+      return;
+    }
+
+    fetch(`/api/purchase-order/pdf/${poId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw new Error(data.error || 'ไม่สามารถดาวน์โหลด PDF ได้');
+        });
+      }
+      return response.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PO_${poId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    })
+    .catch(error => {
+      console.error('Error downloading PDF:', error);
+      customAlert(error.message || 'เกิดข้อผิดพลาดในการดาวน์โหลด PDF');
+    });
+  }
+});
+
+// ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+window.addEventListener('beforeunload', () => {
+  if (lottieAnimation) {
+    lottieAnimation.destroy();
+    lottieAnimation = null;
+  }
+});
+</script>
+</body>
+</html>

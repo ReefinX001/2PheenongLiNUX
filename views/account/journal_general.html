@@ -1,0 +1,2221 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สมุดรายวันทั่วไป</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff','
+              100: '#e0f2fe','
+              500: '#0ea5e9','
+              600: '#0284c7','
+            }
+          }
+        },
+      }
+    }
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent {
+      flex: 1;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;'
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+    
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+    
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+    
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+    
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+    }
+    
+    .btn-rounded {
+      border-radius: 30px;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+    
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+    
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+    
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .page-link {
+      min-width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      text-decoration: none;
+      margin: 0 2px;
+    }
+    
+    .dark .page-link {
+      border-color: #4a5568;
+      color: #d1d5db;
+    }
+    
+    .page-link:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .page-link:hover {
+      background-color: #374151;
+    }
+    
+    .page-link.active {
+      background-color: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+    
+    .dark .account-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .account-list li {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    
+    .dark .account-list li {
+      border-bottom-color: #4a5568;
+    }
+    
+    .account-list li:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .account-list li:hover {
+      background-color: #374151;
+    }
+    
+    .account-list li.active {
+      background-color: #f0f9ff;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .dark .account-list li.active {
+      background-color: #1a4971;
+      color: #38bdf8;
+    }
+    
+    .date-range {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dark .date-range {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .date-range:focus {
+      border-color: #0ea5e9;
+      outline: none;
+    }
+    
+    .negative-value {
+      color: #ef4444;
+    }
+    
+    .dark .negative-value {
+      color: #f87171;
+    }
+    
+    .5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
+    }
+    
+    .dark .4);
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .flex-none {
+      flex: none;
+    }
+    
+    .01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .3;
+      transition: 0s;
+    }
+    
+    /* Dropdown menu styling */
+    .5rem 1rem; /* Adjust as needed */
+      cursor: pointer;
+      align-items: center; /* Vertically align icon and text */
+    }
+    
+    /* First Level Dropdown Panel */
+    .1); /* From Tailwind: shadow-lg */
+      border-radius: 0.375rem; /* From Tailwind: rounded-lg */
+      min-width: 220px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 40; /* Ensure dropdown is above other content but below higher-level modals if any */
+      padding: 0.5rem; /* From Tailwind: p-2 */
+    }
+    
+    .dark .5rem; /* Adjust to align with parent li, considering parent ul padding */
+      left: 100%;
+      /* Inherit background, shadow, radius, min-width, padding from first-level or define specifically */
+      background: white; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      border-radius: 0.375rem;
+      min-width: 220px; /* Or adjust as needed */
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(10px); /* Fly-out from right */
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 45; /* Higher than first-level dropdown */
+      padding: 0.5rem;
+    }
+    
+    .dark .5rem 1rem; /* Tailwind: px-4 py-2 */
+      color: #374151; /* Tailwind: text-gray-700 */
+      text-decoration: none;
+      border-radius: 0.25rem; /* Tailwind: rounded-md */
+      white-space: nowrap; /* Prevent text wrapping in menu items */
+    }
+    
+    .dark .dark .2s, padding-left 0.2s;
+      border-left: 3px solid transparent;
+      margin-bottom: 2px; /* Spacing between items */
+    }
+    
+    .25rem; */ /* Original style, can be kept or removed */
+    }
+    
+    /* User badge */
+    .1);
+      border-radius: 30px;
+    }
+    
+    .dark .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .expense-voucher {
+      margin-left: 20px;
+      position: relative;
+    }
+    
+    .expense-voucher::before {
+      content: '';'
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background-color: #cbd5e0;
+    }
+    
+    .dark .expense-voucher::before {
+      background-color: #4a5568;
+    }
+    
+    /* Income Statement specific styles */
+    .fin-statement-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .fin-statement-table td {
+      padding: 10px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .fin-statement-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .fin-statement-table .item-title {
+      font-weight: 500;
+    }
+    
+    .fin-statement-table .bold {
+      font-weight: 600;
+    }
+    
+    .fin-statement-table .section-header {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    
+    .dark .fin-statement-table .section-header {
+      color: #f9fafb;
+    }
+    
+    .fin-statement-table .section-total {
+      font-weight: 600;
+      color: #1e40af;
+      background-color: #f0f9ff;
+    }
+    
+    .dark .fin-statement-table .section-total {
+      color: #93c5fd;
+      background-color: #1e3a8a;
+    }
+    
+    .fin-statement-table .grand-total {
+      font-weight: 700;
+      color: #0284c7;
+      background-color: #e0f2fe;
+      font-size: 1.05rem;
+    }
+    
+    .dark .fin-statement-table .grand-total {
+      color: #38bdf8;
+      background-color: #075985;
+    }
+    
+    .fin-statement-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .fin-statement-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .overview-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      background-color: white;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .dark .overview-card {
+      background-color: #1e293b;
+    }
+    
+    .overview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .metric-label {
+      color: #9ca3af;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    
+    .dark .metric-value {
+      color: #f9fafb;
+    }
+    
+    .trend-up {
+      color: #10b981;
+    }
+    
+    .trend-down {
+      color: #ef4444;
+    }
+    
+    .dark .trend-up {
+      color: #34d399;
+    }
+    
+    .dark .trend-down {
+      color: #f87171;
+    }
+    
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+    
+    .view-switcher {
+      display: flex;
+      padding: 0.25rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-switcher {
+      background-color: #374151;
+    }
+    
+    .view-option {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .view-option.active {
+      background-color: white;
+      color: #0ea5e9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .view-option.active {
+      background-color: #1f2937;
+      color: #38bdf8;
+    }
+    
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      background-color: white;
+      color: #374151;
+      transition: all 0.2s;
+    }
+    
+    .dark .action-button {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .action-button:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+    
+    .dark .action-button:hover {
+      background-color: #374151;
+      border-color: #6b7280;
+    }
+    
+    .period-selector {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      background-color: white;
+      font-size: 0.875rem;
+      color: #374151;
+      outline: none;
+    }
+    
+    .dark .period-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Dashboard Card Styles */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .dark .dashboard-card {
+      background-color: #1e293b;
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-title {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-title {
+      color: #9ca3af;
+    }
+    
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-value {
+      color: #f9fafb;
+    }
+    
+    .comparison-value {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .comparison-up {
+      color: #10b981;
+    }
+    
+    .comparison-down {
+      color: #ef4444;
+    }
+    
+    .dark .comparison-up {
+      color: #34d399;
+    }
+    
+    .dark .comparison-down {
+      color: #f87171;
+    }
+    
+    /* Menu bar styles */
+    .5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .dark .75rem 1.25rem;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .dark .active {
+      border-bottom-color: #0ea5e9;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .month-selector {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: white;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    
+    .dark .month-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Display toggle */
+    .display-toggle {
+      display: flex;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.25rem;
+    }
+    
+    .dark .display-toggle {
+      background-color: #334155;
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .toggle-btn.active {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      color: #0ea5e9;
+    }
+    
+    .dark .toggle-btn.active {
+      background-color: #1f2937;
+    }
+    
+    /* Financial table */
+    .view-container {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-container {
+      background-color: #1e293b;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .financial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .financial-table th {
+      background-color: #f8f9fa;
+      color: #6b7280;
+      font-weight: 500;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table th {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table td {
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table .section-header {
+      font-weight: 600;
+      background-color: #f3f4f6;
+      color: #111827;
+      padding: 0.75rem 1rem;
+    }
+    
+    .dark .financial-table .section-header {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+    
+    .financial-table .subsection-header {
+      font-weight: 500;
+      color: #4b5563;
+      padding: 0.75rem 1rem;
+      background-color: #f9fafb;
+    }
+    
+    .dark .financial-table .subsection-header {
+      background-color: #1f2937;
+      color: #e5e7eb;
+    }
+    
+    .financial-table .amount {
+      text-align: right;
+      position: relative;
+    }
+    
+    .financial-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .financial-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .financial-table .total-row {
+      background-color: #e0f2fe;
+      font-weight: 600;
+    }
+    
+    .dark .financial-table .total-row {
+      background-color: #0c4a6e;
+    }
+    
+    .comparison-value {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .financial-table {
+        font-size: 0.875rem;
+      }
+      
+      .card-value {
+        font-size: 1.25rem;
+      }
+      
+      .view-container {
+        padding: 1rem;
+      }
+    }
+    
+    @media print {
+      .display-toggle, .dashboard-cards {
+        display: none;
+      }
+      
+      .view-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      body {
+        font-size: 12pt;
+      }
+    }
+    
+    /* Thai Calendar Styles */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+    }
+    
+    .dark .date-picker-input {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .thai-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      width: 280px;
+      display: none;
+    }
+    
+    .dark .thai-calendar {
+      background-color: #1e293b;
+      border-color: #4b5563;
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .month-year {
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #6b7280;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .dark .nav-btn {
+      color: #9ca3af;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+    }
+    
+    .day-name {
+      text-align: center;
+      font-weight: 500;
+      color: #6b7280;
+      font-size: 0.85rem;
+      padding: 4px 0;
+    }
+    
+    .dark .day-name {
+      color: #9ca3af;
+    }
+    
+    .calendar-dates {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .date-cell {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin: 1px;
+    }
+    
+    .date-cell:hover:not(.disabled) {
+      background-color: #f3f4f6;
+      border-radius: 50%;
+    }
+    
+    .dark .date-cell:hover:not(.disabled) {
+      background-color: #374151;
+    }
+    
+    .date-cell.disabled {
+      color: #d1d5db;
+      cursor: default;
+      opacity: 0.4;
+    }
+    
+    .dark .date-cell.disabled {
+      color: #6b7280;
+    }
+    
+    .date-cell.selected {
+      background-color: #0ea5e9;
+      color: white;
+      border-radius: 50%;
+    }
+    
+    .date-cell.today {
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      font-weight: 500;
+    }
+    
+    .dark .date-cell.today {
+      border-color: #38bdf8;
+    }
+  </style>
+  
+<!-- Template สำหรับเมนู -->
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+  <!-- Account Menu Styles -->
+  <link rel="stylesheet" href="/css/account-menu.css">
+</head>
+
+<body class="bg-white dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Spinner -->
+<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="loader"></div>
+</div>
+  <div id="mainContent" class="container mx-auto px-4 py-6">
+    <!-- Navbar -->
+    <!-- Account System Navbar Template -->
+<div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0">
+  <div class="flex-1 flex items-center space-x-6">
+    <img src="/uploads/Logo2.png"
+         alt="Logo"
+         class="rounded-full shadow-lg"
+         style="width: 40px; height: 40px;" />
+    <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี</span>
+    <!-- Menu Container -->
+    <div id="mainMenuContainer" class="ml-auto"></div>
+  </div>
+  <div class="flex-none flex items-center space-x-2">
+    <!-- User Profile Section -->
+    <div class="flex items-center space-x-3 mr-4">
+      <img id="employeePhoto"
+           alt="Profile"
+           class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600"
+           src="/img/default-avatar.svg">
+      <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+    </div>
+
+    <!-- Dark Mode Toggle -->
+    <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+      <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+      <span id="darkModeLabel">Dark Mode</span>
+    </button>
+
+    <!-- Logout Button -->
+    <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+      <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- Breadcrumb and Page Controls -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center my-6">
+      <div class="breadcrumbs text-sm mb-4 md:mb-0">
+        <ol class="flex items-center space-x-2">
+          <li class="breadcrumb-item"><a href="/dashboard">หน้าหลัก</a></li>
+          <li class="breadcrumb-item"><span class="text-gray-500 dark:text-gray-400">/</span></li>
+          <li class="breadcrumb-item"><a href="/account">บัญชี</a></li>
+          <li class="breadcrumb-item"><span class="text-gray-500 dark:text-gray-400">/</span></li>
+          <li class="breadcrumb-item active">สมุดรายวันทั่วไป</li>
+        </ol>
+      </div>
+      
+      <div class="flex flex-wrap gap-3">
+        <button id="btnPrint" class="action-button">
+          <i class="bi bi-printer"></i> พิมพ์รายงาน
+        </button>
+        <button id="btnExportExcel" class="action-button">
+          <i class="bi bi-file-earmark-excel"></i> ส่งออก Excel
+        </button>
+        <button id="btnExportPDF" class="action-button">
+          <i class="bi bi-file-earmark-pdf"></i> ส่งออก PDF
+        </button>
+        <button id="btnNewEntry" class="btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center gap-2">
+          <i class="bi bi-plus-circle"></i> สร้างบันทึกบัญชีใหม่
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+          <i class="bi bi-journal-text mr-2"></i> สมุดรายวันทั่วไป
+        </h2>
+        
+        <!-- Date Range Filter -->
+        <div class="flex items-center gap-3">
+          <div class="date-picker-container">
+            <div id="dateFromTrigger" class="date-picker-input" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-controls="calendarDateFrom">
+              <i class="bi bi-calendar3 text-blue-500"></i>
+              <span id="dateFromValue">01/09/2566</span>
+            </div>
+            <input type="hidden" id="dateFrom" name="dateFrom" value="2023-09-01">
+            
+            <div class="thai-calendar" id="calendarDateFrom" style="display: none;" role="dialog" aria-modal="true" aria-label="วันที่เริ่มต้น">
+              <div class="calendar-header flex justify-between items-center mb-4">
+                <button type="button" class="nav-btn prev-month" aria-label="เดือนก่อนหน้า">
+                  <i class="bi bi-chevron-left text-xl"></i>
+                </button>
+                <div class="month-year font-medium text-lg">
+                  <span class="month-name">กันยายน</span>
+                  <span class="year-value ml-2">2566</span>
+                </div>
+                <button type="button" class="nav-btn next-month" aria-label="เดือนถัดไป">
+                  <i class="bi bi-chevron-right text-xl"></i>
+                </button>
+              </div>
+              <div class="calendar-days grid grid-cols-7 gap-2 mb-2">
+                <div class="day-name">อา</div>
+                <div class="day-name">จ</div>
+                <div class="day-name">อ</div>
+                <div class="day-name">พ</div>
+                <div class="day-name">พฤ</div>
+                <div class="day-name">ศ</div>
+                <div class="day-name">ส</div>
+              </div>
+              <div class="calendar-dates grid grid-cols-7 gap-2">
+                <!-- Calendar dates will be populated by JavaScript -->
+              </div>
+              <div class="date-actions flex justify-end mt-4">
+                <button type="button" class="date-action-btn btn-today bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm">
+                  วันนี้
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <span class="text-gray-500">ถึง</span>
+          
+          <div class="date-picker-container">
+            <div id="dateToTrigger" class="date-picker-input" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-controls="calendarDateTo">
+              <i class="bi bi-calendar3 text-blue-500"></i>
+              <span id="dateToValue">30/09/2566</span>
+            </div>
+            <input type="hidden" id="dateTo" name="dateTo" value="2023-09-30">
+            
+            <div class="thai-calendar" id="calendarDateTo" style="display: none;" role="dialog" aria-modal="true" aria-label="วันที่สิ้นสุด">
+              <div class="calendar-header flex justify-between items-center mb-4">
+                <button type="button" class="nav-btn prev-month" aria-label="เดือนก่อนหน้า">
+                  <i class="bi bi-chevron-left text-xl"></i>
+                </button>
+                <div class="month-year font-medium text-lg">
+                  <span class="month-name">กันยายน</span>
+                  <span class="year-value ml-2">2566</span>
+                </div>
+                <button type="button" class="nav-btn next-month" aria-label="เดือนถัดไป">
+                  <i class="bi bi-chevron-right text-xl"></i>
+                </button>
+              </div>
+              <div class="calendar-days grid grid-cols-7 gap-2 mb-2">
+                <div class="day-name">อา</div>
+                <div class="day-name">จ</div>
+                <div class="day-name">อ</div>
+                <div class="day-name">พ</div>
+                <div class="day-name">พฤ</div>
+                <div class="day-name">ศ</div>
+                <div class="day-name">ส</div>
+              </div>
+              <div class="calendar-dates grid grid-cols-7 gap-2">
+                <!-- Calendar dates will be populated by JavaScript -->
+              </div>
+              <div class="date-actions flex justify-end mt-4">
+                <button type="button" class="date-action-btn btn-today bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm">
+                  วันนี้
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <button id="btnFilter" class="action-button bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+            <i class="bi bi-funnel"></i> กรอง
+          </button>
+        </div>
+      </div>
+      
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="relative w-full md:w-96 mb-4 md:mb-0">
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="ค้นหาเลขที่รายการ, รายละเอียด..." 
+            class="form-control pl-10 w-full"
+          />
+          <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+        </div>
+        
+        <div class="flex items-center gap-4">
+          <div class="flex items-center">
+            <label for="entriesPerPage" class="mr-2 text-sm text-gray-600 dark:text-gray-400">แสดง</label>
+            <select id="entriesPerPage" class="dropdown-select">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">รายการ</span>
+          </div>
+          
+          <div class="flex items-center">
+            <label for="sortOrder" class="mr-2 text-sm text-gray-600 dark:text-gray-400">เรียงตาม</label>
+            <select id="sortOrder" class="dropdown-select">
+              <option value="date_desc">วันที่ล่าสุด</option>
+              <option value="date_asc">วันที่เก่าสุด</option>
+              <option value="amount_desc">ยอดเงินสูงสุด</option>
+              <option value="amount_asc">ยอดเงินต่ำสุด</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Journal Entries Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6 overflow-x-auto">
+      <table id="journalEntriesTable" class="table min-w-full">
+        <thead>
+          <tr>
+            <th class="w-24">วันที่</th>
+            <th class="w-36">เลขที่รายวัน</th>
+            <th>คำอธิบาย</th>
+            <th class="w-36 text-right">เดบิต (฿)</th>
+            <th class="w-36 text-right">เครดิต (฿)</th>
+            <th class="w-24 text-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Sample data - will be populated by JavaScript -->
+          <tr>
+            <td>01/09/2566</td>
+            <td>JV-2506-001</td>
+            <td>
+              <div class="font-medium">บันทึกค่าใช้จ่ายประจำเดือน</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">101-101 เงินสดในมือ</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">512-101 ค่าเช่าสำนักงาน</div>
+            </td>
+            <td class="text-right">15,000.00</td>
+            <td class="text-right">15,000.00</td>
+            <td class="text-center">
+              <div class="flex items-center justify-center space-x-2">
+                <button class="text-blue-500 hover:text-blue-700 btn-view" data-id="JV-660901-001">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="text-green-500 hover:text-green-700 btn-edit" data-id="JV-660901-001">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>05/09/2566</td>
+            <td>JV-2506-002</td>
+            <td>
+              <div class="font-medium">ตั้งเจ้าหนี้ค่าสาธารณูปโภค</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">511-103 ค่าน้ำประปา</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">511-104 ค่าไฟฟ้า</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">201-103 เจ้าหนี้ - ค่าสาธารณูปโภค</div>
+            </td>
+            <td class="text-right">5,630.00</td>
+            <td class="text-right">5,630.00</td>
+            <td class="text-center">
+              <div class="flex items-center justify-center space-x-2">
+                <button class="text-blue-500 hover:text-blue-700 btn-view" data-id="JV-660905-002">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="text-green-500 hover:text-green-700 btn-edit" data-id="JV-660905-002">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>10/09/2566</td>
+            <td>JV-2506-003</td>
+            <td>
+              <div class="font-medium">บันทึกค่าเสื่อมราคา</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">513-201 ค่าเสื่อมราคา - อุปกรณ์สำนักงาน</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">122-201 ค่าเสื่อมราคาสะสม - อุปกรณ์สำนักงาน</div>
+            </td>
+            <td class="text-right">8,333.33</td>
+            <td class="text-right">8,333.33</td>
+            <td class="text-center">
+              <div class="flex items-center justify-center space-x-2">
+                <button class="text-blue-500 hover:text-blue-700 btn-view" data-id="JV-660910-003">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="text-green-500 hover:text-green-700 btn-edit" data-id="JV-660910-003">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>15/09/2566</td>
+            <td>JV-2506-004</td>
+            <td>
+              <div class="font-medium">บันทึกรายได้ค้างรับ</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">113-101 รายได้ค้างรับ</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">401-101 รายได้จากการขาย</div>
+            </td>
+            <td class="text-right">25,000.00</td>
+            <td class="text-right">25,000.00</td>
+            <td class="text-center">
+              <div class="flex items-center justify-center space-x-2">
+                <button class="text-blue-500 hover:text-blue-700 btn-view" data-id="JV-660915-004">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="text-green-500 hover:text-green-700 btn-edit" data-id="JV-660915-004">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>20/09/2566</td>
+            <td>JV-2506-005</td>
+            <td>
+              <div class="font-medium">บันทึกค่าใช้จ่ายจ่ายล่วงหน้า</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">114-101 ค่าประกันจ่ายล่วงหน้า</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">101-101 เงินสดในมือ</div>
+            </td>
+            <td class="text-right">12,500.00</td>
+            <td class="text-right">12,500.00</td>
+            <td class="text-center">
+              <div class="flex items-center justify-center space-x-2">
+                <button class="text-blue-500 hover:text-blue-700 btn-view" data-id="JV-660920-005">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="text-green-500 hover:text-green-700 btn-edit" data-id="JV-660920-005">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" class="text-right font-semibold">รวม</td>
+            <td class="text-right font-semibold">66,463.33</td>
+            <td class="text-right font-semibold">66,463.33</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="flex justify-between items-center mb-6">
+      <div class="text-sm text-gray-600 dark:text-gray-400">
+        แสดง 1 ถึง 5 จากทั้งหมด 5 รายการ
+      </div>
+      <div class="flex items-center space-x-1">
+        <a href="#" class="page-link disabled">
+          <i class="bi bi-chevron-double-left"></i>
+        </a>
+        <a href="#" class="page-link disabled">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+        <a href="#" class="page-link active">1</a>
+        <a href="#" class="page-link">2</a>
+        <a href="#" class="page-link">3</a>
+        <a href="#" class="page-link">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+        <a href="#" class="page-link">
+          <i class="bi bi-chevron-double-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  
+ <!-- Modal: สร้างบันทึกบัญชีใหม่ -->
+  <div id="newEntryModal" class="fixed inset-0 z-50 flex items-center justify-center hidden overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="newEntryModalTitle">
+    <!-- Overlay -->
+    <div class="absolute inset-0 bg-black bg-opacity-50 transition-opacity" id="modalOverlay"></div>
+    
+    <!-- Modal Content -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl mx-4 relative z-10 transform transition-transform">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 p-4 md:p-6">
+        <h3 id="newEntryModalTitle" class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+          <i class="bi bi-journal-plus mr-2" aria-hidden="true"></i>สร้างบันทึกบัญชีใหม่ <!-- i18n: "Create New Journal Entry" -->
+        </h3>
+               <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none" id="closeModal" aria-label="Close modal"> <!-- i18n: aria-label="ปิดโมดัล" -->
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      
+      <!-- Modal Body -->
+      <div class="p-4 md:p-6">
+        <form id="journalEntryForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label for="documentNo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เลขที่เอกสาร</label> <!-- i18n: "Document No." -->
+              <input type="text" id="documentNo" name="documentNo" value="JV-2506-006" class="form-control bg-gray-100 dark:bg-gray-700 cursor-not-allowed" readonly>
+            </div>
+            <div>
+              <label for="entryDateTrigger" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันที่</label> <!-- i18n: "Date" -->
+              <!-- Note: The date picker needs JavaScript for functionality and full accessibility. -->
+              <!-- The input itself is visually represented by entryDateTrigger and its value by entryDateValue. -->
+              <!-- A hidden input could hold the actual machine-readable date value. -->
+              <div class="date-picker-container w-full relative">
+                <div id="entryDateTrigger" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-controls="calendarEntryDate" class="date-picker-input w-full form-control flex items-center justify-between cursor-pointer">
+                  <span id="entryDateValue">25/09/2566</span>
+                  <i class="bi bi-calendar3 ml-2" aria-hidden="true"></i>
+                </div>
+                <input type="hidden" id="entryDate" name="entryDate" value="2023-09-25">
+
+                <div class="thai-calendar absolute top-full left-0 mt-1 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-50 w-auto" id="calendarEntryDate" style="display: none;" role="dialog" aria-modal="true" aria-label="Date picker">
+                  <div class="calendar-header flex justify-between items-center mb-4">
+                    <button type="button" class="nav-btn prev-month text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300" aria-label="Previous month">
+                      <i class="bi bi-chevron-left text-xl" aria-hidden="true"></i>
+                    </button>
+                    <div class="month-year font-medium text-lg" aria-live="polite">
+                      <span class="month-name">กันยายน</span>
+                      <span class="year-value ml-2">2566</span>
+                    </div>
+                    <button type="button" class="nav-btn next-month text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300" aria-label="Next month">
+                      <i class="bi bi-chevron-right text-xl" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <div class="calendar-days grid grid-cols-7 gap-2 mb-2">
+                    <div class="day-name text-center text-sm font-medium text-gray-500 dark:text-gray-400" aria-label="Sunday">อา</div>
+                    <div class="day-name text-center text-sm font-medium text-gray-500 dark:text-gray-400" aria-label="Monday">จ</div>
+                    <div class="day-name text-center text-sm font-medium text-gray-500 dark:text-gray-400" aria-label="Tuesday">อ</div>
+                    <div class="day-name text-center text-sm font-medium text-gray-500 dark:text-gray-400" aria-label="Wednesday">พ</div>
+                    <div class="day-name text-center text-sm font-medium text-gray-500 dark:text-gray-400" aria-label="Thursday">พฤ</div>
+                    <div class="day-name text-center text-sm font-medium text-gray-500 dark:text-gray-400" aria-label="Friday">ศ</div>
+                    <div class="day-name text-center text-sm font-medium text-gray-500 dark:text-gray-400" aria-label="Saturday">ส</div>
+                  </div>
+                  <div class="calendar-dates grid grid-cols-7 gap-2">
+                    <!-- Calendar dates will be populated by JavaScript -->
+                  </div>
+                  <div class="date-actions flex justify-end mt-4">
+                    <button type="button" class="date-action-btn btn-today bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm" aria-label="Select today's date">'
+                      วันนี้
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-6">
+            <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">คำอธิบายรายการ</label> <!-- i18n: "Description" -->
+            <input type="text" id="description" name="description" placeholder="ระบุคำอธิบายรายการ" class="form-control"> <!-- i18n: placeholder="Enter description" -->
+          </div>
+          
+          <h4 class="font-medium text-gray-700 dark:text-gray-300 mb-3">รายละเอียดบัญชี</h4> <!-- i18n: "Account Details" -->
+          
+          <div class="overflow-x-auto mb-6">
+            <table class="table w-full" aria-label="Journal Entry Lines"> <!-- i18n: aria-label for table -->
+              <thead>
+                <tr>
+                  <th scope="col" class="w-12 text-center">#</th>
+                  <th scope="col">รหัสบัญชี</th> <!-- i18n: "Account Code" -->
+                  <th scope="col">ชื่อบัญชี</th> <!-- i18n: "Account Name" -->
+                  <th scope="col" class="text-right">เดบิต (฿)</th> <!-- i18n: "Debit". Currency symbol (฿) needs l10n. -->
+                  <th scope="col" class="text-right">เครดิต (฿)</th> <!-- i18n: "Credit". Currency symbol (฿) needs l10n. -->
+                  <th scope="col" class="w-24">จัดการ</th> <!-- i18n: "Actions" -->
+                </tr>
+              </thead>
+              <tbody id="journalLines">
+                <!-- Journal entry lines will be dynamically added/removed by JavaScript. -->
+                <!-- Template for a line: -->
+                <tr class="entry-line">
+                  <td class="text-center">1</td>
+                  <td>
+                    <label for="accountSelector1" class="sr-only">รหัสบัญชี บรรทัดที่ 1</label> <!-- i18n: "Account Code, Line 1" (for screen readers) -->
+                    <select id="accountSelector1" class="form-control account-selector">
+                      <option value="">-- เลือกผังบัญชี --</option> <!-- i18n: "-- Select Chart of Accounts --" -->
+                      <!-- i18n: Option texts like "101-101 เงินสดในมือ" need translation -->
+                      <option value="101-101">101-101 เงินสดในมือ</option>
+                      <option value="101-102">101-102 เงินฝากธนาคาร - กระแสรายวัน</option>
+                      <option value="101-103">101-103 เงินฝากธนาคาร - ออมทรัพย์</option>
+                      <option value="111-101">111-101 ลูกหนี้การค้า</option>
+                      <option value="121-101">121-101 อุปกรณ์สำนักงาน</option>
+                      <option value="201-101">201-101 เจ้าหนี้การค้า</option>
+                      <option value="301-101">301-101 ทุนเรือนหุ้น</option>
+                      <option value="401-101">401-101 รายได้จากการขาย</option>
+                      <option value="511-101">511-101 ค่าเช่า</option>
+                      <option value="511-102">511-102 เงินเดือน</option>
+                      <option value="511-103">511-103 ค่าน้ำประปา</option>
+                      <option value="511-104">511-104 ค่าไฟฟ้า</option>
+                    </select>
+                  </td>
+                  <td>
+                    <label for="accountName1" class="sr-only">ชื่อบัญชี บรรทัดที่ 1</label> <!-- i18n: "Account Name, Line 1" (for screen readers) -->
+                    <input type="text" id="accountName1" class="form-control account-name" placeholder="ชื่อบัญชี" readonly> <!-- i18n: placeholder="Account Name" -->
+                  </td>
+                  <td>
+                    <label for="debitAmount1" class="sr-only">เดบิต บรรทัดที่ 1</label> <!-- i18n: "Debit, Line 1" (for screen readers) -->
+                    <input type="text" id="debitAmount1" class="form-control text-right debit-amount" placeholder="0.00"> <!-- Number formatting needs l10n -->
+                  </td>
+                  <td>
+                    <label for="creditAmount1" class="sr-only">เครดิต บรรทัดที่ 1</label> <!-- i18n: "Credit, Line 1" (for screen readers) -->
+                    <input type="text" id="creditAmount1" class="form-control text-right credit-amount" placeholder="0.00"> <!-- Number formatting needs l10n -->
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="text-red-500 hover:text-red-700 btn-remove-line" aria-label="Remove line 1"> <!-- i18n: aria-label="ลบรายการที่ 1". JS should update the number. -->
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="entry-line">
+                  <td class="text-center">2</td>
+                  <td>
+                    <label for="accountSelector2" class="sr-only">รหัสบัญชี บรรทัดที่ 2</label>
+                    <select id="accountSelector2" class="form-control account-selector">
+                      <option value="">-- เลือกผังบัญชี --</option>
+                      <option value="101-101">101-101 เงินสดในมือ</option>
+                      <option value="101-102">101-102 เงินฝากธนาคาร - กระแสรายวัน</option>
+                      <option value="101-103">101-103 เงินฝากธนาคาร - ออมทรัพย์</option>
+                      <option value="111-101">111-101 ลูกหนี้การค้า</option>
+                      <option value="121-101">121-101 อุปกรณ์สำนักงาน</option>
+                      <option value="201-101">201-101 เจ้าหนี้การค้า</option>
+                      <option value="301-101">301-101 ทุนเรือนหุ้น</option>
+                      <option value="401-101">401-101 รายได้จากการขาย</option>
+                      <option value="511-101">511-101 ค่าเช่า</option>
+                      <option value="511-102">511-102 เงินเดือน</option>
+                      <option value="511-103">511-103 ค่าน้ำประปา</option>
+                      <option value="511-104">511-104 ค่าไฟฟ้า</option>
+                    </select>
+                  </td>
+                  <td>
+                    <label for="accountName2" class="sr-only">ชื่อบัญชี บรรทัดที่ 2</label>
+                    <input type="text" id="accountName2" class="form-control account-name" placeholder="ชื่อบัญชี" readonly>
+                  </td>
+                  <td>
+                    <label for="debitAmount2" class="sr-only">เดบิต บรรทัดที่ 2</label>
+                    <input type="text" id="debitAmount2" class="form-control text-right debit-amount" placeholder="0.00">
+                  </td>
+                  <td>
+                    <label for="creditAmount2" class="sr-only">เครดิต บรรทัดที่ 2</label>
+                    <input type="text" id="creditAmount2" class="form-control text-right credit-amount" placeholder="0.00">
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="text-red-500 hover:text-red-700 btn-remove-line" aria-label="Remove line 2">
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="text-right font-medium">รวมทั้งสิ้น</td> <!-- i18n: "Total" -->
+                  <td class="text-right font-medium" id="totalDebit" aria-live="polite">0.00</td> <!-- Number formatting l10n -->
+                  <td class="text-right font-medium" id="totalCredit" aria-live="polite">0.00</td> <!-- Number formatting l10n -->
+                  <td></td>
+                </tr>
+                <tr>
+                  <td colspan="3" class="text-right font-medium">ผลต่าง</td> <!-- i18n: "Difference" -->
+                  <td colspan="2" class="text-center font-medium" id="difference" aria-live="polite">0.00</td> <!-- Number formatting l10n -->
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          
+          <div class="flex justify-between items-center mb-6">
+            <button type="button" id="btnAddLine" class="btn bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md flex items-center gap-2">
+              <i class="bi bi-plus-circle" aria-hidden="true"></i> เพิ่มรายการ <!-- i18n: "Add Line" -->
+            </button>
+            
+            <div class="text-sm text-red-500" id="balanceWarning" role="alert" style="display: none;">
+              <i class="bi bi-exclamation-triangle-fill mr-1" aria-hidden="true"></i> เดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบ <!-- i18n: "Debits and credits do not match. Please check." -->
+            </div>
+          </div>
+          
+          <!-- Modal Footer -->
+          <div class="flex justify-end gap-4">
+            <button type="button" class="btn bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 py-2 px-6 rounded-md" id="cancelEntry">
+              ยกเลิก <!-- i18n: "Cancel" -->
+            </button>
+            <button type="submit" class="btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-md flex items-center gap-2" id="saveEntry">
+              <i class="bi bi-save" aria-hidden="true"></i> บันทึกรายการ <!-- i18n: "Save Entry" -->
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- SCRIPTS -->
+  <script>
+    // Initialize theme preference
+    document.addEventListener('DOMContentLoaded', () => {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      const savedTheme = localStorage.getItem('theme');'
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {'
+        document.documentElement.classList.add('dark');'
+        document.getElementById('themeIcon').classList.remove('bi-moon-stars-fill');'
+        document.getElementById('themeIcon').classList.add('bi-sun-fill');'
+        document.getElementById('darkModeLabel').textContent = 'Light Mode';'
+      } else {
+        document.documentElement.classList.remove('dark');'
+      }
+      
+      // Initialize menu
+      const mainMenuContainer = document.getElementById('mainMenuContainer');'
+      const mainMenuTemplate = document.getElementById('mainMenuTemplate');'
+      mainMenuContainer.innerHTML = mainMenuTemplate.innerHTML;
+      
+      // Initialize event listeners
+      initEventListeners();
+      
+      // Initialize Journal Entry Form
+      initJournalEntryForm();
+    });
+    
+    function initEventListeners() {
+      // Toggle dark mode
+      document.getElementById('btnToggleDark').addEventListener('click', () => {'
+        const isDark = document.documentElement.classList.toggle('dark');'
+        const themeIcon = document.getElementById('themeIcon');'
+        const darkModeLabel = document.getElementById('darkModeLabel');'
+        
+        if (isDark) {
+          themeIcon.classList.remove('bi-moon-stars-fill');'
+          themeIcon.classList.add('bi-sun-fill');'
+          darkModeLabel.textContent = 'Light Mode';'
+          localStorage.setItem('theme', 'dark');'
+        } else {
+          themeIcon.classList.remove('bi-sun-fill');'
+          themeIcon.classList.add('bi-moon-stars-fill');'
+          darkModeLabel.textContent = 'Dark Mode';'
+          localStorage.setItem('theme', 'light');'
+        }
+      });
+
+      // Open modal
+      document.getElementById('btnNewEntry').addEventListener('click', () => {'
+        document.getElementById('newEntryModal').classList.remove('hidden');'
+        document.body.classList.add('overflow-hidden');'
+      });
+
+      // Close modal
+      document.getElementById('closeModal').addEventListener('click', closeModal);'
+      document.getElementById('modalOverlay').addEventListener('click', closeModal);'
+      document.getElementById('cancelEntry').addEventListener('click', closeModal);'
+
+      // Print/Export/Filter
+      document.getElementById('btnPrint').addEventListener('click', printReport);'
+      document.getElementById('btnExportExcel').addEventListener('click', exportToExcel);'
+      document.getElementById('btnExportPDF').addEventListener('click', exportToPDF);'
+      document.getElementById('btnFilter').addEventListener('click', filterJournals);'
+
+      // View/Edit buttons
+      document.querySelectorAll('.btn-view').forEach(btn => {'
+        btn.addEventListener('click', function() {'
+          const id = this.getAttribute('data-id');'
+          viewJournalEntry(id);
+        });
+      });
+
+      document.querySelectorAll('.btn-edit').forEach(btn => {'
+        btn.addEventListener('click', function() {'
+          const id = this.getAttribute('data-id');'
+          editJournalEntry(id);
+        });
+      });
+
+      // Date-picker triggers
+      document.getElementById('dateFromTrigger')'
+        .addEventListener('click', () => toggleCalendar('calendarDateFrom'));'
+      document.getElementById('dateToTrigger')'
+        .addEventListener('click', () => toggleCalendar('calendarDateTo'));'
+      document.getElementById('entryDateTrigger')'
+        .addEventListener('click', () => toggleCalendar('calendarEntryDate'));'
+    }
+    
+    function closeModal() {
+      document.getElementById('newEntryModal').classList.add('hidden');'
+      document.body.classList.remove('overflow-hidden');'
+    }
+    
+    function initJournalEntryForm() {
+      // Add event listener to the form
+      document.getElementById('journalEntryForm').addEventListener('submit', submitJournalEntry);'
+      
+      // Add line button
+      document.getElementById('btnAddLine').addEventListener('click', addEntryLine);'
+      
+      // Account selection change handlers
+      initAccountSelectors();
+      
+      // Amount input handlers
+      initAmountInputs();
+      
+      // Remove line handlers
+      initRemoveLineButtons();
+    }
+    
+    function initAccountSelectors() {
+      document.querySelectorAll('.account-selector').forEach(selector => {'
+        selector.addEventListener('change', function() {'
+          const selectedOption = this.options[this.selectedIndex];
+          const accountName = selectedOption.text.split(' ').slice(1).join(' ');'
+
+          // Find the account name field in the same row
+          const row = this.closest('tr');'
+          const nameField = row.querySelector('.account-name');'
+          nameField.value = accountName;
+        });
+      });
+    }
+    
+    function initAmountInputs() {
+      const debitInputs = document.querySelectorAll('.debit-amount');'
+      const creditInputs = document.querySelectorAll('.credit-amount');'
+      
+      // Format and calculate on debit input
+      debitInputs.forEach(input => {
+        input.addEventListener('input', function() {'
+          formatNumberInput(this);
+          
+          // If debit has value, clear credit in same row
+          const row = this.closest('tr');'
+          const creditInput = row.querySelector('.credit-amount');'
+          if (this.value && this.value !== '0.00') {'
+            creditInput.value = '';'
+          }
+          
+          calculateTotals();
+        });
+      });
+      
+      // Format and calculate on credit input
+      creditInputs.forEach(input => {
+        input.addEventListener('input', function() {'
+          formatNumberInput(this);
+          
+          // If credit has value, clear debit in same row
+          const row = this.closest('tr');'
+          const debitInput = row.querySelector('.debit-amount');'
+          if (this.value && this.value !== '0.00') {'
+            debitInput.value = '';'
+          }
+          
+          calculateTotals();
+        });
+      });
+    }
+    
+    function initRemoveLineButtons() {
+      document.querySelectorAll('.btn-remove-line').forEach(button => {'
+        button.addEventListener('click', function() {'
+          const lineCount = document.querySelectorAll('.entry-line').length;'
+          if (lineCount > 2) {
+            const row = this.closest('tr');'
+            row.remove();
+            renumberLines();
+            calculateTotals();
+          } else {
+            alert('ต้องมีรายการบัญชีอย่างน้อย 2 รายการ');'
+          }
+        });
+      });
+    }
+    
+    function formatNumberInput(input) {
+      // Remove non-numeric characters except decimal point
+      let value = input.value.replace(/[^\d.]/g, '');'
+      
+      // Ensure only one decimal point
+      const decimalPoints = value.match(/\./g);
+      if (decimalPoints && decimalPoints.length > 1) {
+        value = value.substring(0, value.lastIndexOf('.'));'
+      }
+      
+      // Format to 2 decimal places if there's a value'
+      if (value) {
+        const number = parseFloat(value);
+        if (!isNaN(number)) {
+          input.value = number.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');'
+        }
+      }
+    }
+    
+    function addEntryLine() {
+      const journalLines = document.getElementById('journalLines');'
+      const lineCount = journalLines.querySelectorAll('tr').length;'
+      
+      const newRow = document.createElement('tr');'
+      newRow.className = 'entry-line';'
+      
+      newRow.innerHTML = `
+        <td class="text-center">${lineCount + 1}</td>
+        <td>
+          <select class="form-control account-selector">
+            <option value="">-- เลือกผังบัญชี --</option>
+            <option value="101-101">101-101 เงินสดในมือ</option>
+            <option value="101-102">101-102 เงินฝากธนาคาร - กระแสรายวัน</option>
+            <option value="101-103">101-103 เงินฝากธนาคาร - ออมทรัพย์</option>
+            <option value="111-101">111-101 ลูกหนี้การค้า</option>
+            <option value="121-101">121-101 อุปกรณ์สำนักงาน</option>
+            <option value="201-101">201-101 เจ้าหนี้การค้า</option>
+            <option value="301-101">301-101 ทุนเรือนหุ้น</option>
+            <option value="401-101">401-101 รายได้จากการขาย</option>
+            <option value="511-101">511-101 ค่าเช่า</option>
+            <option value="511-102">511-102 เงินเดือน</option>
+            <option value="511-103">511-103 ค่าน้ำประปา</option>
+            <option value="511-104">511-104 ค่าไฟฟ้า</option>
+          </select>
+        </td>
+        <td>
+          <input type="text" class="form-control account-name" placeholder="ชื่อบัญชี" readonly>
+        </td>
+        <td>
+          <input type="text" class="form-control text-right debit-amount" placeholder="0.00">
+        </td>
+        <td>
+          <input type="text" class="form-control text-right credit-amount" placeholder="0.00">
+        </td>
+        <td class="text-center">
+          <button type="button" class="text-red-500 hover:text-red-700 btn-remove-line">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      journalLines.appendChild(newRow);
+      
+      // Initialize new row's events'
+      initAccountSelectors();
+      initAmountInputs();
+      initRemoveLineButtons();
+    }
+    
+    function renumberLines() {
+      const rows = document.querySelectorAll('.entry-line');'
+      rows.forEach((row, index) => {
+        row.querySelector('td:first-child').textContent = index + 1;'
+      });
+    }
+    
+    function calculateTotals() {
+      let totalDebit = 0;
+      let totalCredit = 0;
+      
+      // Calculate total debit
+      document.querySelectorAll('.debit-amount').forEach(input => {'
+        if (input.value) {
+          const value = parseFloat(input.value.replace(/,/g, ''));'
+          if (!isNaN(value)) {
+            totalDebit += value;
+          }
+        }
+      });
+      
+      // Calculate total credit
+      document.querySelectorAll('.credit-amount').forEach(input => {'
+        if (input.value) {
+          const value = parseFloat(input.value.replace(/,/g, ''));'
+          if (!isNaN(value)) {
+            totalCredit += value;
+          }
+        }
+      });
+      
+      // Update totals display
+      document.getElementById('totalDebit').textContent = totalDebit.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');'
+      document.getElementById('totalCredit').textContent = totalCredit.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');'
+      
+      // Calculate difference
+      const difference = Math.abs(totalDebit - totalCredit).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');'
+      document.getElementById('difference').textContent = difference;'
+      
+      // Show/hide warning
+      const balanceWarning = document.getElementById('balanceWarning');'
+      if (totalDebit !== totalCredit) {
+        balanceWarning.style.display = 'block';'
+        document.getElementById('saveEntry').disabled = true;'
+        document.getElementById('saveEntry').classList.add('opacity-50');'
+      } else {
+        balanceWarning.style.display = 'none';'
+        document.getElementById('saveEntry').disabled = false;'
+        document.getElementById('saveEntry').classList.remove('opacity-50');'
+      }
+    }
+    
+    function submitJournalEntry(event) {
+      event.preventDefault();
+      
+      // Check if debit equals credit
+      const totalDebit = parseFloat(document.getElementById('totalDebit').textContent.replace(/,/g, ''));'
+      const totalCredit = parseFloat(document.getElementById('totalCredit').textContent.replace(/,/g, ''));'
+      
+      if (totalDebit !== totalCredit) {
+        alert('เดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบ');'
+        return;
+      }
+      
+      // Get form data
+      const documentNo = document.getElementById('documentNo').value;'
+      const entryDate = document.getElementById('entryDateValue').textContent;'
+      const description = document.getElementById('description').value;'
+      
+      if (!description) {
+        alert('กรุณาระบุคำอธิบายรายการ');'
+        return;
+      }
+      
+      // Check if all accounts are selected
+      let accountsSelected = true;
+      document.querySelectorAll('.account-selector').forEach(selector => {'
+        if (!selector.value) {
+          accountsSelected = false;
+        }
+      });
+      
+      if (!accountsSelected) {
+        alert('กรุณาเลือกผังบัญชีให้ครบทุกรายการ');'
+        return;
+      }
+      
+      // Collect line items
+      const lines = [];
+      document.querySelectorAll('.entry-line').forEach(row => {'
+        const accountCode = row.querySelector('.account-selector').value;'
+        const accountName = row.querySelector('.account-name').value;'
+        const debitAmount = row.querySelector('.debit-amount').value;'
+        const creditAmount = row.querySelector('.credit-amount').value;'
+        
+        lines.push({
+          accountCode,
+          accountName,
+          debit: debitAmount ? parseFloat(debitAmount.replace(/,/g, '')) : 0,'
+          credit: creditAmount ? parseFloat(creditAmount.replace(/,/g, '')) : 0,'
+        });
+      });
+      
+      // In a real application, this would send data to the server
+      console.log('Submitting journal entry:', {'
+        documentNo,
+        entryDate,
+        description,
+        lines,
+        totalAmount: totalDebit
+      });
+      
+      // Show success message and close modal
+      alert('บันทึกรายการสำเร็จ');'
+      closeModal();
+      
+      // Refresh table (in a real app, you would fetch updated data from server)
+      // For now, we'll just add the new entry to the table'
+      addNewEntryToTable({
+        documentNo,
+        entryDate,
+        description,
+        lines,
+        totalAmount: totalDebit
+      });
+    }
+    
+    function addNewEntryToTable(entry) {
+      const table = document.getElementById('journalEntriesTable').querySelector('tbody');'
+      const newRow = document.createElement('tr');'
+      
+      // Format accounts for display
+      let accountsDisplay = '';'
+      entry.lines.forEach(line => {
+        accountsDisplay += `<div class="text-sm text-gray-500 dark:text-gray-400">${line.accountCode} ${line.accountName}</div>`;
+      });
+      
+      newRow.innerHTML = `
+        <td>${entry.entryDate}</td>
+        <td>${entry.documentNo}</td>
+        <td>
+          <div class="font-medium">${entry.description}</div>
+          ${accountsDisplay}
+        </td>
+        <td class="text-right">${entry.totalAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</td>'
+        <td class="text-right">${entry.totalAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</td>'
+        <td class="text-center">
+          <div class="flex items-center justify-center space-x-2">
+            <button class="text-blue-500 hover:text-blue-700 btn-view" data-id="${entry.documentNo}">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="text-green-500 hover:text-green-700 btn-edit" data-id="${entry.documentNo}">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      
+      // Add to top of table
+      if (table.firstChild) {
+        table.insertBefore(newRow, table.firstChild);
+      } else {
+        table.appendChild(newRow);
+      }
+      
+      // Update total
+      updateTableTotal();
+      
+      // Add event listeners to new buttons
+      newRow.querySelector('.btn-view').addEventListener('click', function() {'
+        viewJournalEntry(entry.documentNo);
+      });
+      
+      newRow.querySelector('.btn-edit').addEventListener('click', function() {'
+        editJournalEntry(entry.documentNo);
+      });
+    }
+    
+    function updateTableTotal() {
+      // This would need to recalculate all rows
+      // For simplicity, we'll just update the display with a fixed value'
+      const footerRow = document.querySelector('#journalEntriesTable tfoot tr');'
+      if (footerRow) {
+        const totalDebit = footerRow.querySelector('td:nth-child(4)');'
+        const totalCredit = footerRow.querySelector('td:nth-child(5)');'
+        
+        const newTotalDebit = (parseFloat(totalDebit.textContent.replace(/,/g, '')) || 0) + 0;'
+        const newTotalCredit = (parseFloat(totalCredit.textContent.replace(/,/g, '')) || 0) + 0;'
+        
+        totalDebit.textContent = newTotalDebit.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');'
+        totalCredit.textContent = newTotalCredit.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');'
+      }
+    }
+    
+    function viewJournalEntry(id) {
+      console.log('View journal entry:', id);'
+      alert(`ดูรายละเอียดรายการ ${id}`);
+      // In a real app, this would fetch data and show details
+    }
+    
+    function editJournalEntry(id) {
+      console.log('Edit journal entry:', id);'
+      alert(`แก้ไขรายการ ${id}`);
+      // In a real app, this would open the edit form with data
+    }
+    
+    function filterJournals() {
+      const dateFrom = document.getElementById('dateFromValue').textContent;'
+      const dateTo = document.getElementById('dateToValue').textContent;'
+      
+      console.log('Filter journals from', dateFrom, 'to', dateTo);'
+      alert(`กรองรายการตั้งแต่วันที่ ${dateFrom} ถึง ${dateTo}`);
+      // In a real app, this would fetch filtered data
+    }
+    
+    function printReport() {
+      window.print();
+    }
+    
+    function exportToExcel() {
+      // Create worksheet from table
+      const table = document.getElementById('journalEntriesTable');'
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.table_to_sheet(table);
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'สมุดรายวันทั่วไป');'
+      
+      // Save workbook
+      XLSX.writeFile(wb, 'สมุดรายวันทั่วไป.xlsx');'
+    }
+    
+    function exportToPDF() {
+      const element = document.getElementById('journalEntriesTable');'
+      const opt = {
+        margin: 1,
+        filename: 'สมุดรายวันทั่วไป.pdf','
+        image: { type: 'jpeg', quality: 0.98 },'
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' }'
+      };
+      
+      html2pdf().set(opt).from(element).save();
+    }
+
+    const thaiMonths = [
+      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน','
+      'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม','
+      'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม''
+    ];
+
+    function toggleCalendar(calendar) {
+      const calendarEl = typeof calendar === 'string''
+        ? document.getElementById(calendar)
+        : calendar instanceof HTMLElement
+          ? calendar
+          : null;
+
+      if (!calendarEl) {
+        console.error('Calendar element not found:', calendar);'
+        return;
+      }
+
+      const isVisible = calendarEl.style.display === 'block';'
+
+      document.querySelectorAll('.thai-calendar').forEach(cal => {'
+        cal.style.display = 'none';'
+      });
+
+      if (!isVisible) {
+        calendarEl.style.display = 'block';'
+        generateCalendar(calendarEl.id, new Date()); // Ensure calendar is generated every time it is opened
+      }
+    }
+    
+    function generateCalendar(calendarId, date) {
+      const calendarEl = document.getElementById(calendarId);
+      const datesContainer = calendarEl.querySelector('.calendar-dates');'
+
+      const month = date.getMonth();
+      const year = date.getFullYear();
+      calendarEl.querySelector('.month-name').textContent = thaiMonths[month];'
+      calendarEl.querySelector('.year-value').textContent = year + 543; // Convert to Buddhist Era'
+
+      datesContainer.innerHTML = '';'
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+
+      for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('div');'
+        emptyCell.className = 'date-cell disabled';'
+        datesContainer.appendChild(emptyCell);
+      }
+
+      const today = new Date();
+      const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
+      const currentDate = today.getDate();
+
+      for (let i = 1; i <= lastDate; i++) {
+        const dateCell = document.createElement('div');'
+        dateCell.className = 'date-cell';'
+        dateCell.textContent = i;
+        // Store date in dd/MM/yyyy format
+        const buddhistYear = date.getFullYear() + 543;
+        const mm = String(date.getMonth() + 1).padStart(2, '0');'
+        const dd = String(i).padStart(2, '0');'
+        dateCell.dataset.fullDate = `${dd}/${mm}/${buddhistYear}`;
+
+        // Highlight today
+        if (isCurrentMonth && i === currentDate) {
+          dateCell.classList.add('today');'
+        }
+
+        // Add event listener for date selection
+        dateCell.addEventListener('click', function(event) {'
+          event.stopPropagation();
+          const fullDate = this.dataset.fullDate;
+          // Determine display and hidden input IDs
+          const displayId = calendarEl.id === 'calendarDateFrom' ? 'dateFromValue' : 'dateToValue';'
+          const hiddenInputId = calendarEl.id === 'calendarDateFrom' ? 'dateFrom' : 'dateTo';'
+          // Update UI and hidden input
+          document.getElementById(displayId).textContent = fullDate;
+          const [d, m, yBE] = fullDate.split('/');'
+          const yCE = Number(yBE) - 543;
+          document.getElementById(hiddenInputId).value = `${yCE}-${m}-${d}`;
+          // Hide calendar
+          calendarEl.style.display = 'none';'
+        });
+
+        datesContainer.appendChild(dateCell);
+      }
+    }
+
+    document.querySelectorAll('.prev-month').forEach(btn => {'
+      btn.addEventListener('click', function() {'
+        const cal = this.closest('.thai-calendar');'
+        const monthName = cal.querySelector('.month-name').textContent;'
+        const yearBE = parseInt(cal.querySelector('.year-value').textContent, 10);'
+        const yearCE = yearBE - 543;
+        let month = thaiMonths.indexOf(monthName);
+        month = month === 0 ? 11 : month - 1;
+        generateCalendar(cal.id, new Date(yearCE, month, 1));
+      });
+    });
+
+    document.querySelectorAll('.next-month').forEach(btn => {'
+      btn.addEventListener('click', function() {'
+        const cal = this.closest('.thai-calendar');'
+        const monthName = cal.querySelector('.month-name').textContent;'
+        const yearBE = parseInt(cal.querySelector('.year-value').textContent, 10);'
+        const yearCE = yearBE - 543;
+        let month = thaiMonths.indexOf(monthName);
+        month = month === 11 ? 0 : month + 1;
+        generateCalendar(cal.id, new Date(yearCE, month, 1));
+      });
+    });
+  
+}</script>
+  <!-- Account Menu Script -->
+  <script src="/js/account-menu.js"></script>
+</body>
+</html>

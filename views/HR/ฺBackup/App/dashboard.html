@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <!-- 1. Meta tags -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ระบบบริหารทรัพยากรบุคคลและจัดการข่าวสาร" />
+  <title>ระบบ HR - Dashboard</title>
+
+  <!-- 2. Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin/>
+
+  <!-- 3. Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👥</text></svg>" type="image/svg+xml" />
+
+  <!-- 4. Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 5. Tailwind Config + DaisyUI Plugin -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: { extend: {
+        fontFamily: { sans: ['Prompt','sans-serif'] },'
+        colors: {
+          primary: '#4C51BF', 'primary-focus': '#3c4099','
+          secondary: '#38A169', 'secondary-focus': '#2f8a58','
+          warning: '#DD6B20', danger: '#E53E3E','
+          info: '#3182CE', success: '#38A169','
+          gray: { 750: '#2D3748' }'
+        },
+        animation: { 'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite' }'
+      }},
+      plugins: [function({ addComponents }) {
+        addComponents({
+          '.dashboard-card': {'
+            borderRadius: '0.75rem', padding: '1.5rem','
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06)','
+            transition: 'all 0.3s ease','
+            '&:hover': {'
+              transform: 'translateY(-2px)','
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -2px rgba(0,0,0,0.05)''
+            }
+          }
+        })
+      }]
+    }
+  </script>
+
+  <!-- 6. DaisyUI Styles -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- 7. Icons & Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/boxicons/2.1.4/css/boxicons.min.css" integrity="sha512-cn16Qw8mzTBKpu08X0fwhTSv02kK/FojjNLz0bwp2xJ4H+yalwzXKFw/5cLzuBZCxGWIA+95X4skzvo8STNtSg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- 8. Chart.js & AOS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" integrity="sha512-1cK78a1o+ht2JcaW6g8OXYwqpev9+6GqOkz9xmBN9iUUhIndKtxwILGWYOSibOKjLsEdjyjZvYDq/cZwNeak0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js" integrity="sha512-A7AYk1fGKX6S2SsHywmPkrnzTZHrgiVT7GcQkLGDe2ev0aWb8zejytzS8wjo7PGEXKqJOrjQ4oORtnimIRZBtw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <!-- 9. Custom Styles -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');'
+    
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+    
+    /* Chart period button active state */
+    .chart-period-btn.active {
+      color: #4C51BF;
+      background-color: #EBF4FF;
+    }
+    
+    .dark .chart-period-btn.active {
+      color: #8da2fb;
+      background-color: #2D3748;
+    }
+    
+    /* Transition effects */
+    .transition-all {
+      transition-property: all;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 300ms;
+    }
+    
+    /* Mobile sidebar */
+    @media (max-width: 1023px) {
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+      }
+      
+      #sidebar.open {
+        transform: translateX(0);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu"
+          class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i id="toggleIcon" class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300 -ml-64">
+      <a href="dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="dashboard" class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="news-management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-newspaper text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">จัดการข่าวสาร</span>
+            </a>
+          </li>
+          <li>
+            <a href="categories" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-folder2 text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">หมวดหมู่</span>
+            </a>
+          </li>
+          <li>
+            <a href="settings" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">ตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px">
+            <div id="profile"
+                 class="flex flex-row items-center h-12 px-4 w-full rounded-lg bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 text-left transition">
+              <div class="avatar mr-3 -ml-4">
+                <div class="w-10 rounded-full">
+                  <img id="employeePhoto" src="" alt="Employee Photo" />
+                </div>
+              </div>
+              <span class="ml-3" id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+  
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900" id="mainContent">
+      <!-- Top Bar -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center">
+          <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200"><i class="bi bi-speedometer2 text-indigo-600 mr-2"></i>แดชบอร์ดจัดการข่าวสาร</h2>
+          <h1 id="welcomeMessage" class="text-lg font-medium mb-4"></h1>
+          <span id="currentDate" class="text-sm text-gray-500 dark:text-gray-400"></span>
+        </div>
+        <div class="flex items-center gap-4">
+      
+          <div class="relative">
+            <button id="notificationBtn" class="btn btn-outline relative"><i class="bi bi-bell"></i><span id="unreadNotifications" class="badge-notification absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">3</span></button>
+            <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden z-50 animate-fadeIn">
+              <h3 class="p-3 font-semibold border-b border-gray-200 dark:border-gray-700">การแจ้งเตือน</h3>
+              <div class="p-3 space-y-3">
+                <div class="flex items-start">
+                  <div class="bg-blue-100 text-blue-600 p-2 rounded-lg mr-3"><i class="bi bi-chat-dots"></i></div>
+                  <div>
+                    <p class="font-medium">ความคิดเห็นใหม่</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-300">คุณมีความคิดเห็นใหม่ 5 รายการที่รอการอนุมัติ</p>
+                    <p class="text-xs text-gray-400 mt-1">2 ชั่วโมงที่แล้ว</p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div class="bg-amber-100 text-amber-600 p-2 rounded-lg mr-3"><i class="bi bi-person-plus"></i></div>
+                  <div>
+                    <p class="font-medium">สมาชิกใหม่</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-300">มีสมาชิกใหม่ลงทะเบียน 3 คน</p>
+                    <p class="text-xs text-gray-400 mt-1">1 วันที่แล้ว</p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <div class="bg-green-100 text-green-600 p-2 rounded-lg mr-3"><i class="bi bi-graph-up"></i></div>
+                  <div>
+                    <p class="font-medium">ยอดเข้าชมสูงสุด</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-300">ข่าว "เทคโนโลยีใหม่" มียอดเข้าชมสูงผิดปกติ</p>
+                    <p class="text-xs text-gray-400 mt-1">3 วันที่แล้ว</p>
+                  </div>
+                </div>
+              </div>
+              <a href="notifications" class="block text-center text-indigo-600 py-2 border-t border-gray-200 dark:border-gray-700">ดูทั้งหมด</a>
+            </div>
+          
+          </div>
+        
+        </div>
+      </div>
+
+     
+      <!-- Dashboard Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-newspaper text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">ข่าวสารทั้งหมด</h3>
+              <p id="totalNews" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">ข้อมูลล่าสุด</p>
+        </div>
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-amber-100 text-amber-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-star text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">ข่าวสำคัญ</h3>
+              <p id="featuredNews" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+           <p class="text-xs text-gray-500 dark:text-gray-400">ติดดาว/แนะนำ</p>
+        </div>
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-green-100 text-green-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-eye text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">ยอดเข้าชมรวม</h3>
+              <p id="totalViews" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+           <p class="text-xs text-gray-500 dark:text-gray-400">ทั้งหมด</p>
+        </div>
+        <div class="card p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex items-center mb-2">
+            <div class="bg-blue-100 text-blue-600 p-3 rounded-lg mr-3">
+              <i class="bi bi-people text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-gray-500 dark:text-gray-300 text-sm">สมาชิกทั้งหมด</h3>
+              <p id="totalMembers" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400"><span id="activeMembers">0</span> กำลังใช้งาน</p>
+        </div>
+      </div>
+
+   
+
+      <!-- Upcoming Events & Latest News -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <!-- Upcoming Events -->
+        <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4"><h3 class="font-semibold text-lg"><i class="bi bi-calendar-event text-indigo-600 mr-2"></i>กิจกรรมที่จะมาถึง</h3><a href="events.html" class="text-sm text-indigo-600">ดูทั้งหมด</a></div>
+          <div id="upcomingEvent" class="flex items-center mb-4">
+            <div class="calendar-day calendar-day-holiday mr-4">
+              <span class="text-xs">พ.ค.</span><div class="text-xl font-bold">20</div>
+            </div>
+            <div>
+              <h4 class="font-medium">เปิดตัวเว็บไซต์ใหม่</h4>
+              <p class="text-sm text-gray-500 dark:text-gray-300">กิจกรรมสำคัญ</p>
+            </div>
+          </div>
+          <div class="flex items-center mb-4">
+            <div class="calendar-day mr-4">
+              <span class="text-xs">พ.ค.</span><div class="text-xl font-bold">25</div>
+            </div>
+            <div>
+              <h4 class="font-medium">แถลงข่าวผลประกอบการไตรมาส 2</h4>
+              <p class="text-sm text-gray-500 dark:text-gray-300">9:00 - 12:00 น. ห้องประชุม A</p>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <div class="calendar-day mr-4">
+              <span class="text-xs">มิ.ย.</span><div class="text-xl font-bold">5</div>
+            </div>
+            <div>
+              <h4 class="font-medium">แคมเปญการตลาดออนไลน์</h4>
+              <p class="text-sm text-gray-500 dark:text-gray-300">เริ่มกิจกรรมโปรโมชั่นใหม่</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Latest News -->
+        <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-lg"><i class="bi bi-newspaper text-indigo-600 mr-2"></i>ข่าวสารล่าสุด</h3>
+            <a href="all_news.html" class="text-sm text-indigo-600">ดูทั้งหมด</a>
+          </div>
+          <div id="latestNewsContainer" class="space-y-4">
+            <div class="p-3 border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 rounded">
+              <div class="flex justify-between">
+                <h4 class="font-medium">เปิดตัวผลิตภัณฑ์ใหม่ล่าสุด</h4>
+                <span class="text-xs text-gray-500">3 วันที่แล้ว</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">บริษัทเตรียมเปิดตัวผลิตภัณฑ์ใหม่ที่จะเปลี่ยนวงการ...</p>
+            </div>
+            <div class="p-3 border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-900/20 rounded">
+              <div class="flex justify-between">
+                <h4 class="font-medium">ข่าวสำคัญ: การร่วมทุนกับพันธมิตรต่างประเทศ</h4>
+                <span class="text-xs text-gray-500">5 วันที่แล้ว</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">บริษัทประกาศความร่วมมือกับพันธมิตรธุรกิจจากต่างประเทศ...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Chart -->
+      <div class="mt-6">
+        <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-lg"><i class="bi bi-bar-chart-line text-indigo-600 mr-2"></i>สถิติยอดเข้าชม</h3>
+            <div class="flex space-x-2">
+              <button class="px-3 py-1 text-xs rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200">รายวัน</button>
+              <button class="px-3 py-1 text-xs rounded-full text-gray-500 dark:text-gray-300">รายสัปดาห์</button>
+              <button class="px-3 py-1 text-xs rounded-full text-gray-500 dark:text-gray-300">รายเดือน</button>
+            </div>
+          </div>
+          <div class="h-64 flex items-end justify-between px-2">
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 40%"></div>
+              <span class="text-xs mt-2">จันทร์</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 65%"></div>
+              <span class="text-xs mt-2">อังคาร</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 85%"></div>
+              <span class="text-xs mt-2">พุธ</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 75%"></div>
+              <span class="text-xs mt-2">พฤหัส</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 55%"></div>
+              <span class="text-xs mt-2">ศุกร์</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 25%"></div>
+              <span class="text-xs mt-2">เสาร์</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-8 bg-indigo-500 dark:bg-indigo-400 rounded-t" style="height: 15%"></div>
+              <span class="text-xs mt-2">อาทิตย์</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent News Table -->
+      <div class="card p-5 bg-white dark:bg-gray-800 rounded-lg shadow mt-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg"><i class="bi bi-newspaper text-indigo-600 mr-2"></i>ข่าวสารล่าสุด</h3>
+          <a href="news_management" class="text-sm text-indigo-600">ดูทั้งหมด</a>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="text-left border-b dark:border-gray-700">
+                <th class="pb-3">หัวข้อ</th>
+                <th class="pb-3">หมวดหมู่</th>
+                <th class="pb-3">ผู้เขียน</th>
+                <th class="pb-3">สถานะ</th>
+                <th class="pb-3">ยอดเข้าชม</th>
+                <th class="pb-3">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="recentNewsTableBody">
+              <!-- ตัวอย่างข้อมูล - จะถูกแทนที่ด้วยข้อมูลจริง -->
+              <tr class="border-b dark:border-gray-700">
+                <td class="py-3">
+                  <div class="flex items-center">
+                    <span>เปิดตัวนวัตกรรมใหม่ล่าสุดของบริษัท</span>
+                  </div>
+                </td>
+                <td>ข่าวธุรกิจ</td>
+                <td>admin</td>
+                <td>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <span class="status-indicator status-active"></span>เผยแพร่แล้ว
+                  </span>
+                </td>
+                <td>1,234</td>
+                <td>
+                  <div class="flex space-x-2">
+                    <button class="text-blue-500 hover:text-blue-700" title="ดูรายละเอียด"><i class="bi bi-eye"></i></button>
+                    <button class="text-green-500 hover:text-green-700" title="แก้ไข"><i class="bi bi-pencil"></i></button>
+                    <button class="text-red-500 hover:text-red-700" title="ลบ"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="border-b dark:border-gray-700">
+                <td class="py-3">
+                  <div class="flex items-center">
+                    <span>การประชุมผู้ถือหุ้นประจำปี 2568</span>
+                  </div>
+                </td>
+                <td>ข่าวองค์กร</td>
+                <td>editor1</td>
+                <td>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                    <span class="status-indicator status-featured"></span>ข่าวสำคัญ
+                  </span>
+                </td>
+                <td>856</td>
+                <td>
+                  <div class="flex space-x-2">
+                    <button class="text-blue-500 hover:text-blue-700" title="ดูรายละเอียด"><i class="bi bi-eye"></i></button>
+                    <button class="text-green-500 hover:text-green-700" title="แก้ไข"><i class="bi bi-pencil"></i></button>
+                    <button class="text-red-500 hover:text-red-700" title="ลบ"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="py-3">
+                  <div class="flex items-center">
+                    <span>แนวโน้มตลาดในปี 2568</span>
+                  </div>
+                </td>
+                <td>บทวิเคราะห์</td>
+                <td>analyst</td>
+                <td>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
+                    <span class="status-indicator status-draft"></span>แบบร่าง
+                  </span>
+                </td>
+                <td>0</td>
+                <td>
+                  <div class="flex space-x-2">
+                    <button class="text-blue-500 hover:text-blue-700" title="ดูรายละเอียด"><i class="bi bi-eye"></i></button>
+                    <button class="text-green-500 hover:text-green-700" title="แก้ไข"><i class="bi bi-pencil"></i></button>
+                    <button class="text-red-500 hover:text-red-700" title="ลบ"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+  
+  <!-- 10. App’s own JavaScript -->
+  <script>
+    const API_BASE = '/api';'
+    const token    = localStorage.getItem('authToken');'
+
+    document.addEventListener('DOMContentLoaded', () => {'
+      if (!token) {
+        // ถ้าไม่มีโทเค็น ให้ไปหน้า login
+        return window.location.href = '/login';'
+      }
+      // โหลดข้อมูลโปรไฟล์ สถิติ Events/News/Notifications
+      fetchUserProfile();
+      fetchDashboardStats();
+      fetchUpcomingEvent();
+      fetchLatestNews();
+      fetchRecentNewsTable();
+      fetchNotifications();
+      // ตั้งค่า dark mode และ event listeners อื่นๆ
+      checkDarkMode();
+      checkSidebarState();
+      setupEventListeners();
+      setupOutsideClickHandlers();
+      setCurrentDate();
+    });
+
+    // ====== ดึงโปรไฟล์ผู้ใช้ ======
+    async function fetchUserProfile() {
+      try {
+        const res  = await fetch(`${API_BASE}/users/me`, {
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          // 401 → token หมดอายุ → logout กลับหน้า login
+          if (res.status === 401) {
+            showToast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', 'error');'
+            logout();
+            return;
+          }
+          // 403 → ไม่อนุญาตเข้าถึง → พอกลับ Main Home (ไม่ล้าง token)
+          if (res.status === 403) {
+            showToast('คุณไม่มีสิทธิ์เข้าถึงระบบจัดการข่าวสาร', 'error');'
+            setTimeout(() => window.location.href = 'home.html', 1200);'
+            return;
+          }
+          throw new Error(json.message || 'Failed to load profile');'
+        }
+        
+
+
+      } catch (err) {
+        console.error('fetchUserProfile:', err);'
+        alert('ไม่สามารถโหลดข้อมูลผู้ใช้ได้: ' + err.message);'
+      }
+    }
+
+    // ====== ดึงสถิติ Dashboard ======
+    async function fetchDashboardStats() {
+      try {
+        // สมมติว่าเรามี API สำหรับดึงข้อมูลสรุป
+        const res = await fetch(`${API_BASE}/dashboard/stats`, {
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        
+        if (!res.ok) { showToast('โหลดสถิติไม่สำเร็จ','error'); return; }'
+        
+        if (res.status === 401) {
+          showToast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', 'error');'
+          logout();
+          return;
+        }
+        
+        if (res.status === 403) {
+          showToast('คุณไม่มีสิทธิ์ดูแดชบอร์ดจัดการข่าวสาร', 'error');'
+          setTimeout(() => window.location.href = 'home.html', 1200);'
+          return;
+        }
+        
+
+const json = await res.json();
+        if (json.success) {
+          const d = json.data;
+          document.getElementById('totalNews').textContent     = d.totalNews;'
+          document.getElementById('featuredNews').textContent  = d.featuredNews;'
+          document.getElementById('totalViews').textContent    = d.totalViews.toLocaleString();'
+          document.getElementById('totalMembers').textContent  = d.totalMembers;'
+          document.getElementById('activeMembers').textContent = d.activeMembers;'
+        }
+      } catch (err) {
+        console.error('fetchDashboardStats:', err);'
+        // แสดงข้อมูลตัวอย่างในกรณีที่ API ไม่พร้อมใช้งาน
+        document.getElementById('totalNews').textContent = '124';'
+        document.getElementById('featuredNews').textContent = '15';'
+        document.getElementById('totalViews').textContent = '45,678';'
+        document.getElementById('totalMembers').textContent = '2,456';'
+        document.getElementById('activeMembers').textContent = '1,823';'
+      }
+    }
+
+    // ====== ดึงกิจกรรมที่จะมาถึง ======
+    async function fetchUpcomingEvent() {
+      try {
+        const res  = await fetch(`${API_BASE}/events/upcoming`, { headers: { 'Authorization':'Bearer '+token } });'
+        if (!res.ok) { showToast('โหลดกิจกรรมไม่สำเร็จ','error'); return; }'
+        const json = await res.json();
+        if (json.success && json.data.length) {
+          const ev = json.data[0];
+          document.getElementById('upcomingEvent').innerHTML = `'
+            <div class="calendar-day mr-4">
+              <span class="text-xs">${ev.monthName}</span>
+              <div class="text-xl font-bold">${ev.day}</div>
+            </div>
+            <div>
+              <h4 class="font-medium">${ev.title}</h4>
+              <p class="text-sm text-gray-500 dark:text-gray-300">${ev.description}</p>
+            </div>`;
+        } else {
+          document.getElementById('upcomingEvent').innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">ไม่มีกิจกรรมที่จะมาถึง</p>';'
+        }
+      } catch (e) { console.error('fetchUpcomingEvent:', e); }'
+    }
+
+    // ====== ดึงข่าวสารล่าสุด ======
+    async function fetchLatestNews() {
+      try {
+        const res  = await fetch(`${API_BASE}/news?sort=desc&limit=2`, { headers: { 'Authorization':'Bearer '+token } });'
+        if (!res.ok) { showToast('โหลดข่าวใหม่ไม่สำเร็จ','error'); return; }'
+        const json = await res.json();
+        const container = document.getElementById('latestNewsContainer');'
+        if (json.success && json.data.length) {
+          container.innerHTML = json.data.map(n => `
+           <div class="p-3 border-l-4 ${n.isFeatured?'border-amber-500 bg-amber-50 dark:bg-amber-900/20':'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'} rounded">'
+              <div class="flex justify-between">
+                <h4 class="font-medium">${n.title}</h4>
+                <span class="text-xs text-gray-500">${n.daysAgo} วันที่แล้ว</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${n.summary}</p>
+            </div>
+          `).join('');'
+        } else {
+          container.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400">ไม่พบข่าวสารล่าสุด</p>';'
+        }
+      } catch (e) { console.error('fetchLatestNews:', e); }'
+    }
+
+   // ====== ดึงตารางข่าวสารล่าสุด ======
+    async function fetchRecentNewsTable() {
+      try {
+        const res  = await fetch(`${API_BASE}/news?limit=5`, { headers: { 'Authorization':'Bearer '+token } });'
+        if (!res.ok) { showToast('โหลดตารางข่าวไม่สำเร็จ','error'); return; }'
+        const json = await res.json();
+        const tbody = document.getElementById('recentNewsTableBody');'
+        if (json.success && json.data.length) {
+          tbody.innerHTML = json.data.map(n => `
+            <tr class="border-b dark:border-gray-700">
+              <td class="py-3"><span>${n.title}</span></td>
+              <td>${n.category}</td>
+              <td>${n.author}</td>
+              <td><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${n.statusClass}">${n.statusLabel}</span></td>
+              <td>${n.views.toLocaleString()}</td>
+              <td>
+                <div class="flex space-x-2">
+                  <button onclick="location.href='news/${n._id}'"><i class="bi bi-eye"></i></button>'
+                 <button onclick="location.href='news/edit/${n._id}'"><i class="bi bi-pencil"></i></button>'
+                  <button onclick="deleteNews('${n._id}')"><i class="bi bi-trash"></i></button>'
+                </div>
+              </td>
+            </tr>
+          `).join('');'
+        } else {
+          tbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-gray-500 dark:text-gray-400">ไม่พบข่าวสาร</td></tr>`;
+        }
+      } catch (e) { console.error('fetchRecentNewsTable:', e); }'
+    }
+
+    // ====== ดึงการแจ้งเตือน ======
+    async function fetchNotifications() {
+      try {
+        const res  = await fetch(`${API_BASE}/notifications`, { headers: { 'Authorization':'Bearer '+token } });'
+        if (!res.ok) { showToast('โหลดแจ้งเตือนไม่สำเร็จ','error'); return; }'
+        const json = await res.json();
+        if (res.ok && json.success) {
+          document.getElementById('unreadNotifications').textContent = json.data.length;'
+          const list = json.data.map(n => `
+            <div class="flex items-start">
+              <div class="p-2 rounded-lg mr-3">${n.icon}</div>
+              <div>
+                <p class="font-medium">${n.title}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-300">${n.message}</p>
+                <p class="text-xs text-gray-400 mt-1">${n.timeAgo}</p>
+              </div>
+            </div>
+          `).join('');'
+          document.querySelector('#notificationDropdown .p-3.space-y-3').innerHTML = list;'
+        }
+      } catch (e) { console.error('fetchNotifications:', e); }'
+    }
+    
+    // ====== ลบข่าวสาร (ตัวอย่าง) ======
+    async function deleteNews(id) {
+      if (!confirm('ยืนยันการลบข่าวนี้?')) return;'
+      await fetch(`${API_BASE}/news/${id}`, { method: 'DELETE', headers: { 'Authorization':'Bearer '+token } });'
+      fetchRecentNewsTable();
+    }
+
+    // ====== ตั้งค่าวันที่ปัจจุบัน ======
+    function setCurrentDate() {
+      const months = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                      "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+      const now   = new Date();
+      const day   = now.getDate();
+      const month = months[now.getMonth()];
+      const year  = now.getFullYear() + 543;
+      const el = document.getElementById('currentDate');'
+      if(el) el.textContent = `${day} ${month} ${year}`;
+    }
+
+    // ====== Dark Mode ======
+    function checkDarkMode() {
+      const dark = localStorage.getItem('darkMode') === 'true';'
+      document.documentElement.classList.toggle('dark', dark);'
+      const label = document.getElementById('darkModeLabel');'
+      if(label) label.textContent = dark ? 'Light Mode' : 'Dark Mode';'
+    }
+
+    // ====== Sidebar State ======
+    function checkSidebarState() {
+      const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';'
+      if (collapsed) {
+        const sidebar = document.getElementById('sidebar');'
+        const icon    = document.getElementById('toggleIcon');'
+        sidebar.classList.add('-ml-64');'
+        icon.classList.replace('bi-chevron-left','bi-chevron-right');'
+      }
+    }
+
+    // ====== Event Listeners ======
+    function setupEventListeners() {
+      const sidebar     = document.getElementById('sidebar');'
+      const btnToggle   = document.getElementById('btnToggleMenu');'
+      const toggleIcon  = document.getElementById('toggleIcon');'
+      const btnToggleDark = document.getElementById('btnToggleDark');'
+      const notificationBtn = document.getElementById('notificationBtn');'
+      const userBtn = document.getElementById('userBtn');'
+      const btnLogoutSidebar = document.getElementById('btnLogoutSidebar');'
+      const btnLogoutDropdown = document.getElementById('btnLogoutDropdown');'
+
+      const cardAddNews = document.getElementById('cardAddNews');'
+      const cardManageCategories = document.getElementById('cardManageCategories');'
+      const cardViewAnalytics = document.getElementById('cardViewAnalytics');'
+      const btnViewNotificationsWelcome = document.getElementById('btnViewNotificationsWelcome');'
+      const btnCreateNewsWelcome = document.getElementById('btnCreateNewsWelcome');'
+
+      // Toggle Sidebar
+      btnToggle.addEventListener('click', () => {'
+        sidebar.classList.toggle('-ml-64');'
+        const isCollapsed = sidebar.classList.contains('-ml-64');'
+        toggleIcon.classList.toggle('bi-chevron-right', isCollapsed);'
+        toggleIcon.classList.toggle('bi-chevron-left', !isCollapsed);'
+        localStorage.setItem('sidebarCollapsed', isCollapsed);'
+      });
+
+      if(btnToggleDark) btnToggleDark.addEventListener('click', () => {'
+        const isDark = document.documentElement.classList.toggle('dark');'
+        localStorage.setItem('darkMode', isDark);'
+        const label = document.getElementById('darkModeLabel');'
+        if(label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';'
+      });
+
+      if(notificationBtn) notificationBtn.addEventListener('click', e => {'
+        e.stopPropagation();
+        document.getElementById('notificationDropdown')?.classList.toggle('hidden');'
+        document.getElementById('userDropdown')?.classList.add('hidden');'
+      });
+
+      if(userBtn) userBtn.addEventListener('click', e => {'
+        e.stopPropagation();
+        document.getElementById('userDropdown')?.classList.toggle('hidden');'
+        document.getElementById('notificationDropdown')?.classList.add('hidden');'
+      });
+
+      if(btnLogoutSidebar) btnLogoutSidebar.addEventListener('click', logout);'
+      if(btnLogoutDropdown) btnLogoutDropdown.addEventListener('click', logout);'
+
+      // Quick Action Cards
+      if(cardAddNews) cardAddNews.addEventListener('click', () => window.location.href = 'create_news.html');'
+      if(cardManageCategories) cardManageCategories.addEventListener('click', () => window.location.href = 'categories.html');'
+      if(cardViewAnalytics) cardViewAnalytics.addEventListener('click', () => window.location.href = 'analytics.html');'
+      
+      // Welcome banner buttons
+      if(btnViewNotificationsWelcome) btnViewNotificationsWelcome.addEventListener('click', () => window.location.href = 'notifications.html');'
+      if(btnCreateNewsWelcome) btnCreateNewsWelcome.addEventListener('click', () => window.location.href = 'create_news.html');'
+    }
+
+    // ====== คลิกพื้นที่นอก dropdown ปิดเมนู ======
+    function setupOutsideClickHandlers() {
+      document.addEventListener('click', e => {'
+        const notificationDropdown = document.getElementById('notificationDropdown');'
+        const userDropdown = document.getElementById('userDropdown');'
+
+        if (notificationDropdown && !e.target.closest('#notificationBtn') && !e.target.closest('#notificationDropdown')) {'
+          notificationDropdown.classList.add('hidden');'
+        }
+        if (userDropdown && !e.target.closest('#userBtn') && !e.target.closest('#userDropdown')) {'
+          userDropdown.classList.add('hidden');'
+        }
+      });
+    }
+
+    // ====== แสดง Toast Message ======
+    function showToast(message, type = 'info') {'
+    // ถ้ามี library แจ้งเตือนจริง ๆ (ชื่ออื่น) ให้เรียกใช้
+    if (typeof window._toastLibrary === 'function') {'
+      window._toastLibrary(message, type);
+      return;
+    }
+    // มิฉะนั้น fallback เป็น alert ปกติ
+    alert(message);
+  }
+
+    // ====== Logout ======
+    function logout(showAlert = true) {
+      const btnSidebar = document.getElementById('btnLogoutSidebar');'
+      const btnDropdown = document.getElementById('btnLogoutDropdown');'
+      const userBtnAvatar = document.getElementById('userBtn');'
+
+      if(btnSidebar) btnSidebar.innerHTML = '<span class="loading loading-spinner loading-sm mx-auto"></span>';'
+      if(btnDropdown) btnDropdown.innerHTML = '<span class="loading loading-spinner loading-sm mx-auto"></span> <span class="ml-2">กำลังออก...</span>';'
+      if(userBtnAvatar) userBtnAvatar.innerHTML = '<div class="w-8 h-8 rounded-full flex items-center justify-center"><span class="loading loading-spinner loading-xs"></span></div>';'
+
+      setTimeout(() => {
+        localStorage.removeItem('authToken');'
+        localStorage.removeItem('userId');'
+        localStorage.removeItem('darkMode');'
+        if (showAlert) {
+          alert('ออกจากระบบแล้ว');'
+        }
+        window.location.href = '/login';'
+      }, 500);
+    }
+  </script>
+
+  <!-- อ่าน userInfo จาก localStorage เพื่ออัปเดตรูปและชื่อใน sidebar -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {'
+      const stored = JSON.parse(localStorage.getItem('userInfo') || '{}');'
+      if (stored.name) {
+        document.getElementById('employeeName').textContent = stored.name;'
+      }
+      if (stored.photoUrl) {
+        document.getElementById('employeePhoto').src = stored.photoUrl;'
+      }
+    });
+  </script>
+</body>
+</html>

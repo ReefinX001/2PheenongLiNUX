@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ตัดสต๊อก - ระบบผ่อนสินค้า</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <script src="../js/activity-tracker.js"></script>
+  <script src="/js/branch-navigation.js"></script>
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+  
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif']'
+          },
+          animation: {
+            'bounce-slow': 'bounce 3s infinite''
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite''
+          }
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate']'
+      },
+    }
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+  
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    /* Animation for pulse effect */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .animate-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    /* Animation for slide in from left */
+    @keyframes slideInLeft {
+      from {
+        transform: translateX(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    .slide-in-left {
+      animation: slideInLeft 0.3s ease-out;
+    }
+    
+    /* Animation for hover scale */
+    .hover-scale {
+      transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+
+    /* Custom modern scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(241, 241, 241, 0.2);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(136, 136, 136, 0.5);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(85, 85, 85, 0.7);
+    }
+
+    .Logo {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    /* Glass effect */
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
+    }
+    
+    /* Dark mode glass effect */
+    .dark .glass-effect {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    /* Card hover effect */
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Stock ready pulse effect */
+    .stock-ready-card {
+      border: 2px solid #10B981;
+      animation: pulse-border 2s infinite;
+    }
+
+    @keyframes pulse-border {
+      0% {
+        border-color: #10B981;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+      }
+      50% {
+        border-color: #34D399;
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+      }
+      100% {
+        border-color: #10B981;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
+    }
+
+    /* Batch selection styles */
+    .batch-select:checked ~ .batch-card {
+      border-color: #3B82F6;
+      background-color: rgba(59, 130, 246, 0.05);
+    }
+
+    /* Loading skeleton */
+    @keyframes skeleton-loading {
+      0% {
+        background-color: rgba(200, 200, 200, 0.2);
+      }
+      100% {
+        background-color: rgba(200, 200, 200, 0.5);
+      }
+    }
+    
+    .skeleton {
+      animation: skeleton-loading 1s linear infinite alternate;
+    }
+
+    /* Success animation */
+    @keyframes checkmark {
+      0% {
+        stroke-dashoffset: 100;
+      }
+      100% {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    .checkmark {
+      stroke-dasharray: 100;
+      animation: checkmark 0.5s ease-in-out;
+    }
+
+    /* Loading overlay */
+        [data-theme="dark"]     .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+    </div>
+
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+  
+  <!-- Header -->
+  <header class="p-4 bg-white dark:bg-gray-800"
+                   border-b border-gray-200 dark:border-gray-700"
+                   flex items-center justify-between ml-56 transition-all duration-300"
+                   id="mainHeader">
+    <div>
+      <h1 class="text-lg font-semibold" id="pageTitle">ตัดสต๊อกสินค้า</h1>
+      <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+        กำลังโหลดสาขา...
+      </p>
+    </div>
+  </header>
+  
+  <!-- Main Content Area -->
+  <main id="mainContent" class="flex-1 overflow-y-auto transition-all duration-300 ml-56">
+    <div class="p-4 md:p-6 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-all duration-300">
+      <!-- Header Bar with Title and Actions -->
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 animate-fadeIn">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100">
+            ตัดสต๊อกสินค้า
+          </h1>
+          <p class="text-gray-500 dark:text-gray-400 mt-1">
+            รายการสัญญาที่ชำระครบแล้วและรอการตัดสต๊อก
+          </p>
+        </div>
+        
+        <div class="mt-4 md:mt-0 flex gap-2">
+          <button id="btnBatchDeduct" class="btn btn-primary gap-1" disabled>
+            <i class="bi bi-box-arrow-down"></i>
+            <span>ตัดสต๊อกที่เลือก (<span id="selectedCount">0</span>)</span>
+          </button>
+          <button id="btnExportReport" class="btn btn-outline btn-success gap-1">
+            <i class="bi bi-file-earmark-excel"></i>
+            <span>รายงานสต๊อก</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Summary -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn">
+          <div class="stat-figure text-emerald-500">
+            <i class="bi bi-box-seam text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">รอตัดสต๊อก</div>
+          <div class="stat-value text-emerald-500">24</div>
+          <div class="stat-desc">รายการที่ชำระครบแล้ว</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.1s">
+          <div class="stat-figure text-blue-500">
+            <i class="bi bi-calendar-week text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">ตัดสต๊อกวันนี้</div>
+          <div class="stat-value text-blue-500">7</div>
+          <div class="stat-desc">จาก 10 รายการ</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.2s">
+          <div class="stat-figure text-amber-500">
+            <i class="bi bi-clock text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">รอนานที่สุด</div>
+          <div class="stat-value text-amber-500">15</div>
+          <div class="stat-desc">วันที่รอการตัดสต๊อก</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.3s">
+          <div class="stat-figure text-purple-500">
+            <i class="bi bi-calculator text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">มูลค่ารวม</div>
+          <div class="stat-value text-purple-500">1.85M</div>
+          <div class="stat-desc">บาท (สินค้ารอส่งมอบ)</div>
+        </div>
+      </div>
+
+      <!-- Filter and Search Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 animate-fadeIn">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">ค้นหา</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="searchInput" placeholder="ค้นหาเลขสัญญา, ชื่อลูกค้า..." 
+                     class="input input-bordered w-full pl-10" />
+              <i class="bi bi-search absolute top-3 left-3 text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">สาขา</span>
+            </label>
+            <select id="branchFilter" class="select select-bordered w-full">
+              <option value="">ทุกสาขา</option>
+              <option value="00001">ปัตตานี</option>
+              <option value="00002">หาดใหญ่</option>
+              <option value="00003">ยะลา</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">เรียงตาม</span>
+            </label>
+            <select id="sortBy" class="select select-bordered w-full">
+              <option value="waiting_days">รอนานที่สุด</option>
+              <option value="contract_id">เลขสัญญา</option>
+              <option value="customer_name">ชื่อลูกค้า</option>
+              <option value="amount">มูลค่า</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">ประเภทสินค้า</span>
+            </label>
+            <select id="productTypeFilter" class="select select-bordered w-full">
+              <option value="">ทั้งหมด</option>
+              <option value="phone">โทรศัพท์มือถือ</option>
+              <option value="laptop">คอมพิวเตอร์/แล็ปท็อป</option>
+              <option value="tablet">แท็บเล็ต</option>
+              <option value="appliance">เครื่องใช้ไฟฟ้า</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch Action Bar (Hidden by default) -->
+      <div id="batchActionBar" class="hidden bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4 animate-fadeIn">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <input type="checkbox" id="selectAll" class="checkbox checkbox-primary" />
+            <span class="font-medium">เลือกทั้งหมด</span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+              เลือกแล้ว <span id="selectedItemsCount">0</span> รายการ
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn btn-sm btn-ghost" onclick="cancelBatchSelection()">
+              <i class="bi bi-x-lg"></i> ยกเลิก
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="confirmBatchDeduction()">
+              <i class="bi bi-box-arrow-down"></i> ตัดสต๊อกที่เลือก
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock Pending List -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <!-- Card 1: รอนานที่สุด -->
+        <div class="batch-card bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover-scale stock-ready-card animate-fadeIn">
+          <div class="flex items-center justify-between mb-3">
+            <input type="checkbox" class="batch-select checkbox checkbox-primary" value="INST256806002" />
+            <div class="badge badge-error gap-1">
+              <i class="bi bi-exclamation-triangle-fill text-xs"></i> รอ 15 วัน
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3 mb-3">
+            <div class="avatar placeholder">
+              <div class="bg-green-100 text-green-600 w-12 h-12 rounded-full">
+                <span>สท</span>
+              </div>
+            </div>
+            <div>
+              <p class="font-semibold">สมชาย ทองดี</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">#INST256806002</p>
+            </div>
+          </div>
+          
+          <div class="space-y-2 mb-4">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">สินค้า:</span>
+              <span class="font-medium">MacBook Pro M3</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">รายละเอียด:</span>
+              <span>16" 1TB Space Black</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">มูลค่า:</span>
+              <span class="font-semibold text-lg">฿75,900</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">ชำระครบเมื่อ:</span>
+              <span>02/06/2568</span>
+            </div>
+          </div>
+          
+          <div class="divider my-2"></div>
+          
+          <!-- Stock Status -->
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="bi bi-check-circle-fill text-green-500"></i>
+                <span class="text-sm font-medium text-green-700 dark:text-green-300">สต๊อกพร้อม</span>
+              </div>
+              <span class="text-sm text-gray-600 dark:text-gray-400">คงเหลือ: 10</span>
+            </div>
+          </div>
+          
+          <button class="btn btn-primary btn-block gap-1" onclick="handleSingleDeduction('INST256806002')">'
+            <i class="bi bi-box-arrow-down"></i> ตัดสต๊อกและส่งมอบ
+          </button>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="batch-card bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover-scale animate-fadeIn" style="animation-delay: 0.1s">
+          <div class="flex items-center justify-between mb-3">
+            <input type="checkbox" class="batch-select checkbox checkbox-primary" value="INST256806003" />
+            <div class="badge badge-warning gap-1">
+              <i class="bi bi-clock"></i> รอ 10 วัน
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3 mb-3">
+            <div class="avatar placeholder">
+              <div class="bg-blue-100 text-blue-600 w-12 h-12 rounded-full">
+                <span>นว</span>
+              </div>
+            </div>
+            <div>
+              <p class="font-semibold">นวพร ศรีสุข</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">#INST256806003</p>
+            </div>
+          </div>
+          
+          <div class="space-y-2 mb-4">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">สินค้า:</span>
+              <span class="font-medium">iPhone 15 Pro</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">รายละเอียด:</span>
+              <span>256GB Natural</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">มูลค่า:</span>
+              <span class="font-semibold text-lg">฿42,900</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">ชำระครบเมื่อ:</span>
+              <span>07/06/2568</span>
+            </div>
+          </div>
+          
+          <div class="divider my-2"></div>
+          
+          <!-- Stock Status -->
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="bi bi-check-circle-fill text-green-500"></i>
+                <span class="text-sm font-medium text-green-700 dark:text-green-300">สต๊อกพร้อม</span>
+              </div>
+              <span class="text-sm text-gray-600 dark:text-gray-400">คงเหลือ: 5</span>
+            </div>
+          </div>
+          
+          <button class="btn btn-primary btn-block gap-1" onclick="handleSingleDeduction('INST256806003')">'
+            <i class="bi bi-box-arrow-down"></i> ตัดสต๊อกและส่งมอบ
+          </button>
+        </div>
+
+        <!-- Card 3: สต๊อกไม่พอ -->
+        <div class="batch-card bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover-scale animate-fadeIn" style="animation-delay: 0.2s">
+          <div class="flex items-center justify-between mb-3">
+            <input type="checkbox" class="batch-select checkbox checkbox-primary" value="INST256806004" disabled />
+            <div class="badge badge-info gap-1">
+              <i class="bi bi-clock"></i> รอ 5 วัน
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3 mb-3">
+            <div class="avatar placeholder">
+              <div class="bg-purple-100 text-purple-600 w-12 h-12 rounded-full">
+                <span>ชน</span>
+              </div>
+            </div>
+            <div>
+              <p class="font-semibold">ชนาธิป วงศ์ใหญ่</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">#INST256806004</p>
+            </div>
+          </div>
+          
+          <div class="space-y-2 mb-4">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">สินค้า:</span>
+              <span class="font-medium">iPad Pro 12.9"</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">รายละเอียด:</span>
+              <span>512GB WiFi+5G Silver</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">มูลค่า:</span>
+              <span class="font-semibold text-lg">฿52,900</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">ชำระครบเมื่อ:</span>
+              <span>12/06/2568</span>
+            </div>
+          </div>
+          
+          <div class="divider my-2"></div>
+          
+          <!-- Stock Status - Out of Stock -->
+          <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 mb-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="bi bi-x-circle-fill text-red-500"></i>
+                <span class="text-sm font-medium text-red-700 dark:text-red-300">สต๊อกไม่พอ</span>
+              </div>
+              <span class="text-sm text-gray-600 dark:text-gray-400">คงเหลือ: 0</span>
+            </div>
+          </div>
+          
+          <button class="btn btn-error btn-outline btn-block gap-1" disabled>
+            <i class="bi bi-exclamation-triangle"></i> รอสินค้าเข้าสต๊อก
+          </button>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="batch-card bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover-scale animate-fadeIn" style="animation-delay: 0.3s">
+          <div class="flex items-center justify-between mb-3">
+            <input type="checkbox" class="batch-select checkbox checkbox-primary" value="INST256806005" />
+            <div class="badge badge-success gap-1">
+              <i class="bi bi-clock"></i> รอ 1 วัน
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3 mb-3">
+            <div class="avatar placeholder">
+              <div class="bg-amber-100 text-amber-600 w-12 h-12 rounded-full">
+                <span>สร</span>
+              </div>
+            </div>
+            <div>
+              <p class="font-semibold">สราวุธ แก้วใส</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">#INST256806005</p>
+            </div>
+          </div>
+          
+          <div class="space-y-2 mb-4">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">สินค้า:</span>
+              <span class="font-medium">Samsung S24 Ultra</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">รายละเอียด:</span>
+              <span>256GB Titanium Gray</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">มูลค่า:</span>
+              <span class="font-semibold text-lg">฿45,900</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">ชำระครบเมื่อ:</span>
+              <span>16/06/2568</span>
+            </div>
+          </div>
+          
+          <div class="divider my-2"></div>
+          
+          <!-- Stock Status -->
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="bi bi-check-circle-fill text-green-500"></i>
+                <span class="text-sm font-medium text-green-700 dark:text-green-300">สต๊อกพร้อม</span>
+              </div>
+              <span class="text-sm text-gray-600 dark:text-gray-400">คงเหลือ: 8</span>
+            </div>
+          </div>
+          
+          <button class="btn btn-primary btn-block gap-1" onclick="handleSingleDeduction('INST256806005')">'
+            <i class="bi bi-box-arrow-down"></i> ตัดสต๊อกและส่งมอบ
+          </button>
+        </div>
+
+        <!-- More cards... -->
+        <!-- Add more cards following the same pattern -->
+      </div>
+
+      <!-- Load More Button -->
+      <div class="text-center mt-8">
+        <button class="btn btn-outline btn-wide">
+          <i class="bi bi-arrow-down-circle"></i> โหลดเพิ่มเติม
+        </button>
+      </div>
+    </div>
+
+  <!-- STOCK DEDUCTION CONFIRMATION MODAL -->
+  <div id="stockConfirmModal" class="modal">
+    <div class="modal-box max-w-2xl">
+      <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+        <i class="bi bi-box-seam text-emerald-500"></i>
+        ยืนยันการตัดสต๊อก
+      </h3>
+      
+      <div id="stockConfirmContent">
+        <!-- Content will be dynamically populated -->
+      </div>
+      
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeConfirmModal()">ยกเลิก</button>
+        <button class="btn btn-success" onclick="performStockDeduction()">
+          <i class="bi bi-check-circle"></i> ยืนยันตัดสต๊อก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATCH DEDUCTION SUMMARY MODAL -->
+  <div id="batchSummaryModal" class="modal">
+    <div class="modal-box max-w-3xl">
+      <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+        <i class="bi bi-list-check text-blue-500"></i>
+        สรุปรายการตัดสต๊อก
+      </h3>
+      
+      <div id="batchSummaryContent">
+        <!-- Content will be dynamically populated -->
+      </div>
+      
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeBatchModal()">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="performBatchDeduction()">
+          <i class="bi bi-box-arrow-down"></i> ตัดสต๊อกทั้งหมด
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let selectedItems = new Set();
+    let pendingStockCount = 24;
+    let currentDeductionId = null;
+    let batchDeductionList = [];
+    
+    // Get branch code from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    let BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch');
+    
+    if (!BRANCH_CODE) {
+      console.warn("Branch code not specified, defaulting to 'PATTANI'");
+      BRANCH_CODE = 'PATTANI';
+    }
+    window.currentBranchCode = BRANCH_CODE;
+    console.log(`[stock_deduction_Pattani] Using branch code: ${BRANCH_CODE}`);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default'
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      // Initialize theme
+      initTheme();
+      
+      // Initialize sidebar toggle
+      initSidebarToggle();
+      
+      // Initialize batch selection
+      initBatchSelection();
+      
+      // Initialize search and filters
+      initSearchAndFilters();
+      
+      // Initialize socket connection
+      initSocketConnection();
+      
+      // Load employee profile
+      loadEmployeeProfile();
+    });
+    
+    function initTheme() {
+      const btnToggleDark = document.getElementById('btnToggleDark');
+      const darkModeLabel = document.getElementById('darkModeLabel');
+      
+      btnToggleDark.addEventListener('click', () => {'
+        const isDark = document.documentElement.classList.contains('dark');
+        document.documentElement.classList.toggle('dark');
+        document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        darkModeLabel.textContent = isDark ? 'Dark Mode' : 'Light Mode';
+      });
+    }
+    
+    function initSidebarToggle() {
+      const btnToggleMenu = document.getElementById('btnToggleMenu');
+      const sidebar = document.getElementById('sidebar');
+      const menuOverlay = document.getElementById('menuOverlay');
+      
+      btnToggleMenu.addEventListener('click', () => {'
+        const isOpen = sidebar.classList.contains('translate-x-0');
+        
+        if (isOpen) {
+          sidebar.classList.replace('translate-x-0', '-translate-x-full');
+          btnToggleMenu.innerHTML = '<i class="bi bi-chevron-right"></i>';
+          menuOverlay.classList.add('hidden');
+        } else {
+          sidebar.classList.replace('-translate-x-full', 'translate-x-0');
+          btnToggleMenu.innerHTML = '<i class="bi bi-chevron-left"></i>';
+          menuOverlay.classList.remove('hidden');
+        }
+      });
+      
+      menuOverlay.addEventListener('click', () => {'
+        sidebar.classList.replace('translate-x-0', '-translate-x-full');
+        btnToggleMenu.innerHTML = '<i class="bi bi-chevron-right"></i>';
+        menuOverlay.classList.add('hidden');
+      });
+    }
+    
+    function initBatchSelection() {
+      // Individual checkboxes
+      document.querySelectorAll('.batch-select').forEach(checkbox => {'
+        checkbox.addEventListener('change', (e) => {'
+          if (e.target.checked) {
+            selectedItems.add(e.target.value);
+          } else {
+            selectedItems.delete(e.target.value);
+          }
+          updateBatchUI();
+        });
+      });
+      
+      // Select all checkbox
+      const selectAllCheckbox = document.getElementById('selectAll');
+      selectAllCheckbox.addEventListener('change', (e) => {'
+        const checkboxes = document.querySelectorAll('.batch-select:not(:disabled)');
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = e.target.checked;
+          if (e.target.checked) {
+            selectedItems.add(checkbox.value);
+          } else {
+            selectedItems.delete(checkbox.value);
+          }
+        });
+        updateBatchUI();
+      });
+    }
+    
+    function updateBatchUI() {
+      const count = selectedItems.size;
+      document.getElementById('selectedCount').textContent = count;
+      document.getElementById('selectedItemsCount').textContent = count;
+      
+      const btnBatchDeduct = document.getElementById('btnBatchDeduct');
+      const batchActionBar = document.getElementById('batchActionBar');
+      
+      if (count > 0) {
+        btnBatchDeduct.disabled = false;
+        batchActionBar.classList.remove('hidden');
+      } else {
+        btnBatchDeduct.disabled = true;
+        batchActionBar.classList.add('hidden');
+      }
+    }
+    
+    function cancelBatchSelection() {
+      selectedItems.clear();
+      document.querySelectorAll('.batch-select').forEach(checkbox => {'
+        checkbox.checked = false;
+      });
+      document.getElementById('selectAll').checked = false;
+      updateBatchUI();
+    }
+    
+    function initSearchAndFilters() {
+      // Search functionality
+      document.getElementById('searchInput').addEventListener('input', (e) => {'
+        // Implement search logic
+        console.log('Searching:', e.target.value);
+      });
+      
+      // Filter change handlers
+      ['branchFilter', 'sortBy', 'productTypeFilter'].forEach(filterId => {'
+        document.getElementById(filterId).addEventListener('change', () => {'
+          // Implement filter logic
+          applyFilters();
+        });
+      });
+    }
+    
+    function applyFilters() {
+      // Implement filter logic
+      console.log('Applying filters...');
+    }
+    
+    function initSocketConnection() {
+      if (typeof io !== 'undefined') {
+        const socket = io();
+        
+        socket.on('connect', () => {'
+          console.log('Connected to Socket.IO server');
+        });
+        
+        socket.on('stock-deducted', (data) => {'
+          console.log('Stock deducted:', data);
+          // Update UI
+          updatePendingCount(pendingStockCount - 1);
+          // Show notification
+          showNotification(`ตัดสต๊อกสัญญา ${data.contractId} เรียบร้อยแล้ว`, 'success');
+        });
+      }
+    }
+    
+    function updatePendingCount(count) {
+      pendingStockCount = count;
+      document.getElementById('stockPendingBadge').innerHTML = '
+        count > 0 ? `<span class="badge badge-error badge-sm animate-pulse">${count}</span>` : '';
+    }
+    
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        
+        const res = await fetch('/api/users/me', {'
+          headers: {
+            'Authorization': 'Bearer ' + token'
+          }
+        });
+        
+        const data = await res.json();
+        if (data.success && data.data) {
+          document.getElementById('employeeName').textContent = data.data.name || 'Loading...';
+          document.getElementById('employeePhoto').src = data.data.photo || '/images/default-avatar.png';
+        }
+      } catch (error) {
+        console.error('Error loading employee profile:', error);
+      }
+    }
+    
+    async function handleSingleDeduction(contractId) {
+      currentDeductionId = contractId;
+      
+      // Show loading
+      Swal.fire({
+        title: 'กำลังตรวจสอบข้อมูล...','
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+        }
+      });
+      
+      // Simulate API call
+      setTimeout(() => {
+        // Show confirmation modal
+        showStockConfirmModal(contractId);
+      }, 500);
+    }
+    
+    function showStockConfirmModal(contractId) {
+      Swal.close();
+      
+      // Populate modal content
+      const content = `
+        <div class="space-y-4">
+          <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+            <div class="flex items-center gap-3">
+              <div class="avatar placeholder">
+                <div class="bg-green-100 text-green-600 rounded-full w-12">
+                  <span>สท</span>
+                </div>
+              </div>
+              <div>
+                <p class="font-semibold">สมชาย ทองดี</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">เลขสัญญา: ${contractId}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="space-y-2">
+            <h4 class="font-medium">รายการสินค้า</h4>
+            <div class="border rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-medium">MacBook Pro M3</p>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">16" 1TB Space Black</p>
+                </div>
+                <div class="text-right">
+                  <p class="font-semibold">฿75,900</p>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">จำนวน: 1</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+            <h4 class="font-medium mb-2">สถานะสต๊อก</h4>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-gray-600 dark:text-gray-400">สต๊อกปัจจุบัน:</p>
+                <p class="font-bold text-lg">10 เครื่อง</p>
+              </div>
+              <div>
+                <p class="text-gray-600 dark:text-gray-400">หลังตัดสต๊อก:</p>
+                <p class="font-bold text-lg text-blue-600">9 เครื่อง</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <span>ยืนยันการตัดสต๊อกและส่งมอบสินค้าให้ลูกค้า</span>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('stockConfirmContent').innerHTML = content;
+      document.getElementById('stockConfirmModal').classList.add('modal-open');
+    }
+    
+    function closeConfirmModal() {
+      document.getElementById('stockConfirmModal').classList.remove('modal-open');
+    }
+    
+    async function performStockDeduction() {
+      // Show processing animation
+      Swal.fire({
+        title: 'กำลังตัดสต๊อก...','
+        html: `
+          <div class="flex flex-col items-center gap-4">
+            <div class="radial-progress text-success" style="--value:0; --size:8rem;" id="progress">0%</div>
+            <p class="text-gray-600">กำลังดำเนินการตัดสต๊อกและบันทึกข้อมูล</p>
+          </div>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          // Animate progress
+          let progress = 0;
+          const progressEl = document.getElementById('progress');
+          const interval = setInterval(() => {
+            progress += 10;
+            progressEl.style.setProperty('--value', progress);
+            progressEl.textContent = progress + '%';
+            
+            if (progress >= 100) {
+              clearInterval(interval);
+              setTimeout(() => {
+                Swal.fire({
+                  icon: 'success','
+                  title: 'ตัดสต๊อกสำเร็จ!','
+                  html: `
+                    <div class="text-center">
+                      <p class="mb-4">ตัดสต๊อกและบันทึกการส่งมอบสินค้าเรียบร้อยแล้ว</p>
+                      <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">เลขที่การส่งมอบ</p>
+                        <p class="font-bold text-lg text-green-600 dark:text-green-400">DLV-2025-0617-001</p>
+                      </div>
+                    </div>
+                  `,
+                  showCancelButton: true,
+                  confirmButtonText: 'พิมพ์ใบส่งมอบ','
+                  cancelButtonText: 'ปิด','
+                  confirmButtonColor: '#10B981''
+                }).then((result) => {
+                  if (result.isConfirmed) {
+                    window.print();
+                  }
+                  closeConfirmModal();
+                  // Remove card from UI
+                  location.reload();
+                });
+              }, 500);
+            }
+          }, 100);
+        }
+      });
+    }
+    
+    function confirmBatchDeduction() {
+      if (selectedItems.size === 0) return;
+      
+      batchDeductionList = Array.from(selectedItems);
+      
+      // Show batch summary modal
+      showBatchSummaryModal();
+    }
+    
+    function showBatchSummaryModal() {
+      const content = `
+        <div class="space-y-4">
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <span>จะทำการตัดสต๊อก ${batchDeductionList.length} รายการ</span>
+          </div>
+          
+          <div class="max-h-96 overflow-y-auto space-y-2">
+            ${batchDeductionList.map(contractId => `
+              <div class="border rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">${contractId}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">สมชาย ทองดี - MacBook Pro M3</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="font-semibold">฿75,900</p>
+                    <span class="badge badge-success badge-sm">สต๊อกพร้อม</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}'
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="font-medium">มูลค่ารวม:</span>
+              <span class="text-xl font-bold text-blue-600">฿${(75900 * batchDeductionList.length).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('batchSummaryContent').innerHTML = content;
+      document.getElementById('batchSummaryModal').classList.add('modal-open');
+    }
+    
+    function closeBatchModal() {
+      document.getElementById('batchSummaryModal').classList.remove('modal-open');
+    }
+    
+    async function performBatchDeduction() {
+      // Implement batch deduction logic
+      Swal.fire({
+        title: 'กำลังตัดสต๊อก...','
+        html: `
+          <div class="text-center">
+            <p class="mb-4">กำลังประมวลผล ${batchDeductionList.length} รายการ</p>
+            <progress class="progress progress-success w-56" value="0" max="100" id="batchProgress"></progress>
+            <p class="mt-2 text-sm text-gray-600">
+              <span id="processedCount">0</span> / ${batchDeductionList.length} รายการ
+            </p>
+          </div>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: async () => {
+          const progressBar = document.getElementById('batchProgress');
+          const processedCountEl = document.getElementById('processedCount');
+          
+          for (let i = 0; i < batchDeductionList.length; i++) {
+            // Simulate processing each item
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const progress = ((i + 1) / batchDeductionList.length) * 100;
+            progressBar.value = progress;
+            processedCountEl.textContent = i + 1;
+          }
+          
+          setTimeout(() => {
+            Swal.fire({
+              icon: 'success','
+              title: 'ตัดสต๊อกสำเร็จ!','
+              text: `ตัดสต๊อกทั้งหมด ${batchDeductionList.length} รายการเรียบร้อยแล้ว`,
+              confirmButtonColor: '#10B981''
+            }).then(() => {
+              location.reload();
+            });
+          }, 500);
+        }
+      });
+    }
+    
+    function showNotification(message, type = 'info') {'
+      Swal.fire({
+        title: 'แจ้งเตือน','
+        text: message,
+        icon: type,
+        toast: true,
+        position: 'top-end','
+        showConfirmButton: false,
+        timer: 3000
+      });
+    }
+    
+    // Logout
+    document.getElementById('btnLogout').addEventListener('click', () => {'
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    });
+    
+    // Export report
+    document.getElementById('btnExportReport').addEventListener('click', () => {'
+      Swal.fire({
+        title: 'ส่งออกรายงาน','
+        text: 'กำลังเตรียมไฟล์รายงานสต๊อก...','
+        icon: 'info','
+        timer: 2000,
+        showConfirmButton: false
+      });
+    });
+
+    // Function to show/hide loading overlay
+        document.addEventListener('DOMContentLoaded', async function() {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+      try {
+        // ... existing code ...
+      } catch (error) {
+        console.error('Initialization error:', error);
+      } finally {
+        LoadingSystem.hide(loaderId);
+      }
+    });
+  
+}}</script>
+  </main>
+  
+  <!-- เพิ่ม JavaScript สำหรับโหลดข้อมูลสาขา -->
+  <script>
+    // Get branch code from URL parameter
+    // const urlParams = new URLSearchParams(window.location.search); // Already defined
+    // const BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('branchCode') || '00000'; // Already defined'
+    
+    // โหลดข้อมูลสาขา
+    async function loadBranchInfo() {
+      try {
+        const branchCode = BRANCH_CODE;
+        const token = localStorage.getItem("authToken") || "";
+        
+        // เรียก /api/branch เพื่อดึง list สาขา
+        const res = await fetch(`/api/branch`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const js = await res.json();
+        if (res.ok && js.success) {
+          // หา record ที่ตรงกับ branch_code
+          const branch = js.data.find(b => b.branch_code === branchCode);
+          if (branch) {
+            document.getElementById("branchInfo").textContent =
+              `${branch.name} — ${branch.address}`;
+            // อัพเดท title ของหน้าด้วยชื่อสาขาจริง
+            document.title = `ตัดสต๊อก - ${branch.name}`;
+            document.getElementById("pageTitle").textContent = `ตัดสต๊อกสินค้า - ${branch.name}`;
+            return;
+          }
+        }
+        throw new Error("ไม่พบข้อมูลสาขา");
+      } catch (err) {
+        console.warn("loadBranchInfo error:", err);
+        document.getElementById("branchInfo").textContent =
+          "สาขา: (ไม่พบข้อมูล)";
+      }
+    }
+    
+    // เรียกใช้ loadBranchInfo เมื่อ DOM โหลดเสร็จ
+    document.addEventListener('DOMContentLoaded', function() {
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default'
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      loadBranchInfo();
+      
+      // อัพเดท title จาก URL parameter
+      const branchName = urlParams.get('name');
+      if (branchName) {
+        document.title = `ตัดสต๊อก - ${decodeURIComponent(branchName)}`;
+      }
+    });
+
+}
+
+// Show/Hide Loading with Lottie animation
+let lottieAnimation = null;
+function showLoading(show) {
+  const loader = document.getElementById('loadingOverlay');
+  if (show) {
+    loader.style.display = 'flex';
+    loader.classList.remove('animate__fadeOut');
+    loader.classList.add('animate__fadeIn');
+
+    if (!lottieAnimation) {
+      console.log('=🔄 Loading Lottie animation from /Loading/Loading.json');
+      fetch('/Loading/Loading.json')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(animationData => {
+          lottieAnimation = lottie.loadAnimation({
+            container: document.getElementById('lottieContainer'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+          console.log('✅ Lottie animation loaded successfully');
+        })
+        .catch(error => {
+          console.error('❌ Error loading Lottie animation:', error);
+          document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+        });
+    } else {
+      lottieAnimation.play();
+    }
+  } else {
+    if (lottieAnimation) {
+      lottieAnimation.pause();
+    }
+    loader.classList.remove('animate__fadeIn');
+    loader.classList.add('animate__fadeOut');
+    setTimeout(() => { loader.style.display = 'none'; }, 600);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  showLoading(true);
+  // existing code continues to run...
+  setTimeout(() => showLoading(false), 800);
+});
+
+window.addEventListener('beforeunload', () => {
+  if (lottieAnimation) {
+    lottieAnimation.destroy();
+    lottieAnimation = null;
+  }
+});
+</script>
+</body>
+</html>

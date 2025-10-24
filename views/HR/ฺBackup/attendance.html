@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบ HR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: { 
+        extend: { 
+          fontFamily: { sans: ['Prompt','sans-serif'] } '
+        } 
+      },
+      daisyui: { themes: ['light','dark','corporate'] },'
+    }
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Socket.IO client (ถ้าใช้งาน real-time) -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px; height: 60px; border-radius: 10px;
+      background-color: #f3f4f6; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+    .calendar-day-holiday {
+      background-color: #fee2e2; color: #ef4444;
+    }
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d; color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+                  0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0%   { transform: scale(1);   }
+      50%  { transform: scale(1.1); }
+      100% { transform: scale(1);   }
+    }
+    #notificationBtn span.badge-notification {
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #888; border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block; margin-right: 5px;
+    }
+    .status-active   { background-color: #10b981; }
+    .status-away     { background-color: #f59e0b; }
+    .status-offline  { background-color: #6b7280; }
+  </style>
+
+  <!-- เพิ่มฟังก์ชัน loadEmployeeProfile ก่อนสคริปต์หลัก -->
+  <script>
+    // โหลดข้อมูลโปรไฟล์พนักงานจาก API
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');'
+        if (!token) return;
+
+        const res = await fetch('/api/users/me', {'
+          headers: {
+            'Authorization': 'Bearer ' + token,'
+            'Content-Type': 'application/json''
+          },
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');'
+        }
+        const user = result.data;
+        document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';'
+        let photoUrl = user.photoUrl || '';'
+        if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {'
+          photoUrl = '/' + photoUrl;'
+        }
+        document.getElementById('employeePhoto').src = photoUrl;'
+      } catch (err) {
+        console.error('Load Employee Profile Error:', err);'
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu"
+          class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i id="toggleIcon" class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="hr_dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="hr_dashboard"
+               class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="employee_directory"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-people-fill text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">พนักงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="attendance"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+            </a>
+          </li>
+          <li>
+            <a href="leave_requests"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+              <span class="ml-3">การลา</span>
+            </a>
+          </li>
+          <li>
+            <a href="payroll"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+              <span class="ml-3">เงินเดือน</span>
+            </a>
+          </li>
+          <li>
+            <a href="performance_reviews"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">ประเมินผลงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="bonus_list"
+               class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>รายการโบนัส</span>
+            </a>
+          </li>
+          <li class="mt-4">
+            <a href="role_management"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark"
+                    class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar"
+                    class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <li>
+            <div id="profile"
+                 class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <img id="employeePhoto"
+                   src="/api/placeholder/36/36"
+                   alt="Employee Photo"
+                   class="w-10 h-10 rounded-full mr-3"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 bg-gray-50 dark:bg-gray-800 overflow-x-hidden">
+      <!-- Top Bar -->
+      <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+        <div class="flex items-center">
+          <button id="menuToggle" class="mr-4 text-gray-600 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400">
+            <i class="bi bi-list text-2xl"></i>
+          </button>
+          <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">บันทึกเวลาเข้า-ออก</h1>
+        </div>
+        <div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+          <input type="date"
+                 id="filterDate"
+                 class="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring focus:border-blue-300">
+          <div class="relative w-full md:w-64">
+            <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400"></i>
+            <input type="text"
+                   id="searchEmployee"
+                   placeholder="ค้นหาพนักงาน..."
+                   class="pl-10 pr-3 py-2 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring focus:border-blue-300">
+          </div>
+          <button id="btnAddRecord" class="btn btn-primary">
+            <i class="bi bi-plus-circle mr-2"></i>บันทึกใหม่
+          </button>
+        </div>
+      </div>
+
+      <!-- Status Alert -->
+      <div id="alertMessage" class="mb-4 hidden"></div>
+
+      <!-- Attendance Table -->
+      <div class="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead>
+            <tr class="bg-gray-100 dark:bg-gray-800">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">วันที่</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">พนักงาน</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ช่วงเวลาทำงาน</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ชั่วโมงปกติ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ชั่วโมง OT</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">หมายเหตุ</th>
+              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceTableBody" class="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+            <!-- Data rows will be inserted here by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden mt-4 text-center py-8 bg-white dark:bg-gray-900 rounded-lg shadow">
+        <i class="bi bi-calendar-x text-gray-400 text-5xl mb-3"></i>
+        <p class="text-gray-500 dark:text-gray-400">ไม่พบข้อมูลการลงเวลา</p>
+        <button id="btnEmptyAdd" class="mt-3 btn btn-sm btn-primary">
+          <i class="bi bi-plus-circle mr-1"></i> เพิ่มการลงเวลา
+        </button>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div id="loadingIndicator" class="hidden mt-4 text-center py-8 bg-white dark:bg-gray-900 rounded-lg shadow">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+        <p class="mt-2 text-gray-500 dark:text-gray-400">กำลังโหลดข้อมูล...</p>
+      </div>
+
+      <!-- Pagination -->
+      <div class="mt-4 flex justify-between items-center">
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+          <span id="recordCount">0</span> รายการ
+        </div>
+        <ul class="inline-flex space-x-2">
+          <li><button id="btnPrevPage" class="btn btn-sm btn-outline">«</button></li>
+          <li><span id="currentPage" class="btn btn-sm">1</span></li>
+          <li><button id="btnNextPage" class="btn btn-sm btn-outline">»</button></li>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal for Add/Edit Attendance -->
+  <div id="attendanceModal"
+       class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md mx-4">
+      <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
+        <h3 id="modalTitle" class="text-lg font-medium text-gray-900 dark:text-gray-100">เพิ่มการลงเวลา</h3>
+        <button id="btnCloseModal" class="text-gray-400 hover:text-gray-500">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="px-6 py-4">
+        <form id="attendanceForm">
+          <input type="hidden" id="recordId">
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="employeeSelect">
+              พนักงาน
+            </label>
+            <select id="employeeSelect"
+                    class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                    required>
+              <option value="">เลือกพนักงาน</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="attendanceDate">
+              วันที่
+            </label>
+            <input type="date"
+                   id="attendanceDate"
+                   class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                   required>
+          </div>
+
+          <!-- ส่วนช่วงเวลาทำงาน -->
+          <div id="timePeriodsContainer">
+            <!-- ช่วงเวลาจะถูกเพิ่มโดย JavaScript -->
+          </div>
+
+          <div class="mb-4">
+            <button type="button"
+                    id="btnAddTimePeriod"
+                    class="text-blue-600 dark:text-blue-400 flex items-center">
+              <i class="bi bi-plus-circle mr-1"></i> เพิ่มช่วงเวลา
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                ชั่วโมงปกติรวม
+              </label>
+              <input type="text"
+                     id="totalRegularHours"
+                     class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2"
+                     readonly>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                ชั่วโมง OT รวม
+              </label>
+              <input type="text"
+                     id="totalOvertimeHours"
+                     class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2"
+                     readonly>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="note">
+              หมายเหตุ
+            </label>
+            <textarea id="note"
+                      rows="2"
+                      class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"></textarea>
+          </div>
+
+          <div class="flex justify-end space-x-3 mt-6">
+            <button type="button" id="btnCancelModal" class="btn btn-outline">ยกเลิก</button>
+            <button type="submit" id="btnSaveRecord" class="btn btn-primary">บันทึก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal"
+       class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-sm mx-4">
+      <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">ยืนยันการลบ</h3>
+      </div>
+      <div class="px-6 py-4">
+        <p class="text-gray-700 dark:text-gray-300">คุณต้องการลบข้อมูลการลงเวลานี้ใช่หรือไม่?</p>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+        <button id="btnCancelDelete" class="btn btn-outline">ยกเลิก</button>
+        <button id="btnConfirmDelete" class="btn btn-error">ลบ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Helper: Dark Mode =====
+    function setDarkMode(isDark) {
+      document.documentElement.classList.toggle('dark', isDark);'
+      localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');'
+      const label = document.getElementById('darkModeLabel');'
+      if (label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';'
+    }
+    function checkDarkMode() {
+      const stored = localStorage.getItem('darkMode');'
+      const isDark = stored === 'enabled' ||'
+        (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches);'
+      setDarkMode(isDark);
+    }
+
+    // ===== Helper: Sidebar =====
+    function checkSidebarState() {
+      const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';'
+      const sidebar = document.getElementById('sidebar');'
+      const icon    = document.getElementById('toggleIcon');'
+      if (collapsed && sidebar && icon) {
+        sidebar.classList.add('-ml-64');'
+        icon.classList.replace('bi-chevron-left','bi-chevron-right');'
+      }
+    }
+
+    function resolvePhotoUrl(raw) {
+      if (!raw) return '/api/placeholder/36/36';'
+      if (/^https?:\/\//.test(raw)) return raw;
+      if (raw.startsWith('/')) {'
+        return raw.replace(/^\/uploads\//, '/uploads/employees/');'
+      }
+      return '/uploads/employees/' + raw;'
+    }
+
+    function getCurrentUserIdFromToken() {
+      const token = localStorage.getItem('authToken');'
+      if (!token) return null;
+
+      const base64Url = token.split('.')[1];'
+      const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');'
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')'
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))'
+          .join('')'
+      );
+      const data = JSON.parse(jsonPayload);
+      return data.userId || data.id || data.sub || null;
+    }
+
+    const currentUserId = getCurrentUserIdFromToken();
+    const EMP_API       = '/api/employees';'
+    let employees       = [];
+
+    async function loadEmployees() {
+      try {
+        const res = await fetch(EMP_API, { headers: getHeaders() });
+        if (res.status === 401) {
+          showAlert('กรุณาเข้าสู่ระบบก่อนใช้งาน', 'error');'
+          setTimeout(() => window.location.href = '/login', 1000);'
+          return;
+        }
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const json = await res.json();
+        employees = json.employees || json.data?.employees || [];
+      } catch (err) {
+        console.error('Failed to load employees:', err);'
+        if (!err.message.startsWith('Status 401')) {'
+          showAlert('ไม่สามารถโหลดรายชื่อพนักงานได้', 'error');'
+        }
+        employees = [];
+      }
+    }
+
+    function getHeaders() {
+      const token = localStorage.getItem('authToken');'
+      if (!token) {
+        window.location.href = '/login';'
+        return {};
+      }
+      return {
+        'Content-Type': 'application/json','
+        'Authorization': `Bearer ${token}`'
+      };
+    }
+
+    const socket = io();
+    socket.on('attendanceCheckedIn', data => {'
+    });
+
+    let currentDeleteId = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {'
+      checkDarkMode();
+      checkSidebarState();
+
+      initializePage();
+      setupEventListeners();
+      await loadEmployees();
+      loadEmployeeOptions();
+      await loadAttendanceData();
+
+      // โหลดโปรไฟล์ผู้ใช้งานปัจจุบันจาก API
+      await loadEmployeeProfile();
+    });
+
+    const elements = {
+      sidebar:            document.getElementById('sidebar'),'
+      btnToggleMenu:      document.getElementById('btnToggleMenu'),'
+      toggleIcon:         document.getElementById('toggleIcon'),'
+      menuToggle:         document.getElementById('menuToggle'),'
+      btnToggleDark:      document.getElementById('btnToggleDark'),'
+      darkModeLabel:      document.getElementById('darkModeLabel'),'
+      btnLogoutSidebar:   document.getElementById('btnLogoutSidebar'),'
+
+      filterDate:         document.getElementById('filterDate'),'
+      searchEmployee:     document.getElementById('searchEmployee'),'
+      attendanceTableBody:document.getElementById('attendanceTableBody'),'
+      emptyState:         document.getElementById('emptyState'),'
+      loadingIndicator:   document.getElementById('loadingIndicator'),'
+      recordCount:        document.getElementById('recordCount'),'
+      currentPage:        document.getElementById('currentPage'),'
+      btnPrevPage:        document.getElementById('btnPrevPage'),'
+      btnNextPage:        document.getElementById('btnNextPage'),'
+
+      btnAddRecord:       document.getElementById('btnAddRecord'),'
+      btnEmptyAdd:        document.getElementById('btnEmptyAdd'),'
+      attendanceModal:    document.getElementById('attendanceModal'),'
+      modalTitle:         document.getElementById('modalTitle'),'
+      attendanceForm:     document.getElementById('attendanceForm'),'
+      recordId:           document.getElementById('recordId'),'
+      employeeSelect:     document.getElementById('employeeSelect'),'
+      attendanceDate:     document.getElementById('attendanceDate'),'
+      totalRegularHours:  document.getElementById('totalRegularHours'),'
+      totalOvertimeHours: document.getElementById('totalOvertimeHours'),'
+      btnAddTimePeriod:   document.getElementById('btnAddTimePeriod'),'
+      timePeriodsContainer:document.getElementById('timePeriodsContainer'),'
+      note:               document.getElementById('note'),'
+      btnCloseModal:      document.getElementById('btnCloseModal'),'
+      btnCancelModal:     document.getElementById('btnCancelModal'),'
+      btnSaveRecord:      document.getElementById('btnSaveRecord'),'
+
+      alertMessage:       document.getElementById('alertMessage'),'
+
+      confirmModal:       document.getElementById('confirmModal'),'
+      btnCancelDelete:    document.getElementById('btnCancelDelete'),'
+      btnConfirmDelete:   document.getElementById('btnConfirmDelete')'
+    };
+
+    let currentFilterDate = '';'
+    let currentSearchTerm = '';'
+    let currentPage       = 1;
+    const recordsPerPage  = 10;
+
+    function initializePage() {
+      const now     = new Date();
+      const yyyy    = now.getFullYear();
+      const mm      = String(now.getMonth() + 1).padStart(2, '0');'
+      const dd      = String(now.getDate()).padStart(2, '0');'
+      const localToday = `${yyyy}-${mm}-${dd}`;
+
+      elements.filterDate.value      = localToday;
+      elements.attendanceDate.value  = localToday;
+      currentFilterDate              = localToday;
+
+      if (localStorage.getItem('darkMode') === 'enabled') {'
+        document.documentElement.classList.add('dark');'
+        elements.darkModeLabel.textContent = 'Light Mode';'
+      } else {
+        elements.darkModeLabel.textContent = 'Dark Mode';'
+      }
+
+      resetTimePeriodsForm();
+      updateCurrentTimeDisplay();
+    }
+
+    function updateCurrentTimeDisplay() {
+      const currentTimeElement = document.getElementById('currentTime');'
+      if (currentTimeElement) {
+        currentTimeElement.innerHTML = '2025-05-09 03:20:41';'
+      }
+    }
+
+    function setupEventListeners() {
+      elements.btnToggleMenu.addEventListener('click', toggleSidebar);'
+      if (elements.menuToggle) {
+        elements.menuToggle.addEventListener('click', toggleSidebar);'
+      }
+
+      elements.btnToggleDark.addEventListener('click', toggleDarkMode);'
+
+      if (elements.btnLogoutSidebar) {
+        elements.btnLogoutSidebar.addEventListener('click', () => {'
+          showAlert('ออกจากระบบเรียบร้อยแล้ว', 'success');'
+        });
+      }
+
+      elements.filterDate.addEventListener('change', () => {'
+        currentFilterDate = elements.filterDate.value;
+        currentPage = 1;
+        filterAndDisplayRecords();
+      });
+
+      elements.searchEmployee.addEventListener('input', () => {'
+        currentSearchTerm = elements.searchEmployee.value.toLowerCase();
+        currentPage = 1;
+        filterAndDisplayRecords();
+      });
+
+      elements.btnPrevPage.addEventListener('click', () => {'
+        if (currentPage > 1) {
+          currentPage--;
+          filterAndDisplayRecords();
+        }
+      });
+
+      elements.btnNextPage.addEventListener('click', () => {'
+        const filteredData = getFilteredData();
+        const totalPages   = Math.ceil(filteredData.length / recordsPerPage);
+        if (currentPage < totalPages) {
+          currentPage++;
+          filterAndDisplayRecords();
+        }
+      });
+
+      elements.btnAddRecord.addEventListener('click', openAddModal);'
+      elements.btnEmptyAdd.addEventListener('click', openAddModal);'
+
+      elements.btnCloseModal.addEventListener('click', closeAttendanceModal);'
+      elements.btnCancelModal.addEventListener('click', closeAttendanceModal);'
+
+      elements.attendanceForm.addEventListener('submit', handleFormSubmit);'
+
+      elements.btnCancelDelete.addEventListener('click', closeConfirmModal);'
+      elements.btnConfirmDelete.addEventListener('click', confirmDelete);'
+
+      if (elements.btnAddTimePeriod) {
+        elements.btnAddTimePeriod.addEventListener('click', addTimePeriod);'
+      }
+    }
+
+    function toggleSidebar() {
+      elements.sidebar.classList.toggle('-ml-64');'
+      const isHidden = elements.sidebar.classList.contains('-ml-64');'
+      elements.toggleIcon.classList.toggle('bi-chevron-right', isHidden);'
+      elements.toggleIcon.classList.toggle('bi-chevron-left', !isHidden);'
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');'
+      const isDarkMode = document.documentElement.classList.contains('dark');'
+      elements.darkModeLabel.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';'
+      localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');'
+    }
+
+    function loadEmployeeOptions() {
+      elements.employeeSelect.innerHTML = '<option value="">เลือกพนักงาน</option>';'
+      employees.forEach(employee => {
+        const option = document.createElement('option');'
+        option.value = employee.id;
+        option.textContent = employee.name;
+        elements.employeeSelect.appendChild(option);
+      });
+    }
+
+    function resetTimePeriodsForm() {
+      elements.timePeriodsContainer.innerHTML = `
+        <div class="time-period-group mb-4 border border-gray-200 dark:border-gray-700 p-3 rounded-lg">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="font-medium text-gray-700 dark:text-gray-300">ช่วงเช้า</h4>
+            <div>
+              <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" class="period-enabled form-checkbox h-4 w-4 text-blue-600" checked>
+                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">เปิดใช้งาน</span>
+              </label>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาเข้า</label>
+              <input type="time" class="time-in w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                  focus:outline-none focus:ring focus:border-blue-300" value="08:00">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาออก</label>
+              <input type="time" class="time-out w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                  focus:outline-none focus:ring focus:border-blue-300" value="12:00">
+            </div>
+          </div>
+        </div>
+
+        <div class="time-period-group mb-4 border border-gray-200 dark:border-gray-700 p-3 rounded-lg">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="font-medium text-gray-700 dark:text-gray-300">ช่วงบ่าย</h4>
+            <div>
+              <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" class="period-enabled form-checkbox h-4 w-4 text-blue-600" checked>
+                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">เปิดใช้งาน</span>
+              </label>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาเข้า</label>
+              <input type="time" class="time-in w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                  focus:outline-none focus:ring focus:border-blue-300" value="13:00">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาออก</label>
+              <input type="time" class="time-out w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                  focus:outline-none focus:ring focus:border-blue-300" value="17:00">
+            </div>
+          </div>
+        </div>
+
+        <div class="time-period-group overtime-period mb-4 border border-gray-200 dark:border-gray-700 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="font-medium text-gray-700 dark:text-gray-300">ชั่วโมงล่วงเวลา (OT)</h4>
+            <div>
+              <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" class="period-enabled form-checkbox h-4 w-4 text-blue-600">
+                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">เปิดใช้งาน</span>
+              </label>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาเข้า OT</label>
+              <input type="time" class="time-in w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                  focus:outline-none focus:ring focus:border-blue-300" value="17:30" disabled>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาออก OT</label>
+              <input type="time" class="time-out w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                  focus:outline-none focus:ring focus:border-blue-300" value="19:30" disabled>
+            </div>
+          </div>
+        </div>
+      `;
+
+      setupTimePeriodListeners();
+      calculateTotalHours();
+    }
+
+    function setupTimePeriodListeners() {
+      document.querySelectorAll('.period-enabled').forEach(checkbox => {'
+        checkbox.addEventListener('change', function() {'
+          const inputs = this.closest('.time-period-group').querySelectorAll('input[type="time"]');'
+          inputs.forEach(input => {
+            input.disabled = !this.checked;
+          });
+          calculateTotalHours();
+        });
+      });
+
+      document.querySelectorAll('.time-in, .time-out').forEach(input => {'
+        input.addEventListener('change', calculateTotalHours);'
+      });
+
+      document.querySelectorAll('.btn-remove-period').forEach(button => {'
+        button.addEventListener('click', function() {'
+          this.closest('.time-period-group').remove();'
+          calculateTotalHours();
+        });
+      });
+    }
+
+    function calculateTotalHours() {
+      let totalRegularHours  = 0;
+      let totalOvertimeHours = 0;
+
+      const timePeriodGroups = document.querySelectorAll('.time-period-group');'
+      timePeriodGroups.forEach((group) => {
+        const isEnabled = group.querySelector('.period-enabled').checked;'
+        if (!isEnabled) return;
+
+        const timeIn  = group.querySelector('.time-in').value;'
+        const timeOut = group.querySelector('.time-out').value;'
+
+        if (timeIn && timeOut) {
+          const [inHour,  inMinute ] = timeIn.split(':').map(Number);'
+          const [outHour, outMinute] = timeOut.split(':').map(Number);'
+
+          let totalMinutes = (outHour * 60 + outMinute) - (inHour * 60 + inMinute);
+          if (totalMinutes < 0) totalMinutes += 24 * 60;
+
+          const hours = totalMinutes / 60;
+
+          if (group.classList.contains('overtime-period')) {'
+            totalOvertimeHours += hours;
+          } else {
+            totalRegularHours += hours;
+          }
+        }
+      });
+
+      if (totalRegularHours > 8) {
+        totalOvertimeHours += (totalRegularHours - 8);
+        totalRegularHours = 8;
+      }
+
+      elements.totalRegularHours.value  = totalRegularHours.toFixed(1);
+      elements.totalOvertimeHours.value = totalOvertimeHours.toFixed(1);
+    }
+
+    function addTimePeriod() {
+      const container = elements.timePeriodsContainer;
+      const index = container.querySelectorAll('.time-period-group').length;'
+
+      const timePeriodHTML = `
+        <div class="time-period-group mb-4 border border-gray-200 dark:border-gray-700 p-3 rounded-lg">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="font-medium text-gray-700 dark:text-gray-300">ช่วงเวลาเพิ่มเติม</h4>
+            <div class="flex gap-2">
+              <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" class="period-enabled form-checkbox h-4 w-4 text-blue-600" checked>
+                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">เปิดใช้งาน</span>
+              </label>
+              <button type="button" class="text-red-500 btn-remove-period">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาเข้า</label>
+              <input type="time" class="time-in w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                     focus:outline-none focus:ring focus:border-blue-300">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาออก</label>
+              <input type="time" class="time-out w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                     focus:outline-none focus:ring focus:border-blue-300">
+            </div>
+          </div>
+        </div>
+      `;
+
+      const tempDiv        = document.createElement('div');'
+      tempDiv.innerHTML    = timePeriodHTML;
+      const newTimePeriod  = tempDiv.firstElementChild;
+
+      newTimePeriod.querySelector('.btn-remove-period').addEventListener('click', function() {'
+        this.closest('.time-period-group').remove();'
+        calculateTotalHours();
+      });
+
+      newTimePeriod.querySelector('.period-enabled').addEventListener('change', function() {'
+        const inputs = this.closest('.time-period-group').querySelectorAll('input[type="time"]');'
+        inputs.forEach(input => {
+          input.disabled = !this.checked;
+        });
+        calculateTotalHours();
+      });
+
+      const timeInputs = newTimePeriod.querySelectorAll('input[type="time"]');'
+      timeInputs.forEach(input => {
+        input.addEventListener('change', calculateTotalHours);'
+      });
+
+      container.appendChild(newTimePeriod);
+    }
+
+    function collectFormData() {
+      const recordIdValue = elements.recordId.value;
+      const employeeId    = parseInt(elements.employeeSelect.value);
+      const employeeName  = elements.employeeSelect.options[elements.employeeSelect.selectedIndex].text;
+      const date          = elements.attendanceDate.value;
+      const note          = elements.note.value;
+
+      const timePeriods   = [];
+      const timeGroups    = document.querySelectorAll('.time-period-group');'
+
+      timeGroups.forEach((group, index) => {
+        const isEnabled = group.querySelector('.period-enabled').checked;'
+        if (!isEnabled) return;
+
+        const timeIn  = group.querySelector('.time-in').value;'
+        const timeOut = group.querySelector('.time-out').value;'
+
+        if (timeIn && timeOut) {
+          let periodType;
+          if (group.classList.contains('overtime-period')) {'
+            periodType = 'overtime';'
+          } else if (index === 0) {
+            periodType = 'morning';'
+          } else if (index === 1) {
+            periodType = 'afternoon';'
+          } else {
+            periodType = 'additional';'
+          }
+
+          const [inHour,  inMinute ] = timeIn.split(':').map(Number);'
+          const [outHour, outMinute] = timeOut.split(':').map(Number);'
+
+          let totalMinutes = (outHour * 60 + outMinute) - (inHour * 60 + inMinute);
+          if (totalMinutes < 0) totalMinutes += 24 * 60;
+
+          const hours = (totalMinutes / 60).toFixed(1);
+
+          timePeriods.push({
+            type: periodType,
+            timeIn,
+            timeOut,
+            hours
+          });
+        }
+      });
+
+      const totalRegularHours  = elements.totalRegularHours.value;
+      const totalOvertimeHours = elements.totalOvertimeHours.value;
+
+      return {
+        id: recordIdValue || null,
+        date,
+        employeeId,
+        employeeName,
+        timePeriods,
+        totalRegularHours,
+        totalOvertimeHours,
+        note
+      };
+    }
+
+    function getFilteredData() {
+      return (window.attendanceData || []).filter(record => {
+        const matchDate   = !currentFilterDate || record.date === currentFilterDate;
+        const matchSearch = !currentSearchTerm ||
+                            record.employeeName.toLowerCase().includes(currentSearchTerm);
+        return matchDate && matchSearch;
+      });
+    }
+
+    function renderAttendanceTable(data) {
+      elements.attendanceTableBody.innerHTML = '';'
+      data.forEach(record => {
+        const row = document.createElement('tr');'
+        row.className = 'hover:bg-gray-50 dark:hover:bg-gray-800';'
+
+        let periodsHTML = '';'
+        record.timePeriods.forEach(p => {
+          const label = p.type === 'main' ? 'เช็คอิน/เอาท์' : 'อื่นๆ';'
+          const bg    = p.type === 'main''
+            ? 'bg-blue-50 dark:bg-blue-900/20''
+            : 'bg-gray-50 dark:bg-gray-700';'
+
+          periodsHTML += `
+            <div class="mb-1 p-1 rounded ${bg}">
+              <span class="font-medium">${label}:</span>
+              ${p.timeIn}${p.timeOut ? ` - ${p.timeOut}` : ''}${p.hours ? ` (${p.hours} ชม.)` : ''}'
+            </div>`;
+        });
+
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${formatDate(record.date)}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${record.employeeName}</td>
+          <td class="px-6 py-4 text-sm">${periodsHTML}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${record.totalRegularHours} ชม.</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${record.totalOvertimeHours} ชม.</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${record.note || '-'}</td>'
+          <td class="px-6 py-4 whitespace-nowrap text-center">
+            <button class="btn-edit" data-id="${record.id}">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+            <button class="btn-delete" data-id="${record.id}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+
+        row.querySelector('.btn-edit').onclick   = () => openEditModal(record.id);'
+        row.querySelector('.btn-delete').onclick = () => openDeleteConfirmation(record.id);'
+        elements.attendanceTableBody.appendChild(row);
+      });
+    }
+
+    function filterAndDisplayRecords() {
+      elements.loadingIndicator.classList.remove('hidden');'
+      elements.attendanceTableBody.parentElement.parentElement.classList.add('hidden');'
+      elements.emptyState.classList.add('hidden');'
+
+      setTimeout(() => {
+        const filteredData  = getFilteredData();
+        const totalRecords  = filteredData.length;
+        const totalPages    = Math.ceil(totalRecords / recordsPerPage);
+
+        elements.recordCount.textContent       = totalRecords;
+        elements.currentPage.textContent       = currentPage;
+        elements.btnPrevPage.disabled          = currentPage <= 1;
+        elements.btnNextPage.disabled          = currentPage >= totalPages;
+
+        elements.loadingIndicator.classList.add('hidden');'
+
+        if (totalRecords === 0) {
+          elements.attendanceTableBody.parentElement.parentElement.classList.add('hidden');'
+          elements.emptyState.classList.remove('hidden');'
+          return;
+        }
+
+        elements.attendanceTableBody.parentElement.parentElement.classList.remove('hidden');'
+        elements.emptyState.classList.add('hidden');'
+
+        const startIndex = (currentPage - 1) * recordsPerPage;
+        const endIndex   = Math.min(startIndex + recordsPerPage, totalRecords);
+        const pagedData  = filteredData.slice(startIndex, endIndex);
+
+        renderAttendanceTable(pagedData);
+      }, 500);
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return '-';'
+
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };'
+      const date = new Date(dateString);
+      return date.toLocaleDateString('th-TH', options);'
+    }
+
+    function openAddModal() {
+      elements.modalTitle.textContent    = 'เพิ่มการลงเวลา';'
+      elements.recordId.value            = '';'
+      elements.employeeSelect.value      = '';'
+      elements.attendanceDate.value      = elements.filterDate.value || new Date().toISOString().split('T')[0];'
+      elements.note.value                = '';'
+
+      resetTimePeriodsForm();
+      elements.attendanceModal.classList.remove('hidden');'
+    }
+
+    function openEditModal(id) {
+      const record = window.attendanceData.find(rec => rec.id === id);
+      if (!record) return;
+
+      elements.modalTitle.textContent   = 'แก้ไขการลงเวลา';'
+      elements.recordId.value           = record.id;
+      elements.employeeSelect.value     = record.employeeId;
+      elements.attendanceDate.value     = record.date;
+      elements.timePeriodsContainer.innerHTML = '';'
+
+      if (record.timePeriods && record.timePeriods.length > 0) {
+        record.timePeriods.forEach(period => {
+          let periodTitle, bgClass = '';'
+          let isOvertime = false;
+
+          switch(period.type) {
+            case 'morning':'
+              periodTitle = 'ช่วงเช้า';'
+              break;
+            case 'afternoon':'
+              periodTitle = 'ช่วงบ่าย';'
+              break;
+            case 'overtime':'
+              periodTitle = 'ชั่วโมงล่วงเวลา (OT)';'
+              bgClass     = 'bg-yellow-50 dark:bg-yellow-900/20';'
+              isOvertime  = true;
+              break;
+            case 'main':'
+              periodTitle = 'ทำงาน';'
+              break;
+            default:
+              periodTitle = 'ช่วงเวลาเพิ่มเติม';'
+          }
+
+          const periodHTML = `
+            <div class="time-period-group ${isOvertime ? 'overtime-period' : ''} mb-4 border border-gray-200 dark:border-gray-700 p-3 rounded-lg ${bgClass}">'
+              <div class="flex justify-between items-center mb-2">
+                <h4 class="font-medium text-gray-700 dark:text-gray-300">${periodTitle}</h4>
+                <div class="flex gap-2">
+                  <label class="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="period-enabled form-checkbox h-4 w-4 text-blue-600" checked>
+                    <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">เปิดใช้งาน</span>
+                  </label>
+                  ${period.type !== 'morning' && period.type !== 'afternoon' && period.type !== 'overtime''
+                    ? `<button type="button" class="text-red-500 btn-remove-period"><i class="bi bi-x-circle"></i></button>`
+                    : ''}'
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาเข้า</label>
+                  <input type="time" class="time-in w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                         focus:outline-none focus:ring focus:border-blue-300" value="${period.timeIn}">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เวลาออก</label>
+                  <input type="time" class="time-out w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2""
+                         focus:outline-none focus:ring focus:border-blue-300" value="${period.timeOut}">
+                </div>
+              </div>
+            </div>
+          `;
+          elements.timePeriodsContainer.insertAdjacentHTML('beforeend', periodHTML);'
+        });
+      } else {
+        resetTimePeriodsForm();
+      }
+
+      setupTimePeriodListeners();
+      calculateTotalHours();
+
+      elements.note.value = record.note || '';'
+      elements.attendanceModal.classList.remove('hidden');'
+    }
+
+    function closeAttendanceModal() {
+      elements.attendanceModal.classList.add('hidden');'
+    }
+
+    function openDeleteConfirmation(id) {
+      currentDeleteId = id;
+      elements.confirmModal.classList.remove('hidden');'
+    }
+
+    function closeConfirmModal() {
+      elements.confirmModal.classList.add('hidden');'
+      currentDeleteId = null;
+    }
+
+    async function confirmDelete() {
+      if (!currentDeleteId) return;
+      try {
+        const res = await fetch(`${API_BASE}/${currentDeleteId}`, { method: 'DELETE' });'
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Failed to delete with status ' + res.status }));'
+          throw new Error(errorData.error || 'Delete operation failed');'
+        }
+        const json = await res.json();
+        if (json.success) {
+          showAlert('ลบข้อมูลการลงเวลาเรียบร้อยแล้ว', 'success');'
+          closeConfirmModal();
+          await loadAttendanceData();
+        } else {
+          throw new Error(json.error || 'Failed to delete record');'
+        }
+      } catch (err) {
+        console.error('Error deleting record:', err);'
+        showAlert(`เกิดข้อผิดพลาดในการลบ: ${err.message}`, 'error');'
+      }
+    }
+
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+      const formData = collectFormData();
+
+      let apiCheckInTime  = null;
+      let apiCheckOutTime = null;
+
+      for (const period of formData.timePeriods) {
+        if (period.type !== 'overtime') {'
+          if (period.timeIn && (!apiCheckInTime || period.timeIn < apiCheckInTime)) {
+            apiCheckInTime = period.timeIn;
+          }
+          if (period.timeOut && (!apiCheckOutTime || period.timeOut > apiCheckOutTime)) {
+            apiCheckOutTime = period.timeOut;
+          }
+        }
+      }
+
+      if (!formData.date || !formData.employeeId) {
+        showAlert('กรุณากรอกข้อมูลพนักงานและวันที่ให้ครบถ้วน', 'error');'
+        return;
+      }
+
+      if (!apiCheckInTime || !apiCheckOutTime) {
+        const hasRegularPeriod = formData.timePeriods.some(
+          p => p.type !== 'overtime' && p.timeIn && p.timeOut'
+        );
+        if (!hasRegularPeriod) {
+          showAlert('กรุณาระบุเวลาเข้าและออกงานปกติอย่างน้อยหนึ่งช่วง', 'error');'
+          return;
+        }
+      }
+
+      const payload = { note: formData.note || '' };'
+      if (apiCheckInTime) {
+        payload.checkIn = `${formData.date}T${apiCheckInTime}:00`;
+      }
+      if (apiCheckOutTime) {
+        payload.checkOut = `${formData.date}T${apiCheckOutTime}:00`;
+      }
+
+      let method, url;
+      if (formData.id) {
+        method = 'PUT';'
+        url    = `${API_BASE}/${formData.id}`;
+      } else {
+        method = 'POST';'
+        url    = API_BASE;
+        payload.user = formData.employeeId;
+      }
+
+      if (!payload.checkIn || !payload.checkOut) {
+        showAlert('ไม่สามารถบันทึกได้: ข้อมูลเวลาเข้าหรือออกไม่สมบูรณ์', 'error');'
+        return;
+      }
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: getHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+          throw new Error(errorData.error || `${method} operation failed`);
+        }
+        const json = await res.json();
+
+        if (json.success) {
+          showAlert(formData.id ? 'อัปเดตข้อมูลสำเร็จ' : 'บันทึกข้อมูลใหม่สำเร็จ', 'success');'
+          closeAttendanceModal();
+          await loadAttendanceData();
+        } else {
+          throw new Error(json.error || 'Operation failed with no specific error message');'
+        }
+      } catch (err) {
+        console.error(`Error ${method} record:`, err);
+        showAlert(`เกิดข้อผิดพลาด: ${err.message}`, 'error');'
+      }
+    }
+
+    async function loadAttendanceData() {
+      elements.loadingIndicator.classList.remove('hidden');'
+
+      if (!currentUserId) {
+        showAlert('ไม่พบข้อมูลผู้ใช้', 'error');'
+        elements.loadingIndicator.classList.add('hidden');'
+        return;
+      }
+
+      try {
+        const url = `/api/attendance?user=${encodeURIComponent(currentUserId)}&_=${Date.now()}`;
+        console.log('>> fetching attendance from', url);'
+
+        const res = await fetch(url, {
+          headers: { ...getHeaders(), 'Cache-Control': 'no-cache' },'
+          cache: 'reload''
+        });
+        console.log('>> response status:', res.status);'
+
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const json = await res.json();
+        console.log('❯❯ attendance API response:', json);'
+
+        if (!json.success) throw new Error(json.error || 'API returned success:false');'
+
+        const list = Array.isArray(json.attendance) ? json.attendance : [];
+        window.attendanceData = list.map(att => {
+          const cin   = new Date(att.checkIn);
+          const cout  = att.checkOut ? new Date(att.checkOut) : null;
+          const checkInTime  = cin.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});'
+          const checkOutTime = cout
+            ? cout.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})'
+            : '';'
+
+          const hours = cout ? (cout - cin)/3600000 : 0;
+          const regular  = Math.min(hours, 8).toFixed(1);
+          const overtime = hours>8 ? (hours - 8).toFixed(1) : '0.0';'
+
+          const emp  = employees.find(e => e._id===att.user || e.id===att.user);
+          return {
+            id:                 att._id,
+            date:               att.checkIn.slice(0,10),
+            employeeId:         att.user,
+            employeeName:       emp?.name || 'Unknown','
+            timePeriods: [{
+              type:    'main','
+              timeIn:  checkInTime,
+              timeOut: checkOutTime,
+              hours:   hours.toFixed(1)
+            }],
+            totalRegularHours:  regular,
+            totalOvertimeHours: overtime,
+            note:               att.note || '''
+          };
+        });
+
+      } catch(err) {
+        console.error('Error loading attendance data:', err);'
+        window.attendanceData = [];
+        showAlert(`ไม่สามารถโหลดข้อมูลได้: ${err.message}`, 'error');'
+      } finally {
+        elements.loadingIndicator.classList.add('hidden');'
+        filterAndDisplayRecords();
+      }
+    }
+
+    function showAlert(message, type = 'info') {'
+      let bgColor, textColor, icon;
+
+      switch(type) {
+        case 'success':'
+          bgColor   = 'bg-green-100 dark:bg-green-800';'
+          textColor = 'text-green-700 dark:text-green-200';'
+          icon      = '<i class="bi bi-check-circle mr-2"></i>';'
+          break;
+        case 'error':'
+          bgColor   = 'bg-red-100 dark:bg-red-800';'
+          textColor = 'text-red-700 dark:text-red-200';'
+          icon      = '<i class="bi bi-exclamation-triangle mr-2"></i>';'
+          break;
+        case 'warning':'
+          bgColor   = 'bg-yellow-100 dark:bg-yellow-800';'
+          textColor = 'text-yellow-700 dark:text-yellow-200';'
+          icon      = '<i class="bi bi-exclamation-circle mr-2"></i>';'
+          break;
+        default:
+          bgColor   = 'bg-blue-100 dark:bg-blue-800';'
+          textColor = 'text-blue-700 dark:text-blue-200';'
+          icon      = '<i class="bi bi-info-circle mr-2"></i>';'
+      }
+
+      elements.alertMessage.className = `mb-4 p-4 rounded flex items-center ${bgColor} ${textColor}`;
+      elements.alertMessage.innerHTML = `${icon}${message}`;
+      elements.alertMessage.classList.remove('hidden');'
+
+      setTimeout(() => {
+        elements.alertMessage.classList.add('hidden');'
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

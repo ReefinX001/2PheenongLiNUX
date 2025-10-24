@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="csrf-token" content="">
+  <title>คลังสินค้า</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <script src="/js/activity-tracker.js"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif']
+          }
+        }
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate']
+      }
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" type="text/css" />
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Google Fonts: Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Web -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Loading Overlay CSS (Updated from addNewProduct_pattani.html) -->
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* Loading spinner for fallback */
+    .loading {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    .loading-lg {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- Loading JavaScript (Updated from addNewProduct_pattani.html) -->
+  <script>
+    let lottieAnimation = null;
+    let loadingCount = 0; // Track loading state
+
+    // Show/Hide Loading Function with state management
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+
+      if (show) {
+        loadingCount++;
+        // Only show if first loading request
+        if (loadingCount === 1) {
+          loader.style.display = 'flex';
+          loader.classList.remove('animate__fadeOut');
+          loader.classList.add('animate__fadeIn');
+
+          // โหลดและเล่น Lottie animation
+          if (!lottieAnimation) {
+            console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+            fetch('/Loading/Loading.json')
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(animationData => {
+                lottieAnimation = lottie.loadAnimation({
+                  container: document.getElementById('lottieContainer'),
+                  renderer: 'svg',
+                  loop: true,
+                  autoplay: true,
+                  animationData: animationData
+                });
+
+                console.log('✅ Lottie animation loaded successfully');
+              })
+              .catch(error => {
+                console.error('❌ Error loading Lottie animation:', error);
+                // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+                document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+              });
+          } else {
+            lottieAnimation.play();
+          }
+        }
+      } else {
+        loadingCount--;
+        // Only hide when all loading requests are done
+        if (loadingCount <= 0) {
+          loadingCount = 0; // Reset to prevent negative
+          if (lottieAnimation) {
+            lottieAnimation.pause();
+          }
+          loader.classList.remove('animate__fadeIn');
+          loader.classList.add('animate__fadeOut');
+          setTimeout(() => { loader.style.display = 'none'; }, 600);
+        }
+      }
+    }
+
+    // Auto cleanup เมื่อออกจากหน้า
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+
+    // Safe loading functions for backward compatibility
+    function safeShowLoading(options = {}) {
+      console.log('safeShowLoading called but using main loading:', options);
+      return 'loading_' + Date.now(); // Return fake ID for compatibility
+    }
+
+    function safeHideLoading(id) {
+      console.log('safeHideLoading called but using main loading:', id);
+      return true;
+    }
+
+    function safeUpdateMessage(id, message, subMessage = null) {
+      console.log('safeUpdateMessage called:', message, subMessage);
+      return true; // Just log for compatibility
+    }
+
+    function safeUpdateProgress(id, percentage) {
+      console.log('safeUpdateProgress called:', percentage + '%');
+      return true; // Just log for compatibility
+    }
+  </script>
+
+  <!-- Firebase v9 SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getDatabase, ref, onValue, set, push, serverTimestamp, onDisconnect, get, update, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+    
+    // Firebase configuration - using correct project
+    const firebaseConfig = {
+      apiKey: "AIzaSyCv4EBbKN8Kr4IMRqszJGBWTSoMihtYLo0",
+      authDomain: "pheenongacc.firebaseapp.com",
+      databaseURL: "https://pheenongacc-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pheenongacc",
+      storageBucket: "pheenongacc.appspot.com",
+      messagingSenderId: "917944021415",
+      appId: "1:917944021415:web:8c8b3d42e52a1dc8c2f0b5",
+      measurementId: "G-94BG9ECQTZ"
+    };
+    
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    // Make database available globally
+    window.firebaseDatabase = database;
+    window.firebaseRef = ref;
+    window.firebaseOnValue = onValue;
+    window.firebaseSet = set;
+    window.firebasePush = push;
+    window.firebaseServerTimestamp = serverTimestamp;
+    window.firebaseOnDisconnect = onDisconnect;
+    window.firebaseGet = get;
+    window.firebaseUpdate = update;
+    window.firebaseRemove = remove;
+    
+    console.log('Firebase initialized successfully for Product Management');
+  </script>
+
+  <!-- Socket.IO and Real-time Integration -->
+  <script>
+    // Wait for DOM and Firebase to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+      // Socket.IO Connection
+      let socket = null;
+      let sessionId = null;
+      let reconnectAttempts = 0;
+      const MAX_RECONNECT_ATTEMPTS = 5;
+    
+      // Make socket available globally for navigation events
+      window.productManagementSocket = null;
+    
+      function initializeSocketConnection() {
+        try {
+          socket = io({
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
+          });
+    
+          // Make socket globally available
+          window.productManagementSocket = socket;
+    
+          // Connection events
+          socket.on('connect', () => {
+            console.log('Socket.IO connected for Product Management');
+            reconnectAttempts = 0;
+    
+            // Join product management room
+            const branchCode = window.currentBranchCode || localStorage.getItem('activeBranch') || 'PATTANI';
+            socket.emit('join-room', {
+              room: `product-management-${branchCode}`,
+              userId: localStorage.getItem('userId'),
+              userName: localStorage.getItem('userName'),
+              userRole: localStorage.getItem('userRole')
+            });
+    
+            // Create session in Firebase
+            createProductManagementSession();
+          });
+    
+          socket.on('disconnect', (reason) => {
+            console.log('Socket.IO disconnected:', reason);
+            if (reason === 'io server disconnect') {
+              // Server initiated disconnect, attempt to reconnect
+              socket.connect();
+            }
+          });
+    
+          socket.on('reconnect_attempt', (attemptNumber) => {
+            console.log(`Reconnection attempt ${attemptNumber}`);
+            reconnectAttempts = attemptNumber;
+          });
+    
+          socket.on('reconnect_failed', () => {
+            console.error('Socket.IO reconnection failed');
+            showToast('การเชื่อมต่อขาดหาย กรุณารีเฟรชหน้าเว็บ', 'error');
+          });
+    
+          // Product management specific events
+          socket.on('stock-update', (data) => {
+            console.log('Stock update received:', data);
+            showToast(`สต็อกสินค้าอัพเดท: ${data.productName}`, 'info');
+          });
+    
+          socket.on('product-added', (data) => {
+            console.log('New product added:', data);
+            showToast(`เพิ่มสินค้าใหม่: ${data.productName}`, 'success');
+          });
+    
+          socket.on('product-transfer', (data) => {
+            console.log('Product transfer:', data);
+            showToast(`โอนย้ายสินค้า: ${data.productName} จำนวน ${data.quantity} ชิ้น`, 'info');
+          });
+    
+          socket.on('low-stock-alert', (data) => {
+            console.log('Low stock alert:', data);
+            showToast(`⚠️ สินค้าใกล้หมด: ${data.productName} เหลือ ${data.currentStock} ชิ้น`, 'warning');
+          });
+    
+          // User activity events
+          socket.on('user-joined-product-management', (data) => {
+            console.log('User joined product management:', data);
+            updateOnlineUsers();
+          });
+    
+          socket.on('user-left-product-management', (data) => {
+            console.log('User left product management:', data);
+            updateOnlineUsers();
+          });
+    
+          // Navigation events from other users
+          socket.on('product-navigation', (data) => {
+            if (data.userId !== localStorage.getItem('userId')) {
+              console.log('User navigation:', data);
+              const pageNames = {
+                '/views/pattani/management.html': 'จัดการสินค้า',
+                '/views/pattani/addNewProduct_pattani.html': 'เพิ่มสินค้า',
+                '/views/pattani/productTransfer.html': 'โอนย้ายสินค้า',
+                '/views/pattani/quick_sale_pattani.html': 'โหมดขายด่วน',
+                '/CreditNoteSimple': 'ใบลดหนี้',
+                '/DebitNoteSimple': 'ใบเพิ่มหนี้'
+              };
+              const pageName = pageNames[data.targetPage] || 'หน้าอื่น';
+              showToast(`${data.userName} กำลังเข้าใช้งาน ${pageName}`, 'info');
+            }
+          });
+    
+        } catch (error) {
+          console.error('Socket.IO initialization error:', error);
+        }
+      }
+    
+      // Create product management session in Firebase
+      function createProductManagementSession() {
+        if (!window.firebaseDatabase) {
+          console.warn('Firebase not initialized yet');
+          return;
+        }
+    
+        const branchCode = window.currentBranchCode || localStorage.getItem('activeBranch') || 'PATTANI';
+        const userId = localStorage.getItem('userId');
+        const userName = localStorage.getItem('userName');
+    
+        if (!userId || !userName) {
+          console.warn('User info not available for session creation');
+          return;
+        }
+    
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const sessionRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/sessions/${sessionId}`);
+    
+        const sessionData = {
+          userId: userId,
+          userName: userName,
+          userRole: localStorage.getItem('userRole') || 'user',
+          activity: 'product_management',
+          page: 'Addproduct_pattani',
+          loginTime: window.firebaseServerTimestamp(),
+          lastActive: window.firebaseServerTimestamp(),
+          status: 'online',
+          device: navigator.userAgent,
+          branchCode: branchCode
+        };
+    
+        // Set session data
+        window.firebaseSet(sessionRef, sessionData)
+          .then(() => {
+            console.log('Product management session created:', sessionId);
+    
+            // Set up disconnect handler
+            window.firebaseOnDisconnect(sessionRef).update({
+              status: 'offline',
+              logoutTime: window.firebaseServerTimestamp()
+            });
+    
+            // Update activity on user actions
+            trackUserActivity(sessionRef);
+          })
+          .catch(error => {
+            console.error('Error creating session:', error);
+          });
+      }
+    
+      // Track user activity
+      function trackUserActivity(sessionRef) {
+        let activityTimer;
+    
+        function updateActivity() {
+          if (sessionRef) {
+            window.firebaseUpdate(sessionRef, {
+              lastActive: window.firebaseServerTimestamp()
+            }).catch(err => console.warn('Activity update failed:', err));
+          }
+        }
+    
+        // Update activity every 30 seconds if user is active
+        function resetActivityTimer() {
+          clearTimeout(activityTimer);
+          activityTimer = setTimeout(updateActivity, 30000);
+        }
+    
+        // Track various user activities
+        document.addEventListener('click', resetActivityTimer);
+        document.addEventListener('keypress', resetActivityTimer);
+        document.addEventListener('scroll', resetActivityTimer);
+    
+        // Initial activity update
+        resetActivityTimer();
+      }
+    
+      // Monitor online users in product management
+      function updateOnlineUsers() {
+        if (!window.firebaseDatabase) return;
+    
+        const branchCode = window.currentBranchCode || localStorage.getItem('activeBranch') || 'PATTANI';
+        const onlineUsersRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/onlineUsers`);
+    
+        window.firebaseOnValue(onlineUsersRef, (snapshot) => {
+          const users = snapshot.val();
+          if (users) {
+            const onlineCount = Object.values(users).filter(u => u.status === 'online' && u.activity === 'product_management').length;
+            console.log(`Online users in product management: ${onlineCount}`);
+          }
+        });
+      }
+    
+      // Monitor stock updates in real-time
+      function monitorStockUpdates() {
+        if (!window.firebaseDatabase) return;
+    
+        const branchCode = window.currentBranchCode || localStorage.getItem('activeBranch') || 'PATTANI';
+        const stockUpdatesRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/stockUpdates`);
+    
+        // Listen for new stock updates
+        window.firebaseOnValue(stockUpdatesRef, (snapshot) => {
+          const updates = snapshot.val();
+          if (updates) {
+            // Get the latest update
+            const latestUpdate = Object.values(updates).sort((a, b) => b.timestamp - a.timestamp)[0];
+            if (latestUpdate && (Date.now() - latestUpdate.timestamp < 5000)) { // Show updates from last 5 seconds
+              showToast(`📦 ${latestUpdate.message || 'มีการอัพเดทสต็อกสินค้า'}`, 'info');
+            }
+          }
+        });
+      }
+    
+      // Log activity to Firebase
+      window.logProductActivity = function(action, details) {
+        if (!window.firebaseDatabase) return;
+    
+        const branchCode = window.currentBranchCode || localStorage.getItem('activeBranch') || 'PATTANI';
+        const activityRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/activityHistory`);
+    
+        const activityData = {
+          action: action,
+          userId: localStorage.getItem('userId'),
+          userName: localStorage.getItem('userName'),
+          timestamp: window.firebaseServerTimestamp(),
+          page: 'Addproduct_pattani',
+          details: details || {}
+        };
+    
+        window.firebasePush(activityRef, activityData)
+          .catch(err => console.warn('Activity log failed:', err));
+      };
+    
+      // Initialize connections with retry logic
+      let initRetries = 0;
+      const MAX_INIT_RETRIES = 3;
+    
+      function initializeConnections() {
+        // Check if Firebase is ready
+        if (window.firebaseDatabase) {
+          initializeSocketConnection();
+          monitorStockUpdates();
+    
+          // Log page access
+          window.logProductActivity('PAGE_ACCESS', {
+            page: 'Product Management Center',
+            branch: window.currentBranchCode || 'PATTANI'
+          });
+        } else {
+          initRetries++;
+          if (initRetries < MAX_INIT_RETRIES) {
+            console.log(`Waiting for Firebase... retry ${initRetries}/${MAX_INIT_RETRIES}`);
+            setTimeout(initializeConnections, 1000);
+          } else {
+            console.error('Firebase initialization timeout');
+            showToast('ไม่สามารถเชื่อมต่อระบบได้ กรุณารีเฟรชหน้าเว็บ', 'error');
+          }
+        }
+      }
+    
+      // Start initialization after a short delay
+      setTimeout(initializeConnections, 500);
+    
+      // Clean up on page unload
+      window.addEventListener('beforeunload', function() {
+        if (sessionId && window.firebaseDatabase) {
+          const branchCode = window.currentBranchCode || localStorage.getItem('activeBranch') || 'PATTANI';
+          const sessionRef = window.firebaseRef(window.firebaseDatabase, `pos/${branchCode}/sessions/${sessionId}`);
+          window.firebaseUpdate(sessionRef, {
+            status: 'offline',
+            logoutTime: window.firebaseServerTimestamp()
+          }).catch(() => {}); // Ignore errors on unload
+        }
+    
+        if (socket) {
+          socket.disconnect();
+        }
+      });
+    });
+  </script>
+
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+
+    .loading-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      min-width: 200px;
+      max-width: 400px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dark .loading-content {
+      background: rgba(31, 41, 55, 0.95);
+      color: white;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 1s ease-in-out infinite;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-dots {
+      width: 40px;
+      height: 40px;
+      position: relative;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-dots::before,
+    .loading-dots::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3b82f6;
+      position: absolute;
+      animation: dot-flashing 1s infinite linear alternate;
+      animation-delay: 0.5s;
+    }
+
+    .loading-dots::before {
+      left: 8px;
+      animation-delay: 0s;
+    }
+
+    .loading-dots::after {
+      right: 8px;
+      animation-delay: 1s;
+    }
+
+    .loading-pulse {
+      width: 40px;
+      height: 40px;
+      background: #3b82f6;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      animation: pulse-animation 1.5s ease-in-out infinite;
+    }
+
+    .loading-message {
+      color: #374151;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .dark .loading-message {
+      color: #d1d5db;
+    }
+
+    .loading-progress {
+      width: 100%;
+      height: 4px;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .loading-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .loading-success {
+      border-left: 4px solid #10b981;
+    }
+
+    .loading-warning {
+      border-left: 4px solid #f59e0b;
+    }
+
+    .loading-error {
+      border-left: 4px solid #ef4444;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes dot-flashing {
+      0% {
+        background-color: #3b82f6;
+      }
+      50%, 100% {
+        background-color: rgba(59, 130, 246, 0.2);
+      }
+    }
+
+    @keyframes pulse-animation {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loading-spinner, .loading-dots, .loading-pulse {
+        animation: none;
+      }
+      .loading-overlay {
+        transition: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .loading-content {
+        margin: 1rem;
+        padding: 1.5rem;
+      }
+    }
+  </style>
+
+  <script>
+    /**
+     * LoadingSystem - ระบบแสดงสถานะการโหลดมาตรฐาน
+     * Version: 2.0.0-inline
+     */
+    (function(window) {
+      'use strict';
+
+      // ตัวแปรสำหรับเก็บ loading instances
+      let activeLoaders = new Map();
+      let loaderCounter = 0;
+      let defaultContainer = null;
+
+      // สร้าง container หลักสำหรับ loading overlays
+      function createDefaultContainer() {
+        if (defaultContainer && document.body.contains(defaultContainer)) {
+          return defaultContainer;
+        }
+
+        defaultContainer = document.createElement('div');
+        defaultContainer.id = 'loading-system-container';
+        defaultContainer.className = 'loading-system-container';
+        document.body.appendChild(defaultContainer);
+        return defaultContainer;
+      }
+
+      // สร้าง unique ID สำหรับ loader
+      function generateLoaderId() {
+        return 'loader-' + (++loaderCounter) + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      }
+
+      // สร้าง loading overlay element
+      function createLoadingOverlay(options) {
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+    
+        const content = document.createElement('div');
+        content.className = 'loading-content';
+    
+        if (options.variant) {
+          content.classList.add(`loading-${options.variant}`);
+        }
+
+        // สร้าง spinner ตามประเภทที่เลือก
+        let spinnerHtml = '';
+        switch (options.spinnerType) {
+          case 'dots':
+            spinnerHtml = '<div class="loading-dots"></div>';
+            break;
+          case 'pulse':
+            spinnerHtml = '<div class="loading-pulse"></div>';
+            break;
+          default:
+            spinnerHtml = '<div class="loading-spinner"></div>';
+        }
+
+        content.innerHTML = `
+          ${spinnerHtml}
+          ${options.message ? `<div class="loading-message">${options.message}</div>` : ''}
+          ${options.showProgress ? '<div class="loading-progress"><div class="loading-progress-bar"></div></div>' : ''}
+        `;
+
+        overlay.appendChild(content);
+        return overlay;
+      }
+
+      // แสดง loading
+      function show(options = {}) {
+        const loaderId = generateLoaderId();
+        const container = createDefaultContainer();
+    
+        const defaultOptions = {
+          message: 'กำลังโหลด...',
+          spinnerType: 'default',
+          showProgress: false,
+          autoProgress: false,
+          variant: null,
+          timeout: null
+        };
+
+        const finalOptions = { ...defaultOptions, ...options };
+        const overlay = createLoadingOverlay(finalOptions);
+    
+        overlay.id = loaderId;
+        container.appendChild(overlay);
+
+        // แสดง overlay ด้วย animation
+        requestAnimationFrame(() => {
+          overlay.classList.add('loading-visible');
+        });
+
+        // Auto progress
+        if (finalOptions.autoProgress && finalOptions.showProgress) {
+          startAutoProgress(loaderId);
+        }
+
+        // Auto timeout
+        if (finalOptions.timeout) {
+          setTimeout(() => {
+            hide(loaderId);
+          }, finalOptions.timeout);
+        }
+
+        // เก็บข้อมูล loader
+        activeLoaders.set(loaderId, {
+          overlay: overlay,
+          options: finalOptions,
+          startTime: Date.now()
+        });
+
+        return loaderId;
+      }
+
+      // ซ่อน loading
+      function hide(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const overlay = loaderData.overlay;
+    
+        overlay.classList.add('loading-hiding');
+        overlay.classList.remove('loading-visible');
+
+        setTimeout(() => {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+          }
+          activeLoaders.delete(loaderId);
+
+          // ลบ container ถ้าไม่มี loader เหลือ
+          if (activeLoaders.size === 0 && defaultContainer && defaultContainer.parentNode) {
+            defaultContainer.parentNode.removeChild(defaultContainer);
+            defaultContainer = null;
+          }
+        }, 300);
+
+        return true;
+      }
+
+      // ซ่อน loading ทั้งหมด
+      function hideAll() {
+        const loaderIds = Array.from(activeLoaders.keys());
+        loaderIds.forEach(id => hide(id));
+      }
+
+      // อัปเดตข้อความ
+      function updateMessage(loaderId, message) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const messageEl = loaderData.overlay.querySelector('.loading-message');
+        if (messageEl) {
+          messageEl.textContent = message;
+          return true;
+        }
+        return false;
+      }
+
+      // อัปเดต progress
+      function updateProgress(loaderId, percentage) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const progressBar = loaderData.overlay.querySelector('.loading-progress-bar');
+        if (progressBar) {
+          progressBar.style.width = Math.min(100, Math.max(0, percentage)) + '%';
+          return true;
+        }
+        return false;
+      }
+
+      // เริ่ม auto progress
+      function startAutoProgress(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return;
+
+        let progress = 0;
+        const interval = setInterval(() => {
+          if (!activeLoaders.has(loaderId)) {
+            clearInterval(interval);
+            return;
+          }
+
+          progress += Math.random() * 15;
+          if (progress > 90) {
+            progress = 90;
+          }
+
+          updateProgress(loaderId, progress);
+
+          if (progress >= 90) {
+            clearInterval(interval);
+          }
+        }, 200);
+      }
+
+      // เสร็จสิ้น progress
+      function completeProgress(loaderId) {
+        updateProgress(loaderId, 100);
+        setTimeout(() => {
+          hide(loaderId);
+        }, 500);
+      }
+
+      // ตรวจสอบสถานะ loader
+      function isActive(loaderId) {
+        return activeLoaders.has(loaderId);
+      }
+
+      // ดึงข้อมูล loader ทั้งหมด
+      function getActiveLoaders() {
+        return Array.from(activeLoaders.keys());
+      }
+
+      // Export LoadingSystem
+      window.LoadingSystem = {
+        show,
+        hide,
+        hideAll,
+        updateMessage,
+        updateProgress,
+        completeProgress,
+        isActive,
+        getActiveLoaders,
+        version: '2.0.0-inline'
+      };
+
+    })(window);
+  </script>
+
+  <!-- Sidebar JavaScript -->
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+
+  <style>
+    /* Minimal Design System */
+    :root {
+      /* Colors - Simplified palette */
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      
+      /* Neutrals */
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      
+      /* Spacing */
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      
+      /* Border radius */
+      --radius: 0.5rem;
+      --radius-sm: 0.375rem;
+      
+      /* Shadows */
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    /* Dark mode */
+    [data-theme="dark"] {
+      --gray-50: #18181b;
+      --gray-100: #27272a;
+      --gray-200: #3f3f46;
+      --gray-300: #52525b;
+      --gray-500: #a1a1aa;
+      --gray-700: #e4e4e7;
+      --gray-900: #fafafa;
+    }
+
+    /* Base Reset */
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: "Prompt", -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      background-color: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    /* Main content styles - ปรับให้ทำงานกับ sidebar.js */
+    #mainContent {
+      transition: margin-left 0.3s ease-in-out;
+      margin-left: 14rem; /* Fixed margin for sidebar */
+      min-height: 100vh;
+      background: var(--gray-50);
+    }
+
+    /* Force sidebar margin - no longer dependent on class toggle */
+    #mainContent.ml-64 {
+      margin-left: 14rem; /* Same as default */
+    }
+
+    /* Header adjustments - ปรับให้ทำงานกับ sidebar.js และอยู่เหนือ sidebar */
+    #mainHeader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 40; /* สูงกว่า sidebar */
+      transition: margin-left 0.3s ease-in-out;
+      margin-left: 0; /* เริ่มต้นที่ 0 ให้ sidebar.js จัดการ */
+    }
+
+    /* เมื่อ sidebar เปิดอยู่ ให้ header ขยับไปขวา */
+    #mainHeader.ml-64 {
+      margin-left: 14rem; /* 56 = 14rem ตาม sidebar width */
+    }
+
+    /* Fallback Toggle Button - ซ่อนปุ่ม toggle */
+    .fallback-toggle, #fallbackToggle {
+      display: none !important;
+    }
+
+    .sidebar-not-loaded .fallback-toggle {
+      display: none !important; /* ยังคงซ่อนแม้ sidebar ไม่โหลด */
+    }
+
+    /* Minimal Card Design */
+    .minimal-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--gray-200);
+      transition: all 0.2s;
+      cursor: pointer;
+      width: 200px;
+      height: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
+    }
+
+    .minimal-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color: var(--primary);
+    }
+
+    .minimal-card i {
+      font-size: 2.5rem;
+      color: var(--gray-700);
+      transition: color 0.2s;
+    }
+
+    .minimal-card:hover i {
+      color: var(--primary);
+    }
+
+    .minimal-card span {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gray-700);
+      text-align: center;
+    }
+
+    /* Button styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      padding: var(--space-2) var(--space-4);
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-sm {
+      padding: var(--space-1) var(--space-3);
+      font-size: 0.75rem;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--gray-700);
+      border-color: var(--gray-300);
+    }
+
+    .btn-ghost:hover {
+      background: var(--gray-100);
+    }
+
+    .btn-error {
+      background: white;
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .btn-error:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid var(--gray-200);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    [data-theme="dark"] .loading-spinner {
+      border-color: var(--gray-300);
+      border-top-color: var(--primary);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast notification - ปรับ z-index ให้สูงกว่า sidebar */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: var(--space-3) var(--space-4);
+      background: white;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow);
+      display: none;
+      z-index: 9999; /* เพิ่ม z-index ให้สูงกว่า sidebar */
+      max-width: 350px;
+    }
+
+    .toast.show {
+      display: block;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    /* Dark mode adjustments */
+    [data-theme="dark"] .toast {
+      background: var(--gray-100);
+      color: var(--gray-900);
+    }
+
+    [data-theme="dark"] .minimal-card {
+      background: var(--gray-100);
+      border-color: var(--gray-300);
+    }
+
+    [data-theme="dark"] .minimal-card:hover {
+      border-color: var(--primary);
+    }
+
+    [data-theme="dark"] .minimal-card i,
+    [data-theme="dark"] .minimal-card span {
+      color: var(--gray-200);
+    }
+
+    [data-theme="dark"] .minimal-card:hover i {
+      color: var(--primary);
+    }
+
+    /* Quick Sale Emergency Styles */
+    .quick-sale-mode {
+      position: relative;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      color: white;
+      animation: emergencyPulse 2s infinite;
+    }
+
+    .quick-sale-mode:hover {
+      background: linear-gradient(135deg, #ff5252 0%, #d84315 100%);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
+    }
+
+    .quick-sale-mode i {
+      color: white !important;
+      font-size: 3rem;
+      animation: lightning 1.5s infinite;
+    }
+
+    .quick-sale-mode span {
+      color: white !important;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .emergency-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ff3838;
+      color: white;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-weight: bold;
+      animation: blink 1s infinite;
+      z-index: 10;
+    }
+
+    @keyframes emergencyPulse {
+      0% { 
+        box-shadow: 0 0 0 0 rgba(255, 56, 56, 0.7);
+        transform: scale(1);
+      }
+      50% { 
+        box-shadow: 0 0 0 15px rgba(255, 56, 56, 0);
+        transform: scale(1.02);
+      }
+      100% { 
+        box-shadow: 0 0 0 0 rgba(255, 56, 56, 0);
+        transform: scale(1);
+      }
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
+    }
+
+    @keyframes lightning {
+      0%, 90%, 100% { transform: scale(1); }
+      5%, 15% { transform: scale(1.1); }
+      10% { transform: scale(0.95); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #mainContent,
+      #mainHeader {
+        margin-left: 0 !important; /* Mobile จะไม่มี margin */
+      }
+      
+      #mainContent {
+        padding-top: 6rem; /* เพิ่ม padding สำหรับมือถือ */
+      }
+      
+      .minimal-card {
+        width: 100%;
+        max-width: 200px;
+      }
+
+      .toast {
+        right: 1rem;
+        left: 1rem;
+        max-width: none;
+      }
+    }
+
+    /* Sidebar z-index adjustments - ให้ sidebar อยู่ใต้ header */
+    .sidebar, #sidebarContainer, #sidebar {
+      z-index: 30; /* ต่ำกว่า header */
+    }
+
+    /* Header ต้องอยู่เหนือ sidebar */
+    #mainHeader {
+      z-index: 40; /* สูงกว่า sidebar */
+    }
+
+    /* Toggle button ซ่อนไว้ */
+    #btnToggleMenu, .fallback-toggle {
+      display: none !important;
+    }
+  </style>
+
+</head>
+
+<body class="flex flex-col min-h-screen">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <div class="flex items-center gap-3">
+      <i id="toastIcon" class="bi bi-info-circle"></i>
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <!-- Sidebar Container - ใช้จาก sidebar.js -->
+  <div id="sidebarContainer"></div>
+   
+  <!-- Header -->
+  <header class="fixed top-0 right-0 left-0 z-40 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all duration-300" id="mainHeader">
+    <div class="flex items-center gap-4">
+      <!-- Toggle Button removed -->
+      
+      <div>
+        <h1 class="text-lg font-semibold" id="pageTitle">คลังสินค้า</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+          กำลังโหลดสาขา...
+        </p>
+      </div>
+    </div>
+    
+    <!-- Empty space - removed user info -->
+    <div class="flex items-center gap-4">
+      <!-- User info removed -->
+    </div>
+  </header>
+   
+  <!-- Main Content -->
+  <div id="mainContent" class="pt-24 px-6 py-8 flex-grow transition-all">
+    <div class="container mx-auto">
+      <!-- Product Management Center -->
+      <div class="min-h-[calc(100vh-200px)] flex items-center justify-center">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-6xl mx-auto">
+          
+          <!-- จัดการสินค้า Card -->
+          <div onclick="navigateWithAudit('/management', 'VIEW_PRODUCT_MANAGEMENT')"
+               class="minimal-card">
+            <i class="bi bi-box-seam"></i>
+            <span>จัดการสินค้า</span>
+          </div>
+
+          <!-- เพิ่มสินค้า Card -->
+          <div onclick="navigateWithAudit('/addNewProduct_pattani', 'ACCESS_ADD_PRODUCT')"
+               class="minimal-card">
+            <i class="bi bi-plus-circle"></i>
+            <span>เพิ่มสินค้า</span>
+          </div>
+          
+          <!-- โอนย้ายสินค้า Card -->
+          <div onclick="navigateWithAudit('/productTransfer', 'ACCESS_PRODUCT_TRANSFER')"
+               class="minimal-card">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>โอนย้ายสินค้า</span>
+          </div>
+
+          <!-- สร้าง Boxset Card -->
+          <div onclick="navigateWithAudit('/createBoxset_pattani', 'ACCESS_CREATE_BOXSET')"
+               class="minimal-card">
+            <i class="bi bi-box-seam-fill"></i>
+            <span>สร้าง Boxset</span>
+          </div>
+
+          <!-- ใบลดหนี้ Card -->
+          <div onclick="navigateWithAudit('/CreditNoteSimple', 'ACCESS_CREDIT_NOTE')"
+               class="minimal-card">
+            <i class="bi bi-dash-circle"></i>
+            <span>ใบลดหนี้</span>
+          </div>
+
+          <!-- ใบเพิ่มหนี้ Card -->
+          <div onclick="navigateWithAudit('/DebitNoteSimple', 'ACCESS_DEBIT_NOTE')"
+               class="minimal-card">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>ใบเพิ่มหนี้</span>
+          </div>
+
+          <!-- โหมดขายด่วน Card -->
+          <div onclick="navigateWithAudit('/quick_sale_pattani', 'ACCESS_QUICK_SALE_MODE')"
+               class="minimal-card quick-sale-mode">
+            <div class="emergency-badge">LIVE</div>
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>⚡ โหมดขายด่วน</span>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // ==================== GLOBAL VARIABLES ====================
+    
+    // ตัวแปรสำหรับ audit logging ที่ sidebar.js อาจใช้
+    let lastActionTime = Date.now();
+    let sidebarLoaded = false;
+    
+    // ==================== FALLBACK FUNCTIONS ====================
+    
+    // Fallback functions removed - sidebar is always visible
+    function fallbackToggleSidebar() {
+      console.log('Toggle disabled - sidebar is always visible');
+    }
+    
+    // Fallback logout function
+    function fallbackLogout() {
+      console.warn('Using fallback logout - sidebar.js not loaded');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/login';
+    }
+    
+    // ตรวจสอบและซ่อน fallback buttons เมื่อ sidebar.js โหลดเสร็จ
+    function checkSidebarLoaded() {
+      if (typeof window.sidebarManager !== 'undefined') {
+        sidebarLoaded = true;
+        document.body.classList.remove('sidebar-not-loaded');
+        console.log('✅ Sidebar.js loaded successfully');
+    
+        // Highlight active menu after sidebar loads
+        setTimeout(() => {
+          try {
+            const addProductLink = document.querySelector('a[href*="Addproduct_pattani"]');
+            if (addProductLink && window.sidebarManager.highlightActiveMenu) {
+              window.sidebarManager.highlightActiveMenu(addProductLink);
+            }
+          } catch (error) {
+            console.warn('Could not highlight active menu:', error);
+          }
+        }, 500);
+      } else {
+        document.body.classList.add('sidebar-not-loaded');
+        console.warn('⚠️ Sidebar.js not loaded, using fallback mode');
+    
+        // Retry after a delay
+        setTimeout(checkSidebarLoaded, 1000);
+      }
+    }
+    
+    // ==================== SECURITY & AUTHENTICATION ====================
+    
+    // CSRF Token generation with caching
+    function generateCSRFToken() {
+      // Check if valid token exists (valid for 30 minutes)
+      const existingToken = localStorage.getItem('csrfToken');
+      const tokenTime = localStorage.getItem('csrfTokenTime');
+    
+      if (existingToken && tokenTime && (Date.now() - parseInt(tokenTime)) < 1800000) {
+        document.querySelector('meta[name="csrf-token"]').content = existingToken;
+        return existingToken;
+      }
+    
+      // Generate new token
+      const array = new Uint8Array(16); // Reduced size for faster generation
+      crypto.getRandomValues(array);
+      const token = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('csrfToken', token);
+      localStorage.setItem('csrfTokenTime', Date.now().toString());
+      document.querySelector('meta[name="csrf-token"]').content = token;
+      return token;
+    }
+    
+    // Check authentication with caching
+    async function checkAuth() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        window.location.href = '/login';
+        return false;
+      }
+    
+      // Check cached user data (valid for 2 minutes)
+      const cachedUser = localStorage.getItem('cachedUserData');
+      const cacheTime = localStorage.getItem('userCacheTime');
+      if (cachedUser && cacheTime && (Date.now() - parseInt(cacheTime)) < 120000) {
+        try {
+          const userData = JSON.parse(cachedUser);
+    
+          // Update UI with cached data (removed user display)
+          // document.getElementById('userName').textContent = userData.name;
+          // document.getElementById('userRole').textContent = userData.role;
+    
+          // Check permission with cached data
+          return checkPagePermission(userData);
+        } catch (err) {
+          console.warn('Cache parse error:', err);
+        }
+      }
+    
+      try {
+        const response = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+    
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return false;
+          }
+          throw new Error('Authentication failed');
+        }
+    
+        const data = await response.json();
+        if (data.success) {
+          const userData = data.data;
+    
+          // Cache user data
+          localStorage.setItem('cachedUserData', JSON.stringify(userData));
+          localStorage.setItem('userCacheTime', Date.now().toString());
+          localStorage.setItem('userId', userData._id);
+          localStorage.setItem('userName', userData.name);
+          localStorage.setItem('userRole', userData.role);
+    
+          // Update UI if elements exist
+          const userNameElement = document.getElementById('userName');
+          const userRoleElement = document.getElementById('userRole');
+    
+          if (userNameElement) {
+            userNameElement.textContent = userData.name;
+          }
+          if (userRoleElement) {
+            userRoleElement.textContent = userData.role;
+          }
+    
+          return checkPagePermission(userData);
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        showToast('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์', 'error');
+        return false;
+      }
+    }
+    
+    // Separate permission checking function
+    function checkPagePermission(userData) {
+      const allowedPages = userData.allowedPages || [];
+      const currentPage = 'Addproduct_pattani.html';
+      const userRole = userData.role;
+    
+      // Allow access if user is admin, boss, or has specific page access
+      const hasAccess = userRole === 'admin' ||
+                       userRole === 'boss' ||
+                       userRole === 'super admin' ||
+                       allowedPages.includes(currentPage) ||
+                       allowedPages.includes('Addproduct_pattani.html') ||
+                       allowedPages.includes('pos') ||
+                       allowedPages.includes('*') ||
+                       allowedPages.some(page => page.includes('product') || page.includes('inventory') || page.includes('stock'));
+    
+      if (!hasAccess) {
+        console.warn('Access denied:', { userRole, allowedPages, currentPage });
+        logAuditEvent('UNAUTHORIZED_ACCESS_ATTEMPT', {
+          page: currentPage,
+          userRole: userRole,
+          allowedPages: allowedPages
+        }, 'WARNING').catch(err => console.warn('Access denied audit log failed:', err));
+        showToast('คุณไม่มีสิทธิ์เข้าถึงหน้านี้ กรุณาติดต่อผู้ดูแลระบบ', 'error');
+        setTimeout(() => {
+          window.location.href = '/frontstore_pattani';
+        }, 3000);
+        return false;
+      }
+    
+      return true;
+    }
+    
+    // ==================== AUDIT LOG SYSTEM ====================
+    
+    // Audit logging function ที่ sidebar.js คาดหวัง
+    function logAuditEvent(action, details, severity = 'INFO') {
+      return createAuditLog(action, { ...details, severity });
+    }
+    
+    // Buffer สำหรับ audit logs
+    let auditBuffer = [];
+    
+    function flushAuditBuffer() {
+      // ส่ง audit logs ที่เหลือ
+      if (auditBuffer.length > 0) {
+        console.log('Flushing audit buffer:', auditBuffer);
+        auditBuffer = [];
+      }
+    }
+    
+    function createAuditLog(action, details) {
+      try {
+        // Add to buffer for batch processing
+        auditBuffer.push({
+          action,
+          details: {
+            ...details,
+            timestamp: Date.now()
+          }
+        });
+    
+        // Process buffer if it gets too large or on a timer
+        if (auditBuffer.length >= 10) {
+          processAuditBuffer().catch(err => console.warn('Batch audit processing failed:', err));
+        }
+    
+        // Set timer to process buffer if not already set
+        if (!window.auditTimer) {
+          window.auditTimer = setTimeout(() => {
+            processAuditBuffer().catch(err => console.warn('Timer audit processing failed:', err));
+            window.auditTimer = null;
+          }, 2000);
+        }
+    
+        return Promise.resolve();
+      } catch (error) {
+        console.warn('Error adding to audit buffer:', error);
+        return Promise.reject(error);
+      }
+    }
+    
+    async function processAuditBuffer() {
+      if (auditBuffer.length === 0) return;
+    
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          auditBuffer = []; // Clear buffer if no token
+          return;
+        }
+    
+        const events = auditBuffer.map(item => ({
+          action: item.action,
+          resource: item.details.resource || 'ProductManagement',
+          resourceId: item.details.resourceId || null,
+          resourceName: item.details.resourceName || null,
+          severity: item.details.severity || 'INFO',
+          level: item.details.severity || 'INFO',
+          category: item.details.category || 'GENERAL',
+          userId: localStorage.getItem('userId'),
+          userName: localStorage.getItem('userName'),
+          userRole: localStorage.getItem('userRole'),
+          branchCode: BRANCH_CODE,
+          timestamp: new Date(item.details.timestamp).toISOString(),
+          device: 'internal',
+          details: {
+            ...item.details,
+            page: 'Addproduct_pattani.html',
+            branch: BRANCH_CODE,
+            userAgent: navigator.userAgent
+          }
+        }));
+    
+        const payload = { events };
+    
+        // Clear buffer before sending (in case of errors)
+        auditBuffer = [];
+    
+        const response = await fetch('/api/audit/logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(payload)
+        });
+    
+        if (!response.ok) {
+          console.warn('Audit log batch failed:', response.status);
+        }
+      } catch (err) {
+        console.warn('Audit log batch error:', err);
+        // Don't re-add to buffer to avoid infinite loops
+      }
+    }
+    
+    // ==================== UTILITY FUNCTIONS ====================
+    
+    // Get CSRF Token
+    function getCSRFToken() {
+      return localStorage.getItem('csrfToken') || generateCSRFToken();
+    }
+    
+    
+    
+    // Show toast notification
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toastIcon');
+      const msg = document.getElementById('toastMessage');
+    
+      if (!toast || !icon || !msg) return;
+    
+      const icons = {
+        success: 'bi-check-circle text-green-500',
+        error: 'bi-x-circle text-red-500',
+        warning: 'bi-exclamation-triangle text-yellow-500',
+        info: 'bi-info-circle text-blue-500'
+      };
+    
+      icon.className = `bi ${icons[type] || icons.info}`;
+      msg.textContent = message;
+    
+      toast.classList.add('show');
+    
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+    
+    // ==================== SESSION MANAGEMENT ====================
+    
+    let sessionTimeout;
+    const SESSION_DURATION = 15 * 60 * 1000; // 15 minutes
+    
+    function resetSessionTimeout() {
+      clearTimeout(sessionTimeout);
+      sessionTimeout = setTimeout(() => {
+        showToast('เซสชันหมดอายุ กำลังออกจากระบบ...', 'warning');
+        logAuditEvent('SESSION_TIMEOUT', {
+          duration: SESSION_DURATION
+        }).catch(err => console.warn('Session timeout audit log failed:', err));
+        setTimeout(() => {
+          if (sidebarLoaded && typeof window.sidebarManager !== 'undefined') {
+            window.sidebarManager.logout();
+          } else {
+            fallbackLogout();
+          }
+        }, 2000);
+      }, SESSION_DURATION);
+    
+      lastActionTime = Date.now();
+    }
+    
+    // Track user activity
+    document.addEventListener('click', resetSessionTimeout);
+    document.addEventListener('keypress', resetSessionTimeout);
+    document.addEventListener('mousemove', throttle(resetSessionTimeout, 5000));
+    
+    // Throttle function
+    function throttle(func, delay) {
+      let lastCall = 0;
+      return function(...args) {
+        const now = new Date().getTime();
+        if (now - lastCall < delay) return;
+        lastCall = now;
+        return func(...args);
+      };
+    }
+    
+    // ==================== NAVIGATION FUNCTIONS ====================
+    
+    // Get branch code from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    let BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch');
+
+    if (!BRANCH_CODE) {
+      console.warn("Branch not found in URL or localStorage, defaulting to 'PATTANI'");
+      BRANCH_CODE = 'PATTANI';
+    }
+    window.currentBranchCode = BRANCH_CODE;
+    console.log(`[AddProduct] Using branch code: ${BRANCH_CODE}`);
+    
+    // Navigate with audit log
+    function navigateWithAudit(page, action) {
+      const loaderId = safeShowLoading({
+        message: 'กำลังโหลด...',
+        showProgress: true,
+        autoProgress: true
+      });
+    
+      try {
+        // Create audit log (non-blocking)
+        logAuditEvent(action, {
+          targetPage: page,
+          fromPage: 'Addproduct_pattani.html'
+        }).catch(err => console.warn('Navigation audit log failed:', err));
+    
+        // Log to Firebase if available
+        if (window.logProductActivity) {
+          window.logProductActivity(action, {
+            targetPage: page,
+            fromPage: 'Addproduct_pattani.html',
+            navigationTime: new Date().toISOString()
+          });
+        }
+    
+        // Emit Socket.IO event if connected
+        if (window.productManagementSocket && window.productManagementSocket.connected) {
+          window.productManagementSocket.emit('product-navigation', {
+            action: action,
+            targetPage: page,
+            userId: localStorage.getItem('userId'),
+            userName: localStorage.getItem('userName'),
+            branchCode: localStorage.getItem('activeBranch') || 'PATTANI',
+            timestamp: Date.now()
+          });
+        }
+    
+        // Navigate with branch parameters
+        const branchCode = urlParams.get('branch') || localStorage.getItem('activeBranch') || '00000';
+        const branchName = urlParams.get('name') || localStorage.getItem('activeBranchName') || '';
+        const url = new URL(page, window.location.href);
+        url.searchParams.set('branch', branchCode);
+        if (branchName) {
+          url.searchParams.set('name', branchName);
+        }
+    
+        // Small delay for better UX
+        setTimeout(() => {
+          window.location.href = url.toString();
+        }, 100);
+    
+      } catch (err) {
+        safeHideLoading(loaderId);
+        showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+      }
+    }
+    
+    // ==================== BRANCH FUNCTIONS ====================
+    
+    async function loadBranchInfo() {
+      try {
+        // Check cached branch data (valid for 5 minutes)
+        const cachedBranches = localStorage.getItem('cachedBranches');
+        const branchCacheTime = localStorage.getItem('branchCacheTime');
+    
+        if (cachedBranches && branchCacheTime && (Date.now() - parseInt(branchCacheTime)) < 300000) {
+          try {
+            const branches = JSON.parse(cachedBranches);
+            const branch = branches.find(b => b.branch_code === BRANCH_CODE);
+            if (branch) {
+              updateBranchUI(branch);
+              return;
+            }
+          } catch (err) {
+            console.warn('Branch cache parse error:', err);
+          }
+        }
+    
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+    
+        const res = await fetch(`/api/branch`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+    
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+    
+        const js = await res.json();
+        if (js.success && js.data) {
+          // Cache branches data
+          localStorage.setItem('cachedBranches', JSON.stringify(js.data));
+          localStorage.setItem('branchCacheTime', Date.now().toString());
+    
+          const branch = js.data.find(b => b.branch_code === BRANCH_CODE);
+          if (branch) {
+            updateBranchUI(branch);
+            return;
+          }
+        }
+        throw new Error('ไม่พบข้อมูลสาขา');
+      } catch (err) {
+        console.error('loadBranchInfo error:', err);
+        const branchInfoElement = document.getElementById('branchInfo');
+        if (branchInfoElement) {
+          branchInfoElement.textContent = 'สาขา: (ไม่พบข้อมูล)';
+        }
+        showToast('ไม่สามารถโหลดข้อมูลสาขาได้ ใช้ข้อมูลเดิม', 'warning');
+      }
+    }
+    
+    // Separate function to update branch UI
+    function updateBranchUI(branch) {
+      const branchInfoElement = document.getElementById('branchInfo');
+      const pageTitleElement = document.getElementById('pageTitle');
+    
+      if (branchInfoElement) {
+        branchInfoElement.textContent =
+          `${branch.name} — ${branch.address}`;
+      }
+    
+      document.title = `คลังสินค้า - ${branch.name}`;
+    
+      if (pageTitleElement) {
+        pageTitleElement.textContent = `คลังสินค้า - ${branch.name}`;
+      }
+    
+      localStorage.setItem('branchCode', branch.branch_code);
+      localStorage.setItem('branchName', branch.name);
+      localStorage.setItem('activeBranch', branch.branch_code);
+      localStorage.setItem('activeBranchName', branch.name);
+    }
+    
+    // ==================== INITIALIZATION ====================
+    
+    document.addEventListener('DOMContentLoaded', async function() {
+      // Show Lottie loading animation
+      showLoading(true);
+
+      const pageLoaderId = safeShowLoading({
+        message: 'กำลังโหลดหน้าเว็บ...',
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default'
+      });
+    
+      try {
+        // Generate CSRF token if not exists
+        if (!localStorage.getItem('csrfToken')) {
+          generateCSRFToken();
+        }
+    
+        // Initialize session timeout early
+        resetSessionTimeout();
+    
+        // Check if sidebar is loaded (non-blocking)
+        checkSidebarLoaded();
+    
+        // Run auth and branch loading in parallel for faster loading
+        const [isAuthenticated] = await Promise.allSettled([
+          checkAuth(),
+          loadBranchInfo()
+        ]);
+    
+        if (isAuthenticated.status === 'fulfilled' && !isAuthenticated.value) {
+          return; // Authentication failed, checkAuth handles redirect
+        }
+    
+        // Create access log (non-blocking)
+        logAuditEvent('PAGE_ACCESS', {
+          page: 'Addproduct_pattani.html',
+          branch: BRANCH_CODE
+        }).catch(err => console.warn('Audit log failed:', err));
+    
+      } catch (err) {
+        console.error('Initialization error:', err);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+      } finally {
+        safeHideLoading(pageLoaderId);
+      }
+    });
+    
+    // ==================== ERROR HANDLING ====================
+    
+    window.addEventListener('error', function(event) {
+      console.error('Global error:', event.error);
+      logAuditEvent('CLIENT_ERROR', {
+        message: event.message,
+        source: event.filename,
+        line: event.lineno,
+        column: event.colno,
+        error: event.error?.stack
+      }).catch(err => console.warn('Error audit log failed:', err));
+    });
+    
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error('Unhandled promise rejection:', event.reason);
+      logAuditEvent('UNHANDLED_REJECTION', {
+        reason: event.reason,
+        promise: event.promise
+      }).catch(err => console.warn('Rejection audit log failed:', err));
+    });
+    
+    // Cleanup before page unload
+    window.addEventListener('beforeunload', function() {
+      // Process remaining audit logs
+      if (auditBuffer.length > 0) {
+        processAuditBuffer();
+      }
+    
+      // Clear any pending timers
+      if (window.auditTimer) {
+        clearTimeout(window.auditTimer);
+      }
+
+      // Clean up Lottie animation
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+
+    // Hide Lottie loading animation
+    setTimeout(() => showLoading(false), 800);
+
+    // ==================== SIDEBAR INTEGRATION ====================
+    
+    // Optimized sidebar checking with fewer intervals
+    function checkAndHighlightSidebar() {
+      if (typeof window.sidebarManager !== 'undefined' && sidebarLoaded) {
+        // Highlight active menu
+        setTimeout(() => {
+          try {
+            const addProductLink = document.querySelector('a[href*="Addproduct_pattani"]');
+            if (addProductLink && window.sidebarManager.highlightActiveMenu) {
+              window.sidebarManager.highlightActiveMenu(addProductLink);
+              console.log('✅ Active menu highlighted');
+            }
+          } catch (error) {
+            console.warn('Could not highlight active menu:', error);
+          }
+        }, 100);
+        return true;
+      }
+      return false;
+    }
+    
+    // Check immediately and then with longer intervals
+    if (!checkAndHighlightSidebar()) {
+      const sidebarCheckTimeout = setTimeout(() => {
+        checkAndHighlightSidebar();
+      }, 1000);
+    
+      // Final cleanup
+      setTimeout(() => {
+        clearTimeout(sidebarCheckTimeout);
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
+

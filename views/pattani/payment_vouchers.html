@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ใบสำคัญจ่าย POS</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    crossorigin />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    const API_BASE = '/api';
+    const token = (function () { try { return localStorage.getItem('authToken'); } catch (e) { return null; } })();
+
+    function resolvePhotoUrl(raw) {
+      if (!raw) return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4=';
+      if (/^https?:\/\//.test(raw)) return raw;
+      if (raw.startsWith('data:')) return raw;
+      if (raw.startsWith('/uploads/employees/')) return raw;
+      if (raw.startsWith('/uploads/')) return raw.replace(/^\/uploads\//, '/uploads/employees/');
+      return '/uploads/employees/' + raw;
+    }
+
+    async function fetchUserProfile() {
+      try {
+        if (!token) {
+          throw new Error('No token available');
+        }
+
+        const res = await fetch(`${API_BASE}/users/me`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (res.status === 401) {
+          throw new Error('Unauthorized');
+        }
+
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || 'Failed to load profile');
+
+        const userName = json.data.name || json.data.username || 'ผู้ใช้';
+        const photoUrl = json.data.photoUrl || json.data.employee?.imageUrl || null;
+        const userRole = json.data.role || json.data.position || json.data.department || 'พนักงาน';
+        const userId = json.data._id || json.data.id || null;
+    
+        // Store user data in localStorage
+        localStorage.setItem('userName', userName);
+        localStorage.setItem('userRole', userRole);
+        if (userId) localStorage.setItem('userId', userId);
+        if (photoUrl) localStorage.setItem('userPhoto', photoUrl);
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+        // User data can still be retrieved from localStorage if needed
+      }
+    }
+
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark'],
+      }
+    };
+  </script>
+
+  <style>
+    /* Remove conflicting body styles since Tailwind handles this */
+    
+    /* Dark mode is handled by Tailwind's dark: prefix */
+
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e2e8f0;
+      transition: all 0.2s ease;
+    }
+
+    .dark .card {
+      background-color: #1a202c;
+      border-color: #2d3748;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+      background-color: white;
+      color: #1a202c;
+      transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #4299e1;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    }
+
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #e2e8f0;
+    }
+
+    .dark .form-control:focus {
+      border-color: #4299e1;
+      background-color: #2d3748;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    }
+
+    /* DaisyUI already provides btn classes, remove duplicates */
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: transparent;
+    }
+
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 12px;
+      color: #6c757d;
+      font-weight: 600;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .dark .table th {
+      background-color: #2d3748;
+      color: #a0aec0;
+      border-bottom-color: #4a5568;
+    }
+
+    .table td {
+      padding: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #2d3748;
+      background-color: white;
+      transition: background-color 0.2s ease;
+    }
+
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #e2e8f0;
+      background-color: #1a202c;
+    }
+
+    .table tbody tr:hover td {
+      background-color: #f7fafc;
+    }
+
+    .dark .table tbody tr:hover td {
+      background-color: #2d3748;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .status-draft {
+      background-color: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .dark .status-draft {
+      background-color: #374151;
+      color: #9ca3af;
+    }
+
+    .status-pending {
+      background-color: #fef3c7;
+      color: #d97706;
+    }
+
+    .dark .status-pending {
+      background-color: #451a03;
+      color: #fbbf24;
+    }
+
+    .status-approved {
+      background-color: #d1fae5;
+      color: #059669;
+    }
+
+    .dark .status-approved {
+      background-color: #064e3b;
+      color: #34d399;
+    }
+
+    .status-paid {
+      background-color: #dbeafe;
+      color: #2563eb;
+    }
+
+    .dark .status-paid {
+      background-color: #1e3a8a;
+      color: #60a5fa;
+    }
+
+    .status-cancelled {
+      background-color: #fee2e2;
+      color: #dc2626;
+    }
+
+    .dark .status-cancelled {
+      background-color: #7f1d1d;
+      color: #f87171;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.3s ease;
+    }
+    
+    .modal.hidden {
+      display: none !important;
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 90%;
+      max-height: 90%;
+      overflow-y: auto;
+      color: #1a202c;
+      border: 1px solid #e2e8f0;
+    }
+
+    .dark .modal-content {
+      background-color: #1a202c;
+      color: #e2e8f0;
+      border-color: #2d3748;
+    }
+    
+    .dark .modal-content h2 {
+      color: #f7fafc;
+    }
+    
+    .dark .modal-content label {
+      color: #cbd5e0;
+    }
+    
+    .dark .modal-content .form-control {
+      background-color: #2d3748;
+      color: #e2e8f0;
+      border-color: #4a5568;
+    }
+    
+    .dark .modal-content .form-control:focus {
+      border-color: #4299e1;
+      background-color: #2d3748;
+    }
+    
+    .dark .modal-content .btn-secondary {
+      background-color: #4a5568;
+      color: #e2e8f0;
+    }
+    
+    .dark .modal-content .btn-secondary:hover {
+      background-color: #718096;
+    }
+    
+    .dark .modal-content .btn-primary {
+      background-color: #4299e1;
+      color: white;
+    }
+    
+    .dark .modal-content .btn-primary:hover {
+      background-color: #3182ce;
+    }
+
+    .product-search {
+      position: relative;
+    }
+
+    .product-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+    }
+
+    .dark .product-dropdown {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .product-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+      color: #1a202c;
+      transition: all 0.2s ease;
+    }
+
+    .dark .product-item {
+      border-bottom-color: #4a5568;
+      color: #e2e8f0;
+    }
+
+    .product-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .dark .product-item:hover {
+      background-color: #374151;
+    }
+
+    .product-item:last-child {
+      border-bottom: none;
+    }
+    
+    /* Additional dark mode styles for modal */
+    .dark .modal-content table {
+      color: #e2e8f0;
+    }
+    
+    .dark .modal-content table thead {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .dark .modal-content table tbody {
+      background-color: #1a202c;
+    }
+    
+    .dark .modal-content table td {
+      border-color: #4a5568;
+    }
+    
+    /* Text colors in modal for dark mode */
+    .dark .modal-content .text-gray-600 {
+      color: #cbd5e0 !important;
+    }
+    
+    .dark .modal-content .text-gray-500 {
+      color: #a0aec0 !important;
+    }
+    
+    .dark .modal-content .text-gray-700 {
+      color: #cbd5e0 !important;
+    }
+    
+    .dark .modal-content .text-gray-700:hover {
+      color: #e2e8f0 !important;
+    }
+    
+    .dark .modal-content .text-gray-900 {
+      color: #f7fafc !important;
+    }
+    
+    /* Input and select styling for dark mode */
+    .dark .modal-content input[type="text"],
+    .dark .modal-content input[type="number"],
+    .dark .modal-content input[type="date"],
+    .dark .modal-content select,
+    .dark .modal-content textarea {
+      background-color: #2d3748;
+      color: #e2e8f0;
+      border-color: #4a5568;
+    }
+    
+    .dark .modal-content input[type="text"]:focus,
+    .dark .modal-content input[type="number"]:focus,
+    .dark .modal-content input[type="date"]:focus,
+    .dark .modal-content select:focus,
+    .dark .modal-content textarea:focus {
+      background-color: #2d3748;
+      border-color: #4299e1;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    }
+    
+    /* Button styles for dark mode */
+    .dark .modal-content .btn-danger {
+      background-color: #e53e3e;
+      color: white;
+    }
+    
+    .dark .modal-content .btn-danger:hover {
+      background-color: #c53030;
+    }
+    
+    .dark .modal-content .btn-success {
+      background-color: #48bb78;
+      color: white;
+    }
+    
+    .dark .modal-content .btn-success:hover {
+      background-color: #38a169;
+    }
+    
+    /* Close button styling */
+    .dark .modal-content #closeModal {
+      color: #a0aec0;
+    }
+    
+    .dark .modal-content #closeModal:hover {
+      color: #e2e8f0;
+    }
+
+    /* Additional button hover effects for dark mode */
+    .dark .btn-sm {
+      transition: all 0.2s ease;
+    }
+
+    .dark .bg-blue-100 {
+      background-color: #1e3a8a !important;
+    }
+
+    .dark .text-blue-600 {
+      color: #60a5fa !important;
+    }
+
+    .dark .bg-yellow-100 {
+      background-color: #451a03 !important;
+    }
+
+    .dark .text-yellow-600 {
+      color: #fbbf24 !important;
+    }
+
+    .dark .bg-green-100 {
+      background-color: #064e3b !important;
+    }
+
+    .dark .text-green-600 {
+      color: #34d399 !important;
+    }
+
+    .dark .bg-purple-100 {
+      background-color: #581c87 !important;
+    }
+
+    .dark .text-purple-600 {
+      color: #c084fc !important;
+    }
+
+    .dark .bg-red-100 {
+      background-color: #7f1d1d !important;
+    }
+
+    .dark .text-red-600 {
+      color: #f87171 !important;
+    }
+
+    /* Placeholder text styling for dark mode */
+    .dark .form-control::placeholder {
+      color: #9ca3af;
+      opacity: 1;
+    }
+
+    .dark input::placeholder,
+    .dark textarea::placeholder {
+      color: #9ca3af;
+      opacity: 1;
+    }
+
+    /* Select option styling for dark mode */
+    .dark select option {
+      background-color: #2d3748;
+      color: #e2e8f0;
+    }
+
+    /* Hover effects for table rows */
+    .dark .hover\\:bg-gray-50:hover {
+      background-color: #374151 !important;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* Ensure modal respects dark mode even with inline styles */
+    .dark #voucherModal .modal-content {
+      background-color: #1a202c !important;
+      color: #e2e8f0 !important;
+      border-color: #2d3748 !important;
+    }
+
+    /* Force dark mode for modal elements */
+    .dark #voucherModal .modal-content * {
+      color: inherit;
+    }
+
+    .dark #voucherModal .modal-content h2,
+    .dark #voucherModal .modal-content h3,
+    .dark #voucherModal .modal-content label {
+      color: #f7fafc !important;
+    }
+
+    /* Ensure main content area has proper background */
+    #mainContent {
+      background-color: #f9fafb;
+      min-height: 100vh;
+    }
+
+    .dark #mainContent {
+      background-color: #111827;
+    }
+
+    /* Force proper background for main content container */
+    .dark #mainContent > div {
+      background-color: #111827 !important;
+    }
+
+    /* Ensure header has proper height and visibility */
+    header {
+      min-height: 120px;
+      display: flex !important;
+      align-items: center;
+    }
+
+    /* Header content styling */
+    header > div {
+      width: 100%;
+    }
+
+    /* Ensure header is always visible */
+    #mainContent header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background-color: white;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .dark #mainContent header {
+      background-color: #1f2937;
+      border-bottom-color: #374151;
+    }
+
+    /* Fix gap between sidebar and main content */
+    #mainContent {
+      margin-left: 256px !important;
+      width: calc(100% - 256px) !important;
+    }
+
+    /* Ensure no gaps in layout */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow-x: hidden;
+    }
+
+    html {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    #sidebarContainer + #mainContent {
+      margin-left: 256px !important;
+    }
+
+    /* Remove any default margins/padding from main elements */
+    #mainContent header {
+      margin: 0 !important;
+      padding: 1.5rem !important;
+    }
+
+    /* Ensure full width coverage */
+    #mainContent {
+      position: relative;
+      left: 0;
+      right: 0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+  
+  <!-- Sidebar JavaScript -->
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+  <!-- Sidebar CSS -->
+  <link href="/views/pattani/sidebar/sidebar.css" rel="stylesheet" type="text/css" />
+  
+  <!-- DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" type="text/css" />
+  
+  <!-- Alpine.js for better interactions -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.0/dist/cdn.min.js"></script>
+  
+  <!-- Animation library -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+  
+  <script src="/js/branch-navigation.js"></script>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 dark:text-white m-0 p-0" style="margin: 0 !important; padding: 0 !important;">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container - จะถูกเติมด้วย sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <div id="mainContent" class="flex-1 flex flex-col ml-64 transition-all duration-300 ease-in-out min-h-screen" style="margin-left: 256px !important;">
+    <!-- Header -->
+    <header
+      class="p-6 bg-white dark:bg-gray-800
+             border-b border-gray-200 dark:border-gray-700
+             sticky top-0 z-10 shadow-sm"
+    >
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div class="mb-4 md:mb-0">
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-1" id="pageTitle">ใบสำคัญจ่าย POS</h1>
+          <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+            กำลังโหลดสาขา...
+          </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            จัดการและบันทึกรายการจ่ายเงินทุกประเภท
+          </p>
+        </div>
+        
+        <!-- Quick Stats in Header -->
+        <div class="flex space-x-4 text-sm">
+          <div class="text-center">
+            <div class="text-xs text-gray-500 dark:text-gray-400">ทั้งหมด</div>
+            <div class="font-semibold text-gray-900 dark:text-white" id="headerTotalVouchers">0</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-500 dark:text-gray-400">รออนุมัติ</div>
+            <div class="font-semibold text-yellow-600 dark:text-yellow-400" id="headerPendingCount">0</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-500 dark:text-gray-400">จ่ายแล้ว</div>
+            <div class="font-semibold text-green-600 dark:text-green-400" id="headerPaidCount">0</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <div class="flex-1 p-6 bg-gray-50 dark:bg-gray-900">
+      <div class="container mx-auto max-w-6xl">
+        <!-- Action Buttons -->
+        <div class="flex justify-end items-center mb-6">
+          <div class="flex space-x-3">
+            <button id="btnCreateVoucher" class="btn btn-primary btn-sm normal-case flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors">
+              <i class="bi bi-plus-lg text-white"></i>
+              <span class="text-white">สร้างใบสำคัญจ่าย</span>
+            </button>
+            <button id="btnRefresh" class="btn btn-secondary btn-sm normal-case flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors">
+              <i class="bi bi-arrow-clockwise"></i>
+              <span>รีเฟรช</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="flex justify-between items-center mb-6">
+          <div class="flex items-center space-x-4">
+          <select id="statusFilter" class="form-control">
+            <option value="all">ทุกสถานะ</option>
+            <option value="draft">ร่าง</option>
+            <option value="pending">รอการอนุมัติ</option>
+            <option value="approved">อนุมัติแล้ว</option>
+            <option value="paid">จ่ายเงินแล้ว</option>
+            <option value="cancelled">ยกเลิก</option>
+          </select>
+          <select id="paymentTypeFilter" class="form-control">
+            <option value="all">ทุกประเภท</option>
+            <option value="purchase">ซื้อสินค้า</option>
+            <option value="expense">ค่าใช้จ่าย</option>
+            <option value="salary">เงินเดือน</option>
+            <option value="utility">สาธารณูปโภค</option>
+            <option value="rent">ค่าเช่า</option>
+            <option value="other">อื่นๆ</option>
+          </select>
+          <input type="text" id="searchInput" class="form-control" placeholder="ค้นหา..." />
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900">
+              <i class="bi bi-receipt text-blue-600 dark:text-blue-300 text-xl"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">ทั้งหมด</p>
+              <p id="totalVouchers" class="text-2xl font-semibold text-gray-900 dark:text-white">0</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900">
+              <i class="bi bi-clock text-yellow-600 dark:text-yellow-300 text-xl"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">รอการอนุมัติ</p>
+              <p id="pendingAmount" class="text-2xl font-semibold text-gray-900 dark:text-white">฿0</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100 dark:bg-green-900">
+              <i class="bi bi-check-circle text-green-600 dark:text-green-300 text-xl"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">อนุมัติแล้ว</p>
+              <p id="approvedAmount" class="text-2xl font-semibold text-gray-900 dark:text-white">฿0</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900">
+              <i class="bi bi-cash text-purple-600 dark:text-purple-300 text-xl"></i>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">จ่ายเงินแล้ว</p>
+              <p id="paidAmount" class="text-2xl font-semibold text-gray-900 dark:text-white">฿0</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vouchers Table -->
+      <div class="card">
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>เลขที่เอกสาร</th>
+                <th>วันที่</th>
+                <th>ประเภท</th>
+                <th>ผู้รับเงิน</th>
+                <th>จำนวนเงิน</th>
+                <th>สถานะ</th>
+                <th>ผู้สร้าง</th>
+                <th>การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="vouchersTableBody">
+              <tr>
+                <td colspan="8" class="text-center py-6">
+                  <div class="loader mx-auto"></div>
+                  <div class="mt-2">กำลังโหลดข้อมูล...</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-between items-center mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="text-sm text-gray-700 dark:text-gray-300">
+          แสดง <span id="showingFrom" class="font-semibold text-gray-900 dark:text-white">0</span> ถึง <span id="showingTo" class="font-semibold text-gray-900 dark:text-white">0</span> จาก <span id="totalRecords" class="font-semibold text-gray-900 dark:text-white">0</span>
+          รายการ
+        </div>
+        <div class="flex space-x-2" id="pagination">
+          <!-- Pagination buttons will be generated here -->
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Voucher Modal -->
+  <div id="voucherModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 99999; overflow: auto;">
+    <div class="modal-content w-full max-w-4xl" style="margin: 20px; max-height: 90vh; overflow-y: auto;">
+      <div class="flex justify-between items-center mb-6">
+        <h2 id="modalTitle" class="text-xl font-semibold">สร้างใบสำคัญจ่าย</h2>
+        <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+          <i class="bi bi-x-lg text-xl"></i>
+        </button>
+      </div>
+
+      <form id="voucherForm">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่</label>
+            <input type="date" id="voucherDate" class="form-control" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">ประเภทการจ่าย</label>
+            <select id="paymentType" class="form-control" required>
+              <option value="purchase">ซื้อสินค้า</option>
+              <option value="expense">ค่าใช้จ่าย</option>
+              <option value="salary">เงินเดือน</option>
+              <option value="utility">สาธารณูปโภค</option>
+              <option value="rent">ค่าเช่า</option>
+              <option value="other">อื่นๆ</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">ผู้รับเงิน</label>
+            <input type="text" id="payee" class="form-control" required placeholder="ชื่อผู้รับเงิน" />
+          </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="mb-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">รายการสินค้า/บริการ</h3>
+            <button type="button" id="addItemBtn" class="btn btn-success px-4 py-2 rounded-lg transition-colors duration-200 bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600">
+              <i class="bi bi-plus mr-2"></i>เพิ่มรายการ
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>สินค้า/บริการ</th>
+                  <th>จำนวน</th>
+                  <th>ราคาต่อหน่วย</th>
+                  <th>รวม</th>
+                  <th>หมายเหตุ</th>
+                  <th>การจัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="itemsTableBody">
+                <!-- Items will be added here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วิธีการชำระเงิน</label>
+            <select id="paymentMethod" class="form-control">
+              <option value="cash">เงินสด</option>
+              <option value="transfer">โอนเงิน</option>
+              <option value="cheque">เช็ค</option>
+              <option value="credit_card">บัตรเครดิต</option>
+              <option value="other">อื่นๆ</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">ประเภทภาษี</label>
+            <select id="taxType" class="form-control">
+              <option value="no_tax">ไม่มีภาษี</option>
+              <option value="exclude_tax">แยกภาษี</option>
+              <option value="include_tax">รวมภาษี</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">ส่วนลด</label>
+            <div class="flex space-x-2">
+              <input type="number" id="discount" class="form-control" min="0" step="0.01" value="0" />
+              <select id="discountType" class="form-control w-32">
+                <option value="amount">บาท</option>
+                <option value="percent">%</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">อัตราภาษี (%)</label>
+            <input type="number" id="vatRate" class="form-control" min="0" max="100" step="0.01" value="7" />
+          </div>
+        </div>
+
+        <!-- Summary Display -->
+        <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-6 border border-gray-200 dark:border-gray-600 transition-all duration-200">
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="flex justify-between text-gray-700 dark:text-gray-300">
+              <span>ยอดรวม:</span>
+              <span id="subtotalDisplay" class="font-mono text-gray-900 dark:text-gray-100">฿0.00</span>
+            </div>
+            <div class="flex justify-between text-gray-700 dark:text-gray-300">
+              <span>ส่วนลด:</span>
+              <span id="discountDisplay" class="font-mono text-red-600 dark:text-red-400">฿0.00</span>
+            </div>
+            <div class="flex justify-between text-gray-700 dark:text-gray-300">
+              <span>ภาษี:</span>
+              <span id="vatDisplay" class="font-mono text-gray-900 dark:text-gray-100">฿0.00</span>
+            </div>
+            <div class="flex justify-between font-semibold text-lg text-gray-900 dark:text-gray-100">
+              <span>ยอดรวมสุทธิ:</span>
+              <span id="totalDisplay" class="font-mono text-blue-600 dark:text-blue-400">฿0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">หมายเหตุ</label>
+          <textarea id="notes" class="form-control" rows="3" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-4">
+          <button type="button" id="cancelBtn" class="btn btn-secondary px-6 py-2 rounded-lg transition-colors duration-200 bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary px-6 py-2 rounded-lg transition-colors duration-200 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
+            <span id="submitBtnText">บันทึก</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentVouchers = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    let isEditing = false;
+    let editingVoucherId = null;
+
+    // Branch Code setup (same as receiptVoucher.html)
+    const urlParams = new URLSearchParams(window.location.search);
+    let BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch') || localStorage.getItem('branchId');
+    
+    // Make BRANCH_CODE globally accessible
+    window.currentBranchCode = BRANCH_CODE;
+    window.BRANCH_CODE = BRANCH_CODE;
+    
+    // Load branch information
+    async function loadBranchInfo() {
+      try {
+        if (!token) {
+          console.warn('No auth token available for loading branch info');
+          return null;
+        }
+    
+        console.log('🔄 Loading branch info for BRANCH_CODE:', BRANCH_CODE);
+    
+        // เรียก /api/branch เพื่อดึง list สาขา
+        const response = await fetch(`${API_BASE}/branch`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+    
+        if (!response.ok) {
+          console.error('❌ Failed to load branch data:', response.status);
+          return null;
+        }
+    
+        const js = await response.json();
+        if (!js.success || !js.data || js.data.length === 0) {
+          console.error('❌ No branch data available');
+          return null;
+        }
+    
+        console.log(`📦 Loaded ${js.data.length} branches`);
+    
+        let targetBranch = null;
+    
+        const currentBranchId = BRANCH_CODE;
+    
+        console.log('🔍 Searching for branch with ID/Code:', currentBranchId);
+    
+        if (currentBranchId) {
+          // หา record ที่ตรงกับ currentBranchId (ลองทั้ง _id และ branch_code)
+          targetBranch = js.data.find(b =>
+            b._id === currentBranchId ||
+            b.branch_code === currentBranchId ||
+            String(b._id) === String(currentBranchId) ||
+            String(b.branch_code) === String(currentBranchId)
+          );
+        }
+    
+        if (targetBranch) {
+          // อัพเดท global BRANCH_CODE ให้ตรงกับ branch ที่เจอ
+          window.BRANCH_CODE = targetBranch._id;
+          window.currentBranchCode = targetBranch._id;
+          localStorage.setItem('branchId', targetBranch._id);
+          localStorage.setItem('activeBranch', targetBranch.branch_code);
+    
+          document.getElementById('branchInfo').textContent =
+            `${targetBranch.name} — ${targetBranch.address || targetBranch.branch_code}`;
+          document.title = `ใบสำคัญจ่าย POS - ${targetBranch.name}`;
+          document.getElementById('pageTitle').textContent = `ใบสำคัญจ่าย POS - ${targetBranch.name}`;
+    
+          console.log(`✅ โหลดข้อมูลสาขาสำเร็จ: ${targetBranch.name} (ID: ${targetBranch._id})`);
+    
+          return targetBranch;
+        }
+    
+        // ถ้าไม่เจอสาขาที่ตรงกับ BRANCH_CODE ใช้สาขาแรก
+        const firstBranch = js.data[0];
+        if (firstBranch) {
+          // อัพเดท global BRANCH_CODE
+          window.BRANCH_CODE = firstBranch._id;
+          window.currentBranchCode = firstBranch._id;
+          localStorage.setItem('branchId', firstBranch._id);
+          localStorage.setItem('activeBranch', firstBranch.branch_code);
+    
+          document.getElementById('branchInfo').textContent =
+            `${firstBranch.name} — ${firstBranch.address || firstBranch.branch_code}`;
+          document.title = `ใบสำคัญจ่าย POS - ${firstBranch.name}`;
+          document.getElementById('pageTitle').textContent = `ใบสำคัญจ่าย POS - ${firstBranch.name}`;
+    
+          console.warn(`⚠️ ไม่พบสาขา ${currentBranchId} ใช้สาขา ${firstBranch.name} แทน`);
+    
+          return firstBranch;
+        }
+    
+        return null;
+    
+      } catch (err) {
+        console.error('❌ loadBranchInfo error:', err);
+        document.getElementById('branchInfo').textContent = 'เกิดข้อผิดพลาดในการโหลดข้อมูลสาขา';
+        return null;
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async function () {
+      fetchUserProfile();
+      await loadBranchInfo(); // Load branch info first
+      loadVouchers();
+      initializeEventListeners();
+      setupDarkMode();
+    });
+
+    function initializeEventListeners() {
+      // Create voucher button
+      const createBtn = document.getElementById('btnCreateVoucher');
+      if (createBtn) {
+        createBtn.addEventListener('click', openCreateModal);
+        console.log('✅ Create button event listener attached');
+      } else {
+        console.error('❌ Create button not found!');
+      }
+
+      // Refresh button
+      document.getElementById('btnRefresh').addEventListener('click', loadVouchers);
+
+      // Filters
+      document.getElementById('statusFilter').addEventListener('change', loadVouchers);
+      document.getElementById('paymentTypeFilter').addEventListener('change', loadVouchers);
+      document.getElementById('searchInput').addEventListener('input', debounce(loadVouchers, 500));
+
+      // Modal controls
+      document.getElementById('closeModal').addEventListener('click', closeModal);
+      document.getElementById('cancelBtn').addEventListener('click', closeModal);
+
+      // Form submission
+      document.getElementById('voucherForm').addEventListener('submit', handleFormSubmit);
+
+      // Add item button
+      document.getElementById('addItemBtn').addEventListener('click', addItemRow);
+
+      // Calculation triggers
+      document.getElementById('discount').addEventListener('input', calculateTotals);
+      document.getElementById('discountType').addEventListener('change', calculateTotals);
+      document.getElementById('vatRate').addEventListener('input', calculateTotals);
+      document.getElementById('taxType').addEventListener('change', function() {
+        const taxType = this.value;
+        const vatRateInput = document.getElementById('vatRate');
+        const vatRateContainer = vatRateInput ? vatRateInput.closest('div') : null;
+    
+        // ซ่อน/แสดง input อัตราภาษีตามประเภทภาษีที่เลือก
+        if (taxType === 'no_tax') {
+          // ถ้าเลือก "ไม่มีภาษี" ให้ disable input อัตราภาษีและตั้งค่าเป็น 0
+          if (vatRateContainer) {
+            vatRateContainer.style.opacity = '0.5';
+            vatRateContainer.style.pointerEvents = 'none';
+          }
+          if (vatRateInput) {
+            vatRateInput.value = '0';
+          }
+        } else {
+          // ถ้าเลือก "แยกภาษี" หรือ "รวมภาษี" ให้ enable input อัตราภาษี
+          if (vatRateContainer) {
+            vatRateContainer.style.opacity = '1';
+            vatRateContainer.style.pointerEvents = '';
+          }
+          if (vatRateInput && vatRateInput.value === '0') {
+            vatRateInput.value = '7'; // คืนค่า default
+          }
+        }
+    
+        calculateTotals();
+      });
+
+      // Logout button
+      // Logout button is handled by sidebar
+      // document.getElementById('btnLogout').addEventListener('click', logout);
+    }
+
+    function setupDarkMode() {
+      // Function to apply theme
+      function applyTheme() {
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    
+      // Apply theme initially
+      applyTheme();
+    
+      // Listen for storage changes (when theme is changed in another tab or by sidebar)
+      window.addEventListener('storage', function(e) {
+        if (e.key === 'theme') {
+          applyTheme();
+        }
+      });
+    
+      // Listen for custom theme change events from sidebar
+      window.addEventListener('themeChanged', function(e) {
+        applyTheme();
+      });
+    
+      // Also check for theme changes periodically (fallback)
+      let lastTheme = localStorage.theme;
+      setInterval(() => {
+        if (localStorage.theme !== lastTheme) {
+          lastTheme = localStorage.theme;
+          applyTheme();
+        }
+      }, 500);
+    }
+
+    async function loadVouchers() {
+      try {
+        showLoading();
+
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: 20,
+          status: document.getElementById('statusFilter').value,
+          paymentType: document.getElementById('paymentTypeFilter').value,
+          search: document.getElementById('searchInput').value
+        });
+    
+        console.log('API Request params:', params.toString());
+
+        const response = await fetch(`${API_BASE}/pos/payment-vouchers?${params}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          currentVouchers = result.data;
+          console.log('Vouchers data:', result.data); // Debug log
+          console.log('CreatedBy data check:', result.data.map(v => ({
+            id: v._id,
+            voucherNumber: v.voucherNumber,
+            createdBy: v.createdBy
+          })));
+          renderVouchersTable(result.data);
+          updateSummaryCards(result.summary);
+          updatePagination(result.pagination);
+        } else {
+          showError('ไม่สามารถโหลดข้อมูลได้: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Error loading vouchers:', error);
+        showError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderVouchersTable(vouchers) {
+      const tbody = document.getElementById('vouchersTableBody');
+
+      if (vouchers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-6 text-gray-500">
+              <i class="bi bi-inbox text-3xl"></i>
+              <div class="mt-2">ไม่พบข้อมูลใบสำคัญจ่าย</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = vouchers.map(voucher => `
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+          <td class="font-medium">${voucher.voucherNumber || '-'}</td>
+          <td>${formatDate(voucher.date)}</td>
+          <td>${getPaymentTypeText(voucher.paymentType)}</td>
+          <td>${voucher.payee}</td>
+          <td class="text-right font-mono">฿${formatCurrency(voucher.totalAmount)}</td>
+          <td>
+            <span class="status-badge status-${voucher.status}">
+              ${getStatusText(voucher.status)}
+            </span>
+          </td>
+          <td>${getCreatorName(voucher.createdBy)}</td>
+          <td>
+            <div class="flex space-x-2">
+              <button onclick="viewVoucher('${voucher._id}')" class="btn btn-sm bg-blue-100 text-blue-600 hover:bg-blue-200" title="ดู">
+                <i class="bi bi-eye"></i>
+              </button>
+              ${voucher.status === 'draft' || voucher.status === 'pending' ? `
+                <button onclick="editVoucher('${voucher._id}')" class="btn btn-sm bg-yellow-100 text-yellow-600 hover:bg-yellow-200" title="แก้ไข">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              ` : ''}
+              ${voucher.status === 'pending' || voucher.status === 'draft' ? `
+                <button onclick="approveVoucher('${voucher._id}')" class="btn btn-sm bg-green-100 text-green-600 hover:bg-green-200" title="อนุมัติ">
+                  <i class="bi bi-check"></i>
+                </button>
+              ` : ''}
+              ${voucher.status === 'approved' ? `
+                <button onclick="markAsPaid('${voucher._id}')" class="btn btn-sm bg-purple-100 text-purple-600 hover:bg-purple-200" title="จ่ายเงิน">
+                  <i class="bi bi-cash"></i>
+                </button>
+              ` : ''}
+              ${voucher.status !== 'paid' ? `
+                <button onclick="deleteVoucher('${voucher._id}')" class="btn btn-sm bg-red-100 text-red-600 hover:bg-red-200" title="ลบ">
+                  <i class="bi bi-trash"></i>
+                </button>
+              ` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function updateSummaryCards(summary) {
+      // Update main summary cards
+      document.getElementById('totalVouchers').textContent = summary.totalVouchers || 0;
+      document.getElementById('pendingAmount').textContent = '฿' + formatCurrency(summary.pendingAmount || 0);
+      document.getElementById('approvedAmount').textContent = '฿' + formatCurrency(summary.approvedAmount || 0);
+      document.getElementById('paidAmount').textContent = '฿' + formatCurrency(summary.paidAmount || 0);
+    
+      // Update header stats
+      document.getElementById('headerTotalVouchers').textContent = summary.totalVouchers || 0;
+    
+      // Count pending and paid vouchers
+      let pendingCount = 0;
+      let paidCount = 0;
+    
+      currentVouchers.forEach(voucher => {
+        if (voucher.status === 'pending') pendingCount++;
+        if (voucher.status === 'paid') paidCount++;
+      });
+    
+      document.getElementById('headerPendingCount').textContent = pendingCount;
+      document.getElementById('headerPaidCount').textContent = paidCount;
+    }
+
+    function updatePagination(pagination) {
+      const paginationEl = document.getElementById('pagination');
+      const { current, pages, total, limit } = pagination;
+
+      totalPages = pages;
+      currentPage = current;
+
+      // Update showing info
+      const showingFrom = ((current - 1) * limit) + 1;
+      const showingTo = Math.min(current * limit, total);
+      document.getElementById('showingFrom').textContent = showingFrom;
+      document.getElementById('showingTo').textContent = showingTo;
+      document.getElementById('totalRecords').textContent = total;
+
+      // Generate pagination buttons
+      let paginationHTML = '';
+
+      if (current > 1) {
+        paginationHTML += `<button onclick="changePage(${current - 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white transition-colors">ก่อนหน้า</button>`;
+      }
+
+      for (let i = Math.max(1, current - 2); i <= Math.min(pages, current + 2); i++) {
+        const activeClass = i === current
+          ? 'px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-300 hover:bg-blue-100 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-700 dark:text-white transition-colors'
+          : 'px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white transition-colors';
+        paginationHTML += `<button onclick="changePage(${i})" class="${activeClass}">${i}</button>`;
+      }
+
+      if (current < pages) {
+        paginationHTML += `<button onclick="changePage(${current + 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white transition-colors">ถัดไป</button>`;
+      }
+
+      paginationEl.innerHTML = paginationHTML;
+    }
+
+    function changePage(page) {
+      currentPage = page;
+      loadVouchers();
+    }
+
+    function openCreateModal() {
+      try {
+        console.log('Opening create modal...');
+        isEditing = false;
+        editingVoucherId = null;
+    
+        const modalTitle = document.getElementById('modalTitle');
+        const submitBtnText = document.getElementById('submitBtnText');
+        const voucherModal = document.getElementById('voucherModal');
+    
+        if (!modalTitle || !submitBtnText || !voucherModal) {
+          console.error('Required modal elements not found:', {
+            modalTitle: !!modalTitle,
+            submitBtnText: !!submitBtnText,
+            voucherModal: !!voucherModal
+          });
+          return;
+        }
+    
+        modalTitle.textContent = 'สร้างใบสำคัญจ่าย';
+        submitBtnText.textContent = 'บันทึก';
+        resetForm();
+        addItemRow(); // Add first item row
+    
+        // Force show modal using inline styles
+        voucherModal.classList.remove('hidden');
+        voucherModal.style.display = 'flex';
+        voucherModal.style.position = 'fixed';
+        voucherModal.style.top = '0';
+        voucherModal.style.left = '0';
+        voucherModal.style.width = '100%';
+        voucherModal.style.height = '100%';
+        voucherModal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        voucherModal.style.alignItems = 'center';
+        voucherModal.style.justifyContent = 'center';
+        voucherModal.style.zIndex = '99999';
+        voucherModal.style.opacity = '1';
+        voucherModal.style.visibility = 'visible';
+        voucherModal.style.overflow = 'auto';
+    
+        // Prevent body scroll when modal is open
+        document.body.style.overflow = 'hidden';
+    
+        // Ensure modal content is visible and respects dark mode
+        const modalContent = voucherModal.querySelector('.modal-content');
+        if (modalContent) {
+          // Apply appropriate background based on current theme
+          const isDark = document.documentElement.classList.contains('dark');
+          modalContent.style.backgroundColor = isDark ? '#1a202c' : 'white';
+          modalContent.style.color = isDark ? '#e2e8f0' : '#1a202c';
+          modalContent.style.padding = '24px';
+          modalContent.style.borderRadius = '8px';
+          modalContent.style.position = 'relative';
+          modalContent.style.margin = '20px';
+          modalContent.style.maxHeight = '90vh';
+          modalContent.style.overflowY = 'auto';
+          modalContent.style.border = isDark ? '1px solid #2d3748' : '1px solid #e2e8f0';
+        }
+    
+        console.log('Modal opened successfully');
+        console.log('Modal classes:', voucherModal.className);
+        console.log('Modal display:', voucherModal.style.display);
+        console.log('Modal computed style:', window.getComputedStyle(voucherModal).display);
+        console.log('Modal dimensions:', {
+          width: voucherModal.offsetWidth,
+          height: voucherModal.offsetHeight,
+          top: voucherModal.offsetTop,
+          left: voucherModal.offsetLeft
+        });
+      } catch (error) {
+        console.error('Error opening create modal:', error);
+        alert('เกิดข้อผิดพลาดในการเปิดฟอร์ม: ' + error.message);
+      }
+    }
+
+    function closeModal() {
+      const voucherModal = document.getElementById('voucherModal');
+      if (voucherModal) {
+        voucherModal.classList.add('hidden');
+        voucherModal.style.display = 'none';
+      }
+      // Restore body scroll
+      document.body.style.overflow = '';
+      resetForm();
+    }
+
+    function resetForm() {
+      try {
+        const form = document.getElementById('voucherForm');
+        const dateInput = document.getElementById('voucherDate');
+        const tbody = document.getElementById('itemsTableBody');
+    
+        if (form) form.reset();
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        if (tbody) tbody.innerHTML = '';
+        calculateTotals();
+      } catch (error) {
+        console.error('Error resetting form:', error);
+      }
+    }
+
+    function addItemRow() {
+      try {
+        const tbody = document.getElementById('itemsTableBody');
+        if (!tbody) {
+          console.error('itemsTableBody not found');
+          return;
+        }
+        const rowIndex = tbody.children.length;
+
+        const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>
+          <div class="product-search">
+            <input type="text" class="form-control product-input" placeholder="ค้นหาสินค้า..." data-index="${rowIndex}" />
+            <div class="product-dropdown" id="productDropdown${rowIndex}"></div>
+          </div>
+          <input type="hidden" class="product-id" />
+        </td>
+        <td>
+          <input type="number" class="form-control quantity-input" min="1" step="0.01" value="1" />
+        </td>
+        <td>
+          <input type="number" class="form-control price-input" min="0" step="0.01" value="0" />
+        </td>
+        <td>
+          <span class="total-display font-mono">฿0.00</span>
+        </td>
+        <td>
+          <input type="text" class="form-control description-input" placeholder="หมายเหตุ" />
+        </td>
+        <td>
+          <button type="button" onclick="removeItemRow(this)" class="btn btn-sm btn-danger">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+
+      // Add event listeners for the new row
+      const productInput = row.querySelector('.product-input');
+      const quantityInput = row.querySelector('.quantity-input');
+      const priceInput = row.querySelector('.price-input');
+
+      productInput.addEventListener('input', debounce(() => searchProducts(rowIndex), 300));
+      quantityInput.addEventListener('input', () => calculateRowTotal(row));
+      priceInput.addEventListener('input', () => calculateRowTotal(row));
+
+      // Focus on the product input
+      productInput.focus();
+      } catch (error) {
+        console.error('Error adding item row:', error);
+      }
+    }
+
+    function removeItemRow(button) {
+      const row = button.closest('tr');
+      row.remove();
+      calculateTotals();
+    }
+
+    async function searchProducts(rowIndex) {
+      const input = document.querySelector(`[data-index="${rowIndex}"]`);
+      const dropdown = document.getElementById(`productDropdown${rowIndex}`);
+      const query = input.value.trim();
+
+      if (query.length < 2) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/pos/payment-vouchers/products?search=${encodeURIComponent(query)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.data.length > 0) {
+          dropdown.innerHTML = result.data.map(product => `
+            <div class="product-item" onclick="selectProduct(${rowIndex}, '${product._id}', '${product.name}', ${product.price || 0})">
+              <div class="font-medium">${product.name}</div>
+              <div class="text-sm text-gray-500">${product.code || ''} - ฿${formatCurrency(product.price || 0)}</div>
+            </div>
+          `).join('');
+          dropdown.style.display = 'block';
+        } else {
+          dropdown.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error searching products:', error);
+        dropdown.style.display = 'none';
+      }
+    }
+
+    function selectProduct(rowIndex, productId, productName, price) {
+      const row = document.querySelector(`[data-index="${rowIndex}"]`).closest('tr');
+      const productInput = row.querySelector('.product-input');
+      const productIdInput = row.querySelector('.product-id');
+      const priceInput = row.querySelector('.price-input');
+      const dropdown = document.getElementById(`productDropdown${rowIndex}`);
+
+      productInput.value = productName;
+      productIdInput.value = productId;
+      priceInput.value = price;
+      dropdown.style.display = 'none';
+
+      calculateRowTotal(row);
+    }
+
+    function calculateRowTotal(row) {
+      const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+      const price = parseFloat(row.querySelector('.price-input').value) || 0;
+      const total = quantity * price;
+
+      row.querySelector('.total-display').textContent = '฿' + formatCurrency(total);
+      calculateTotals();
+    }
+
+    function calculateTotals() {
+      const rows = document.querySelectorAll('#itemsTableBody tr');
+      let subtotal = 0;
+
+      rows.forEach(row => {
+        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+        const price = parseFloat(row.querySelector('.price-input').value) || 0;
+        subtotal += quantity * price;
+      });
+
+      const discount = parseFloat(document.getElementById('discount').value) || 0;
+      const discountType = document.getElementById('discountType').value;
+      const vatRate = parseFloat(document.getElementById('vatRate').value) || 0;
+      const taxType = document.getElementById('taxType').value;
+
+      // Calculate discount amount
+      let discountAmount = 0;
+      if (discount > 0) {
+        if (discountType === 'percent') {
+          discountAmount = (subtotal * discount) / 100;
+        } else {
+          discountAmount = discount;
+        }
+      }
+
+      const afterDiscount = subtotal - discountAmount;
+
+      // Calculate VAT
+      let vatAmount = 0;
+      let total = afterDiscount;
+
+      if (taxType === 'no_tax') {
+        // ไม่มีภาษี
+        vatAmount = 0;
+        total = afterDiscount;
+      } else if (taxType === 'exclude_tax') {
+        // แยกภาษี - เพิ่มภาษีเข้าไปในยอดรวม
+        vatAmount = (afterDiscount * vatRate) / 100;
+        total = afterDiscount + vatAmount;
+      } else if (taxType === 'include_tax') {
+        // รวมภาษี - คำนวณภาษีย้อนกลับจากยอดรวม
+        vatAmount = afterDiscount - (afterDiscount / (1 + vatRate / 100));
+        total = afterDiscount;
+      }
+
+      // Update display
+      document.getElementById('subtotalDisplay').textContent = '฿' + formatCurrency(subtotal);
+      document.getElementById('discountDisplay').textContent = '฿' + formatCurrency(discountAmount);
+      document.getElementById('vatDisplay').textContent = '฿' + formatCurrency(vatAmount);
+      document.getElementById('totalDisplay').textContent = '฿' + formatCurrency(total);
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const formData = collectFormData();
+      if (!validateFormData(formData)) {
+        return;
+      }
+    
+      try {
+        showLoading();
+
+        const url = isEditing
+          ? `${API_BASE}/pos/payment-vouchers/${editingVoucherId}`
+          : `${API_BASE}/pos/payment-vouchers`;
+
+        const method = isEditing ? 'PUT' : 'POST';
+    
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showSuccess(isEditing ? 'อัปเดตใบสำคัญจ่ายสำเร็จ' : 'สร้างใบสำคัญจ่ายสำเร็จ');
+          closeModal();
+          loadVouchers();
+        } else {
+          showError(result.message || 'เกิดข้อผิดพลาด');
+        }
+      } catch (error) {
+        console.error('Error saving voucher:', error);
+        showError('เกิดข้อผิดพลาดในการบันทึก');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function collectFormData() {
+      const items = [];
+      const rows = document.querySelectorAll('#itemsTableBody tr');
+
+      rows.forEach(row => {
+        const productName = row.querySelector('.product-input').value.trim();
+        const productId = row.querySelector('.product-id').value;
+        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0;
+        const description = row.querySelector('.description-input').value.trim();
+
+        if (productName && quantity > 0 && unitPrice >= 0) {
+          const totalPrice = quantity * unitPrice;
+          items.push({
+            productId: productId || null,
+            productName,
+            quantity,
+            unitPrice,
+            totalPrice, // เพิ่ม totalPrice สำหรับแต่ละรายการ
+            description
+          });
+        }
+      });
+
+      // สร้าง object ที่ API ต้องการ - ให้ Controller คำนวณ totals เอง
+      return {
+        date: document.getElementById('voucherDate').value,
+        paymentType: document.getElementById('paymentType').value,
+        payee: document.getElementById('payee').value.trim(),
+        items: items,
+        discount: parseFloat(document.getElementById('discount').value) || 0,
+        discountType: document.getElementById('discountType').value,
+        vatRate: parseFloat(document.getElementById('vatRate').value) || 0,
+        taxType: document.getElementById('taxType').value,
+        paymentMethod: document.getElementById('paymentMethod').value,
+        notes: document.getElementById('notes').value.trim(),
+        branch: localStorage.getItem('branchId') || localStorage.getItem('activeBranch') || null
+      };
+    }
+
+    function validateFormData(data) {
+      if (!data.payee) {
+        showError('กรุณากรอกชื่อผู้รับเงิน');
+        return false;
+      }
+
+      if (!data.items || data.items.length === 0) {
+        showError('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ');
+        return false;
+      }
+    
+      // ตรวจสอบว่า items มีข้อมูลครบ
+      for (let item of data.items) {
+        if (!item.productName || item.quantity <= 0 || item.unitPrice < 0) {
+          showError('ข้อมูลรายการสินค้าไม่ครบถ้วน');
+          return false;
+        }
+    
+        // ตรวจสอบว่า totalPrice ถูกคำนวณ
+        if (!item.totalPrice || item.totalPrice <= 0) {
+          showError('ข้อมูลราคารวมของรายการไม่ถูกต้อง');
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    async function approveVoucher(voucherId) {
+      if (!confirm('คุณต้องการอนุมัติใบสำคัญจ่ายนี้หรือไม่?')) {
+        return;
+      }
+
+      try {
+        showLoading();
+
+        const response = await fetch(`${API_BASE}/pos/payment-vouchers/${voucherId}/approve`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showSuccess('อนุมัติใบสำคัญจ่ายสำเร็จ');
+          loadVouchers();
+        } else {
+          showError(result.message || 'เกิดข้อผิดพลาด');
+        }
+      } catch (error) {
+        console.error('Error approving voucher:', error);
+        showError('เกิดข้อผิดพลาดในการอนุมัติ');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function markAsPaid(voucherId) {
+      if (!confirm('คุณต้องการบันทึกการจ่ายเงินหรือไม่?')) {
+        return;
+      }
+
+      try {
+        showLoading();
+
+        const response = await fetch(`${API_BASE}/pos/payment-vouchers/${voucherId}/pay`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showSuccess('บันทึกการจ่ายเงินสำเร็จ');
+          loadVouchers();
+        } else {
+          showError(result.message || 'เกิดข้อผิดพลาด');
+        }
+      } catch (error) {
+        console.error('Error marking as paid:', error);
+        showError('เกิดข้อผิดพลาดในการบันทึกการจ่ายเงิน');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function deleteVoucher(voucherId) {
+      if (!confirm('คุณต้องการลบใบสำคัญจ่ายนี้หรือไม่?\n\nการลบไม่สามารถยกเลิกได้')) {
+        return;
+      }
+
+      try {
+        showLoading();
+
+        const response = await fetch(`${API_BASE}/pos/payment-vouchers/${voucherId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showSuccess('ลบใบสำคัญจ่ายสำเร็จ');
+          loadVouchers();
+        } else {
+          showError(result.message || 'เกิดข้อผิดพลาด');
+        }
+      } catch (error) {
+        console.error('Error deleting voucher:', error);
+        showError('เกิดข้อผิดพลาดในการลบ');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Utility functions
+    function formatDate(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('th-TH');
+    }
+
+    function formatCurrency(amount) {
+      if (amount === null || amount === undefined) return '0.00';
+      return new Intl.NumberFormat('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    }
+
+    function getPaymentTypeText(type) {
+      const types = {
+        purchase: 'ซื้อสินค้า',
+        expense: 'ค่าใช้จ่าย',
+        salary: 'เงินเดือน',
+        utility: 'สาธารณูปโภค',
+        rent: 'ค่าเช่า',
+        other: 'อื่นๆ'
+      };
+      return types[type] || type;
+    }
+
+    function getStatusText(status) {
+      const statuses = {
+        draft: 'ร่าง',
+        pending: 'รอการอนุมัติ',
+        approved: 'อนุมัติแล้ว',
+        paid: 'จ่ายเงินแล้ว',
+        cancelled: 'ยกเลิก'
+      };
+      return statuses[status] || status;
+    }
+
+    function getCreatorName(createdBy) {
+      console.log('getCreatorName called with:', createdBy);
+    
+      if (!createdBy) {
+        console.log('createdBy is null/undefined');
+        return '-';
+      }
+    
+      // ถ้า createdBy เป็น string (ObjectId) แสดงว่าไม่ได้ populate
+      if (typeof createdBy === 'string') {
+        console.log('createdBy is string (ObjectId):', createdBy);
+        return 'ไม่ระบุชื่อ';
+      }
+    
+      // ถ้า createdBy เป็น object ให้ดึงชื่อ
+      if (typeof createdBy === 'object') {
+        console.log('createdBy object fields:', Object.keys(createdBy));
+        console.log('createdBy.employee:', createdBy.employee);
+    
+        // ลองดึงชื่อจาก employee ก่อน
+        if (createdBy.employee && typeof createdBy.employee === 'object') {
+          const employeeName = createdBy.employee.name;
+          if (employeeName) {
+            console.log('Found employee name:', employeeName);
+            return employeeName;
+          }
+        }
+    
+        // ถ้าไม่มี employee หรือไม่มีชื่อ ให้ดึงจาก user
+        const name = createdBy.name ||
+                    createdBy.username ||
+                    createdBy.displayName ||
+                    createdBy.fullName ||
+                    (createdBy.firstName ? createdBy.firstName + ' ' + (createdBy.lastName || '') : '') ||
+                    'ไม่ระบุชื่อ';
+    
+        console.log('Resolved name:', name);
+        return name.trim();
+      }
+    
+      return '-';
+    }
+
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    let lottieAnimation = null;
+    
+    function showLoading() {
+      const loader = document.getElementById('loadingOverlay');
+      loader.style.display = 'flex';
+      loader.classList.remove('animate__fadeOut');
+      loader.classList.add('animate__fadeIn');
+    
+      // โหลดและเล่น Lottie animation
+      if (!lottieAnimation) {
+        console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+        fetch('/Loading/Loading.json')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(animationData => {
+            lottieAnimation = lottie.loadAnimation({
+              container: document.getElementById('lottieContainer'),
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+    
+            console.log('✅ Lottie animation loaded successfully');
+          })
+          .catch(error => {
+            console.error('❌ Error loading Lottie animation:', error);
+            // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+            document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+          });
+      } else {
+        lottieAnimation.play();
+      }
+    }
+
+    function hideLoading() {
+      const loader = document.getElementById('loadingOverlay');
+      if (lottieAnimation) {
+        lottieAnimation.pause();
+      }
+      loader.classList.remove('animate__fadeIn');
+      loader.classList.add('animate__fadeOut');
+      setTimeout(() => { loader.style.display = 'none'; }, 600);
+    }
+
+    function showSuccess(message) {
+      alert('✅ ' + message);
+    }
+
+    function showError(message) {
+      alert('❌ ' + message);
+    }
+    
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+
+    // View voucher function
+    function viewVoucher(voucherId) {
+      console.log('Viewing voucher:', voucherId);
+      // TODO: Implement view voucher functionality
+      alert('กำลังพัฒนาฟังก์ชันดูรายละเอียด');
+    }
+    
+    // Edit voucher function
+    async function editVoucher(voucherId) {
+      console.log('Editing voucher:', voucherId);
+      try {
+        showLoading();
+        const response = await fetch(`${API_BASE}/pos/payment-vouchers/${voucherId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+    
+        if (!response.ok) throw new Error('Failed to load voucher');
+    
+        const result = await response.json();
+    
+        if (result.success && result.data) {
+          isEditing = true;
+          editingVoucherId = voucherId;
+    
+          // Open modal with data
+          document.getElementById('modalTitle').textContent = 'แก้ไขใบสำคัญจ่าย';
+          document.getElementById('submitBtnText').textContent = 'อัปเดต';
+    
+          // Populate form with voucher data
+          document.getElementById('voucherDate').value = result.data.date?.split('T')[0] || '';
+          document.getElementById('paymentType').value = result.data.paymentType || '';
+          document.getElementById('payee').value = result.data.payee || '';
+          document.getElementById('paymentMethod').value = result.data.paymentMethod || '';
+          document.getElementById('discount').value = result.data.discount || 0;
+          document.getElementById('discountType').value = result.data.discountType || 'amount';
+          document.getElementById('vatRate').value = result.data.vatRate || 7;
+          document.getElementById('taxType').value = result.data.taxType || 'exclude_tax';
+          document.getElementById('notes').value = result.data.notes || '';
+    
+          // Clear and populate items
+          document.getElementById('itemsTableBody').innerHTML = '';
+          if (result.data.items && result.data.items.length > 0) {
+            result.data.items.forEach(item => {
+              addItemRow();
+              const lastRow = document.querySelector('#itemsTableBody tr:last-child');
+              if (lastRow) {
+                lastRow.querySelector('.product-input').value = item.productName || '';
+                lastRow.querySelector('.product-id').value = item.productId || '';
+                lastRow.querySelector('.quantity-input').value = item.quantity || 1;
+                lastRow.querySelector('.price-input').value = item.unitPrice || 0;
+                lastRow.querySelector('.description-input').value = item.description || '';
+                calculateRowTotal(lastRow);
+              }
+            });
+          } else {
+            addItemRow();
+          }
+    
+          calculateTotals();
+    
+           // Show modal
+           const voucherModal = document.getElementById('voucherModal');
+           voucherModal.classList.remove('hidden');
+           voucherModal.style.display = 'flex';
+           voucherModal.style.position = 'fixed';
+           voucherModal.style.top = '0';
+           voucherModal.style.left = '0';
+           voucherModal.style.width = '100%';
+           voucherModal.style.height = '100%';
+           voucherModal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+           voucherModal.style.alignItems = 'center';
+           voucherModal.style.justifyContent = 'center';
+           voucherModal.style.zIndex = '99999';
+           voucherModal.style.opacity = '1';
+           voucherModal.style.visibility = 'visible';
+           voucherModal.style.overflow = 'auto';
+    
+           // Apply dark mode to modal content
+           const modalContent = voucherModal.querySelector('.modal-content');
+           if (modalContent) {
+             const isDark = document.documentElement.classList.contains('dark');
+             modalContent.style.backgroundColor = isDark ? '#1a202c' : 'white';
+             modalContent.style.color = isDark ? '#e2e8f0' : '#1a202c';
+             modalContent.style.border = isDark ? '1px solid #2d3748' : '1px solid #e2e8f0';
+           }
+    
+           // Prevent body scroll
+           document.body.style.overflow = 'hidden';
+        }
+      } catch (error) {
+        console.error('Error editing voucher:', error);
+        showError('ไม่สามารถโหลดข้อมูลใบสำคัญจ่ายได้');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function logout() {
+      if (confirm('คุณต้องการออกจากระบบหรือไม่?')) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userPhoto');
+        window.location.href = '/login';
+      }
+    }
+
+    // Hide dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.product-search')) {
+        document.querySelectorAll('.product-dropdown').forEach(dropdown => {
+          dropdown.style.display = 'none';
+        });
+      }
+    });
+    
+    // Test function to check modal
+    window.testModal = function() {
+      const modal = document.getElementById('voucherModal');
+      if (modal) {
+        console.log('Modal found, attempting to show...');
+    
+        // Check all elements with high z-index
+        const allElements = document.querySelectorAll('*');
+        let highestZIndex = 0;
+        allElements.forEach(el => {
+          const zIndex = window.getComputedStyle(el).zIndex;
+          if (zIndex !== 'auto' && !isNaN(zIndex)) {
+            const z = parseInt(zIndex);
+            if (z > highestZIndex) {
+              highestZIndex = z;
+              console.log('Element with high z-index:', el, 'z-index:', z);
+            }
+          }
+        });
+    
+        // Set modal z-index higher than any other element
+        const newZIndex = Math.max(999999, highestZIndex + 1);
+    
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = newZIndex.toString();
+        modal.style.opacity = '1';
+        modal.style.visibility = 'visible';
+        modal.style.overflow = 'auto';
+    
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+    
+        // Check if modal content exists and apply dark mode
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+          const isDark = document.documentElement.classList.contains('dark');
+          modalContent.style.backgroundColor = isDark ? '#1a202c' : 'white';
+          modalContent.style.color = isDark ? '#e2e8f0' : '#1a202c';
+          modalContent.style.padding = '24px';
+          modalContent.style.borderRadius = '8px';
+          modalContent.style.position = 'relative';
+          modalContent.style.margin = '20px auto';
+          modalContent.style.maxWidth = '90%';
+          modalContent.style.maxHeight = '90vh';
+          modalContent.style.overflowY = 'auto';
+          modalContent.style.border = isDark ? '1px solid #2d3748' : '1px solid #e2e8f0';
+          console.log('Modal content styled with theme:', isDark ? 'dark' : 'light');
+        }
+    
+        console.log('Modal should be visible now with z-index:', newZIndex);
+        console.log('Bounds:', modal.getBoundingClientRect());
+        console.log('Display:', window.getComputedStyle(modal).display);
+        console.log('Visibility:', window.getComputedStyle(modal).visibility);
+    
+        // Scroll to top to ensure modal is visible
+        window.scrollTo(0, 0);
+      } else {
+        console.error('Modal not found!');
+      }
+    };
+  </script>
+</body>
+
+</html>

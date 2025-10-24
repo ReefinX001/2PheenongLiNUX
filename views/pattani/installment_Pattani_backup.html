@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบผ่อน</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <script src="/js/activity-tracker.js"></script>
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: { fontFamily: { sans: ['Prompt', 'sans-serif'] } }
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] }
+    };
+  </script>
+
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Google Fonts: Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+  
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+  <!-- Signature Pad Library -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@latest/dist/signature_pad.umd.min.js"></script>
+  <!-- Added Socket.IO client library and global socket declaration -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Sidebar Component -->
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+  
+  <!-- Global Error Handling and Socket Setup -->
+  <script>
+    // ✅ Enhanced Global Error Handling
+    window.addEventListener('error', (event) => {
+      console.error('🚨 Global Error:', event.error);
+      if (typeof showToast === 'function') {
+        showToast('เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง', 'error');
+      }
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('🚨 Unhandled Promise Rejection:', event.reason);
+      if (typeof showToast === 'function') {
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาตรวจสอบอินเทอร์เน็ต', 'error');
+      }
+      event.preventDefault();
+    });
+
+    // ✅ Network Status Monitor
+    let isOnline = navigator.onLine;
+    
+    function updateNetworkStatus(online) {
+      isOnline = online;
+      const networkStatus = document.getElementById('networkStatus');
+    
+      if (networkStatus) {
+        if (online) {
+          networkStatus.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 transition-all duration-300';
+          networkStatus.innerHTML = `
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="text-xs font-medium">Online</span>
+          `;
+        } else {
+          networkStatus.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-700 transition-all duration-300';
+          networkStatus.innerHTML = `
+            <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+            <span class="text-xs font-medium">Offline</span>
+          `;
+        }
+      }
+    }
+    
+    window.addEventListener('online', () => {
+      updateNetworkStatus(true);
+      if (typeof showToast === 'function') {
+        showToast('🌐 กลับมาออนไลน์แล้ว', 'success');
+      }
+    });
+    
+    window.addEventListener('offline', () => {
+      updateNetworkStatus(false);
+      if (typeof showToast === 'function') {
+        showToast('📡 ไม่มีการเชื่อมต่ออินเทอร์เน็ต', 'error');
+      }
+    });
+
+    // ✅ Enhanced Socket.IO Setup
+    let socket;
+    if (typeof io === 'function') {
+      socket = io({
+        timeout: 10000,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000
+      });
+
+      socket.on('connect', () => {
+        console.log('✅ Socket.IO เชื่อมต่อสำเร็จ');
+      });
+
+      socket.on('connect_error', err => {
+        console.warn('⚠️ Socket.IO connect error:', err);
+        setTimeout(() => {
+          if (!socket.connected && typeof showToast === 'function') {
+            showToast('การเชื่อมต่อ real-time ไม่สำเร็จ ระบบยังใช้งานได้ปกติ', 'warning');
+          }
+        }, 5000);
+      });
+
+      // Real-time price update listener
+      socket.on('updatePricing', (data) => {
+        console.log('📡 ได้รับการแจ้งอัปเดตราคาแบบ real-time:', data);
+    
+        if (typeof showToast === 'function') {
+          showToast('📋 อัปเดตราคาสินค้าใหม่จากระบบลงทะเบียน', 'info');
+        }
+    
+        // โหลดข้อมูลสินค้าใหม่หลังจากได้รับการอัปเดต
+        setTimeout(async () => {
+          try {
+            if (typeof loadBranchInstallments === 'function') {
+              await loadBranchInstallments();
+            }
+    
+            if (typeof showToast === 'function') {
+              showToast('✅ อัปเดตราคาสินค้าเรียบร้อย', 'success');
+            }
+          } catch (error) {
+            console.error('❌ เกิดข้อผิดพลาดในการอัปเดตราคา:', error);
+            if (typeof showToast === 'function') {
+              showToast('❌ ไม่สามารถอัปเดตราคาได้', 'error');
+            }
+          }
+        }, 500);
+      });
+    
+      console.log('📡 Real-time pricing update listener พร้อมใช้งาน');
+    } else {
+      console.warn('Socket.IO script ไม่ได้โหลด — โยนผ่านไป');
+    }
+  </script>
+
+  <!-- Custom CSS -->
+  <style>
+    :root {
+      --primary: #4361ee;
+      --secondary: #3f37c9;
+      --accent: #4895ef;
+      --success: #4cc9f0;
+      --warning: #f72585;
+      --info: #560bad;
+      --light-bg: #f5f7fa;
+      --dark-text: #212529;
+    }
+
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: #f5f7fa !important;
+      margin: 0;
+      padding: 0;
+      color: #212529;
+    }
+
+    .dark body {
+      background-color: #1f2937 !important;
+      color: #f9fafb !important;
+    }
+
+    /* Card Styles */
+    .card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+      border: 1px solid #e2e8f0 !important;
+      border-radius: 16px !important;
+      padding: 1.5rem !important;
+      margin-bottom: 1rem !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      position: relative !important;
+      color: #374151 !important;
+      backdrop-filter: blur(10px) !important;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .card:hover {
+      transform: translateY(-4px) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    /* Dark mode card styles */
+    .dark .card {
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+      border: 1px solid #374151 !important;
+      color: #d1d5db !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .dark .card:hover {
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    /* Stepper Styles */
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      overflow-x: auto;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+      min-width: 120px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 20px;
+      right: -50%;
+      width: 100%;
+      height: 2px;
+      background: #e2e8f0;
+      z-index: 1;
+      transition: background-color 0.3s ease;
+    }
+
+    .step.active:not(:last-child)::after,
+    .step.completed:not(:last-child)::after {
+      background: #4361ee;
+    }
+
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 8px;
+      z-index: 2;
+      position: relative;
+      transition: all 0.3s ease;
+      border: 3px solid transparent;
+    }
+
+    .step.active .step-icon {
+      background: #4361ee;
+      color: white;
+      border-color: #4361ee;
+      transform: scale(1.1);
+      box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.2);
+    }
+
+    .step.completed .step-icon {
+      background: #10b981;
+      color: white;
+      border-color: #10b981;
+    }
+
+    .step-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: #64748b;
+      text-align: center;
+      transition: color 0.3s ease;
+      line-height: 1.2;
+    }
+
+    .step.active .step-text {
+      color: #4361ee;
+      font-weight: 600;
+    }
+
+    .step.completed .step-text {
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    /* Loading animation */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4361ee;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Input validation states */
+    .input-error {
+      border-color: #ef4444 !important;
+      background-color: #fee !important;
+      box-shadow: 0 0 0 1px #ef4444 !important;
+    }
+
+    /* Toast container */
+    #toastContainer {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .card {
+        padding: 1rem !important;
+        border-radius: 12px !important;
+      }
+      
+      .stepper {
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .step {
+        min-width: 80px;
+      }
+
+      .step-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+      }
+
+      .step-text {
+        font-size: 12px;
+      }
+    }
+
+    /* Hidden utility */
+    .hidden { display: none !important; }
+
+    /* Basic button states */
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Focus styles */
+    button:focus,
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+  </style>
+  <!-- Animate.css for animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie.js for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Loading Overlay Styles -->
+  <style>
+    .installment-pattani-loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999999;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .installment-pattani-loading-overlay.animate__fadeOut {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .installment-pattani-loading-content {
+      text-align: center;
+      color: #374151;
+    }
+
+    .installment-pattani-lottie-container {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 1rem;
+    }
+
+    .installment-pattani-loading-text {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .installment-pattani-loading-subtext {
+      font-size: 0.875rem;
+      opacity: 0.7;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .installment-pattani-loading-overlay {
+        background: rgba(17, 24, 39, 0.95);
+      }
+
+      .installment-pattani-loading-content {
+        color: #f3f4f6;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading Overlay -->
+  <div id="installmentPattaniLoadingOverlay" class="installment-pattani-loading-overlay">
+    <div class="installment-pattani-loading-content">
+      <div id="installmentPattaniLottieContainer" class="installment-pattani-lottie-container"></div>
+      <div class="installment-pattani-loading-text">กำลังโหลด...</div>
+      <div class="installment-pattani-loading-subtext">กรุณารอสักครู่</div>
+    </div>
+  </div>
+  <div id="app">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 space-y-2 z-50"></div>
+
+    <!-- Loading System -->
+    <div id="loadingSystem" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+      <div class="flex items-center justify-center min-h-screen">
+        <div class="bg-white rounded-lg p-6 text-center">
+          <div class="loading-spinner mx-auto mb-4"></div>
+          <p>กำลังโหลด...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+
+    <!-- Main Content -->
+    <main id="mainContent" class="ml-0 transition-all duration-300">
+      <!-- Header -->
+      <header class="bg-white shadow-sm p-4 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <button id="toggleSidebar" class="btn btn-ghost btn-sm">
+            <i class="bi bi-list text-xl"></i>
+          </button>
+          <h1 class="text-xl font-semibold text-gray-800">ระบบผ่อนชำระ - สาขาปัตตานี</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="networkStatus" class="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+            <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+            <span class="text-xs">Checking...</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <div class="p-6">
+        <!-- Steps Progress -->
+        <div class="stepper">
+          <div class="step active" data-step="1">
+            <div class="step-icon">1</div>
+            <span class="step-text">เลือกสินค้า</span>
+          </div>
+          <div class="step" data-step="2">
+            <div class="step-icon">2</div>
+            <span class="step-text">ข้อมูลลูกค้า</span>
+          </div>
+          <div class="step" data-step="3">
+            <div class="step-icon">3</div>
+            <span class="step-text">สรุปและบันทึก</span>
+          </div>
+        </div>
+
+        <!-- Step Content -->
+        <div class="step-content active" id="step1">
+          <!-- Step 1: เลือกสินค้า -->
+          <div class="card">
+            <div class="card-header">
+              <i class="bi bi-basket"></i>
+              เลือกสินค้าผ่อนชำระ
+            </div>
+            <div class="card-body">
+              <p>กำลังโหลดสินค้า...</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-content hidden" id="step2">
+          <!-- Step 2: ข้อมูลลูกค้า -->
+          <div class="card">
+            <div class="card-header">
+              <i class="bi bi-person"></i>
+              กรอกข้อมูลลูกค้า
+            </div>
+            <div class="card-body">
+              <p>กรอกข้อมูลลูกค้าและการชำระเงิน</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-content hidden" id="step3">
+          <!-- Step 3: สรุปและบันทึก -->
+          <div class="card">
+            <div class="card-header">
+              <i class="bi bi-check-circle"></i>
+              สรุปและบันทึกข้อมูล
+            </div>
+            <div class="card-body">
+              <p>ตรวจสอบข้อมูลและบันทึก</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Basic JavaScript -->
+  <script>
+    // Basic toast function
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+    
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type} shadow-lg`;
+      alert.innerHTML = `<span>${message}</span>`;
+      container.appendChild(alert);
+      setTimeout(() => alert.remove(), 3000);
+    }
+
+    // Initialize network status
+    document.addEventListener('DOMContentLoaded', () => {
+      updateNetworkStatus(navigator.onLine);
+      console.log('✅ Clean installment system initialized');
+    });
+  </script>
+
+  <!-- Loading Animation Functions -->
+  <script>
+    let installmentPattaniLottieAnimation = null;
+
+    function showInstallmentPattaniLoading() {
+      try {
+        const overlay = document.getElementById('installmentPattaniLoadingOverlay');
+        const container = document.getElementById('installmentPattaniLottieContainer');
+
+        if (!overlay || !container) {
+          console.warn('[InstallmentPattani] Loading elements not found');
+          return;
+        }
+
+        overlay.classList.remove('animate__fadeOut');
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
+        overlay.style.visibility = 'visible';
+
+        // Initialize Lottie animation if not already done
+        if (!installmentPattaniLottieAnimation) {
+          installmentPattaniLottieAnimation = lottie.loadAnimation({
+            container: container,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: 'https://lottie.host/4db68bbd-31f6-4cd8-b6a5-2cea9a7d3ec2/qBuDuHr0pB.json'
+          });
+
+          installmentPattaniLottieAnimation.addEventListener('error', () => {
+            console.warn('[InstallmentPattani] Lottie animation failed to load');
+            container.innerHTML = '<div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>';
+          });
+        }
+
+        console.log('[InstallmentPattani] Loading overlay shown');
+      } catch (error) {
+        console.error('[InstallmentPattani] Error showing loading:', error);
+      }
+    }
+
+    function hideInstallmentPattaniLoading() {
+      try {
+        const overlay = document.getElementById('installmentPattaniLoadingOverlay');
+
+        if (!overlay) {
+          console.warn('[InstallmentPattani] Loading overlay not found');
+          return;
+        }
+
+        overlay.classList.add('animate__fadeOut');
+
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          overlay.style.opacity = '0';
+          overlay.style.visibility = 'hidden';
+        }, 300);
+
+        console.log('[InstallmentPattani] Loading overlay hidden');
+      } catch (error) {
+        console.error('[InstallmentPattani] Error hiding loading:', error);
+      }
+    }
+
+    // Auto-hide loading when page is fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('[InstallmentPattani] DOM Content Loaded');
+
+      // Hide loading after a short delay to ensure all resources are loaded
+      setTimeout(() => {
+        hideInstallmentPattaniLoading();
+      }, 1000);
+    });
+
+    // Show loading when navigating away
+    window.addEventListener('beforeunload', function() {
+      showInstallmentPattaniLoading();
+    });
+
+    // Initial loading state
+    document.addEventListener('readystatechange', function() {
+      if (document.readyState === 'complete') {
+        setTimeout(() => {
+          hideInstallmentPattaniLoading();
+        }, 500);
+      }
+    });
+  </script>
+</body>
+
+</html> 

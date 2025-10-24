@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>กำลังเข้าสู่ระบบ... | 2 พี่น้อง โมบาย</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'SF Pro Display', system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .callback-container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .tiktok-logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            margin: 0 0 16px;
+            color: #1a1a1a;
+        }
+        .loading {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            margin: 20px 0;
+        }
+        .loading:after {
+            content: " ";
+            display: block;
+            width: 32px;
+            height: 32px;
+            margin: 4px;
+            border-radius: 50%;
+            border: 3px solid #000;
+            border-color: #000 transparent #000 transparent;
+            animation: loading 1.2s linear infinite;
+        }
+        @keyframes loading {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            font-size: 16px;
+            color: #6b7280;
+            margin: 16px 0;
+        }
+        .error {
+            background: #fee;
+            color: #dc2626;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            margin-top: 16px;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #2563eb;
+        }
+        .btn-secondary {
+            background: #6b7280;
+        }
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div class="callback-container">
+        <svg class="tiktok-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M34.145 0H25.084V32.57C25.084 36.84 21.638 40.286 17.367 40.286C13.097 40.286 9.65 36.84 9.65 32.57C9.65 28.299 13.097 24.853 17.367 24.853V15.792C8.095 15.792 0.59 23.297 0.59 32.57C0.59 41.842 8.095 49.347 17.367 49.347C26.64 49.347 34.145 41.842 34.145 32.57V15.903C37.358 18.193 41.288 19.5 45.511 19.5V10.44C40.298 10.44 35.844 7.273 34.145 2.846V0Z" fill="#000000"/>
+        </svg>
+        
+        <h1>กำลังเข้าสู่ระบบด้วย TikTok</h1>
+        
+        <div class="loading" id="loading"></div>
+        
+        <div class="status" id="status">กำลังตรวจสอบข้อมูล...</div>
+        
+        <div id="error-container" style="display:none;">
+            <div class="error" id="error-message"></div>
+            <a href="/tiktok-login-demo" class="btn btn-secondary">กลับไปลองใหม่</a>
+        </div>
+        
+        <div id="success-container" style="display:none;">
+            <div class="success">✅ เข้าสู่ระบบสำเร็จ!</div>
+            <a href="/" class="btn">ไปหน้าหลัก</a>
+        </div>
+    </div>
+
+    <script>
+        // ดึง parameters จาก URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+
+        // แสดง error ถ้ามี
+        if (error) {
+            showError(`เกิดข้อผิดพลาด: ${error}${errorDescription ? ' - ' + errorDescription : ''}`);
+        } else if (!code || !state) {
+            showError('ไม่พบข้อมูลการยืนยันตัวตน กรุณาลองใหม่');
+        } else {
+            // แลก code เป็น access token
+            exchangeToken(code, state);
+        }
+
+        async function exchangeToken(code, state) {
+            try {
+                document.getElementById('status').textContent = 'กำลังยืนยันตัวตน...';
+        
+                const response = await fetch('/api/tiktok/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, state })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to authenticate');
+                }
+
+                // บันทึก session ID
+                if (data.sessionId) {
+                    localStorage.setItem('tiktok_session_id', data.sessionId);
+                    localStorage.setItem('tiktok_open_id', data.open_id);
+                    showSuccess(data);
+                } else {
+                    throw new Error('No session ID received');
+                }
+
+            } catch (error) {
+                console.error('Authentication error:', error);
+                showError('ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่');
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('error-container').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        function showSuccess(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('success-container').style.display = 'block';
+        
+            // Redirect ไปหน้าหลักหลังจาก 2 วินาที
+            setTimeout(() => {
+                window.location.href = '/tiktok-login-demo';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

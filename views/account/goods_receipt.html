@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ใบรับสินค้า</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0ea5e9',
+              600: '#0284c7',
+            }
+          }
+        },
+      }
+    };
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent {
+      flex: 1;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+    
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+    
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+    
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+    
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+    }
+    
+    .btn-rounded {
+      border-radius: 30px;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+    
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+    
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+    
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .page-link {
+      min-width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      text-decoration: none;
+      margin: 0 2px;
+    }
+    
+    .dark .page-link {
+      border-color: #4a5568;
+      color: #d1d5db;
+    }
+    
+    .page-link:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .page-link:hover {
+      background-color: #374151;
+    }
+    
+    .page-link.active {
+      background-color: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+    
+    .dark .account-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .account-list li {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    
+    .dark .account-list li {
+      border-bottom-color: #4a5568;
+    }
+    
+    .account-list li:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .account-list li:hover {
+      background-color: #374151;
+    }
+    
+    .account-list li.active {
+      background-color: #f0f9ff;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .dark .account-list li.active {
+      background-color: #1a4971;
+      color: #38bdf8;
+    }
+    
+    .date-range {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dark .date-range {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .date-range:focus {
+      border-color: #0ea5e9;
+      outline: none;
+    }
+    
+    .negative-value {
+      color: #ef4444;
+    }
+    
+    .dark .negative-value {
+      color: #f87171;
+    }
+    
+    .5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
+    }
+    
+    .dark .4);
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .flex-none {
+      flex: none;
+    }
+    
+    .01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .3;
+      transition: 0s;
+    }
+    
+    /* Dropdown menu styling */
+    .5rem 1rem; /* Adjust as needed */
+      cursor: pointer;
+      align-items: center; /* Vertically align icon and text */
+    }
+    
+    /* First Level Dropdown Panel */
+    .1); /* From Tailwind: shadow-lg */
+      border-radius: 0.375rem; /* From Tailwind: rounded-lg */
+      min-width: 220px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 40; /* Ensure dropdown is above other content but below higher-level modals if any */
+      padding: 0.5rem; /* From Tailwind: p-2 */
+    }
+    
+    .dark .5rem; /* Adjust to align with parent li, considering parent ul padding */
+      left: 100%;
+      /* Inherit background, shadow, radius, min-width, padding from first-level or define specifically */
+      background: white; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      border-radius: 0.375rem;
+      min-width: 220px; /* Or adjust as needed */
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(10px); /* Fly-out from right */
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 45; /* Higher than first-level dropdown */
+      padding: 0.5rem;
+    }
+    
+    .dark .5rem 1rem; /* Tailwind: px-4 py-2 */
+      color: #374151; /* Tailwind: text-gray-700 */
+      text-decoration: none;
+      border-radius: 0.25rem; /* Tailwind: rounded-md */
+      white-space: nowrap; /* Prevent text wrapping in menu items */
+    }
+    
+    .dark .dark .2s, padding-left 0.2s;
+      border-left: 3px solid transparent;
+      margin-bottom: 2px; /* Spacing between items */
+    }
+    
+    .25rem; */ /* Original style, can be kept or removed */
+    }
+    
+    /* User badge */
+    .1);
+      border-radius: 30px;
+    }
+    
+    .dark .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .expense-voucher {
+      margin-left: 20px;
+      position: relative;
+    }
+    
+    .expense-voucher::before {
+      content: '';
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background-color: #cbd5e0;
+    }
+    
+    .dark .expense-voucher::before {
+      background-color: #4a5568;
+    }
+    
+    /* Income Statement specific styles */
+    .fin-statement-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .fin-statement-table td {
+      padding: 10px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .fin-statement-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .fin-statement-table .item-title {
+      font-weight: 500;
+    }
+    
+    .fin-statement-table .bold {
+      font-weight: 600;
+    }
+    
+    .fin-statement-table .section-header {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    
+    .dark .fin-statement-table .section-header {
+      color: #f9fafb;
+    }
+    
+    .fin-statement-table .section-total {
+      font-weight: 600;
+      color: #1e40af;
+      background-color: #f0f9ff;
+    }
+    
+    .dark .fin-statement-table .section-total {
+      color: #93c5fd;
+      background-color: #1e3a8a;
+    }
+    
+    .fin-statement-table .grand-total {
+      font-weight: 700;
+      color: #0284c7;
+      background-color: #e0f2fe;
+      font-size: 1.05rem;
+    }
+    
+    .dark .fin-statement-table .grand-total {
+      color: #38bdf8;
+      background-color: #075985;
+    }
+    
+    .fin-statement-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .fin-statement-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .overview-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      background-color: white;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .dark .overview-card {
+      background-color: #1e293b;
+    }
+    
+    .overview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .metric-label {
+      color: #9ca3af;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    
+    .dark .metric-value {
+      color: #f9fafb;
+    }
+    
+    .trend-up {
+      color: #10b981;
+    }
+    
+    .trend-down {
+      color: #ef4444;
+    }
+    
+    .dark .trend-up {
+      color: #34d399;
+    }
+    
+    .dark .trend-down {
+      color: #f87171;
+    }
+    
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+    
+    .view-switcher {
+      display: flex;
+      padding: 0.25rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-switcher {
+      background-color: #374151;
+    }
+    
+    .view-option {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .view-option.active {
+      background-color: white;
+      color: #0ea5e9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .view-option.active {
+      background-color: #1f2937;
+      color: #38bdf8;
+    }
+    
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      background-color: white;
+      color: #374151;
+      transition: all 0.2s;
+    }
+    
+    .dark .action-button {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .action-button:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+    
+    .dark .action-button:hover {
+      background-color: #374151;
+      border-color: #6b7280;
+    }
+    
+    .period-selector {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      background-color: white;
+      font-size: 0.875rem;
+      color: #374151;
+      outline: none;
+    }
+    
+    .dark .period-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Dashboard Card Styles */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .dark .dashboard-card {
+      background-color: #1e293b;
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-title {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-title {
+      color: #9ca3af;
+    }
+    
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-value {
+      color: #f9fafb;
+    }
+    
+    .comparison-value {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .comparison-up {
+      color: #10b981;
+    }
+    
+    .comparison-down {
+      color: #ef4444;
+    }
+    
+    .dark .comparison-up {
+      color: #34d399;
+    }
+    
+    .dark .comparison-down {
+      color: #f87171;
+    }
+    
+    /* Menu bar styles */
+    .5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .dark .75rem 1.25rem;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .dark .active {
+      border-bottom-color: #0ea5e9;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .month-selector {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: white;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    
+    .dark .month-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Display toggle */
+    .display-toggle {
+      display: flex;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.25rem;
+    }
+    
+    .dark .display-toggle {
+      background-color: #334155;
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .toggle-btn.active {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      color: #0ea5e9;
+    }
+    
+    .dark .toggle-btn.active {
+      background-color: #1f2937;
+    }
+    
+    /* Financial table */
+    .view-container {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-container {
+      background-color: #1e293b;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .financial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .financial-table th {
+      background-color: #f8f9fa;
+      color: #6b7280;
+      font-weight: 500;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table th {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table td {
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table .section-header {
+      font-weight: 600;
+      background-color: #f3f4f6;
+      color: #111827;
+      padding: 0.75rem 1rem;
+    }
+    
+    .dark .financial-table .section-header {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+    
+    .financial-table .subsection-header {
+      font-weight: 500;
+      color: #4b5563;
+      padding: 0.75rem 1rem;
+      background-color: #f9fafb;
+    }
+    
+    .dark .financial-table .subsection-header {
+      background-color: #1f2937;
+      color: #e5e7eb;
+    }
+    
+    .financial-table .amount {
+      text-align: right;
+      position: relative;
+    }
+    
+    .financial-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .financial-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .financial-table .total-row {
+      background-color: #e0f2fe;
+      font-weight: 600;
+    }
+    
+    .dark .financial-table .total-row {
+      background-color: #0c4a6e;
+    }
+    
+    .comparison-value {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .financial-table {
+        font-size: 0.875rem;
+      }
+      
+      .card-value {
+        font-size: 1.25rem;
+      }
+      
+      .view-container {
+        padding: 1rem;
+      }
+    }
+    
+    @media print {
+      .display-toggle, .dashboard-cards {
+        display: none;
+      }
+      
+      .view-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      body {
+        font-size: 12pt;
+      }
+    }
+    
+    /* Thai Calendar Styles */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+    }
+    
+    .dark .date-picker-input {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .thai-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      width: 280px;
+      display: none;
+    }
+    
+    .dark .thai-calendar {
+      background-color: #1e293b;
+      border-color: #4b5563;
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .month-year {
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #6b7280;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .dark .nav-btn {
+      color: #9ca3af;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+    }
+    
+    .day-name {
+      text-align: center;
+      font-weight: 500;
+      color: #6b7280;
+      font-size: 0.85rem;
+      padding: 4px 0;
+    }
+    
+    .dark .day-name {
+      color: #9ca3af;
+    }
+    
+    .calendar-dates {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .date-cell {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin: 1px;
+    }
+    
+    .date-cell:hover:not(.disabled) {
+      background-color: #f3f4f6;
+      border-radius: 50%;
+    }
+    
+    .dark .date-cell:hover:not(.disabled) {
+      background-color: #374151;
+    }
+    
+    .date-cell.disabled {
+      color: #d1d5db;
+      cursor: default;
+      opacity: 0.4;
+    }
+    
+    .dark .date-cell.disabled {
+      color: #6b7280;
+    }
+    
+    .date-cell.selected {
+      background-color: #0ea5e9;
+      color: white;
+      border-radius: 50%;
+    }
+    
+    .date-cell.today {
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      font-weight: 500;
+    }
+    
+    .dark .date-cell.today {
+      border-color: #38bdf8;
+    }
+  </style>
+  
+   <!-- Template สำหรับเมนู -->
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+  <!-- Account Menu Styles -->
+  <link rel="stylesheet" href="/css/account-menu.css">
+</head>
+
+<body class="bg-white dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Spinner -->
+<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="loader"></div>
+</div>
+  <div id="mainContent" class="container mx-auto px-4 py-6">
+    <!-- Navbar -->
+    <!-- Account System Navbar Template -->
+<div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0">
+  <div class="flex-1 flex items-center space-x-6">
+    <img src="/uploads/Logo2.png"
+         alt="Logo"
+         class="rounded-full shadow-lg"
+         style="width: 40px; height: 40px;" />
+    <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี</span>
+    <!-- Menu Container -->
+    <div id="mainMenuContainer" class="ml-auto"></div>
+  </div>
+  <div class="flex-none flex items-center space-x-2">
+    <!-- User Profile Section -->
+    <div class="flex items-center space-x-3 mr-4">
+      <img id="employeePhoto"
+           alt="Profile"
+           class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600"
+           src="/img/default-avatar.svg">
+      <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+    </div>
+
+    <!-- Dark Mode Toggle -->
+    <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+      <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+      <span id="darkModeLabel">Dark Mode</span>
+    </button>
+
+    <!-- Logout Button -->
+    <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+      <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- Breadcrumb -->
+    <div class="text-sm breadcrumbs mt-4 mb-6">
+      <ul class="flex flex-wrap">
+        <li class="breadcrumb-item"><a href="/dashboard">หน้าหลัก</a></li>
+        <li class="breadcrumb-item"><a href="/purchase">การซื้อ</a></li>
+        <li class="breadcrumb-item">ใบรับสินค้า</li>
+      </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+      <!-- Header Section -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">ใบรับสินค้า</h1>
+        <div class="flex flex-wrap gap-2">
+          <button id="btnNew" class="btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center">
+            <i class="bi bi-plus-circle mr-2"></i> สร้างใหม่
+          </button>
+          <button id="btnSave" class="btn bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md flex items-center">
+            <i class="bi bi-save mr-2"></i> บันทึก
+          </button>
+          <div class="dropdown relative">
+            <button class="btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded-md flex items-center">
+              <i class="bi bi-three-dots-vertical mr-2"></i> ตัวเลือก
+            </button>
+            <ul class="dropdown-menu absolute right-0 mt-2 bg-white dark:bg-gray-700 shadow-lg rounded-md p-2 z-10 hidden w-48">
+              <li><a href="#" id="btnPrint" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md"><i class="bi bi-printer mr-2"></i> พิมพ์</a></li>
+              <li><a href="#" id="btnPdf" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md"><i class="bi bi-file-pdf mr-2"></i> ส่งออก PDF</a></li>
+              <li><a href="#" id="btnExcel" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md"><i class="bi bi-file-excel mr-2"></i> ส่งออก Excel</a></li>
+              <li class="border-t border-gray-200 dark:border-gray-600 my-1"></li>
+              <li><a href="#" id="btnDelete" class="flex items-center px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"><i class="bi bi-trash mr-2"></i> ลบเอกสาร</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Left Column - Document Info -->
+        <div class="lg:col-span-2">
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เลขที่เอกสาร</label>
+                <div class="flex">
+                  <input type="text" id="documentNumber" class="form-control rounded-l-md border-r-0" placeholder="GR-ออกอัตโนมัติ" readonly>
+                  <button class="bg-blue-500 text-white px-3 rounded-r-md hover:bg-blue-600">
+                    <i class="bi bi-search"></i>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันที่เอกสาร</label>
+                <div class="date-picker-container w-full">
+                  <div class="date-picker-input w-full">
+                    <i class="bi bi-calendar3"></i>
+                    <input type="text" id="documentDate" class="border-none outline-none bg-transparent w-full" readonly placeholder="เลือกวันที่">
+                  </div>
+                  <div class="thai-calendar" id="documentDateCalendar"></div>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">อ้างอิงจากใบสั่งซื้อ</label>
+                <div class="flex">
+                  <input type="text" id="poReference" class="form-control rounded-l-md border-r-0" placeholder="เลือกใบสั่งซื้อ">
+                  <button class="bg-blue-500 text-white px-3 rounded-r-md hover:bg-blue-600" id="btnSearchPO">
+                    <i class="bi bi-search"></i>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันที่รับสินค้า</label>
+                <div class="date-picker-container w-full">
+                  <div class="date-picker-input w-full">
+                    <i class="bi bi-calendar3"></i>
+                    <input type="text" id="receiveDate" class="border-none outline-none bg-transparent w-full" readonly placeholder="เลือกวันที่">
+                  </div>
+                  <div class="thai-calendar" id="receiveDateCalendar"></div>
+                </div>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หมายเหตุ</label>
+                <textarea id="remarks" rows="2" class="form-control w-full" placeholder="กรอกหมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right Column - Supplier Info -->
+        <div class="lg:col-span-1">
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 h-full">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-medium">ข้อมูลผู้จำหน่าย</h3>
+              <button id="btnSelectSupplier" class="text-blue-500 hover:text-blue-700 text-sm flex items-center">
+                <i class="bi bi-pencil-square mr-1"></i> เปลี่ยน
+              </button>
+            </div>
+            <div id="supplierInfo" class="space-y-2">
+              <p class="text-lg font-medium" id="supplierName">- โปรดเลือกผู้จำหน่าย -</p>
+              <p class="text-gray-500 dark:text-gray-400" id="supplierTaxId"></p>
+              <p class="text-gray-600 dark:text-gray-300" id="supplierAddress"></p>
+              <div class="flex gap-4 mt-2">
+                <p class="flex items-center text-sm"><i class="bi bi-telephone mr-1"></i> <span id="supplierTel"></span></p>
+                <p class="flex items-center text-sm"><i class="bi bi-envelope mr-1"></i> <span id="supplierEmail"></span></p>
+              </div>
+              <div class="text-sm text-gray-500 mt-2">
+                <p>ติดต่อ: <span id="supplierContact"></span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Product Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg mb-6">
+        <div class="overflow-x-auto">
+          <table class="table-auto w-full" id="itemTable">
+            <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200 text-sm uppercase">
+              <tr>
+                <th class="px-4 py-3 text-left">#</th>
+                <th class="px-4 py-3 text-left">รหัสสินค้า</th>
+                <th class="px-4 py-3 text-left w-1/4">รายการสินค้า</th>
+                <th class="px-4 py-3 text-right">จำนวน</th>
+                <th class="px-4 py-3 text-right">หน่วย</th>
+                <th class="px-4 py-3 text-right">ราคาต่อหน่วย</th>
+                <th class="px-4 py-3 text-right">ส่วนลด</th>
+                <th class="px-4 py-3 text-right">จำนวนเงิน</th>
+                <th class="px-4 py-3 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="itemTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Item rows will be added here -->
+              <tr class="text-gray-600 dark:text-gray-300 empty-row">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center">
+                    <i class="bi bi-inbox-fill text-4xl mb-2"></i>
+                    <p>ยังไม่มีรายการสินค้า</p>
+                    <p class="text-sm">กดปุ่ม "เพิ่มสินค้า" ด้านล่างเพื่อเพิ่มรายการสินค้า</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="p-4 flex justify-center">
+          <button id="btnAddItem" class="btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full flex items-center shadow-md hover:shadow-lg transition-all">
+            <i class="bi bi-plus-circle mr-2"></i> เพิ่มสินค้า
+          </button>
+        </div>
+      </div>
+      
+      <!-- Summary Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Left column - Additional Info -->
+        <div>
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+            <h3 class="text-lg font-medium mb-3">ข้อมูลการรับสินค้า</h3>
+            <div class="grid gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้รับสินค้า</label>
+                <input type="text" id="receiver" class="form-control w-full" placeholder="ระบุชื่อผู้รับสินค้า">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สถานะการรับสินค้า</label>
+                <select id="receiveStatus" class="form-control w-full">
+                  <option value="complete">รับสินค้าครบถ้วน</option>
+                  <option value="partial">รับสินค้าบางส่วน</option>
+                  <option value="pending">รอรับสินค้าส่วนที่เหลือ</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เอกสารแนบ</label>
+                <div class="flex">
+                  <input type="file" id="attachment" class="hidden">
+                  <label for="attachment" class="cursor-pointer bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 w-full flex items-center text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <i class="bi bi-paperclip mr-2"></i> 
+                    <span id="attachmentLabel">เลือกไฟล์แนบ</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right column - Totals -->
+        <div>
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+            <div class="space-y-2">
+              <div class="flex justify-between py-2">
+                <span class="text-gray-600 dark:text-gray-300">รวมเป็นเงิน</span>
+                <span class="text-gray-800 dark:text-gray-100 font-medium" id="subtotal">0.00</span>
+              </div>
+              <div class="flex justify-between py-2">
+                <span class="text-gray-600 dark:text-gray-300">ส่วนลด</span>
+                <div class="flex items-center gap-2">
+                  <input type="text" id="discountAmount" class="form-control w-24 text-right" placeholder="0.00">
+                  <select id="discountType" class="form-control w-20">
+                    <option value="percent">%</option>
+                    <option value="amount">บาท</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex justify-between py-2">
+                <span class="text-gray-600 dark:text-gray-300">ยอดรวมหลังหักส่วนลด</span>
+                <span class="text-gray-800 dark:text-gray-100 font-medium" id="afterDiscount">0.00</span>
+              </div>
+              <div class="flex justify-between py-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-gray-600 dark:text-gray-300">ภาษีมูลค่าเพิ่ม</span>
+                  <select id="vatType" class="form-control w-32">
+                    <option value="excluded">แยกนอก (7%)</option>
+                    <option value="included">รวมใน (7%)</option>
+                    <option value="none">ไม่มีภาษี</option>
+                  </select>
+                </div>
+                <span class="text-gray-800 dark:text-gray-100 font-medium" id="vatAmount">0.00</span>
+              </div>
+              <div class="flex justify-between py-3 border-t border-gray-200 dark:border-gray-600">
+                <span class="text-lg font-medium">จำนวนเงินรวมทั้งสิ้น</span>
+                <span class="text-xl font-bold text-blue-600 dark:text-blue-400" id="grandTotal">0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal Templates -->
+    <!-- Supplier Selection Modal -->
+    <div id="supplierModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 class="text-lg font-medium">เลือกผู้จำหน่าย</h3>
+          <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" id="closeSupplierModal">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="p-4 flex gap-2">
+          <input type="text" class="form-control w-full" placeholder="ค้นหาผู้จำหน่าย..." id="supplierSearch">
+          <button class="btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+        <div class="overflow-y-auto flex-1">
+          <table class="table-auto w-full">
+            <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200 text-sm">
+              <tr>
+                <th class="px-4 py-2 text-left">รหัส</th>
+                <th class="px-4 py-2 text-left">ชื่อผู้จำหน่าย</th>
+                <th class="px-4 py-2 text-left">เลขภาษี</th>
+                <th class="px-4 py-2 text-left">โทรศัพท์</th>
+                <th class="px-4 py-2 text-center">เลือก</th>
+              </tr>
+            </thead>
+            <tbody id="supplierTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Supplier data will be populated here -->
+            </tbody>
+          </table>
+        </div>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+          <button class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-md" id="cancelSupplierModal">
+            ยกเลิก
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Product Selection Modal -->
+    <div id="productModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 class="text-lg font-medium">เลือกสินค้า</h3>
+          <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" id="closeProductModal">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="p-4 flex gap-2">
+          <input type="text" class="form-control w-full" placeholder="ค้นหาสินค้า..." id="productSearch">
+          <button class="btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+        <div class="overflow-y-auto flex-1">
+          <table class="table-auto w-full">
+            <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200 text-sm">
+              <tr>
+                <th class="px-4 py-2 text-left">รหัสสินค้า</th>
+                <th class="px-4 py-2 text-left">ชื่อสินค้า</th>
+                <th class="px-4 py-2 text-right">ราคา</th>
+                <th class="px-4 py-2 text-center">หน่วยนับ</th>
+                <th class="px-4 py-2 text-center">คงเหลือ</th>
+                <th class="px-4 py-2 text-center">เลือก</th>
+              </tr>
+            </thead>
+            <tbody id="productTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Product data will be populated here -->
+            </tbody>
+          </table>
+        </div>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+          <button class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-md" id="cancelProductModal">
+            ยกเลิก
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Purchase Order Selection Modal -->
+    <div id="poModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 class="text-lg font-medium">เลือกใบสั่งซื้อ</h3>
+          <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" id="closePoModal">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="p-4 flex gap-2">
+          <input type="text" class="form-control w-full" placeholder="ค้นหาใบสั่งซื้อ..." id="poSearch">
+          <button class="btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+        <div class="overflow-y-auto flex-1">
+          <table class="table-auto w-full">
+            <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200 text-sm">
+              <tr>
+                <th class="px-4 py-2 text-left">เลขที่</th>
+                <th class="px-4 py-2 text-left">วันที่</th>
+                <th class="px-4 py-2 text-left">ผู้จำหน่าย</th>
+                <th class="px-4 py-2 text-right">มูลค่า</th>
+                <th class="px-4 py-2 text-center">สถานะ</th>
+                <th class="px-4 py-2 text-center">เลือก</th>
+              </tr>
+            </thead>
+            <tbody id="poTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Purchase Order data will be populated here -->
+            </tbody>
+          </table>
+        </div>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+          <button class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-md" id="cancelPoModal">
+            ยกเลิก
+          </button>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+
+  <script>
+    // Dynamic data arrays - will be populated from API
+    let suppliers = [];
+    let products = [];
+    let purchaseOrders = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        const pageLoaderId = LoadingSystem.show({
+          message: 'กำลังโหลดหน้าเว็บ...',
+          showProgress: true,
+          autoProgress: true,
+          spinnerType: 'default'
+        });
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }
+
+      try {
+      // Dark Mode is handled by account-menu.js
+
+      // Options dropdown toggle
+      document.querySelector('.dropdown button').addEventListener('click', function() {
+        document.querySelector('.dropdown-menu').classList.toggle('hidden');
+      });
+    
+      // Close dropdown when clicking outside
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown')) {
+          const dropdownMenu = document.querySelector('.dropdown-menu');
+          if (dropdownMenu && !dropdownMenu.classList.contains('hidden')) {
+            dropdownMenu.classList.add('hidden');
+          }
+        }
+      });
+    
+      // Initialize Thai calendar for date picker
+      initDatePicker('documentDate', 'documentDateCalendar');
+      initDatePicker('receiveDate', 'receiveDateCalendar');
+    
+      // Initialize modals
+      initializeModals();
+    
+      // Initialize item table
+      initializeItemTable();
+    
+      // Initialize calculation logic
+      initializeCalculations();
+    
+      // Load dynamic data
+      fetchUserProfile();
+      loadSuppliers();
+      loadProducts();
+      loadPurchaseOrders();
+    
+      // File attachment functionality
+      document.getElementById('attachment').addEventListener('change', function() {
+        if (this.files.length > 0) {
+          document.getElementById('attachmentLabel').textContent = this.files[0].name;
+        } else {
+          document.getElementById('attachmentLabel').textContent = 'เลือกไฟล์แนบ';
+        }
+      });
+
+      // Initialize for demo
+      document.getElementById('documentNumber').value = 'GR-20230015';
+      document.getElementById('documentDate').value = formatDate(new Date());
+      document.getElementById('receiveDate').value = formatDate(new Date());
+      } catch (error) {
+        console.error('Page initialization error:', error);
+      }
+    });
+    
+    function initDatePicker(inputId, calendarId) {
+      const inputElement = document.getElementById(inputId);
+      const calendarElement = document.getElementById(calendarId);
+    
+      // Set default date to today
+      inputElement.value = formatDate(new Date());
+    
+      // Toggle calendar on input click
+      inputElement.parentElement.addEventListener('click', function() {
+        calendarElement.style.display = calendarElement.style.display === 'block' ? 'none' : 'block';
+        renderCalendar(calendarElement, new Date(), function(selectedDate) {
+          inputElement.value = formatDate(selectedDate);
+          calendarElement.style.display = 'none';
+        });
+      });
+
+      // Close calendar when clicking outside
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.date-picker-container')) {
+          calendarElement.style.display = 'none';
+        }
+      });
+    }
+    
+    function formatDate(date) {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    function renderCalendar(container, date, onSelect) {
+      // Simple calendar rendering - in a real app, you'd want to use a library like dayjs with locale
+      const year = date.getFullYear();
+      const month = date.getMonth();
+    
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const monthNames = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+      const dayNames = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+    
+      let html = `
+        <div class="calendar-header">
+          <button class="nav-btn prev-month"><i class="bi bi-chevron-left"></i></button>
+          <div class="month-year">${monthNames[month]} ${year + 543}</div>
+          <button class="nav-btn next-month"><i class="bi bi-chevron-right"></i></button>
+        </div>
+        <div class="calendar-days">
+      `;
+    
+      // Day names header
+      dayNames.forEach(day => {
+        html += `<div class="day-name">${day}</div>`;
+      });
+    
+      html += `</div><div class="calendar-dates">`;
+    
+      // Empty cells for days before the first day of the month
+      for (let i = 0; i < firstDay; i++) {
+        html += `<div class="date-cell disabled"></div>`;
+      }
+    
+      // Days of the month
+      const today = new Date();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const currentDate = new Date(year, month, i);
+        const isToday = currentDate.getDate() === today.getDate() &&
+                        currentDate.getMonth() === today.getMonth() &&
+                        currentDate.getFullYear() === today.getFullYear();
+
+        html += `<div class="date-cell${isToday ? ' today' : ''}" data-date="${year}-${month+1}-${i}">${i}</div>`;
+      }
+
+      html += `</div>`;
+
+      container.innerHTML = html;
+
+      // Add event listeners
+      container.querySelectorAll('.date-cell:not(.disabled)').forEach(cell => {
+        cell.addEventListener('click', function() {
+          const dateAttr = this.getAttribute('data-date');
+          const [y, m, d] = dateAttr.split('-').map(Number);
+          onSelect(new Date(y, m-1, d));
+        });
+      });
+    
+      // Month navigation
+      container.querySelector('.prev-month').addEventListener('click', function(e) {
+        e.stopPropagation();
+        renderCalendar(container, new Date(year, month - 1, 1), onSelect);
+      });
+    
+      container.querySelector('.next-month').addEventListener('click', function(e) {
+        e.stopPropagation();
+        renderCalendar(container, new Date(year, month + 1, 1), onSelect);
+      });
+    }
+    
+    function initializeModals() {
+      // Supplier modal functionality
+      const supplierModal = document.getElementById('supplierModal');
+      const btnSelectSupplier = document.getElementById('btnSelectSupplier');
+      const closeSupplierModal = document.getElementById('closeSupplierModal');
+      const cancelSupplierModal = document.getElementById('cancelSupplierModal');
+      const supplierTableBody = document.getElementById('supplierTableBody');
+      // Populate supplier table
+      populateSupplierTable();
+    
+      btnSelectSupplier.addEventListener('click', function() {
+        supplierModal.classList.remove('hidden');
+      });
+    
+      closeSupplierModal.addEventListener('click', function() {
+        supplierModal.classList.add('hidden');
+      });
+    
+      cancelSupplierModal.addEventListener('click', function() {
+        supplierModal.classList.add('hidden');
+      });
+    
+      // Product modal functionality
+      const productModal = document.getElementById('productModal');
+      const btnAddItem = document.getElementById('btnAddItem');
+      const closeProductModal = document.getElementById('closeProductModal');
+      const cancelProductModal = document.getElementById('cancelProductModal');
+      const productTableBody = document.getElementById('productTableBody');
+      // Populate product table
+      populateProductTable();
+    
+      btnAddItem.addEventListener('click', function() {
+        productModal.classList.remove('hidden');
+      });
+    
+      closeProductModal.addEventListener('click', function() {
+        productModal.classList.add('hidden');
+      });
+    
+      cancelProductModal.addEventListener('click', function() {
+        productModal.classList.add('hidden');
+      });
+    
+      // Purchase Order modal functionality
+      const poModal = document.getElementById('poModal');
+      const btnSearchPO = document.getElementById('btnSearchPO');
+      const closePoModal = document.getElementById('closePoModal');
+      const cancelPoModal = document.getElementById('cancelPoModal');
+      const poTableBody = document.getElementById('poTableBody');
+      // Populate PO table
+      populatePOTable();
+    
+      btnSearchPO.addEventListener('click', function() {
+        poModal.classList.remove('hidden');
+      });
+    
+      closePoModal.addEventListener('click', function() {
+        poModal.classList.add('hidden');
+      });
+    
+      cancelPoModal.addEventListener('click', function() {
+        poModal.classList.add('hidden');
+      });
+    
+      // Close modals when clicking outside
+      window.addEventListener('click', function(e) {
+        if (e.target === supplierModal) supplierModal.classList.add('hidden');
+        if (e.target === productModal) productModal.classList.add('hidden');
+        if (e.target === poModal) poModal.classList.add('hidden');
+      });
+    }
+
+    // โหลดข้อมูลผู้ใช้จาก API
+    async function fetchUserProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+
+        // ตรวจสอบว่ามี token หรือไม่
+        if (!token) {
+          console.error('❌ No auth token found');
+          alert('ไม่พบข้อมูลการเข้าสู่ระบบ กรุณา login ใหม่');
+          window.location.href = '/login.html';
+          return;
+        }
+
+        console.log('🔍 Fetching user profile from API...');
+
+        const res = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Cache-Control': 'no-cache' // บังคับไม่ใช้ cache
+          }
+        });
+
+        const json = await res.json();
+        console.log('📦 API Response:', json);
+
+        // ตรวจสอบ response status
+        if (!res.ok) {
+          console.error('❌ API Error:', res.status, json);
+
+          // ถ้า token หมดอายุหรือไม่ถูกต้อง
+          if (res.status === 401 || res.status === 403) {
+            console.log('🚫 Unauthorized - clearing cache and redirecting');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userPhoto');
+            localStorage.removeItem('userInfo');
+            alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+            window.location.href = '/login.html';
+            return;
+          }
+
+          throw new Error(json.error || json.message || 'Failed to load profile');
+        }
+
+        if (!json.success || !json.data) {
+          throw new Error('Invalid response from server');
+        }
+
+        // ดึงข้อมูลจาก response
+        const userName = json.data.name || json.data.username || 'ผู้ใช้';
+        const photoUrl = json.data.photoUrl || json.data.employee?.imageUrl || null;
+
+        console.log('✅ User Profile Loaded:', { userName, photoUrl });
+
+        // อัพเดท UI
+        const nameEl = document.getElementById('employeeName');
+        const photoEl = document.getElementById('employeePhoto');
+
+        if (nameEl) {
+          nameEl.textContent = userName;
+          console.log('✅ Updated employeeName to:', userName);
+        }
+
+        if (photoEl) {
+          if (photoUrl) {
+            // แปลง photoUrl ให้ถูกต้อง
+            let finalPhotoUrl = photoUrl;
+            if (!photoUrl.startsWith('http://') && !photoUrl.startsWith('https://') && !photoUrl.startsWith('data:')) {
+              if (!photoUrl.startsWith('/uploads/')) {
+                finalPhotoUrl = '/uploads/employees/' + photoUrl;
+              }
+            }
+            photoEl.src = finalPhotoUrl;
+          } else {
+            photoEl.src = '/img/default-avatar.svg';
+          }
+          console.log('✅ Updated employeePhoto to:', photoEl.src);
+        }
+
+        // บันทึกข้อมูลใหม่ใน localStorage (เขียนทับข้อมูลเก่า)
+        localStorage.setItem('userName', userName);
+        if (photoUrl) {
+          localStorage.setItem('userPhoto', photoUrl);
+        } else {
+          localStorage.removeItem('userPhoto'); // ลบถ้าไม่มีรูป
+        }
+
+        console.log('✅ Profile update completed successfully');
+      } catch (err) {
+        console.error('❌ fetchUserProfile error:', err);
+
+        // แสดง error ที่ชัดเจนขึ้น
+        const errorMessage = err.message || 'Unknown error';
+        console.error('Error details:', errorMessage);
+
+        // ถ้าเป็น network error หรือ server error ให้ลอง fallback แต่แสดงคำเตือน
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+          console.warn('⚠️ Network error - using cached data as fallback');
+
+          const fallbackName = localStorage.getItem('userName') || 'ผู้ใช้';
+          const fallbackPhoto = localStorage.getItem('userPhoto');
+
+          const nameEl = document.getElementById('employeeName');
+          const photoEl = document.getElementById('employeePhoto');
+
+          if (nameEl) nameEl.textContent = fallbackName + ' (Offline)';
+          if (photoEl) {
+            if (fallbackPhoto) {
+              photoEl.src = fallbackPhoto;
+            } else {
+              photoEl.src = '/img/default-avatar.svg';
+            }
+          }
+        } else {
+          // ถ้าเป็น error อื่นๆ ให้ clear cache และ redirect
+          console.error('🚫 Critical error - clearing cache and redirecting');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userName');
+          localStorage.removeItem('userPhoto');
+          localStorage.removeItem('userInfo');
+          alert('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้: ' + errorMessage);
+          window.location.href = '/login.html';
+        }
+      }
+    }
+
+    async function loadSuppliers() {
+      try {
+        const response = await fetch('/api/suppliers');
+        const result = await response.json();
+        if (result.success) {
+          suppliers = result.data;
+          populateSupplierTable();
+        }
+      } catch (error) {
+        console.error('Error loading suppliers:', error);
+      }
+    }
+
+    function populateSupplierTable() {
+      const supplierTableBody = document.getElementById('supplierTableBody');
+      supplierTableBody.innerHTML = '';
+    
+      if (suppliers.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `
+          <td colspan="5" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+            <i class="bi bi-person-lines-fill text-4xl mb-2"></i>
+            <p>ไม่มีข้อมูลผู้จำหน่าย</p>
+            <p class="text-sm">กรุณาเพิ่มข้อมูลผู้จำหน่ายก่อนใช้งาน</p>
+          </td>
+        `;
+        supplierTableBody.appendChild(emptyRow);
+        return;
+      }
+    
+      suppliers.forEach(supplier => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-4 py-3">${supplier.id || supplier._id}</td>
+          <td class="px-4 py-3">${supplier.name}</td>
+          <td class="px-4 py-3">${supplier.taxId || '-'}</td>
+          <td class="px-4 py-3">${supplier.phone || '-'}</td>
+          <td class="px-4 py-3 text-center">
+            <button class="btn-select-supplier bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm" 
+                    data-id="${supplier.id || supplier._id}">เลือก</button>
+          </td>
+        `;
+        supplierTableBody.appendChild(row);
+      });
+    
+      // Add click event for supplier selection
+      document.querySelectorAll('.btn-select-supplier').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const supplierId = this.getAttribute('data-id');
+          const supplier = suppliers.find(s => (s.id || s._id) === supplierId);
+    
+          if (supplier) {
+            document.getElementById('supplierName').textContent = supplier.name;
+            document.getElementById('supplierTaxId').textContent = 'เลขประจำตัวผู้เสียภาษี: ' + supplier.taxId;
+            document.getElementById('supplierAddress').textContent = supplier.address;
+            document.getElementById('supplierTel').textContent = supplier.phone;
+            document.getElementById('supplierEmail').textContent = supplier.email;
+            document.getElementById('supplierContact').textContent = supplier.contact;
+          }
+    
+          document.getElementById('supplierModal').classList.add('hidden');
+        });
+      });
+    }
+    
+    async function loadProducts() {
+      try {
+        const response = await fetch('/api/products');
+        const result = await response.json();
+        if (result.success) {
+          products = result.data;
+          populateProductTable();
+        }
+      } catch (error) {
+        console.error('Error loading products:', error);
+      }
+    }
+
+    function populateProductTable() {
+      const productTableBody = document.getElementById('productTableBody');
+      productTableBody.innerHTML = '';
+    
+      if (products.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `
+          <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+            <i class="bi bi-box text-4xl mb-2"></i>
+            <p>ไม่มีข้อมูลสินค้า</p>
+            <p class="text-sm">กรุณาเพิ่มข้อมูลสินค้าก่อนใช้งาน</p>
+          </td>
+        `;
+        productTableBody.appendChild(emptyRow);
+        return;
+      }
+    
+      products.forEach(product => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-4 py-3">${product.id || product._id}</td>
+          <td class="px-4 py-3">${product.name}</td>
+          <td class="px-4 py-3 text-right">${formatCurrency(product.price || 0)}</td>
+          <td class="px-4 py-3 text-center">${product.unit || '-'}</td>
+          <td class="px-4 py-3 text-center">${product.stock || 0}</td>
+          <td class="px-4 py-3 text-center">
+            <button class="btn-select-product bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm" 
+                    data-id="${product.id || product._id}">เลือก</button>
+          </td>
+        `;
+        productTableBody.appendChild(row);
+      });
+    
+      // Add click event for product selection
+      document.querySelectorAll('.btn-select-product').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const productId = this.getAttribute('data-id');
+          const product = products.find(p => (p.id || p._id) === productId);
+    
+          if (product) {
+            addItemToTable(product);
+          }
+    
+          document.getElementById('productModal').classList.add('hidden');
+        });
+      });
+    }
+    
+    async function loadPurchaseOrders() {
+      try {
+        const response = await fetch('/api/purchase-orders?status=pending');
+        const result = await response.json();
+        if (result.success) {
+          purchaseOrders = result.data;
+          populatePOTable();
+        }
+      } catch (error) {
+        console.error('Error loading purchase orders:', error);
+      }
+    }
+
+    function populatePOTable() {
+      const poTableBody = document.getElementById('poTableBody');
+      poTableBody.innerHTML = '';
+    
+      if (purchaseOrders.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `
+          <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+            <i class="bi bi-file-text text-4xl mb-2"></i>
+            <p>ไม่มีใบสั่งซื้อที่รอรับสินค้า</p>
+            <p class="text-sm">กรุณาสร้างใบสั่งซื้อก่อนใช้งาน</p>
+          </td>
+        `;
+        poTableBody.appendChild(emptyRow);
+        return;
+      }
+    
+      purchaseOrders.forEach(po => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-4 py-3">${po.id || po._id}</td>
+          <td class="px-4 py-3">${formatDateFromDB(po.date || po.createdAt)}</td>
+          <td class="px-4 py-3">${po.supplier?.name || po.supplierName}</td>
+          <td class="px-4 py-3 text-right">${formatCurrency(po.amount || po.total || 0)}</td>
+          <td class="px-4 py-3 text-center">
+            <span class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs font-medium">
+              ${po.status || 'รอรับสินค้า'}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <button class="btn-select-po bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm" 
+                    data-id="${po.id || po._id}">เลือก</button>
+          </td>
+        `;
+        poTableBody.appendChild(row);
+      });
+    
+      // Add click event for PO selection
+      document.querySelectorAll('.btn-select-po').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const poId = this.getAttribute('data-id');
+          const po = purchaseOrders.find(p => (p.id || p._id) === poId);
+    
+          if (po) {
+            document.getElementById('poReference').value = po.id || po._id;
+    
+            // Set supplier info from PO
+            if (po.supplier) {
+              document.getElementById('supplierName').textContent = po.supplier.name || po.supplierName;
+              document.getElementById('supplierTaxId').textContent = 'เลขประจำตัวผู้เสียภาษี: ' + (po.supplier.taxId || '-');
+              document.getElementById('supplierAddress').textContent = po.supplier.address || '-';
+              document.getElementById('supplierTel').textContent = po.supplier.phone || '-';
+              document.getElementById('supplierEmail').textContent = po.supplier.email || '-';
+              document.getElementById('supplierContact').textContent = po.supplier.contact || '-';
+            }
+    
+            // Load PO items
+            clearItemTable();
+            loadPOItems(poId);
+          }
+    
+          document.getElementById('poModal').classList.add('hidden');
+        });
+      });
+    }
+    
+    async function loadPOItems(poId) {
+      try {
+        const response = await fetch(`/api/purchase-orders/${poId}/items`);
+        const result = await response.json();
+        if (result.success && result.data) {
+          result.data.forEach(item => {
+            addItemToTable({
+              id: item.productId || item.id,
+              name: item.productName || item.name,
+              price: item.price || item.unitPrice,
+              unit: item.unit,
+              qty: item.quantity || item.qty || 1
+            });
+          });
+          calculateTotals();
+        }
+      } catch (error) {
+        console.error('Error loading PO items:', error);
+      }
+    }
+    
+    function formatDateFromDB(dateString) {
+      // Convert YYYY-MM-DD to DD/MM/YYYY
+      const [year, month, day] = dateString.split('-');
+      return `${day}/${month}/${year}`;
+    }
+
+
+    
+    function initializeItemTable() {
+      const btnAddItem = document.getElementById('btnAddItem');
+      btnAddItem.addEventListener('click', function() {
+        document.getElementById('productModal').classList.remove('hidden');
+      });
+    }
+    
+    function clearItemTable() {
+      const itemTableBody = document.getElementById('itemTableBody');
+      itemTableBody.innerHTML = '';
+      // Add empty row message
+      const emptyRow = document.createElement('tr');
+      emptyRow.className = 'text-gray-600 dark:text-gray-300 empty-row';
+      emptyRow.innerHTML = `
+        <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+          <div class="flex flex-col items-center">
+            <i class="bi bi-inbox-fill text-4xl mb-2"></i>
+            <p>ยังไม่มีรายการสินค้า</p>
+            <p class="text-sm">กดปุ่ม "เพิ่มสินค้า" ด้านล่างเพื่อเพิ่มรายการสินค้า</p>
+          </div>
+        </td>
+      `;
+      itemTableBody.appendChild(emptyRow);
+    }
+    
+    function addItemToTable(product) {
+      const itemTableBody = document.getElementById('itemTableBody');
+      const emptyRow = itemTableBody.querySelector('.empty-row');
+      // Remove empty row if exists
+      if (emptyRow) {
+        emptyRow.remove();
+      }
+    
+      // Get current row count
+      const rowCount = itemTableBody.querySelectorAll('tr:not(.empty-row)').length + 1;
+      // Create new row
+      const row = document.createElement('tr');
+      row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+      row.dataset.productId = product.id;
+    
+      const qty = product.qty || 1;
+      const discount = 0;
+      const total = (qty * product.price) - discount;
+    
+      row.innerHTML = `
+        <td class="px-4 py-3">${rowCount}</td>
+        <td class="px-4 py-3">${product.id}</td>
+        <td class="px-4 py-3">${product.name}</td>
+        <td class="px-4 py-3">
+          <input type="number" class="form-control w-20 text-right product-qty" min="1" value="${qty}"
+                 data-price="${product.price}">
+        </td>
+        <td class="px-4 py-3 text-right">${product.unit}</td>
+        <td class="px-4 py-3 text-right">${formatCurrency(product.price)}</td>
+        <td class="px-4 py-3 text-right">
+          <input type="number" class="form-control w-20 text-right product-discount" min="0" value="${discount}">
+        </td>
+        <td class="px-4 py-3 text-right product-total">${formatCurrency(total)}</td>
+        <td class="px-4 py-3 text-center">
+          <button class="text-red-500 hover:text-red-700 btn-delete-item">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+    
+      itemTableBody.appendChild(row);
+    
+      // Add event listeners for quantity and discount changes
+      row.querySelector('.product-qty').addEventListener('change', function() {
+        updateRowTotal(row);
+        calculateTotals();
+      });
+    
+      row.querySelector('.product-discount').addEventListener('change', function() {
+        updateRowTotal(row);
+        calculateTotals();
+      });
+    
+      // Add event listener for delete button
+      row.querySelector('.btn-delete-item').addEventListener('click', function() {
+        row.remove();
+        renumberRows();
+        calculateTotals();
+    
+        // Add empty row if no items left
+        if (itemTableBody.querySelectorAll('tr').length === 0) {
+          clearItemTable();
+        }
+      });
+    
+      calculateTotals();
+    }
+    
+    function updateRowTotal(row) {
+      const qtyInput = row.querySelector('.product-qty');
+      const discountInput = row.querySelector('.product-discount');
+      const totalCell = row.querySelector('.product-total');
+      const qty = parseFloat(qtyInput.value) || 0;
+      const price = parseFloat(qtyInput.dataset.price) || 0;
+      const discount = parseFloat(discountInput.value) || 0;
+    
+      const total = (qty * price) - discount;
+      totalCell.textContent = formatCurrency(total);
+    }
+    
+    function renumberRows() {
+      const itemTableBody = document.getElementById('itemTableBody');
+      const rows = itemTableBody.querySelectorAll('tr:not(.empty-row)');
+      rows.forEach((row, index) => {
+        const cellNumber = row.firstElementChild;
+        cellNumber.textContent = index + 1;
+      });
+    }
+    
+    function initializeCalculations() {
+      const discountInput = document.getElementById('discountAmount');
+      const discountType = document.getElementById('discountType');
+      const vatType = document.getElementById('vatType');
+      discountInput.addEventListener('input', calculateTotals);
+      discountType.addEventListener('change', calculateTotals);
+      vatType.addEventListener('change', calculateTotals);
+      // Initial calculation
+      calculateTotals();
+    }
+    
+    function calculateTotals() {
+      const itemRows = document.querySelectorAll('#itemTableBody tr:not(.empty-row)');
+      let subtotal = 0;
+    
+      itemRows.forEach(row => {
+        const totalCell = row.querySelector('.product-total');
+        const totalText = totalCell.textContent.replace(/[^\d.-]/g, '');
+        subtotal += parseFloat(totalText) || 0;
+      });
+    
+      const discountInput = document.getElementById('discountAmount');
+      const discountType = document.getElementById('discountType');
+      const vatType = document.getElementById('vatType');
+      let discount = parseFloat(discountInput.value) || 0;
+      if (discountType.value === 'percent') {
+        discount = (subtotal * discount) / 100;
+      }
+    
+      const afterDiscount = subtotal - discount;
+    
+      let vat = 0;
+      if (vatType.value === 'excluded') {
+        vat = afterDiscount * 0.07;
+      } else if (vatType.value === 'included') {
+        vat = afterDiscount - (afterDiscount / 1.07);
+      }
+    
+      const grandTotal = vatType.value === 'excluded' ? afterDiscount + vat : afterDiscount;
+      document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+      document.getElementById('afterDiscount').textContent = formatCurrency(afterDiscount);
+      document.getElementById('vatAmount').textContent = formatCurrency(vat);
+      document.getElementById('grandTotal').textContent = formatCurrency(grandTotal);
+    }
+    
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    }
+</script>
+  <!-- Account Menu Script -->
+  <script src="/js/account-menu.js"></script>
+</body>
+</html>

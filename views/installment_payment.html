@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ชำระเงิน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],'
+      },
+    }
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Socket.io (ไฟล์โลคัล หรือ CDN ก็ได้) -->
+  <script
+    src="/socket.io.min.js"
+    integrity="sha384-xWmNuOozkup5L7vb2ZFBg8dy0whlJd0gZAq3pvXuNa+5tSl/AjYqFNXN7kmjVTx2"
+    crossorigin="anonymous"
+  ></script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem; /* ลดความกว้างเมื่อยุบ */
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+
+    .Logo {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+
+<body
+  class="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition "
+         bg-white text-gray-700              /* Light Mode */
+         dark:bg-gray-700 dark:text-gray-200 /* Dark Mode */"
+  "
+>
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button
+    id="btnToggleMenu"
+    title="Toggle Menu"
+    aria-label="Toggle Menu"
+    class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition"
+  >
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Layout หลัก: Sidebar - Main Content -->
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white dark:bg-gray-800 shadow flex flex-col transition-all duration-300">
+      <!-- ส่วนหัว (Logo) -->
+      <a href="index.html">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <!-- โลโก้ร้าน (ปรับตามธุรกิจคุณ) -->
+          <img src="/uploads/Logo2.png" alt="Logo" class="Logo" />
+        </div>
+      </a>
+
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full">
+          <!-- เมนู: หน้าแรก -->
+          <li class="my-px">
+            <a
+              href="index.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-house-door text-xl"></i>
+              </span>
+              <span class="ml-3">หน้าแรก</span>
+            </a>
+          </li>
+
+          <!-- เมนู: ขอผ่อนโทรศัพท์ -->
+          <li class="my-px">
+            <a
+              href="apply_phone.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-phone text-xl"></i>
+              </span>
+              <span class="ml-3">ขอผ่อนโทรศัพท์</span>
+            </a>
+          </li>
+
+          <!-- เมนู: ประวัติการผ่อน -->
+          <li class="my-px">
+            <a
+              href="installment_history.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-clock-history text-xl"></i>
+              </span>
+              <span class="ml-3">ประวัติการผ่อน</span>
+            </a>
+          </li>
+
+          <!-- เมนู: ผ่อนชำระ -->
+          <li class="my-px">
+            <a
+              href="repayment.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-wallet2 text-xl"></i>
+              </span>
+              <span class="ml-3">ผ่อนชำระ</span>
+            </a>
+          </li>
+
+          <!-- เมนู: จัดการลูกค้า -->
+          <li class="my-px">
+            <a
+              href="customer.html"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-people text-xl"></i>
+              </span>
+              <span class="ml-3">จัดการลูกค้า</span>
+            </a>
+          </li>
+
+          <!-- Dark Mode Toggle -->
+          <li class="my-px mt-6">
+            <button
+              id="btnToggleDark"
+              class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition"
+            >
+              <span class="flex items-center justify-center text-lg text-gray-400 dark:text-gray-300">
+                <i class="bi bi-moon"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+
+          <!-- Logout -->
+          <li class="my-px">
+            <button
+              id="btnLogout"
+              class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition"
+            >
+              <span class="flex items-center justify-center text-lg text-red-400 dark:text-red-300">
+                <i class="bi bi-box-arrow-right"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API ถ้าต้องการ) -->
+          <li class="my-px">
+            <div
+              id="profile"
+              class="flex flex-row items-center h-12 px-4 w-full rounded-lg bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 text-left transition"
+            >
+              <div class="avatar mr-3 -ml-4">
+                <div class="w-10 rounded-full">
+                  <img id="employeePhoto" src="" alt="Employee Photo" />
+                </div>
+              </div>
+              <span class="ml-3" id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ส่วนเนื้อหา (Main Content) -->
+    <div class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="p-4 bg-white dark:bg-gray-800 shadow flex justify-between items-center transition-colors">
+        <h1 class="text-xl font-bold" id="pageTitle">ชำระเงิน</h1>
+      </header>
+
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- ค้นหาสัญญาผ่อน -->
+        <div class="card bg-white dark:bg-gray-800 p-4 rounded shadow transition-colors">
+          <h2 class="text-2xl font-bold mb-4">ค้นหาสัญญาผ่อน</h2>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              id="searchIdCard"
+              class="input input-bordered w-full"
+              placeholder="กรอกเลขบัตรประชาชน"
+            />
+            <button class="btn btn-primary" id="btnSearchOrder">
+              <i class="bi bi-search mr-1"></i> ค้นหา
+            </button>
+          </div>
+        </div>
+
+        <!-- รายละเอียดสัญญา -->
+        <div id="orderDetailCard" class="card bg-white dark:bg-gray-800 p-4 rounded shadow hidden transition-colors">
+          <h2 class="text-2xl font-bold mb-2">รายละเอียดสัญญา</h2>
+          <p>สัญญาเลขที่: <span id="contractNo">-</span></p>
+          <p>ชื่อ-นามสกุล ลูกค้า: <span id="customerName">-</span></p>
+          <p>เงินดาวน์: <span id="downPayment">0</span> บาท</p>
+          <p>ผ่อนต่อเดือน: <span id="monthlyPayment">0</span> บาท</p>
+          <p>จำนวนงวด: <span id="installmentCount">0</span> งวด</p>
+          <hr class="my-3" />
+          <h3 class="font-semibold mb-2">ประวัติการชำระเงิน</h3>
+          <div class="overflow-x-auto">
+            <table class="table w-full border border-gray-300 dark:border-gray-700 transition-colors ""
+                         bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200">
+              <thead>
+                <tr class="bg-gray-100 dark:bg-gray-700 dark:text-gray-200">
+                  <th class="text-center">งวดที่</th>
+                  <th class="text-center">ยอดที่ต้องชำระ</th>
+                  <th class="text-center">ยอดที่ชำระแล้ว</th>
+                  <th class="text-center">วิธีการชำระ</th>
+                  <th class="text-center">วันที่ชำระ</th>
+                  <th class="text-center">ดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody id="paymentHistoryBody">
+                <tr>
+                  <td colspan="6" class="text-center text-gray-500">ยังไม่มีข้อมูลการชำระ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal ฟอร์มชำระเงิน -->
+  <input type="checkbox" id="paymentModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200">
+      <h3 class="font-bold text-lg">ชำระเงิน</h3>
+      <p class="py-2">
+        งวดที่ชำระ: <span id="modalInstallmentNumber"></span><br />
+        ยอดที่ต้องชำระ: <span id="modalAmountDue"></span> บาท
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="label"><span class="label-text">จำนวนเงินที่ชำระ (บาท)</span></label>
+          <input type="number" id="amountPaid" class="input input-bordered w-full" />
+        </div>
+        <div>
+          <label class="label"><span class="label-text">วิธีการชำระ</span></label>
+          <select id="paymentMethod" class="select select-bordered w-full">
+            <option value="cash">เงินสด</option>
+            <option value="transfer">โอน</option>
+            <option value="card">บัตร</option>
+          </select>
+        </div>
+        <div>
+          <label class="label"><span class="label-text">วันที่ชำระ</span></label>
+          <input type="date" id="paymentDate" class="input input-bordered w-full" />
+        </div>
+        <div>
+          <label class="label"><span class="label-text">หมายเหตุ (ถ้ามี)</span></label>
+          <input type="text" id="note" class="input input-bordered w-full" placeholder="อธิบายการชำระเงิน" />
+        </div>
+      </div>
+      <div class="modal-action">
+        <label for="paymentModal" class="btn">ยกเลิก</label>
+        <button class="btn btn-primary" id="btnConfirmPayment">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentOrderId = null;
+    let selectedInstallmentNumber = null;
+    let selectedAmountDue = null;
+
+    // โหลด Dark Mode ถ้ามีการตั้งค่าไว้ใน localStorage
+    function loadDarkMode() {
+      const isDarkMode = localStorage.getItem("darkMode") === "true";
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    // สลับ Dark Mode
+    function toggleDarkMode() {
+      const htmlEl = document.documentElement;
+      const currentlyDark = htmlEl.classList.contains('dark');
+      if (currentlyDark) {
+        htmlEl.classList.remove('dark');
+        localStorage.setItem("darkMode", "false");
+        document.getElementById("btnToggleDark").innerHTML = '<i class="bi bi-moon-fill"></i>';'
+      } else {
+        htmlEl.classList.add('dark');
+        localStorage.setItem("darkMode", "true");
+        document.getElementById("btnToggleDark").innerHTML = '<i class="bi bi-sun-fill"></i>';'
+      }
+    }
+
+    // ฟังก์ชันหลัก: ค้นหาใบสัญญาผ่อน โดย taxId (เลขประจำตัวผู้เสียภาษี)
+    async function searchOrderByTaxId() {
+      const taxId = document.getElementById("searchIdCard").value.trim(); // เปลี่ยนเป็น searchIdCard ถ้าจะใช้ช่องเดียวกัน
+      if (!taxId) {
+        alert("กรุณากรอกเลขประจำตัวผู้เสียภาษี");
+        return;
+      }
+      try {
+        // เรียก API /api/installment/search-by-taxid?taxId=...
+        const res = await fetch(
+          `/api/installment/search-by-taxid?taxId=${encodeURIComponent(taxId)}`,
+          {
+            headers: {
+              "Authorization": "Bearer " + (localStorage.getItem("authToken") || "")
+            }
+          }
+        );
+        const js = await res.json();
+        if (!res.ok || !js.success || !js.data || !js.data.length) {
+          alert(js.error || "ไม่พบสัญญาผ่อน");
+          return;
+        }
+        const order = js.data[0];
+        currentOrderId = order._id;
+
+        // แสดงรายละเอียด
+        document.getElementById("orderDetailCard").classList.remove("hidden");
+        document.getElementById("contractNo").textContent = order.contractNo || "-";
+        const c = order.customer_info || {};
+        document.getElementById("customerName").textContent =
+          `${c.firstName || ""} ${c.lastName || ""}`.trim() || "-";
+        document.getElementById("downPayment").textContent = order.downPayment || 0;
+        document.getElementById("monthlyPayment").textContent = order.monthlyPayment || 0;
+        document.getElementById("installmentCount").textContent = order.installmentCount || 0;
+
+        // วาดตาราง
+        renderPaymentHistory(order);
+
+      } catch (err) {
+        alert("เกิดข้อผิดพลาด: " + err.message);
+      }
+    }
+
+    // วาดตารางประวัติการชำระ + ปุ่มชำระเงิน
+    function renderPaymentHistory(order) {
+      const tbody = document.getElementById("paymentHistoryBody");
+      tbody.innerHTML = "";
+      const payments = order.installmentPayments || [];
+
+      if (!payments.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-gray-500">ยังไม่มีข้อมูลการชำระ</td>
+          </tr>
+        `;
+        return;
+      }
+
+      payments.forEach((pay, idx) => {
+        const installmentNumber = pay.installmentNumber || (idx + 1);
+        const amountDue = pay.amountDue || 0;
+        const amountPaid = pay.amountPaid || 0;
+        const paymentMethod = pay.paymentMethod || "-";
+        const paymentDate = pay.paymentDate
+          ? new Date(pay.paymentDate).toLocaleDateString("th-TH")
+          : "-";
+
+        // แยกเป็น 2 กรณี (จ่ายแล้ว/ยังไม่จ่าย)
+        let actionButtonHTML = "";
+        if (amountPaid > 0) {
+          // ถ้าจ่ายแล้ว
+          actionButtonHTML = `<span class="text-green-500">ชำระแล้ว</span>`;
+        } else {
+          // ยังไม่จ่าย -> สร้างปุ่มพร้อม data-* แทน onclick
+          actionButtonHTML = `
+            <label
+              for="paymentModal"
+              class="btn btn-sm btn-primary openPaymentBtn"
+              data-installment-number="${installmentNumber}"
+              data-amount-due="${amountDue}">
+              ชำระเงิน
+            </label>
+          `;
+        }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="text-center">${installmentNumber}</td>
+          <td class="text-center">${amountDue}</td>
+          <td class="text-center">${amountPaid}</td>
+          <td class="text-center">${paymentMethod}</td>
+          <td class="text-center">${paymentDate}</td>
+          <td class="text-center">${actionButtonHTML}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // หลังจากสร้างปุ่มเรียบร้อยแล้ว ให้ผูก Event Listener
+      attachOpenPaymentModalListeners();
+    }
+
+    // ผูก Event Listener ให้ปุ่ม .openPaymentBtn ทุกปุ่ม
+    function attachOpenPaymentModalListeners() {
+      const buttons = document.querySelectorAll(".openPaymentBtn");
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const installmentNumber = btn.getAttribute("data-installment-number");
+          const amountDue = btn.getAttribute("data-amount-due");
+          openPaymentModal(installmentNumber, amountDue);
+        });
+      });
+    }
+
+    // เปิด modal ฟอร์มชำระเงินของงวดนั้น
+    function openPaymentModal(installmentNumber, amountDue) {
+      selectedInstallmentNumber = installmentNumber;
+      selectedAmountDue = amountDue;
+      document.getElementById("modalInstallmentNumber").textContent = installmentNumber;
+      document.getElementById("modalAmountDue").textContent = amountDue;
+      // clear input
+      document.getElementById("amountPaid").value = "";
+      document.getElementById("paymentMethod").value = "cash";
+      document.getElementById("paymentDate").value = "";
+      document.getElementById("note").value = "";
+    }
+
+    // บันทึกการชำระเงิน (เรียกจากปุ่มยืนยันใน modal)
+    async function savePayment() {
+      if (!currentOrderId || !selectedInstallmentNumber) {
+        alert("ไม่พบข้อมูลสัญญาหรือหมายเลขงวดที่ต้องการชำระ");
+        return;
+      }
+      const amountPaid = parseFloat(document.getElementById("amountPaid").value) || 0;
+      const paymentMethod = document.getElementById("paymentMethod").value;
+      const paymentDateVal = document.getElementById("paymentDate").value;
+      const note = document.getElementById("note").value.trim();
+
+      const payload = {
+        orderId: currentOrderId,
+        installmentNumber: selectedInstallmentNumber,
+        amountPaid,
+        paymentMethod,
+        paymentDate: paymentDateVal ? new Date(paymentDateVal) : null,
+        note
+      };
+
+      try {
+        const res = await fetch("/api/installment/pay", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + (localStorage.getItem("authToken") || ""),
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+        const js = await res.json();
+        if (!res.ok || !js.success) {
+          alert(js.error || "การชำระเงินไม่สำเร็จ");
+          return;
+        }
+        alert("บันทึกการชำระเงินสำเร็จ!");
+        // ปิด modal
+        document.getElementById("paymentModal").checked = false;
+        // โหลดข้อมูลสัญญาอีกครั้ง
+        searchOrderByTaxId(); // เรียกฟังก์ชันค้นหาแบบ taxId อีกครั้ง
+      } catch (err) {
+        alert("เกิดข้อผิดพลาด: " + err.message);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // โหลด Dark Mode ตั้งแต่หน้าเริ่ม
+      loadDarkMode();
+      // ติดตั้ง Event ปุ่มสลับ Dark Mode
+      document.getElementById("btnToggleDark").addEventListener("click", toggleDarkMode);
+      
+      // ปุ่มค้นหา => เรียก searchOrderByTaxId
+      document.getElementById("btnSearchOrder").addEventListener("click", searchOrderByTaxId);
+
+      // ปุ่มยืนยันใน Modal
+      document.getElementById("btnConfirmPayment").addEventListener("click", savePayment);
+
+      // ปุ่ม Logout
+      document.getElementById("btnLogout").addEventListener("click", () => {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("userId");
+        window.location.href = "login.html";
+      });
+
+      // Toggle Sidebar
+      const btnToggleMenu = document.getElementById("btnToggleMenu");
+      const sidebar = document.querySelector("aside");
+      const icon = btnToggleMenu.querySelector("i");
+      btnToggleMenu.addEventListener("click", () => {
+        sidebar.classList.toggle("collapsed");
+        if (sidebar.classList.contains("collapsed")) {
+          icon.classList.remove("bi-chevron-left");
+          icon.classList.add("bi-chevron-right");
+        } else {
+          icon.classList.remove("bi-chevron-right");
+          icon.classList.add("bi-chevron-left");
+        }
+      });
+    });
+  </script>
+</body>
+</html>

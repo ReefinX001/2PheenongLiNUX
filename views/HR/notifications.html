@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ใบแจ้งเตือนของพนักงาน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { fontFamily: { sans: ['Prompt','sans-serif'] } } },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- animate.css for Loading Effects -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <style>
+    .table th, .table td { white-space: nowrap; }
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    .dark .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="hr_dashboard.html">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="HR_Dashboard" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="employee_directory" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-people-fill text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">พนักงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="attendance" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+            </a>
+          </li>
+          <li>
+            <a href="leave_requests" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+              <span class="ml-3">การลา</span>
+            </a>
+          </li>
+          <li>
+            <a href="payroll" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+              <span class="ml-3">เงินเดือน</span>
+            </a>
+          </li>
+          <li>
+            <a href="performance_reviews.html" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">ประเมินผลงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="bonus_list" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>รายการโบนัส</span>
+            </a>
+          </li>
+          <!-- ทำหน้า notifications นี้เป็น active -->
+          <li>
+            <a href="notifications.html" class="flex items-center px-4 h-12 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-bell text-xl text-orange-500 dark:text-orange-400 mr-3"></i>
+              <span>ใบแจ้งเตือน</span>
+            </a>
+          </li>
+          <li class="mt-4">
+            <a href="role_management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogout" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <li>
+            <div id="profile" class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <img id="employeePhoto" src="/api/placeholder/36/36" alt="Employee Photo" class="w-10 h-10 rounded-full mr-3"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 bg-gray-50 dark:bg-gray-800 overflow-y-auto">
+      <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">ใบแจ้งเตือนของพนักงาน</h1>
+        <!-- ปุ่มเพิ่มใบแจ้งเตือน -->
+        <button id="btnAddNotification" class="btn btn-secondary">
+          <i class="bi bi-bell-fill mr-2"></i> เพิ่มใบแจ้งเตือน
+        </button>
+      </div>
+
+      <!-- Notifications Table -->
+      <div class="bg-white dark:bg-gray-900 shadow rounded-lg overflow-x-auto">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">ใบแจ้งเตือน</h2>
+        </div>
+        <table class="table w-full">
+          <thead class="bg-gray-100 dark:bg-gray-800">
+            <tr>
+              <th class="px-4 py-3 bg-white dark:bg-gray-900 ">วันที่</th>
+              <th class="px-4 py-3 bg-white dark:bg-gray-900 ">พนักงาน</th>
+              <th class="px-4 py-3 bg-white dark:bg-gray-900 ">ประเภท</th>
+              <th class="px-4 py-3 bg-white dark:bg-gray-900 ">หัวข้อ</th>
+              <th class="px-4 py-3 bg-white dark:bg-gray-900 ">รายละเอียด</th>
+              <th class="px-4 py-3 bg-white dark:bg-gray-900 ">ค่าปรับ</th>
+              <th class="px-4 py-3 bg-white dark:bg-gray-900 text-center">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="notificationTableBody">
+            <tr><td colspan="7" class="text-center p-4">กำลังโหลดข้อมูลใบแจ้งเตือน...</td></tr>
+          </tbody>
+        </table>
+        <div id="notificationEmptyState" class="hidden p-8 text-center">
+          <i class="bi bi-bell-slash text-5xl text-gray-400 mb-4"></i>
+          <h3 class="text-lg font-medium">ไม่พบข้อมูลใบแจ้งเตือน</h3>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal for Adding/Viewing Notification -->
+  <div id="notificationModal" class="modal">
+    <div class="modal-box bg-white dark:bg-gray-800">
+      <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-gray-100" id="notificationModalTitle">เพิ่มใบแจ้งเตือน</h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" id="closeNotificationModal">✕</button>
+      
+      <form id="notificationForm" class="mt-4">
+        <input type="hidden" id="notificationId" value="">
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100" for="notificationEmployeeSelect">
+            พนักงาน <span class="text-red-500">*</span>
+          </label>
+          <select id="notificationEmployeeSelect" class="select select-bordered w-full bg-white dark:bg-gray-900" required>
+            <option value="">เลือกพนักงาน</option>
+            <!-- Options will be filled by JS -->
+          </select>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100" for="notificationType">
+            ประเภทการแจ้งเตือน <span class="text-red-500">*</span>
+          </label>
+          <select id="notificationType" class="select select-bordered w-full bg-white dark:bg-gray-900" required>
+            <option value="">เลือกประเภท</option>
+            <option value="เตือนการลา">เตือนการลา</option>
+            <option value="เตือนการมาสาย">เตือนการมาสาย</option>
+            <option value="เตือนพฤติกรรม">เตือนพฤติกรรม</option>
+            <option value="เตือนผลงาน">เตือนผลงาน</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label for="notificationTitle" class="block text-sm font-medium mb-1">
+            หัวข้อ <span class="text-red-500">*</span>
+          </label>
+          <input id="notificationTitle" type="text" class="input input-bordered w-full" required>
+        </div>
+
+        <div class="mb-4">
+          <label for="notificationDate" class="block text-sm font-medium mb-1">
+            วันที่แจ้งเตือน <span class="text-red-500">*</span>
+          </label>
+          <input id="notificationDate" type="date" class="input input-bordered w-full" required>
+        </div>
+
+        <div class="mb-4">
+          <label for="notificationDetail" class="block text-sm font-medium mb-1">
+            รายละเอียด <span class="text-red-500">*</span>
+          </label>
+          <textarea id="notificationDetail" rows="4" class="textarea textarea-bordered w-full" required></textarea>
+        </div>
+
+        <!-- แสดง/ซ่อนเมื่อเลือกประเภทเป็น "เตือนพฤติกรรม" -->
+        <div class="mb-4" id="levelGroup" style="display:none">
+          <label for="notificationLevel">ระดับเตือน</label>
+          <input id="notificationLevel" type="number" min="1" max="3" class="input input-bordered w-full">
+        </div>
+
+        <div class="mb-4">
+          <label for="notificationFine">ค่าปรับ (ถ้ามี)</label>
+          <input id="notificationFine" type="number" min="0" class="input input-bordered w-full" value="0">
+        </div>
+
+        <div class="mb-4">
+          <label for="notificationActionNeeded">การดำเนินการ</label>
+          <input id="notificationActionNeeded" type="text" class="input input-bordered w-full">
+        </div>
+
+        <div class="mb-4">
+          <label for="notificationDepartment">ฝ่าย</label>
+          <input id="notificationDepartment" type="text" class="input input-bordered w-full" value="HR">
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button type="button" class="btn btn-outline" id="btnCancelNotification">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึกใบแจ้งเตือน</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = '/api';
+  const token    = localStorage.getItem('authToken');
+  let currentUser, allEmployees = [], allEmployeeNotifications = [];
+  let lottieAnimation = null;
+
+  // ===== UTILITY FUNCTIONS =====
+
+  // Input sanitization function
+  function sanitizeInput(input) {
+    if (typeof input !== 'string') return input;
+    return input.trim()
+      .replace(/[<>\"']/g, '') // Remove potential XSS characters
+      .replace(/\s+/g, ' '); // Normalize whitespace
+  }
+
+  // Enhanced validation functions
+  function validateNotificationForm(formData) {
+    const errors = [];
+
+    if (!formData.user) errors.push('กรุณาเลือกพนักงาน');
+    if (!formData.type) errors.push('กรุณาเลือกประเภทการแจ้งเตือน');
+    if (!formData.title || formData.title.length < 3) errors.push('หัวข้อต้องมีอย่างน้อย 3 ตัวอักษร');
+    if (!formData.message || formData.message.length < 10) errors.push('รายละเอียดต้องมีอย่างน้อย 10 ตัวอักษร');
+    if (!formData.date) errors.push('กรุณาเลือกวันที่');
+
+    // Validate date is not in the future
+    const selectedDate = new Date(formData.date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    if (selectedDate > today) {
+      errors.push('วันที่แจ้งเตือนไม่สามารถเป็นวันในอนาคตได้');
+    }
+
+    // Validate fine amount
+    if (formData.fine < 0) errors.push('ค่าปรับต้องเป็นจำนวนบวก');
+    if (formData.fine > 100000) errors.push('ค่าปรับต้องไม่เกิน 100,000 บาท');
+
+    return errors;
+  }
+
+  // Modern notification system
+  function showNotification(message, type = 'info', duration = 5000) {
+    const notification = document.createElement('div');
+    notification.className = `
+      fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full
+      ${type === 'success' ? 'bg-green-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+        type === 'warning' ? 'bg-yellow-500 text-black' :
+        'bg-blue-500 text-white'}
+    `;
+
+    notification.innerHTML = `
+      <div class="flex items-center space-x-2">
+        <i class="bi ${type === 'success' ? 'bi-check-circle' :
+                      type === 'error' ? 'bi-x-circle' :
+                      type === 'warning' ? 'bi-exclamation-triangle' :
+                      'bi-info-circle'}"></i>
+        <span>${sanitizeInput(message)}</span>
+        <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-lg font-bold">&times;</button>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Animate in
+    setTimeout(() => notification.classList.remove('translate-x-full'), 100);
+
+    // Auto remove
+    setTimeout(() => {
+      notification.classList.add('translate-x-full');
+      setTimeout(() => notification.remove(), 300);
+    }, duration);
+  }
+
+  // Loading state management
+  function showLoading(target = 'notificationTableBody') {
+    const element = document.getElementById(target);
+    if (element) {
+      element.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center p-4">
+            <div class="flex items-center justify-center space-x-2">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span>กำลังโหลดข้อมูล...</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  function hideLoading() {
+    // Loading will be replaced by actual content
+  }
+
+  // ====== Global Show/Hide Loading Function ======
+  function showGlobalLoading(show) {
+    const loader = document.getElementById('loadingOverlay');
+    if (show) {
+      loader.style.display = 'flex';
+      loader.classList.remove('animate__fadeOut');
+      loader.classList.add('animate__fadeIn');
+
+      // โหลดและเล่น Lottie animation
+      if (!lottieAnimation) {
+        console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+        fetch('/Loading/Loading.json')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(animationData => {
+            lottieAnimation = lottie.loadAnimation({
+              container: document.getElementById('lottieContainer'),
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+
+            console.log('✅ Lottie animation loaded successfully');
+          })
+          .catch(error => {
+            console.error('❌ Error loading Lottie animation:', error);
+            // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+            document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+          });
+      } else {
+        lottieAnimation.play();
+      }
+    } else {
+      if (lottieAnimation) {
+        lottieAnimation.pause();
+      }
+      loader.classList.remove('animate__fadeIn');
+      loader.classList.add('animate__fadeOut');
+      setTimeout(() => { loader.style.display = 'none'; }, 600);
+    }
+  }
+
+  // ช่วยแปลง URL รูปพนักงาน
+  function resolvePhotoUrl(raw) {
+    if (!raw) return '/api/placeholder/36/36';
+    if (/^https?:\/\//.test(raw)) return raw;
+    if (raw.startsWith('/uploads/employees/')) return raw;
+    if (raw.startsWith('/uploads/')) return raw.replace(/^\/uploads\//, '/uploads/employees/');
+    return `/uploads/employees/${raw}`;
+  }
+
+  // ดึงข้อมูลโปรไฟล์ผู้ใช้ → อัปเดต sidebar
+  async function fetchUserProfile() {
+    showGlobalLoading(true);
+    try {
+      const res  = await fetch(`${API_BASE}/users/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.message||res.status);
+    currentUser = json.data;
+    document.getElementById('employeeName').textContent = currentUser.name;
+    document.getElementById('employeePhoto').src      = resolvePhotoUrl(currentUser.photoUrl);
+    localStorage.setItem('userInfo', JSON.stringify({
+      name: currentUser.name,
+      photoUrl: currentUser.photoUrl
+    }));
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    } finally {
+      showGlobalLoading(false);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    if (!token) return window.location.href = '/login';
+    checkDarkMode();
+    setupEventListeners();
+    await fetchUserProfile();             // ← โหลดโปรไฟล์ก่อน
+    await fetchEmployees();               // ← หลังมี currentUser
+    await fetchEmployeeNotifications();
+  });
+
+  function setupEventListeners() {
+    document.getElementById('btnToggleMenu')?.addEventListener('click', toggleSidebar);
+    document.getElementById('btnToggleDark')?.addEventListener('click', toggleDarkMode);
+    document.getElementById('btnLogout')?.addEventListener('click', () => logoutUser());
+
+    document.getElementById('btnAddNotification')?.addEventListener('click', openAddNotificationModal);
+    document.getElementById('closeNotificationModal')?.addEventListener('click', closeNotificationModal);
+    document.getElementById('btnCancelNotification')?.addEventListener('click', closeNotificationModal);
+    document.getElementById('notificationForm')?.addEventListener('submit', handleNotificationFormSubmit);
+
+    document.getElementById('notificationType')?.addEventListener('change', e => {
+      const show = (e.target.value === 'เตือนพฤติกรรม');
+      document.getElementById('levelGroup').style.display = show ? 'block' : 'none';
+    });
+
+    // Action ในตาราง
+    document.getElementById('notificationTableBody').addEventListener('click', event => {
+      const btn = event.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if (action === 'view-notification') {
+        openViewNotificationModal(id);
+      } else if (action === 'delete-notification') {
+        deleteNotification(id);
+      }
+    });
+  }
+
+  async function fetchEmployees() {
+    showGlobalLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/users`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to load users');
+      allEmployees = json.data.map(u => ({
+        id: u._id,
+        name: sanitizeInput(u.employee?.name || u.name || 'N/A'),
+        position: sanitizeInput(u.employee?.position || '')
+      }));
+      populateEmployeeSelect();
+    } catch (err) {
+      console.error('fetchEmployees error:', err);
+      showNotification('ไม่สามารถโหลดข้อมูลพนักงานได้', 'error');
+    } finally {
+      showGlobalLoading(false);
+    }
+  }
+
+  function populateEmployeeSelect() {
+    const select = document.getElementById('notificationEmployeeSelect');
+    if (!select) return;
+
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+    allEmployees.forEach(emp => {
+      const option = document.createElement('option');
+      option.value = emp.id;
+      option.textContent = `${emp.name} (${emp.position})`;
+      select.appendChild(option);
+    });
+  }
+
+  async function fetchEmployeeNotifications() {
+    showGlobalLoading(true);
+    try {
+      // Show loading state
+      showLoading('notificationTableBody');
+
+      const res = await fetch(`${API_BASE}/notifications`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+
+      // จัดรูปแบบข้อมูล
+      allEmployeeNotifications = result.data.map(n => {
+        // หาชื่อพนักงาน (เผื่อ populated)
+        const rawUser = n.user;
+        const userId = (typeof rawUser === 'object' && (rawUser._id || rawUser.id))
+                       ? (rawUser._id || rawUser.id)
+                       : rawUser;
+        const emp = allEmployees.find(e => e.id === userId);
+        return {
+          ...n,
+          employeeName: emp ? sanitizeInput(emp.name) : 'N/A'
+        };
+      });
+      renderEmployeeNotifications(allEmployeeNotifications);
+    } catch (err) {
+      console.error('Fetch notifications error:', err);
+      showNotification('ไม่สามารถโหลดข้อมูลใบแจ้งเตือนได้: ' + err.message, 'error');
+
+      // Show error state in table
+      const tbody = document.getElementById('notificationTableBody');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center p-4 text-red-600">
+            <i class="bi bi-exclamation-triangle mr-2"></i>
+            เกิดข้อผิดพลาดในการโหลดข้อมูล
+          </td>
+        </tr>
+      `;
+    } finally {
+      showGlobalLoading(false);
+    }
+  }
+
+  function renderEmployeeNotifications(data) {
+    const tbody = document.getElementById('notificationTableBody');
+    const emptyState = document.getElementById('notificationEmptyState');
+
+    // Clear existing content
+    while (tbody.firstChild) {
+      tbody.removeChild(tbody.firstChild);
+    }
+
+    if (!data || !data.length) {
+      emptyState.classList.remove('hidden');
+      return;
+    }
+
+    emptyState.classList.add('hidden');
+
+    data.forEach(n => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 animate-fade-in';
+
+      // Create cells safely using createElement and textContent
+      const dateCell = createTableCell(formatDate(n.date));
+      const employeeCell = createTableCell(sanitizeInput(n.employeeName));
+      const typeCell = createTableCell(sanitizeInput(n.type));
+      const titleCell = createTableCell(sanitizeInput(n.title) || '-');
+
+      const messageCell = createTableCell(sanitizeInput(n.message));
+      messageCell.className += ' truncate max-w-xs';
+      messageCell.title = sanitizeInput(n.message);
+
+      const fineCell = createTableCell(n.fine ? '฿' + n.fine : '-', 'text-center');
+
+      // Action buttons cell
+      const actionCell = createTableCell('', 'text-center');
+
+      const viewBtn = document.createElement('button');
+      viewBtn.className = 'btn btn-ghost btn-xs text-info mr-2';
+      viewBtn.setAttribute('data-action', 'view-notification');
+      viewBtn.setAttribute('data-id', n._id);
+      viewBtn.innerHTML = '<i class="bi bi-eye"></i>';
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'btn btn-ghost btn-xs text-error';
+      deleteBtn.setAttribute('data-action', 'delete-notification');
+      deleteBtn.setAttribute('data-id', n._id);
+      deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+
+      actionCell.appendChild(viewBtn);
+      actionCell.appendChild(deleteBtn);
+
+      // Append all cells to row
+      tr.appendChild(dateCell);
+      tr.appendChild(employeeCell);
+      tr.appendChild(typeCell);
+      tr.appendChild(titleCell);
+      tr.appendChild(messageCell);
+      tr.appendChild(fineCell);
+      tr.appendChild(actionCell);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Helper function to create table cells safely
+  function createTableCell(content, additionalClass = '') {
+    const cell = document.createElement('td');
+    cell.className = `px-4 py-3 bg-white dark:bg-gray-900 ${additionalClass}`;
+    cell.textContent = content;
+    return cell;
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleDateString('th-TH', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  function openAddNotificationModal() {
+    document.getElementById('notificationModalTitle').textContent = 'เพิ่มใบแจ้งเตือน';
+    document.getElementById('notificationId').value = '';
+    document.getElementById('notificationEmployeeSelect').value = '';
+    document.getElementById('notificationType').value = '';
+    document.getElementById('notificationDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('notificationDetail').value = '';
+    document.getElementById('notificationTitle').value = '';
+    document.getElementById('notificationLevel').value = '';
+    document.getElementById('notificationFine').value = '0';
+    document.getElementById('notificationActionNeeded').value = '';
+    document.getElementById('notificationDepartment').value = 'HR';
+    document.getElementById('levelGroup').style.display = 'none';
+
+    // เปิด modal
+    document.getElementById('notificationModal').classList.add('modal-open');
+  }
+
+   async function openViewNotificationModal(notificationId) {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/${notificationId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      const n = json.data;
+
+      // สกัดเอา userId ให้ตรงกับค่าใน <option>
+      const rawUser = n.user;
+      const userId = (typeof rawUser === 'object' && (rawUser._id || rawUser.id))
+                     ? (rawUser._id || rawUser.id)
+                     : rawUser;
+
+      document.getElementById('notificationModalTitle').textContent = 'รายละเอียดใบแจ้งเตือน';
+      document.getElementById('notificationId').value = notificationId;
+      // ใส่ userId ลงไป
+      document.getElementById('notificationEmployeeSelect').value = userId;
+      document.getElementById('notificationType').value = n.type;
+      document.getElementById('notificationDate').value = (n.date || '').split('T')[0];
+      document.getElementById('notificationDetail').value = n.message;
+      document.getElementById('notificationTitle').value = n.title || '';
+      document.getElementById('notificationLevel').value = n.level || '';
+      document.getElementById('notificationFine').value = n.fine || '0';
+      document.getElementById('notificationActionNeeded').value = n.actionNeeded || '';
+      document.getElementById('notificationDepartment').value = n.department || 'HR';
+      document.getElementById('levelGroup').style.display = (n.type === 'เตือนพฤติกรรม') ? 'block' : 'none';
+
+      // โหมดอ่านอย่างเดียว
+      disableNotificationForm(true);
+
+      document.getElementById('notificationModal').classList.add('modal-open');
+    } catch (err) {
+      console.error('openViewNotificationModal error:', err);
+      showNotification('ไม่สามารถโหลดข้อมูลได้: ' + err.message, 'error');
+    }
+  }
+
+
+  function disableNotificationForm(disabled) {
+    [
+      'notificationEmployeeSelect','notificationType','notificationDate',
+      'notificationDetail','notificationTitle','notificationLevel',
+      'notificationFine','notificationActionNeeded','notificationDepartment'
+    ].forEach(id => {
+      document.getElementById(id).disabled = disabled;
+    });
+    document.getElementById('notificationForm').querySelector('button[type="submit"]').style.display = disabled ? 'none' : 'block';
+  }
+
+  function closeNotificationModal() {
+    // กลับสู่โหมดแก้ไขได้
+    disableNotificationForm(false);
+    document.getElementById('notificationModal').classList.remove('modal-open');
+  }
+
+  async function handleNotificationFormSubmit(e) {
+    e.preventDefault();
+
+    // Create payload with sanitized inputs
+    const rawPayload = {
+      user: document.getElementById('notificationEmployeeSelect').value,
+      type: document.getElementById('notificationType').value,
+      title: document.getElementById('notificationTitle').value,
+      message: document.getElementById('notificationDetail').value,
+      date: document.getElementById('notificationDate').value,
+      level: parseInt(document.getElementById('notificationLevel').value) || 0,
+      fine: parseInt(document.getElementById('notificationFine').value) || 0,
+      actionNeeded: document.getElementById('notificationActionNeeded')?.value || '',
+      department: document.getElementById('notificationDepartment')?.value || 'HR'
+    };
+
+    // Validate form data
+    const validationErrors = validateNotificationForm(rawPayload);
+    if (validationErrors.length > 0) {
+      showNotification(validationErrors.join('\n'), 'error', 8000);
+      return;
+    }
+
+    // Sanitize text inputs
+    const payload = {
+      ...rawPayload,
+      type: sanitizeInput(rawPayload.type),
+      title: sanitizeInput(rawPayload.title),
+      message: sanitizeInput(rawPayload.message),
+      actionNeeded: sanitizeInput(rawPayload.actionNeeded),
+      department: sanitizeInput(rawPayload.department)
+    };
+
+    const id = document.getElementById('notificationId').value;
+    const url = id ? `${API_BASE}/notifications/${id}` : `${API_BASE}/notifications`;
+    const method = id ? 'PATCH' : 'POST';
+
+    try {
+      // Show loading in submit button
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="bi bi-arrow-clockwise animate-spin mr-2"></i>กำลังบันทึก...';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+
+      showNotification(id ? 'อัปเดตใบแจ้งเตือนเรียบร้อย' : 'เพิ่มใบแจ้งเตือนเรียบร้อย', 'success');
+      closeNotificationModal();
+      await fetchEmployeeNotifications();
+
+    } catch (err) {
+      console.error('notification submit error:', err);
+      showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');
+    } finally {
+      // Restore submit button
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-check-lg mr-2"></i>บันทึก';
+      }
+    }
+  }
+
+  async function deleteNotification(notificationId) {
+    if (!confirm(`คุณต้องการลบใบแจ้งเตือน ID: ${notificationId} หรือไม่?`))
+      return;
+    try {
+      const res = await fetch(`${API_BASE}/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      showNotification('ลบใบแจ้งเตือนเรียบร้อยแล้ว', 'success');
+      await fetchEmployeeNotifications();
+    } catch (err) {
+      console.error('delete notification error:', err);
+      showNotification('ไม่สามารถลบได้: ' + err.message, 'error');
+    }
+  }
+
+  // --- ฟังก์ชัน Layout ทั่วไป ---
+  function toggleSidebar() {
+    document.getElementById('sidebar')?.classList.toggle('-ml-64');
+    const icon = document.querySelector('#btnToggleMenu i');
+    icon?.classList.toggle('bi-chevron-left');
+    icon?.classList.toggle('bi-chevron-right');
+  }
+
+  function toggleDarkMode() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('darkMode', isDark);
+    document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+  }
+
+  function checkDarkMode() {
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    document.documentElement.classList.toggle('dark', isDark);
+    const label = document.getElementById('darkModeLabel');
+    if (label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+  }
+
+  function logoutUser() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userId');
+    showNotification('ออกจากระบบแล้ว', 'info');
+    window.location.href = '/login';
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สั่งซื้อ - Purchase Order Management</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+  
+  <!-- Google Fonts - Prompt (Thai) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- ตรวจสอบการล็อกอิน: หากไม่มี authToken ให้รีไดเร็กไปที่ login -->
+  <script>
+    if (!localStorage.getItem('authToken')) {
+      window.location.href = '/login';
+    }
+  </script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <!-- Tailwind CSS CDN -->
+  <link href="/css/tailwind.css" rel="stylesheet">
+
+  <!-- กำหนดค่า Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            },
+            secondary: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+            },
+            teal: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              200: '#99f6e4',
+              300: '#5eead4',
+              400: '#2dd4bf',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+            },
+          },
+          boxShadow: {
+            'card': '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb {
+      background: #555;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #777;
+    }
+
+    /* Table hover styles */
+    .table-hover tr:hover td {
+      background-color: rgba(14, 165, 233, 0.05);
+    }
+    
+    .dark .table-hover tr:hover td {
+      background-color: rgba(14, 165, 233, 0.15);
+    }
+
+    /* Animated pulse for status dots */
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    
+    .animate-pulse-slow {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* Status dot colors */
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 dark:text-white min-h-screen flex flex-col">
+
+  <!-- Container สำหรับ Toast แจ้งเตือน -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Navbar -->
+  <nav class="bg-white dark:bg-gray-800 shadow-sm px-6 py-4 sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div class="flex items-center space-x-4">
+        <a href="home.html" class="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 focus:outline-none">
+          <i class="bi bi-arrow-left text-2xl"></i>
+        </a>
+        <div class="flex items-center space-x-2">
+          <img src="/favicon/favicon-32x32.png" alt="Logo" class="h-8 w-8 hidden md:block">
+          <span class="text-xl font-bold text-teal-600 dark:text-teal-400">ระบบสั่งซื้อ</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <!-- Search Button -->
+        <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300" id="searchButton">
+          <i class="bi bi-search"></i>
+        </button>
+        
+        <!-- Dark Mode Toggle Button -->
+        <button id="btnToggleDark" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300">
+          <i class="bi bi-moon-fill dark:hidden"></i>
+          <i class="bi bi-sun-fill hidden dark:block"></i>
+        </button>
+
+        <!-- User Profile -->
+        <div class="relative" id="profileDropdownContainer">
+          <button id="profileDropdownButton" class="flex items-center space-x-2 focus:outline-none">
+            <div class="w-8 h-8 rounded-full bg-teal-500 text-white flex items-center justify-center">
+              <i class="bi bi-person-fill"></i>
+            </div>
+            <span id="topUserName" class="font-medium hidden md:block">Loading...</span>
+            <i class="bi bi-chevron-down text-sm hidden md:block"></i>
+          </button>
+          
+          <!-- Profile Dropdown -->
+          <div id="profileDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hidden z-30">
+            <div class="p-3 border-b border-gray-200 dark:border-gray-700">
+              <div class="font-medium text-sm" id="dropdownUserName">Loading...</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</div>
+            </div>
+            <ul class="py-2">
+              <li>
+                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <i class="bi bi-person mr-2"></i> โปรไฟล์
+                </a>
+              </li>
+              <li>
+                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <i class="bi bi-gear mr-2"></i> ตั้งค่า
+                </a>
+              </li>
+              <li class="border-t border-gray-200 dark:border-gray-700 mt-2">
+                <button id="btnLogout" class="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30">
+                  <i class="bi bi-box-arrow-right mr-2"></i> ออกจากระบบ
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <main class="flex-1 px-6 py-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Breadcrumbs -->
+      <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+          <li class="inline-flex items-center">
+            <a href="home.html" class="inline-flex items-center text-sm text-gray-700 hover:text-primary-600 dark:text-gray-400 dark:hover:text-white">
+              <i class="bi bi-house-door-fill mr-2"></i>
+              หน้าแรก
+            </a>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <i class="bi bi-chevron-right text-gray-400 mx-2"></i>
+              <span class="text-sm text-gray-500 dark:text-gray-400">ระบบสั่งซื้อ</span>
+            </div>
+          </li>
+        </ol>
+      </nav>
+      
+      <!-- Purchase Order Dashboard -->
+      <section class="mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-card p-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+              <h1 class="text-2xl md:text-3xl font-bold mb-2">รายการสั่งซื้อ</h1>
+              <p class="text-gray-600 dark:text-gray-300">
+                จัดการใบสั่งซื้อและติดตามสถานะการจัดซื้อ
+              </p>
+            </div>
+            <div class="mt-4 md:mt-0">
+              <button class="btn-create-po bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                <i class="bi bi-plus-circle"></i>
+                <span>สร้างใบสั่งซื้อใหม่</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Stats Overview -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 mb-8">
+            <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4">
+              <div class="text-blue-600 dark:text-blue-300 text-sm">รออนุมัติ</div>
+              <div class="text-xl font-bold mt-1">12</div>
+              <div class="text-xs text-blue-600 dark:text-blue-400 flex items-center mt-2">
+                <span class="ml-1">รออนุมัติจากผู้จัดการ</span>
+              </div>
+            </div>
+            <div class="bg-yellow-50 dark:bg-yellow-900/30 rounded-lg p-4">
+              <div class="text-yellow-600 dark:text-yellow-300 text-sm">รอสินค้า</div>
+              <div class="text-xl font-bold mt-1">8</div>
+              <div class="text-xs text-yellow-600 dark:text-yellow-400 flex items-center mt-2">
+                <span class="ml-1">อยู่ระหว่างการจัดส่ง</span>
+              </div>
+            </div>
+            <div class="bg-green-50 dark:bg-green-900/30 rounded-lg p-4">
+              <div class="text-green-600 dark:text-green-300 text-sm">เสร็จสิ้น</div>
+              <div class="text-xl font-bold mt-1">23</div>
+              <div class="text-xs text-green-600 dark:text-green-400 flex items-center mt-2">
+                <i class="bi bi-arrow-up-right"></i>
+                <span class="ml-1">5.3% จากเดือนก่อน</span>
+              </div>
+            </div>
+            <div class="bg-red-50 dark:bg-red-900/30 rounded-lg p-4">
+              <div class="text-red-600 dark:text-red-300 text-sm">ยกเลิก</div>
+              <div class="text-xl font-bold mt-1">3</div>
+              <div class="text-xs text-red-600 dark:text-red-400 flex items-center mt-2">
+                <i class="bi bi-arrow-down-right"></i>
+                <span class="ml-1">2.1% จากเดือนก่อน</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Filter Controls -->
+          <div class="mb-6 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0 w-full md:w-auto">
+              <div class="relative">
+                <input type="text" placeholder="ค้นหาใบสั่งซื้อ..." class="w-full md:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <i class="bi bi-search absolute left-3 top-2.5 text-gray-400 dark:text-gray-500"></i>
+              </div>
+              
+              <select class="w-full sm:w-40 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="all">สถานะทั้งหมด</option>
+                <option value="pending">รออนุมัติ</option>
+                <option value="approved">อนุมัติแล้ว</option>
+                <option value="shipped">รอรับสินค้า</option>
+                <option value="completed">เสร็จสิ้น</option>
+                <option value="cancelled">ยกเลิก</option>
+              </select>
+            </div>
+            
+            <div class="flex space-x-2 w-full md:w-auto justify-between md:justify-end">
+              <div class="flex space-x-2">
+                <button class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <i class="bi bi-funnel"></i>
+                </button>
+                <button class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <i class="bi bi-sort-down"></i>
+                </button>
+              </div>
+              
+              <div class="flex space-x-2">
+                <button class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <i class="bi bi-printer"></i>
+                </button>
+                <button class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <i class="bi bi-file-earmark-excel"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Purchase Orders Table -->
+          <div class="overflow-x-auto">
+            <table class="min-w-full table-hover">
+              <thead>
+                <tr class="bg-gray-100 dark:bg-gray-700">
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">เลขที่ PO</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">วันที่</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ซัพพลายเออร์</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">มูลค่ารวม</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">สถานะ</th>
+                  <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tr>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-teal-600 dark:text-teal-400">PO-25660001</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">10/10/2566</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">บริษัท แอดวานซ์ ซัพพลาย จำกัด</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">฿38,500.00</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                      <span class="status-dot bg-blue-500 mr-1 animate-pulse-slow"></span>
+                      รออนุมัติ
+                    </span>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-center">
+                    <div class="flex justify-center space-x-2">
+                      <button class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-teal-600 dark:text-teal-400">PO-25660002</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">15/10/2566</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">หจก. สมาร์ท โมบาย</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">฿128,750.00</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                      <span class="status-dot bg-yellow-500 mr-1 animate-pulse-slow"></span>
+                      รอรับสินค้า
+                    </span>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-center">
+                    <div class="flex justify-center space-x-2">
+                      <button class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-teal-600 dark:text-teal-400">PO-25660003</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">18/10/2566</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">อัพเกรด คอมพิวเตอร์</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">฿7,200.00</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                      <span class="status-dot bg-green-500 mr-1"></span>
+                      เสร็จสิ้น
+                    </span>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-center">
+                    <div class="flex justify-center space-x-2">
+                      <button class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 opacity-50 cursor-not-allowed">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-50 cursor-not-allowed">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-teal-600 dark:text-teal-400">PO-25660004</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">20/10/2566</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">ร้าน ไทยเทค อีเล็คทรอนิกส์</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">฿45,920.00</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                      <span class="status-dot bg-red-500 mr-1"></span>
+                      ยกเลิก
+                    </span>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-center">
+                    <div class="flex justify-center space-x-2">
+                      <button class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 opacity-50 cursor-not-allowed">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-50 cursor-not-allowed">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-teal-600 dark:text-teal-400">PO-25660005</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">22/10/2566</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">บริษัท แอดวานซ์ ซัพพลาย จำกัด</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">฿23,450.00</div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                      <span class="status-dot bg-blue-500 mr-1 animate-pulse-slow"></span>
+                      รออนุมัติ
+                    </span>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-center">
+                    <div class="flex justify-center space-x-2">
+                      <button class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Pagination -->
+          <div class="mt-6 flex items-center justify-between">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              แสดง 1 ถึง 5 จากทั้งหมด 42 รายการ
+            </div>
+            <div class="flex space-x-1">
+              <button class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50" disabled>
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <button class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-teal-500 text-white">1</button>
+              <button class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">2</button>
+              <button class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">3</button>
+              <button class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Suppliers Section -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-4">ซัพพลายเออร์ล่าสุด</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-card p-5">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-medium text-lg">บริษัท แอดวานซ์ ซัพพลาย จำกัด</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">อุปกรณ์อิเล็กทรอนิกส์</p>
+              </div>
+              <div class="bg-teal-100 dark:bg-teal-900/30 rounded-full p-2 text-teal-600 dark:text-teal-400">
+                <i class="bi bi-lightning-charge"></i>
+              </div>
+            </div>
+            <div class="mt-4 text-sm">
+              <div class="flex items-center text-gray-600 dark:text-gray-300">
+                <i class="bi bi-telephone mr-2"></i>
+                <span>02-123-4567</span>
+              </div>
+              <div class="flex items-center text-gray-600 dark:text-gray-300 mt-1">
+                <i class="bi bi-envelope mr-2"></i>
+                <span>contact@advsupply.co.th</span>
+              </div>
+            </div>
+            <div class="mt-4 flex justify-between">
+              <span class="text-sm text-gray-500 dark:text-gray-400">สั่งซื้อล่าสุด: 22/10/2566</span>
+              <a href="#" class="text-teal-600 dark:text-teal-400 text-sm hover:underline">ดูรายละเอียด</a>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-card p-5">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-medium text-lg">หจก. สมาร์ท โมบาย</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">อุปกรณ์โทรศัพท์มือถือ</p>
+              </div>
+              <div class="bg-blue-100 dark:bg-blue-900/30 rounded-full p-2 text-blue-600 dark:text-blue-400">
+                <i class="bi bi-phone"></i>
+              </div>
+            </div>
+            <div class="mt-4 text-sm">
+              <div class="flex items-center text-gray-600 dark:text-gray-300">
+                <i class="bi bi-telephone mr-2"></i>
+                <span>02-234-5678</span>
+              </div>
+              <div class="flex items-center text-gray-600 dark:text-gray-300 mt-1">
+                <i class="bi bi-envelope mr-2"></i>
+                <span>sales@smartmobile.co.th</span>
+              </div>
+            </div>
+            <div class="mt-4 flex justify-between">
+              <span class="text-sm text-gray-500 dark:text-gray-400">สั่งซื้อล่าสุด: 15/10/2566</span>
+              <a href="#" class="text-teal-600 dark:text-teal-400 text-sm hover:underline">ดูรายละเอียด</a>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-card p-5">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-medium text-lg">อัพเกรด คอมพิวเตอร์</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">อุปกรณ์คอมพิวเตอร์</p>
+              </div>
+              <div class="bg-green-100 dark:bg-green-900/30 rounded-full p-2 text-green-600 dark:text-green-400">
+                <i class="bi bi-pc-display"></i>
+              </div>
+            </div>
+            <div class="mt-4 text-sm">
+              <div class="flex items-center text-gray-600 dark:text-gray-300">
+                <i class="bi bi-telephone mr-2"></i>
+                <span>02-345-6789</span>
+              </div>
+              <div class="flex items-center text-gray-600 dark:text-gray-300 mt-1">
+                <i class="bi bi-envelope mr-2"></i>
+                <span>info@upgradecomputer.co.th</span>
+              </div>
+            </div>
+            <div class="mt-4 flex justify-between">
+              <span class="text-sm text-gray-500 dark:text-gray-400">สั่งซื้อล่าสุด: 18/10/2566</span>
+              <a href="#" class="text-teal-600 dark:text-teal-400 text-sm hover:underline">ดูรายละเอียด</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white dark:bg-gray-800 py-6 px-6 mt-8 border-t border-gray-200 dark:border-gray-700">
+    <div class="max-w-7xl mx-auto text-center">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        &copy; 2025 บริษัท 2 พี่น้อง โมบาย จำกัด. สงวนลิขสิทธิ์ทั้งหมด
+      </p>
+    </div>
+  </footer>
+
+  <!-- Modal: Create PO -->
+  <div id="createPOModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-4xl mx-4 overflow-hidden">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <h3 class="text-xl font-medium text-gray-800 dark:text-gray-200">สร้างใบสั่งซื้อใหม่</h3>
+        <button id="closeCreatePOModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      
+      <div class="p-6 max-h-[80vh] overflow-y-auto">
+        <!-- Form content would go here -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เลขที่ใบสั่งซื้อ</label>
+            <input type="text" value="PO-25660006" readonly class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-800 dark:text-gray-200">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันที่</label>
+            <input type="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ซัพพลายเออร์</label>
+            <select class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+              <option value="">-- เลือกซัพพลายเออร์ --</option>
+              <option value="1">บริษัท แอดวานซ์ ซัพพลาย จำกัด</option>
+              <option value="2">หจก. สมาร์ท โมบาย</option>
+              <option value="3">อัพเกรด คอมพิวเตอร์</option>
+              <option value="4">ร้าน ไทยเทค อีเล็คทรอนิกส์</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">เงื่อนไขการชำระเงิน</label>
+            <select class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+              <option value="cash">เงินสด</option>
+              <option value="credit30">เครดิต 30 วัน</option>
+              <option value="credit60">เครดิต 60 วัน</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันที่รับสินค้า (คาดการณ์)</label>
+            <input type="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+          </div>
+        </div>
+
+        <!-- Product Items -->
+        <h4 class="font-medium mb-3">รายการสินค้า</h4>
+        <div class="border border-gray-200 dark:border-gray-700 rounded-lg mb-6">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead>
+              <tr class="bg-gray-50 dark:bg-gray-800">
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ลำดับ</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">รหัสสินค้า</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">รายการ</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">จำนวน</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ราคาต่อหน่วย</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">รวม</th>
+                <th class="px-3 py-3"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+              <tr>
+                <td class="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">1</td>
+                <td class="px-3 py-3">
+                  <input type="text" class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                </td>
+                <td class="px-3 py-3">
+                  <input type="text" class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                </td>
+                <td class="px-3 py-3">
+                  <input type="number" class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                </td>
+                <td class="px-3 py-3">
+                  <input type="number" class="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                </td>
+                <td class="px-3 py-3">
+                  <input type="number" readonly class="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                </td>
+                <td class="px-3 py-3">
+                  <button class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <!-- Empty row for adding new items -->
+              <tr>
+                <td colspan="7" class="px-3 py-3 text-center">
+                  <button class="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600">
+                    <i class="bi bi-plus"></i> เพิ่มรายการ
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Totals -->
+        <div class="flex flex-col md:flex-row md:justify-between">
+          <div class="mb-4 md:mb-0 md:w-1/2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หมายเหตุ</label>
+            <textarea class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 h-24"></textarea>
+          </div>
+          <div class="md:w-1/3">
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div class="flex justify-between mb-2">
+                <span class="text-sm text-gray-600 dark:text-gray-400">รวมเป็นเงิน:</span>
+                <span class="text-sm text-gray-800 dark:text-gray-200">0.00 บาท</span>
+              </div>
+              <div class="flex justify-between mb-2">
+                <span class="text-sm text-gray-600 dark:text-gray-400">ภาษีมูลค่าเพิ่ม 7%:</span>
+                <span class="text-sm text-gray-800 dark:text-gray-200">0.00 บาท</span>
+              </div>
+              <div class="border-t border-gray-300 dark:border-gray-700 my-2"></div>
+              <div class="flex justify-between font-medium">
+                <span class="text-gray-700 dark:text-gray-300">ยอดรวมทั้งสิ้น:</span>
+                <span class="text-teal-600 dark:text-teal-400">0.00 บาท</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+        <button id="cancelCreatePOBtn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300">
+          ยกเลิก
+        </button>
+        <button class="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg">
+          บันทึกใบสั่งซื้อ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // Handle user authentication
+    function updateNameOnPage(name) {
+      const topUserName = document.getElementById('topUserName');
+      const dropdownUserName = document.getElementById('dropdownUserName');
+
+      if (topUserName) topUserName.textContent = name;
+      if (dropdownUserName) dropdownUserName.textContent = name;
+    }
+
+    function setupProfileDropdown() {
+      const button = document.getElementById('profileDropdownButton');
+      const dropdown = document.getElementById('profileDropdown');
+    
+      if (button && dropdown) {
+        button.addEventListener('click', () => {
+          dropdown.classList.toggle('hidden');
+        });
+    
+        document.addEventListener('click', (e) => {
+          if (!button.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+          }
+        });
+      }
+    }
+
+    // Load user data from local storage
+    function loadUserData() {
+      const token = localStorage.getItem('authToken');
+    
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+
+      // Display stored name from localStorage
+      updateNameOnPage(localStorage.getItem('userName') || 'ผู้ใช้');
+    
+      // Setup logout button
+      const btnLogout = document.getElementById('btnLogout');
+      if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userName');
+          localStorage.removeItem('userInfo');
+          showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1000);
+        });
+      }
+    }
+
+    // Create PO modal functionality
+    function setupCreatePOModal() {
+      const modal = document.getElementById('createPOModal');
+      const openBtn = document.querySelector('.btn-create-po');
+      const closeBtn = document.getElementById('closeCreatePOModal');
+      const cancelBtn = document.getElementById('cancelCreatePOBtn');
+    
+      if (!modal || !openBtn || !closeBtn) return;
+    
+      openBtn.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+      });
+    
+      const closeModal = () => {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+      };
+    
+      closeBtn.addEventListener('click', closeModal);
+      if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    
+      // Close when clicking outside
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+    }
+
+    // Toast notifications
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+    
+      // Define icon and style based on type
+      let icon = '';
+      let bgClass = '';
+    
+      switch(type) {
+        case 'success':
+          icon = '<i class="bi bi-check-circle-fill mr-2"></i>';
+          bgClass = 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-l-4 border-green-500';
+          break;
+        case 'error':
+          icon = '<i class="bi bi-x-circle-fill mr-2"></i>';
+          bgClass = 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-l-4 border-red-500';
+          break;
+        case 'info':
+          icon = '<i class="bi bi-info-circle-fill mr-2"></i>';
+          bgClass = 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-l-4 border-blue-500';
+          break;
+        default:
+          icon = '<i class="bi bi-bell-fill mr-2"></i>';
+          bgClass = 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300 border-l-4 border-gray-500';
+      }
+
+      toast.className = [
+        'px-4', 'py-3', 'rounded-md', 'shadow-lg', 'mb-3', 'flex', 'items-center',
+        ...bgClass.split(' '),
+        'animate__animated', 'animate__fadeInRight'
+      ].join(' ');
+      toast.innerHTML = `${icon}<span>${message}</span>`;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('animate__fadeInRight');
+        toast.classList.add('animate__fadeOutRight');
+        setTimeout(() => container.removeChild(toast), 500);
+      }, 3000);
+    }
+
+    // Dark mode functionality
+    function setupDarkMode() {
+      function updateDarkMode() {
+        const isDark = document.documentElement.classList.contains('dark');
+        localStorage.setItem('darkMode', isDark);
+      }
+    
+      function loadDarkMode() {
+        const savedDark = localStorage.getItem('darkMode') === 'true';
+        if (savedDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    
+      function toggleDarkMode() {
+        document.documentElement.classList.toggle('dark');
+        updateDarkMode();
+      }
+    
+      // Load saved preference
+      loadDarkMode();
+    
+      // Setup toggle button
+      const btnToggleDark = document.getElementById('btnToggleDark');
+      if (btnToggleDark) {
+        btnToggleDark.addEventListener('click', toggleDarkMode);
+      }
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      setupDarkMode();
+      setupProfileDropdown();
+      setupCreatePOModal();
+      loadUserData();
+    
+      // Trigger a welcome toast
+      setTimeout(() => {
+        showToast('ยินดีต้อนรับสู่ระบบสั่งซื้อ', 'info');
+      }, 500);
+    });
+  </script>
+</body>
+</html>

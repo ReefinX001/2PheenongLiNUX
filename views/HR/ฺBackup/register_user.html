@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <title>ระบบจัดการผู้ใช้งาน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: { 
+        extend: { 
+          fontFamily: { sans: ['Prompt','sans-serif'] },'
+          colors: {
+            primary: '#5a23c8','
+          }
+        } 
+      },
+      daisyui: { themes: ['light'] },'
+    }
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+    .stats-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      background-color: #f9fafb;
+    }
+    .checkbox-container:hover {
+      background-color: #f3f4f6;
+    }
+    .checkbox-container input {
+      margin-right: 0.5rem;
+    }
+    /* สำหรับ Modal */
+    .modal-box {
+      max-width: 800px;
+    }
+    /* สไตล์สำหรับ toggle switch */
+    .toggle-status {
+      opacity: 1;
+      transition: opacity 0.3s;
+      display: flex;
+      align-items: center;
+    }
+    .toggle-status.loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    /* สไตล์สำหรับการแจ้งเตือน */
+    #notification-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .notification {
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      color: white;
+      display: flex;
+      align-items: center;
+      transform: translateX(0);
+      opacity: 1;
+      transition: all 0.3s ease;
+    }
+    .notification.hide {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  </style>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+</head>
+<body class="bg-gray-100">
+  <!-- Header -->
+  <header class="bg-white shadow-sm py-3 px-4 flex justify-between items-center">
+    <div class="flex items-center">
+      <div class="text-primary font-semibold text-xl">ระบบจัดการผู้ใช้งาน</div>
+   
+    </div>
+    <div class="flex items-center">
+      <div class="relative mr-4">
+        <input type="text" placeholder="ค้นหา..." class="input input-bordered w-64 pl-10 h-10" />
+        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+      </div>
+      <div class="relative mr-4">
+        <i class="fas fa-bell text-gray-600"></i>
+        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+      </div>
+      <div class="avatar">
+        <div class="w-10 rounded-full">
+          
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex">
+    <!-- Main Content (now with no sidebar) -->
+    <main class="flex-1 p-6">
+      <!-- Page Header -->
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold flex items-center">
+          <i class="fas fa-users text-primary mr-2"></i> จัดการผู้ใช้งานระบบ
+        </h1>
+        <div class="flex gap-2">
+          <button class="btn btn-outline">
+            <i class="fas fa-file-export mr-1"></i> นำออกข้อมูล
+          </button>
+          
+            
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div class="stats-card flex items-center">
+          <div class="flex-1">
+            <h3 class="text-3xl font-bold">2</h3>
+            <p class="text-gray-600">ผู้ใช้งานทั้งหมด</p>
+            <p class="text-green-500 text-sm mt-1"><i class="fas fa-arrow-up mr-1"></i>0% จากเดือนที่แล้ว (ตัวอย่าง)</p>
+          </div>
+          <div class="bg-indigo-100 p-3 rounded-lg">
+            <i class="fas fa-users text-indigo-500 text-2xl"></i>
+          </div>
+        </div>
+        
+        <div class="stats-card flex items-center">
+          <div class="flex-1">
+            <h3 class="text-3xl font-bold">10</h3>
+            <p class="text-gray-600">บทบาทในระบบ</p>
+            <p class="text-gray-500 text-sm mt-1"><i class="fas fa-minus mr-1"></i>ไม่มีการเปลี่ยนแปลง</p>
+          </div>
+          <div class="bg-pink-100 p-3 rounded-lg">
+            <i class="fas fa-user-tag text-pink-500 text-2xl"></i>
+          </div>
+        </div>
+        
+        <div class="stats-card flex items-center">
+          <div class="flex-1">
+            <h3 class="text-3xl font-bold">6</h3>
+            <p class="text-gray-600">สาขาทั้งหมด</p>
+            <p class="text-blue-500 text-sm mt-1"><i class="fas fa-plus mr-1"></i>0 สาขา เพิ่มขึ้น (ตัวอย่าง)</p>
+          </div>
+          <div class="bg-blue-100 p-3 rounded-lg">
+            <i class="fas fa-building text-blue-500 text-2xl"></i>
+          </div>
+        </div>
+        
+        <div class="stats-card flex items-center">
+          <div class="flex-1">
+            <h3 class="text-3xl font-bold">0</h3>
+            <p class="text-gray-600">ผู้ใช้งานที่มีปัญหา</p>
+            <p class="text-red-500 text-sm mt-1"><i class="fas fa-arrow-down mr-1"></i>0 ราย ลดลง (ตัวอย่าง)</p>
+          </div>
+          <div class="bg-red-100 p-3 rounded-lg">
+            <i class="fas fa-exclamation-circle text-red-500 text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Information Alert -->
+      <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <i class="fas fa-info-circle text-blue-400"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-blue-700">
+              <strong>สำหรับ CEO/Admin:</strong> หากไม่มีข้อมูลพนักงานในระบบ สามารถติ๊กช่อง "สร้างผู้ใช้งานพิเศษ" เพื่อสร้างบัญชีโดยไม่ต้องมีข้อมูลพนักงานก่อน
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration Form Card -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-6 flex items-center">
+          <i class="fas fa-user-plus text-primary mr-2"></i>
+          เพิ่มผู้ใช้งานใหม่
+        </h2>
+        
+        <form id="registerForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- เพิ่ม Checkbox สำหรับ Virtual Employee -->
+          <div class="form-control w-full md:col-span-2">
+            <div class="flex items-center gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <label class="label cursor-pointer flex items-center gap-2">
+                <input type="checkbox" id="isVirtualEmployee" class="checkbox checkbox-warning" />
+                <span class="label-text font-medium text-yellow-800">
+                  <i class="fas fa-crown mr-2"></i>สร้างผู้ใช้งานพิเศษ (CEO/Admin) - ไม่ต้องมีข้อมูลพนักงาน
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- เลือกพนักงาน -->
+          <div class="form-control w-full" id="employeeSelectDiv">
+            <label class="label"><span class="label-text font-medium">เลือกพนักงาน</span></label>
+            <select id="employeeSelect" name="employee" required class="select select-bordered w-full">
+              <option value="">-- กำลังโหลดข้อมูล --</option>
+            </select>
+          </div>
+
+          <!-- ฟิลด์สำหรับ Virtual Employee -->
+          <div id="virtualEmployeeFields" class="form-control w-full md:col-span-2 hidden">
+            <div class="bg-gray-50 p-4 rounded-lg border">
+              <h3 class="text-lg font-medium mb-4 text-gray-700">
+                <i class="fas fa-user-tie mr-2"></i>ข้อมูลผู้ใช้งานพิเศษ
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-medium">ชื่อ-นามสกุล <span class="text-red-500">*</span></span></label>
+                  <input type="text" id="virtualName" name="virtualName" placeholder="เช่น นาย สมชาย ใจดี" 
+                         class="input input-bordered w-full"/>
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-medium">อีเมล <span class="text-red-500">*</span></span></label>
+                  <input type="email" id="virtualEmail" name="virtualEmail" placeholder="เช่น ceo@company.com" 
+                         class="input input-bordered w-full"/>
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-medium">ตำแหน่ง</span></label>
+                  <input type="text" id="virtualPosition" name="virtualPosition" placeholder="เช่น CEO, ผู้อำนวยการ" 
+                         class="input input-bordered w-full" value="CEO"/>
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-medium">แผนก</span></label>
+                  <input type="text" id="virtualDepartment" name="virtualDepartment" placeholder="เช่น Management" 
+                         class="input input-bordered w-full" value="Management"/>
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-medium">เบอร์โทรศัพท์</span></label>
+                  <input type="tel" id="virtualPhone" name="virtualPhone" placeholder="เช่น 0812345678" 
+                         class="input input-bordered w-full"/>
+                </div>
+              </div>
+              
+              <!-- Image Upload Section -->
+              <div class="mt-6 border-t pt-4">
+                <h4 class="text-md font-medium mb-4 text-gray-700">
+                  <i class="fas fa-camera mr-2"></i>อัปโหลดรูปโปรไฟล์
+                </h4>
+                <div class="flex justify-center">
+                  <!-- Profile Image -->
+                  <div class="form-control">
+                    <label class="label"><span class="label-text font-medium">รูปโปรไฟล์</span></label>
+                    <div class="flex flex-col items-center">
+                      <div class="avatar mb-3">
+                        <div class="w-24 h-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                          <img id="virtualProfilePreview" src="https://via.placeholder.com/150/e2e8f0/64748b?text=Profile" 
+                               alt="Profile Preview" class="object-cover"/>
+                        </div>
+                      </div>
+                      <input type="file" id="virtualProfileImage" name="virtualProfileImage" 
+                             accept="image/*" class="file-input file-input-bordered file-input-sm w-full max-w-xs"
+                             onchange="previewVirtualImage(this, 'virtualProfilePreview')"/>'
+                      <span class="text-xs text-gray-500 mt-1">รองรับไฟล์ JPG, PNG (ขนาดไม่เกิน 5MB)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Username -->
+          <div class="form-control w-full">
+            <label class="label"><span class="label-text font-medium">ชื่อผู้ใช้ (Username)</span></label>
+            <input type="text" name="username" placeholder="กรอกชื่อผู้ใช้" required
+                 class="input input-bordered w-full"/>
+          </div>
+          
+          <!-- Password -->
+          <div class="form-control w-full">
+            <label class="label"><span class="label-text font-medium">รหัสผ่าน (Password)</span></label>
+            <input type="password" name="password" placeholder="กรอกรหัสผ่าน" required
+                 class="input input-bordered w-full"/>
+          </div>
+          
+          <!-- Role (Changed to Checkboxes) -->
+          <div class="form-control w-full md:col-span-2">
+            <label class="label"><span class="label-text font-medium">กำหนดบทบาท (Role)</span></label>
+            <div id="roleCheckboxes" class="checkbox-group bg-gray-50 p-3 rounded-md border">
+              <!-- จะถูกเติมโดย JavaScript -->
+              <p class="text-gray-400 text-center p-2 col-span-full">กำลังโหลดข้อมูล...</p>
+            </div>
+          </div>
+          
+          <!-- Allowed Pages (Changed to Checkboxes) -->
+          <div id="pagesDiv" class="form-control w-full md:col-span-2">
+            <label class="label"><span class="label-text font-medium">เลือกระบบที่อนุญาตให้เข้าถึง</span></label>
+            <div id="pagesCheckboxes" class="checkbox-group bg-gray-50 p-3 rounded-md border">
+              <!-- จะถูกเติมโดย JavaScript -->
+            </div>
+          </div>
+          
+          <!-- Check-in Branches (จะใช้เป็นทั้งสาขาที่เข้าถึงระบบและเช็คอิน) -->
+          <div id="checkinBranchesDiv" class="form-control w-full md:col-span-2">
+            <label class="label">
+              <span class="label-text font-medium">เลือกสาขาที่สามารถเข้าถึงและเช็คอินได้ <span class="text-red-500">*</span></span>
+            </label>
+            <div id="checkinBranchCheckboxes" class="checkbox-group bg-gray-50 p-3 rounded-md border">
+              <!-- จะถูกเติมโดย JavaScript -->
+            </div>
+            <p class="text-xs text-gray-500 mt-1">สาขาที่ผู้ใช้สามารถเข้าถึงข้อมูล ใช้งานระบบ และเช็คอิน-เช็คเอาต์ได้ (อย่างน้อย 1 สาขา)</p>
+          </div>
+          
+
+          
+          <div class="md:col-span-2 flex justify-end mt-4">
+            <button type="button" class="btn btn-outline mr-2">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary px-6">
+              <i class="fas fa-save mr-1"></i> บันทึกข้อมูล
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Example User Table (Just for UI demonstration) -->
+      <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+        <h2 class="text-xl font-semibold mb-4">ผู้ใช้งานในระบบ</h2>
+        
+        <div class="flex flex-wrap gap-3 mb-4">
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-outline btn-sm m-1">
+              บทบาททั้งหมด <i class="fas fa-chevron-down ml-2"></i>
+            </label>
+          </div>
+          
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-outline btn-sm m-1">
+              ทุกสาขา <i class="fas fa-chevron-down ml-2"></i>
+            </label>
+          </div>
+          
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-outline btn-sm m-1">
+              สถานะทั้งหมด <i class="fas fa-chevron-down ml-2"></i>
+            </label>
+          </div>
+          
+          <button class="btn btn-sm">
+            <i class="fas fa-filter mr-1"></i> กรองข้อมูล
+          </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table id="usersTable" class="table w-full">
+            <thead>
+              <tr>
+                <th>
+                  <label>
+                    <input type="checkbox" class="checkbox" />
+                  </label>
+                </th>
+                <th>ชื่อผู้ใช้</th>
+                <th>พนักงาน</th>
+                <th>บทบาท</th>
+                <th>ระบบที่เข้าถึงได้</th>
+                <th>สาขาที่เข้าถึงและเช็คอินได้</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Cleared sample rows -->
+            </tbody>
+          </table>
+          <div class="py-4 flex justify-between items-center">
+            <p class="text-sm text-gray-500">แสดง 1 ถึง 2 จากทั้งหมด 2 รายการ</p>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-disabled">«</button>
+              <button class="btn btn-sm btn-active">1</button>
+              <button class="btn btn-sm btn-disabled">»</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- Modal สำหรับแก้ไขผู้ใช้งาน -->
+  <input type="checkbox" id="edit-user-modal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4 flex items-center">
+        <i class="fas fa-user-edit text-primary mr-2"></i>
+        แก้ไขข้อมูลผู้ใช้งาน
+      </h3>
+      
+
+      <form id="editUserForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <input type="hidden" id="editUserId" name="userId" />
+        
+        <!-- เลือกพนักงาน -->
+        <div class="form-control w-full">
+          <label class="label"><span class="label-text font-medium">พนักงาน</span></label>
+          <select id="editEmployeeSelect" name="employee" required class="select select-bordered w-full" disabled>
+            <option value="">-- กำลังโหลดข้อมูล --</option>
+          </select>
+          <div class="label">
+            <span class="label-text-alt text-gray-500">
+              <i class="fas fa-lock mr-1"></i>
+              ไม่สามารถเปลี่ยนพนักงานได้ในการแก้ไข
+            </span>
+          </div>
+        </div>
+        
+        <!-- Username -->
+        <div class="form-control w-full">
+          <label class="label"><span class="label-text font-medium">ชื่อผู้ใช้ (Username)</span></label>
+          <input type="text" id="editUsername" name="username" placeholder="กรอกชื่อผู้ใช้" required
+                class="input input-bordered w-full"/>
+        </div>
+        
+        <!-- Password - optional for edit -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text font-medium">รหัสผ่าน (เว้นว่างถ้าไม่ต้องการเปลี่ยน)</span>
+          </label>
+          <input type="password" id="editPassword" name="password" placeholder="กรอกรหัสผ่านใหม่หากต้องการเปลี่ยน"
+                class="input input-bordered w-full"/>
+          <div class="label">
+            <span class="label-text-alt text-gray-500">
+              <i class="fas fa-info-circle mr-1"></i>
+              ปล่อยว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน
+            </span>
+          </div>
+        </div>
+        
+        <!-- สถานะการใช้งาน -->
+        <div class="form-control">
+          <label class="label"><span class="label-text font-medium">สถานะการใช้งาน</span></label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="status" value="active" class="radio radio-primary" checked />
+              <span>ใช้งาน</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="status" value="inactive" class="radio" />
+              <span>ระงับการใช้งาน</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Role (Changed to Checkboxes) -->
+        <div class="form-control w-full md:col-span-2">
+          <label class="label">
+            <span class="label-text font-medium">กำหนดบทบาท (Role)</span>
+          </label>
+          <div id="editRoleCheckboxes" class="checkbox-group bg-gray-50 p-3 rounded-md border">
+            <!-- จะถูกเติมโดย JavaScript -->
+            <p class="text-gray-400 text-center p-2 col-span-full">กำลังโหลดข้อมูล...</p>
+          </div>
+        </div>
+        
+        <!-- Allowed Pages -->
+        <div id="editPagesDiv" class="form-control w-full md:col-span-2">
+          <label class="label">
+            <span class="label-text font-medium">เลือกระบบที่อนุญาตให้เข้าถึง</span>
+          </label>
+          <div id="editPagesCheckboxes" class="checkbox-group bg-gray-50 p-3 rounded-md border">
+            <!-- จะถูกเติมโดย JavaScript -->
+          </div>
+        </div>
+        
+        <!-- Check-in Branches (จะใช้เป็นทั้งสาขาที่เข้าถึงระบบและเช็คอิน) -->
+        <div id="editCheckinBranchesDiv" class="form-control w-full md:col-span-2">
+          <label class="label">
+            <span class="label-text font-medium">เลือกสาขาที่สามารถเข้าถึงและเช็คอินได้</span>
+          </label>
+          <div id="editCheckinBranchCheckboxes" class="checkbox-group bg-gray-50 p-3 rounded-md border">
+            <!-- จะถูกเติมโดย JavaScript -->
+            <p class="text-gray-400 text-center p-2 col-span-full">กำลังโหลดข้อมูล...</p>
+          </div>
+        </div>
+        
+
+      </form>
+      
+      <div class="modal-action">
+        <button type="button" class="btn btn-outline" onclick="closeEditModal()">ยกเลิก</button>
+        <button type="button" class="btn btn-primary" onclick="saveUserEdit()">
+          <i class="fas fa-save mr-1"></i> บันทึกการแก้ไข
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- พื้นที่สำหรับแสดงแจ้งเตือน -->
+  <div id="notification-container"></div>
+
+  <script>
+    // API Endpoints
+    const API_ENDPOINTS = {
+      employees: '/api/employees','
+      roles: '/api/roles','
+      userRegister: '/api/users/register','
+      userGet: '/api/users','
+      branches: '/api/branch''
+    };
+
+    // Cache and State Management
+    const appCache = {
+      roles: null,
+      branches: null,
+      employees: null,
+      lastUpdate: {}
+    };
+
+    const token = localStorage.getItem('authToken');'
+    let selectedRole = null;
+
+    // Modules Configuration (ให้ตรงกับ home.html)
+    const modules = [
+      { id: 'accounting', name: 'งานบัญชี' },'
+      { id: 'hr', name: 'ฝ่ายบุคคล' },'
+      { id: 'stock', name: 'คลังสินค้า' },'
+      { id: 'marketing', name: 'การตลาด' },'
+      { id: 'loan', name: 'สินเชื่อ' },'
+      { id: 'pos', name: 'POS - ขายหน้าร้าน' },'
+      { id: 'gifts', name: 'ของแถม' },'
+      { id: 'none', name: 'ไม่กำหนด (ไม่สามารถ Login เข้าระบบได้)' }'
+    ];
+
+    // Utility Functions
+    const debounce = (func, wait) => {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    };
+
+    const showLoading = (element, show = true) => {
+      if (show) {
+        element.classList.add('loading', 'loading-spinner');'
+      } else {
+        element.classList.remove('loading', 'loading-spinner');'
+      }
+    };
+
+    // จัดการ Virtual Employee Toggle
+    document.addEventListener('DOMContentLoaded', function() {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      const virtualCheckbox = document.getElementById('isVirtualEmployee');'
+      if (virtualCheckbox) {
+        virtualCheckbox.addEventListener('change', function() {'
+          const isChecked = this.checked;
+          const employeeSelectDiv = document.getElementById('employeeSelectDiv');'
+          const virtualFields = document.getElementById('virtualEmployeeFields');'
+          const employeeSelect = document.getElementById('employeeSelect');'
+          
+          if (isChecked) {
+            // ซ่อน dropdown เลือกพนักงาน และแสดงฟิลด์ virtual
+            employeeSelectDiv.classList.add('hidden');'
+            virtualFields.classList.remove('hidden');'
+            employeeSelect.removeAttribute('required');'
+            
+            // ทำให้ฟิลด์ virtual เป็น required
+            document.getElementById('virtualName').setAttribute('required', 'required');'
+            document.getElementById('virtualEmail').setAttribute('required', 'required');'
+          } else {
+            // แสดง dropdown เลือกพนักงาน และซ่อนฟิลด์ virtual
+            employeeSelectDiv.classList.remove('hidden');'
+            virtualFields.classList.add('hidden');'
+            employeeSelect.setAttribute('required', 'required');'
+            
+            // ลบ required จากฟิลด์ virtual
+            document.getElementById('virtualName').removeAttribute('required');'
+            document.getElementById('virtualEmail').removeAttribute('required');'
+          }
+        });
+      }
+    });
+
+    // ฟังก์ชัน Preview รูปภาพสำหรับ Virtual Employee
+    function previewVirtualImage(input, previewId) {
+      const file = input.files[0];
+      const preview = document.getElementById(previewId);
+      
+      if (file) {
+        // ตรวจสอบขนาดไฟล์ (5MB = 5 * 1024 * 1024 bytes)
+        if (file.size > 5 * 1024 * 1024) {
+          showNotification('ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 5MB', 'warning');'
+          input.value = '';'
+          return;
+        }
+        
+        // ตรวจสอบประเภทไฟล์
+        if (!file.type.startsWith('image/')) {'
+          showNotification('กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'warning');'
+          input.value = '';'
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // รีเซ็ตให้กลับไปเป็น placeholder
+        preview.src = 'https://via.placeholder.com/150/e2e8f0/64748b?text=Profile';'
+      }
+    }
+
+    // ฟังก์ชันอัปโหลดไฟล์ (ใช้แค่สำหรับ debug - จะไม่ใช้แล้วเพราะส่งไฟล์ไปพร้อม FormData)
+    async function uploadVirtualEmployeeFiles(profileFile) {
+      // ไม่ต้องอัปโหลดแยก เพราะจะส่งไฟล์ไปพร้อมกับข้อมูลพนักงานใน createVirtualEmployee
+      console.log('⚠️ uploadVirtualEmployeeFiles called but skipped - using direct file upload');'
+      return { profileImagePath: null };
+    }
+
+    // ฟังก์ชันสร้าง Virtual Employee
+    async function createVirtualEmployee(virtualData, profileFile = null) {
+      try {
+        console.log('🔄 Creating Virtual Employee with data:', virtualData);'
+        
+        // ไม่ต้องอัปโหลดรูปภาพแยก จะส่งไฟล์ไปพร้อมกับข้อมูลพนักงาน
+        if (profileFile) {
+          console.log('📸 Profile image file ready:', profileFile.name, profileFile.size, 'bytes');'
+        }
+        
+        // ตรวจสอบข้อมูลจำเป็น
+        if (!virtualData.name || !virtualData.email) {
+          throw new Error('ข้อมูลชื่อและอีเมลจำเป็นต้องกรอก');'
+        }
+        
+        // ใช้ FormData แทน JSON เพื่อให้ตรงกับ API ที่คาดหวัง multipart/form-data
+        const formData = new FormData();
+        
+        // สร้าง employeeId ที่ไม่ซ้ำ
+        const timestamp = Date.now();
+        const employeeId = `VE${timestamp.toString().slice(-8)}`;
+        
+        // เพิ่มข้อมูลพื้นฐาน
+        formData.append('employeeId', employeeId);'
+        formData.append('name', virtualData.name.trim());'
+        formData.append('email', virtualData.email.trim());'
+        formData.append('position', virtualData.position?.trim() || 'CEO');'
+        formData.append('department', virtualData.department?.trim() || 'Management');'
+        formData.append('citizenId', '0000000000000');'
+        formData.append('birthDate', '1990-01-01');'
+        formData.append('phone', virtualData.phone?.replace(/\D/g, '') || '0000000000');'
+        formData.append('address', 'Head Office');'
+        formData.append('startDate', new Date().toISOString().split('T')[0]);'
+        formData.append('salary', '0');'
+        formData.append('branch', 'HEAD_OFFICE');'
+        formData.append('emergencyContactName', 'N/A');'
+        formData.append('emergencyContactRelationship', 'N/A');'
+        formData.append('emergencyContactPhone', '0000000000');'
+        
+        // เพิ่มไฟล์รูปภาพ (ถ้ามี)
+        if (profileFile) {
+          formData.append('image', profileFile);'
+        }
+        
+        // Debug log สำหรับ FormData
+        console.log('📤 FormData contents:');'
+        for (let [key, value] of formData.entries()) {
+          console.log(`  ${key}:`, value);
+        }
+        
+        const response = await fetch('/api/employees', {'
+          method: 'POST','
+          headers: {
+            'Authorization': 'Bearer ' + token'
+            // ไม่ใส่ Content-Type เพื่อให้ browser set multipart/form-data อัตโนมัติ
+          },
+          body: formData
+        });
+        
+        console.log('📡 Response status:', response.status);'
+        
+        if (!response.ok) {
+          let errorData;
+          let errorMessage = `เกิดข้อผิดพลาดในเซิร์ฟเวอร์ (HTTP ${response.status})`;
+          
+          try {
+            // พยายาม parse response เป็น JSON
+            const responseText = await response.text();
+            console.error('❌ Raw API Response:', responseText);'
+            
+            if (responseText.trim()) {
+              try {
+                errorData = JSON.parse(responseText);
+                console.error('❌ Parsed API Error:', errorData);'
+                
+                if (errorData.message) {
+                  errorMessage = errorData.message;
+                } else if (errorData.error) {
+                  if (Array.isArray(errorData.error)) {
+                    errorMessage = errorData.error.map(e => e.message || e).join(', ');'
+                  } else {
+                    errorMessage = errorData.error;
+                  }
+                } else if (errorData.errors && Array.isArray(errorData.errors)) {
+                  errorMessage = errorData.errors.map(e => e.message || e).join(', ');'
+                }
+              } catch (parseError) {
+                console.error('❌ Cannot parse JSON, using raw text');'
+                // ถ้า parse ไม่ได้ ใช้ response text ตรงๆ (อาจเป็น HTML error page)
+                if (responseText.includes('<!DOCTYPE html>')) {'
+                  errorMessage = `เซิร์ฟเวอร์ตอบกลับด้วย HTML Error Page (HTTP ${response.status})`;
+                } else {
+                  errorMessage = responseText.substring(0, 200); // จำกัดความยาว
+                }
+              }
+            }
+          } catch (readError) {
+            console.error('❌ Cannot read response:', readError);'
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        console.log('✅ API Success Response:', result);'
+        
+        if (!result.success) {
+          throw new Error(result.message || 'สร้าง Virtual Employee ไม่สำเร็จ');'
+        }
+        
+        console.log('✅ Virtual Employee created with ID:', result.data._id);'
+        return result.data._id;
+        
+      } catch (error) {
+        console.error('❌ Error creating virtual employee:', error);'
+        throw error;
+      }
+    }
+
+    // โหลดโมดูลเข้าตัวเลือก
+    function loadModules() {
+      const container = document.getElementById('pagesCheckboxes');'
+      container.innerHTML = '';'
+      
+      modules.forEach(m => {
+        const div = document.createElement('div');'
+        div.className = 'checkbox-container';'
+        
+        const checkbox = document.createElement('input');'
+        checkbox.type = 'checkbox';'
+        checkbox.name = 'allowedPages';'
+        checkbox.value = m.id;
+        checkbox.id = `page_${m.id}`;
+        checkbox.className = 'checkbox checkbox-sm';'
+        
+        const label = document.createElement('label');'
+        label.htmlFor = `page_${m.id}`;
+        label.textContent = m.name;
+        
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        container.appendChild(div);
+      });
+      
+      // สำหรับโมดูลใน Modal แก้ไข
+      const editContainer = document.getElementById('editPagesCheckboxes');'
+      editContainer.innerHTML = '';'
+      
+      modules.forEach(m => {
+        const div = document.createElement('div');'
+        div.className = 'checkbox-container';'
+        
+        const checkbox = document.createElement('input');'
+        checkbox.type = 'checkbox';'
+        checkbox.name = 'editAllowedPages';'
+        checkbox.value = m.id;
+        checkbox.id = `edit_page_${m.id}`;
+        checkbox.className = 'checkbox checkbox-sm';'
+        
+        const label = document.createElement('label');'
+        label.htmlFor = `edit_page_${m.id}`;
+        label.textContent = m.name;
+        
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        editContainer.appendChild(div);
+      });
+    }
+
+    // ดึงพนักงาน - ปรับปรุงด้วย Cache
+    async function loadEmployees(forceRefresh = false) {
+      const sel = document.getElementById('employeeSelect');'
+      const editSel = document.getElementById('editEmployeeSelect');'
+      
+      // ตรวจสอบ Cache ก่อน
+      if (!forceRefresh && appCache.employees && Date.now() - appCache.lastUpdate.employees < 300000) {
+        populateEmployeeSelects(appCache.employees);
+        return;
+      }
+      
+      try {
+        showLoading(sel.parentElement);
+        showLoading(editSel.parentElement);
+        
+        const res = await fetch(API_ENDPOINTS.employees, { 
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const json = await res.json();
+        
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || json.message || 'โหลดพนักงานล้มเหลว');'
+        }
+        
+        // เก็บใน Cache
+        appCache.employees = json.data;
+        appCache.lastUpdate.employees = Date.now();
+        
+        populateEmployeeSelects(json.data);
+        
+      } catch (err) {
+        console.error('Error loading employees:', err);'
+        sel.innerHTML = '<option value="">! โหลดพนักงานล้มเหลว</option>';'
+        editSel.innerHTML = '<option value="">! โหลดพนักงานล้มเหลว</option>';'
+        showNotification('โหลดรายชื่อพนักงานล้มเหลว: ' + err.message, 'error');'
+      } finally {
+        showLoading(sel.parentElement, false);
+        showLoading(editSel.parentElement, false);
+      }
+    }
+
+    function populateEmployeeSelects(employees) {
+      const sel = document.getElementById('employeeSelect');'
+      const editSel = document.getElementById('editEmployeeSelect');'
+      
+      // สำหรับฟอร์มเพิ่มผู้ใช้
+      sel.innerHTML = '<option value="">-- เลือกพนักงาน --</option>';'
+      
+      // สำหรับฟอร์มแก้ไข
+      editSel.innerHTML = '<option value="">-- เลือกพนักงาน --</option>';'
+      
+      employees.forEach(emp => {
+        const o = document.createElement('option');'
+        o.value = emp._id; 
+        o.textContent = `${emp.name} (${emp.employeeId || 'N/A'})`;'
+        sel.appendChild(o);
+        
+        const editOpt = o.cloneNode(true);
+        editSel.appendChild(editOpt);
+      });
+    }
+
+    // ดึงบทบาท - ปรับปรุงด้วย Cache
+    async function loadRoles(forceRefresh = false) {
+      const container = document.getElementById('roleCheckboxes');'
+      const editContainer = document.getElementById('editRoleCheckboxes');'
+      
+      // ตรวจสอบ Cache ก่อน
+      if (!forceRefresh && appCache.roles && Date.now() - appCache.lastUpdate.roles < 300000) {
+        populateRoleContainers(appCache.roles);
+        return;
+      }
+      
+      try {
+        showLoading(container);
+        showLoading(editContainer);
+        
+        const res = await fetch(API_ENDPOINTS.roles, { 
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        const json = await res.json();
+        
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || json.message || 'โหลดบทบาทล้มเหลว');'
+        }
+        
+        // เก็บใน Cache
+        appCache.roles = json.data;
+        appCache.lastUpdate.roles = Date.now();
+        
+        populateRoleContainers(json.data);
+        
+      } catch (err) {
+        console.error('Error loading roles:', err);'
+        container.innerHTML = '<p class="text-red-600 p-2">! โหลดบทบาทล้มเหลว</p>';'
+        editContainer.innerHTML = '<p class="text-red-600 p-2">! โหลดบทบาทล้มเหลว</p>';'
+        showNotification('โหลดบทบาทล้มเหลว: ' + err.message, 'error');'
+      } finally {
+        showLoading(container, false);
+        showLoading(editContainer, false);
+      }
+    }
+
+    function populateRoleContainers(roles) {
+      const container = document.getElementById('roleCheckboxes');'
+      const editContainer = document.getElementById('editRoleCheckboxes');'
+      
+      container.innerHTML = '';'
+      editContainer.innerHTML = '';'
+      
+      roles.forEach(role => {
+        // สำหรับฟอร์มเพิ่มผู้ใช้
+        const div = document.createElement('div');'
+        div.className = 'checkbox-container';'
+        
+        const checkbox = document.createElement('input');'
+        checkbox.type = 'radio';'
+        checkbox.name = 'role';'
+        checkbox.value = role._id;
+        checkbox.id = `role_${role._id}`;
+        checkbox.className = 'radio radio-primary radio-sm';'
+        checkbox.addEventListener('change', debounce(function() {'
+          if (this.checked) {
+            onRoleChange(role._id);
+          }
+        }, 300));
+        
+        const label = document.createElement('label');'
+        label.htmlFor = `role_${role._id}`;
+        label.textContent = role.name;
+        
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        container.appendChild(div);
+        
+        // สำหรับฟอร์มแก้ไขผู้ใช้
+        const editDiv = document.createElement('div');'
+        editDiv.className = 'checkbox-container';'
+        
+        const editCheckbox = document.createElement('input');'
+        editCheckbox.type = 'radio';'
+        editCheckbox.name = 'editRole';'
+        editCheckbox.value = role._id;
+        editCheckbox.id = `edit_role_${role._id}`;
+        editCheckbox.className = 'radio radio-primary radio-sm';'
+        editCheckbox.addEventListener('change', debounce(function() {'
+          if (this.checked) {
+            onEditRoleChange(role._id);
+          }
+        }, 300));
+        
+        const editLabel = document.createElement('label');'
+        editLabel.htmlFor = `edit_role_${role._id}`;
+        editLabel.textContent = role.name;
+        
+        editDiv.appendChild(editCheckbox);
+        editDiv.appendChild(editLabel);
+        editContainer.appendChild(editDiv);
+      });
+    }
+
+    // ดึงสาขา - ปรับปรุงด้วย Cache และรวมฟังก์ชัน
+    async function loadBranches(forceRefresh = false) {
+      console.log('🔄 loadBranches called, forceRefresh:', forceRefresh);'
+      
+      // ตรวจสอบ Cache ก่อน
+      if (!forceRefresh && appCache.branches && Date.now() - appCache.lastUpdate.branches < 300000) {
+        console.log('📋 Using cached branches:', appCache.branches.length);'
+        return appCache.branches;
+      }
+      
+      try {
+        console.log('🌐 Fetching branches from API:', API_ENDPOINTS.branches);'
+        const res = await fetch(API_ENDPOINTS.branches, {
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        
+        console.log('📡 API Response status:', res.status);'
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        const json = await res.json();
+        console.log('📄 API Response data:', json);'
+        
+        if (!json.success || !Array.isArray(json.data)) {
+          throw new Error(json.message || 'ข้อมูลสาขาไม่ถูกต้อง');'
+        }
+
+        // แปลงรูปแบบข้อมูลสาขา
+        console.log('🔄 Processing branch data...');'
+        const branches = json.data.map((b, index) => {
+          console.log(`Branch ${index}:`, b);
+          return {
+            id: b._id, 
+            code: b.branch_code || b.code || 'N/A', '
+            name: b.name || 'Unknown Branch''
+          };
+        });
+
+        // เก็บใน Cache
+        appCache.branches = branches;
+        appCache.lastUpdate.branches = Date.now();
+        
+        console.log('✅ โหลดสาขาสำเร็จ:', branches.length, 'สาขา');'
+        console.log('📄 Raw API Response:', json);'
+        console.log('🏢 Processed branches:', branches);'
+        return branches;
+        
+      } catch (err) {
+        console.error('❌ โหลดสาขาล้มเหลว:', err);'
+        console.error('❌ Error details:', err.message, err.stack);'
+        showNotification('โหลดสาขาล้มเหลว: ' + err.message, 'error');'
+        appCache.branches = [];
+        return [];
+      }
+    }
+
+    // เมื่อเปลี่ยนบทบาท - ปรับปรุงประสิทธิภาพ
+    async function onRoleChange(roleId) {
+      selectedRole = roleId;
+      console.log('🔄 onRoleChange called with roleId:', roleId);'
+      
+      // หาข้อมูลบทบาทจาก Cache
+      const role = appCache.roles?.find(r => r._id === roleId);
+      if (!role) {
+        console.error('❌ Role not found in cache:', roleId);'
+        return;
+      }
+      
+      console.log('✅ Found role:', role.name);'
+
+      const pagesDiv = document.getElementById('pagesDiv');'
+      const checkinBranchesDiv = document.getElementById('checkinBranchesDiv');'
+      const defaultDiv = document.getElementById('defaultBranchDiv');'
+      const checkinBranchContainer = document.getElementById('checkinBranchCheckboxes');'
+      const defaultContainer = document.getElementById('defaultBranchCheckboxes');'
+
+      console.log('📋 Elements found:', {'
+        pagesDiv: !!pagesDiv,
+        checkinBranchesDiv: !!checkinBranchesDiv,
+        defaultDiv: !!defaultDiv,
+        checkinBranchContainer: !!checkinBranchContainer,
+        defaultContainer: !!defaultContainer
+      });
+      
+      // Debug: แสดงสถานะ class ของ elements
+      if (checkinBranchesDiv) {
+        console.log('🔍 checkinBranchesDiv classes:', checkinBranchesDiv.className);'
+        console.log('🔍 checkinBranchesDiv has hidden class:', checkinBranchesDiv.classList.contains('hidden'));'
+      }
+      if (defaultDiv) {
+        console.log('🔍 defaultDiv classes:', defaultDiv.className);'
+        console.log('🔍 defaultDiv has hidden class:', defaultDiv.classList.contains('hidden'));'
+      }
+
+      // reset & show all
+      pagesDiv?.classList.remove('hidden');'
+      checkinBranchesDiv?.classList.remove('hidden');'
+      defaultDiv?.classList.remove('hidden');'
+      
+      // Debug: ตรวจสอบหลังจาก remove hidden
+      console.log('🔄 After removing hidden class:');'
+      if (checkinBranchesDiv) {
+        console.log('🔍 checkinBranchesDiv classes after:', checkinBranchesDiv.className);'
+        console.log('🔍 checkinBranchesDiv visible:', !checkinBranchesDiv.classList.contains('hidden'));'
+      }
+      
+      if (checkinBranchContainer) checkinBranchContainer.innerHTML = '';'
+      if (defaultContainer) defaultContainer.innerHTML = '';'
+
+      // admin hides all branch selections
+      const isAdmin = role.name.toLowerCase() === 'admin';'
+      console.log('👤 Role name:', role.name);'
+      console.log('👤 Role name lowercase:', role.name.toLowerCase());'
+      console.log('👤 Is Admin:', isAdmin);'
+      
+      if (isAdmin) {
+        pagesDiv?.classList.add('hidden');'
+        checkinBranchesDiv?.classList.add('hidden');'
+        defaultDiv?.classList.add('hidden');'
+        console.log('🔒 Hidden all sections for Admin');'
+        return;
+      }
+      
+      console.log('📋 Not admin, showing branch sections...');'
+
+      // แสดง loading ระหว่างโหลดสาขา
+      if (checkinBranchContainer) checkinBranchContainer.innerHTML = '<p class="text-gray-400 p-2">กำลังโหลดสาขา...</p>';'
+      if (defaultContainer) defaultContainer.innerHTML = '<p class="text-gray-400 p-2">กำลังโหลดสาขา...</p>';'
+
+      try {
+        console.log('🔄 Loading branches...');'
+        // โหลดสาขาทั้งหมด
+        const branches = await loadBranches();
+        console.log('✅ Loaded branches:', branches.length, 'branches');'
+        
+        if (checkinBranchContainer) checkinBranchContainer.innerHTML = '';'
+        if (defaultContainer) defaultContainer.innerHTML = '';'
+
+        if (branches.length === 0) {
+          console.log('⚠️ No branches found, creating test data...');'
+          // สร้างข้อมูลทดสอบ
+          const testBranches = [
+            { id: 'test1', name: 'สำนักงานใหญ่', code: 'HQ' },'
+            { id: 'test2', name: 'สาขาหาดใหญ่', code: 'HDY' },'
+            { id: 'test3', name: 'สาขาปัตตานี', code: 'PTN' }'
+          ];
+          
+          if (checkinBranchContainer) {
+            checkinBranchContainer.innerHTML = '<p class="text-yellow-600 p-2 mb-2">⚠️ ใช้ข้อมูลทดสอบ (API ไม่มีข้อมูลสาขา)</p>';'
+            testBranches.forEach(b => {
+              const div = document.createElement('div');'
+              div.className = 'checkbox-container';'
+              const cb = document.createElement('input');'
+              cb.type = 'checkbox';'
+              cb.name = 'checkinBranches';'
+              cb.value = b.id;
+              cb.id = `checkin_branch_${b.id}`;
+              cb.className = 'checkbox checkbox-sm';'
+              const lbl = document.createElement('label');'
+              lbl.htmlFor = cb.id;
+              lbl.textContent = b.name;
+              div.append(cb, lbl);
+              checkinBranchContainer.append(div);
+            });
+          }
+          
+          if (defaultContainer) {
+            defaultContainer.innerHTML = '<p class="text-yellow-600 p-2 mb-2">⚠️ ใช้ข้อมูลทดสอบ</p>';'
+            testBranches.forEach(b => {
+              const div = document.createElement('div');'
+              div.className = 'checkbox-container';'
+              const cb = document.createElement('input');'
+              cb.type = 'checkbox';'
+              cb.name = 'defaultBranches';'
+              cb.value = b.id;
+              cb.id = `def_branch_${b.id}`;
+              cb.className = 'checkbox checkbox-sm';'
+              const lbl = document.createElement('label');'
+              lbl.htmlFor = cb.id;
+              lbl.textContent = b.name;
+              div.append(cb, lbl);
+              defaultContainer.append(div);
+            });
+          }
+          return;
+        }
+
+        branches.forEach(b => {
+          // checkinBranches checkbox (ใช้เป็นทั้งสาขาที่เข้าถึงระบบและเช็คอิน)
+          const div1 = document.createElement('div');'
+          div1.className = 'checkbox-container';'
+          const cb1 = document.createElement('input');'
+          cb1.type = 'checkbox';'
+          cb1.name = 'checkinBranches';'
+          cb1.value = b.id;
+          cb1.id = `checkin_branch_${b.id}`;
+          cb1.className = 'checkbox checkbox-sm';'
+          const lbl1 = document.createElement('label');'
+          lbl1.htmlFor = cb1.id;
+          lbl1.textContent = b.name;
+          div1.append(cb1, lbl1);
+          if (checkinBranchContainer) checkinBranchContainer.append(div1);
+
+          // defaultBranch checkbox
+          const div2 = document.createElement('div');'
+          div2.className = 'checkbox-container';'
+          const cb2 = document.createElement('input');'
+          cb2.type = 'checkbox';'
+          cb2.name = 'defaultBranches';'
+          cb2.value = b.id;
+          cb2.id = `def_branch_${b.id}`;
+          cb2.className = 'checkbox checkbox-sm';'
+          const lbl2 = document.createElement('label');'
+          lbl2.htmlFor = cb2.id;
+          lbl2.textContent = b.name;
+          div2.append(cb2, lbl2);
+          if (defaultContainer) defaultContainer.append(div2);
+        });
+        
+        console.log('✅ Successfully populated branch checkboxes');'
+      } catch (error) {
+        console.error('❌ Error in onRoleChange:', error);'
+        if (checkinBranchContainer) checkinBranchContainer.innerHTML = '<p class="text-red-600 p-2">โหลดสาขาล้มเหลว</p>';'
+        if (defaultContainer) defaultContainer.innerHTML = '<p class="text-red-600 p-2">โหลดสาขาล้มเหลว</p>';'
+      }
+    }
+    
+    // เมื่อเปลี่ยนบทบาทในโหมดแก้ไข - ปรับปรุงประสิทธิภาพ
+    async function onEditRoleChange(roleId) {
+      selectedRole = roleId;
+      
+      // หาข้อมูลบทบาทจาก Cache
+      const role = appCache.roles?.find(r => r._id === roleId);
+      if (!role) {
+        console.error('Role not found in cache:', roleId);'
+        return;
+      }
+
+      const pagesDiv = document.getElementById('editPagesDiv');'
+      const checkinBranchesDiv = document.getElementById('editCheckinBranchesDiv');'
+      const checkinBranchContainer = document.getElementById('editCheckinBranchCheckboxes');'
+
+      // reset & show all (ตรวจสอบ element ก่อน)
+      if (pagesDiv) pagesDiv.classList.remove('hidden');'
+      if (checkinBranchesDiv) checkinBranchesDiv.classList.remove('hidden');'
+      if (checkinBranchContainer) checkinBranchContainer.innerHTML = '';'
+
+      // admin hides all branch selections
+      const isAdmin = role.name.toLowerCase() === 'admin';'
+      if (isAdmin) {
+        if (pagesDiv) pagesDiv.classList.add('hidden');'
+        if (checkinBranchesDiv) checkinBranchesDiv.classList.add('hidden');'
+        return;
+      }
+
+      // แสดง loading ระหว่างโหลดสาขา
+      if (checkinBranchContainer) checkinBranchContainer.innerHTML = '<p class="text-gray-400 p-2">กำลังโหลดสาขา...</p>';'
+
+      try {
+        // โหลดสาขาทั้งหมด
+        const branches = await loadBranches();
+        
+        if (checkinBranchContainer) checkinBranchContainer.innerHTML = '';'
+
+        branches.forEach(b => {
+          // editCheckinBranches (ใช้เป็นทั้งสาขาที่เข้าถึงระบบและเช็คอิน)
+          if (checkinBranchContainer) {
+            const div1 = document.createElement('div');'
+            div1.className = 'checkbox-container';'
+            const cb1 = document.createElement('input');'
+            cb1.type = 'checkbox';'
+            cb1.name = 'editCheckinBranches';'
+            cb1.value = b.id;
+            cb1.id = `edit_checkin_branch_${b.id}`;
+            cb1.className = 'checkbox checkbox-sm';'
+            const lbl1 = document.createElement('label');'
+            lbl1.htmlFor = cb1.id;
+            lbl1.textContent = b.name;
+            div1.append(cb1, lbl1);
+            checkinBranchContainer.append(div1);
+          }
+        });
+      } catch (error) {
+        if (checkinBranchContainer) checkinBranchContainer.innerHTML = '<p class="text-red-600 p-2">โหลดสาขาล้มเหลว</p>';'
+      }
+    }
+
+    // ส่งฟอร์ม - ปรับปรุงประสิทธิภาพและความถูกต้อง
+    document.getElementById('registerForm').addEventListener('submit', async ev => {'
+      ev.preventDefault();
+      
+      const submitBtn = ev.target.querySelector('button[type="submit"]');'
+      const originalBtnText = submitBtn.innerHTML;
+      
+      try {
+        // Disable submit button และแสดง loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> กำลังประมวลผล...';'
+        
+        const isVirtual = document.getElementById('isVirtualEmployee').checked;'
+        let employeeId = null;
+        
+        if (isVirtual) {
+          // สร้าง Virtual Employee ก่อน
+          const virtualData = {
+            name: document.getElementById('virtualName').value.trim(),'
+            email: document.getElementById('virtualEmail').value.trim(),'
+            position: document.getElementById('virtualPosition').value.trim() || 'CEO','
+            department: document.getElementById('virtualDepartment').value.trim() || 'Management','
+            phone: document.getElementById('virtualPhone').value.trim()'
+          };
+          
+          // ตรวจสอบข้อมูล
+          if (!virtualData.name || !virtualData.email) {
+            throw new Error('กรุณากรอกชื่อและอีเมลสำหรับผู้ใช้งานพิเศษ');'
+          }
+          
+          // ตรวจสอบรูปแบบอีเมล
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(virtualData.email)) {
+            throw new Error('รูปแบบอีเมลไม่ถูกต้อง');'
+          }
+          
+          // เตรียมไฟล์รูปภาพ
+          const profileFile = document.getElementById('virtualProfileImage').files[0];'
+          
+          showNotification('กำลังสร้างข้อมูลพนักงานพิเศษ...', 'info');'
+          employeeId = await createVirtualEmployee(virtualData, profileFile);
+          
+        } else {
+          // ใช้พนักงานที่เลือก
+          const formData = new FormData(ev.target);
+          employeeId = formData.get('employee');'
+          
+          if (!employeeId) {
+            throw new Error('กรุณาเลือกพนักงาน');'
+          }
+        }
+        
+        // Get selected role
+        const selectedRoleInput = document.querySelector('input[name="role"]:checked');'
+        if (!selectedRoleInput) {
+          throw new Error('กรุณาเลือกบทบาท');'
+        }
+        
+        const rid = selectedRoleInput.value;
+        const role = appCache.roles?.find(r => r._id === rid);
+        if (!role) {
+          throw new Error('ไม่พบข้อมูลบทบาทที่เลือก');'
+        }
+
+        let allowedPages = [], allowedBranches = [], checkinBranches = [];
+
+        // ถ้าเป็น Admin ให้ดึงทุกสาขา
+        const isAdmin = role.name.toLowerCase() === 'admin';'
+        if (isAdmin) {
+          allowedPages = ['*'];'
+          const branches = await loadBranches();
+          allowedBranches = branches.map(b => b.id);
+          // Admin สามารถเช็คอินจากทุกสาขา
+          checkinBranches = branches.map(b => b.id);
+        } else {
+          // user ปกติ
+          document.querySelectorAll('input[name="allowedPages"]:checked')'
+            .forEach(cb => allowedPages.push(cb.value));
+          document.querySelectorAll('input[name="checkinBranches"]:checked')'
+            .forEach(cb => {
+              checkinBranches.push(cb.value);
+              allowedBranches.push(cb.value); // ใช้สาขาเดียวกัน
+            });
+          
+          // ตรวจสอบว่าเลือกสาขาแล้วหรือไม่
+          if (checkinBranches.length === 0) {
+            throw new Error('กรุณาเลือกสาขาที่สามารถเข้าถึงและเช็คอินได้อย่างน้อย 1 สาขา');'
+          }
+        }
+
+        // checkinBranches ถูกเซ็ตแล้วข้างบน
+        // ใช้สาขาแรกที่เลือกเป็น defaultBranch
+        const defaultBranch = checkinBranches[0] || null;
+
+        const formData = new FormData(ev.target);
+        const payload = {
+          employee: employeeId,
+          username: formData.get('username').trim(),'
+          password: formData.get('password'),'
+          role: rid,
+          allowedPages,
+          allowedBranches,
+          checkinBranches,
+          defaultBranch
+        };
+
+        // Debug log สำหรับตรวจสอบข้อมูลก่อนส่ง
+        console.log('📝 Payload to send:', {'
+          employee: employeeId,
+          username: payload.username,
+          role: rid,
+          roleName: role.name,
+          isAdmin: isAdmin,
+          allowedPages: allowedPages.length,
+          allowedPagesData: allowedPages,
+          allowedBranches: allowedBranches.length,
+          allowedBranchesIds: allowedBranches,
+          checkinBranches: checkinBranches.length,
+          checkinBranchesIds: checkinBranches,
+          defaultBranch: defaultBranch
+        });
+
+        // ตรวจสอบข้อมูลที่จำเป็น
+        if (!payload.username) {
+          throw new Error('กรุณากรอกชื่อผู้ใช้');'
+        }
+        if (!payload.password) {
+          throw new Error('กรุณากรอกรหัสผ่าน');'
+        }
+
+        showNotification('กำลังบันทึกข้อมูลผู้ใช้...', 'info');'
+
+        const res = await fetch(API_ENDPOINTS.userRegister, {
+          method: 'POST','
+          headers: {
+            'Content-Type': 'application/json','
+            'Authorization': 'Bearer ' + token'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        // ถ้า status ไม่ใช่ 2xx ให้ดู error page ก่อน
+        if (!res.ok) {
+          const errData = await res.text();
+          console.error('Register API error:', errData);'
+          throw new Error(`ลงทะเบียนไม่สำเร็จ (HTTP ${res.status})`);
+        }
+
+        // แค่ status OK จึง parse JSON
+        const result = await res.json();
+        if (!result.success) {
+          throw new Error(result.error || result.message || 'ลงทะเบียนไม่สำเร็จ');'
+        }
+
+        // สำเร็จ
+        showNotification('ลงทะเบียนผู้ใช้สำเร็จ!', 'success');'
+        resetForm();
+        
+        // เรียกใช้ฟังก์ชันโหลดผู้ใช้ใหม่
+        await loadUsers();
+        
+      } catch (err) {
+        console.error('Registration error:', err);'
+        showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');'
+      } finally {
+        // Enable submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+    });
+
+    // ฟังก์ชัน Reset Form
+    function resetForm() {
+      const form = document.getElementById('registerForm');'
+      form.reset();
+      
+      // Reset UI states
+      document.getElementById('isVirtualEmployee').checked = false;'
+      document.getElementById('employeeSelectDiv').classList.remove('hidden');'
+      document.getElementById('virtualEmployeeFields').classList.add('hidden');'
+      document.getElementById('employeeSelect').setAttribute('required', 'required');'
+      document.getElementById('virtualName').removeAttribute('required');'
+      document.getElementById('virtualEmail').removeAttribute('required');'
+      
+      // Reset รูปภาพ Virtual Employee
+      document.getElementById('virtualProfileImage').value = '';'
+      document.getElementById('virtualProfilePreview').src = 'https://via.placeholder.com/150/e2e8f0/64748b?text=Profile';'
+      
+      // Reset sections - ไม่ซ่อน UI สาขา เพียงแค่เคลียร์การเลือก
+      document.getElementById('pagesDiv').classList.add('hidden');'
+      
+      // Uncheck all checkboxes and radios
+      document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(input => {'
+        input.checked = false;
+      });
+      
+      selectedRole = null;
+    }
+    
+    // เปิด Modal แก้ไข
+    async function openEditModal(userId) {
+      document.getElementById('editUserId').value = userId;'
+      
+      // โหลดข้อมูลผู้ใช้
+      try {
+        const res = await fetch(`${API_ENDPOINTS.userGet}/${userId}`, { // ใช้เส้นทางที่ถูกต้อง
+          headers: { 'Authorization': 'Bearer ' + token }'
+        });
+        
+        if (!res.ok) throw new Error('ไม่สามารถโหลดข้อมูลผู้ใช้');'
+        
+        const userData = await res.json();
+        
+        if (!userData.success) throw new Error(userData.message || 'โหลดข้อมูลล้มเหลว');'
+        
+        const user = userData.data;
+        
+        // Debug log สำหรับตรวจสอบข้อมูลสาขา
+        console.log('🔍 Edit Modal - User data:', {'
+          username: user.username,
+          checkinBranches: user.checkinBranches,
+          allowedBranches: user.allowedBranches,
+          defaultBranches: user.defaultBranches,
+          role: user.role
+        });
+        
+        // เติมข้อมูลในฟอร์ม
+        document.getElementById('editUsername').value = user.username;'
+        
+        // เลือกพนักงานปัจจุบัน
+        if (user.employee && user.employee._id) {
+          document.getElementById('editEmployeeSelect').value = user.employee._id;'
+        } else if (user.employee) {
+          document.getElementById('editEmployeeSelect').value = user.employee;'
+        }
+        
+        // ล้างรหัสผ่านเสมอ (เพื่อให้ผู้ใช้กรอกใหม่หากต้องการเปลี่ยน)
+        document.getElementById('editPassword').value = '';'
+        
+        // เลือกบทบาท (แก้ไขให้ใช้ user.role._id)
+        if (user.role && user.role._id) {
+          const roleRadio = document.querySelector(`input[name="editRole"][value="${user.role._id}"]`);
+          if (roleRadio) {
+            roleRadio.checked = true;
+            onEditRoleChange(user.role._id);
+          }
+        }
+        
+        // เลือกสถานะ
+        const statusActive = document.querySelector('input[name="status"][value="active"]');'
+        const statusInactive = document.querySelector('input[name="status"][value="inactive"]');'
+        
+        if (!user.isBlocked) {
+          statusActive.checked = true;
+        } else {
+          statusInactive.checked = true;
+        }
+        
+        // โหลดสาขาลงใน Edit Modal และรอให้เสร็จ
+        await loadBranchesIntoEditModal();
+        
+        // รอให้โมดูลโหลดเสร็จก่อน
+        setTimeout(() => {
+          // เลือกสิทธิ์การเข้าถึง (จาก role.allowedPages)
+          if (user.role?.allowedPages) {
+            user.role.allowedPages.forEach(page => {
+              const pageCheckbox = document.querySelector(`input[name="editAllowedPages"][value="${page}"]`);
+              if (pageCheckbox) pageCheckbox.checked = true;
+            });
+          }
+          
+          // เลือกสาขาที่สามารถเช็คอิน (ใช้เป็นทั้งสาขาที่เข้าถึงและเช็คอิน)
+          if (user.checkinBranches && user.checkinBranches.length > 0) {
+            user.checkinBranches.forEach(branch => {
+              const branchId = branch._id || branch;
+              const checkinBranchCheckbox = document.querySelector(`input[name="editCheckinBranches"][value="${branchId}"]`);
+              if (checkinBranchCheckbox) {
+                checkinBranchCheckbox.checked = true;
+                console.log('✅ Selected checkinBranch:', branchId);'
+              }
+            });
+          } else if (user.allowedBranches && user.allowedBranches.length > 0) {
+            // fallback ถ้าไม่มี checkinBranches ให้ใช้ allowedBranches
+            user.allowedBranches.forEach(branch => {
+              const branchId = branch._id || branch;
+              const checkinBranchCheckbox = document.querySelector(`input[name="editCheckinBranches"][value="${branchId}"]`);
+              if (checkinBranchCheckbox) {
+                checkinBranchCheckbox.checked = true;
+                console.log('✅ Selected allowedBranch (fallback):', branchId);'
+              }
+            });
+          } else {
+            console.log('⚠️ No branches found for user');'
+          }
+          
+
+        }, 500);
+        
+      } catch (err) {
+        console.error(err);
+        showNotification('ไม่สามารถโหลดข้อมูลผู้ใช้: ' + err.message, 'error');'
+        
+        // แสดงข้อผิดพลาดในช่องข้อมูลปัจจุบัน
+        const currentEmployeeName = document.getElementById('currentEmployeeName');'
+        const currentUsername = document.getElementById('currentUsername');'
+        const currentRole = document.getElementById('currentRole');'
+        const currentPages = document.getElementById('currentPages');'
+        const currentBranches = document.getElementById('currentBranches');'
+        
+        const errorText = 'ไม่สามารถโหลดข้อมูลได้';'
+        if (currentEmployeeName) currentEmployeeName.textContent = errorText;
+        if (currentUsername) currentUsername.textContent = errorText;
+        if (currentRole) currentRole.textContent = errorText;
+        if (currentPages) currentPages.textContent = errorText;
+        if (currentBranches) currentBranches.textContent = errorText;
+      }
+      
+      // เปิด Modal
+      document.getElementById('edit-user-modal').checked = true;'
+    }
+    
+    // ปิด Modal แก้ไข
+    function closeEditModal() {
+      document.getElementById('edit-user-modal').checked = false;'
+      
+      // ล้างข้อมูลในฟอร์ม
+      document.getElementById('editUserForm').reset();'
+      document.getElementById('editPassword').value = '';'
+      
+      // ล้างข้อมูลปัจจุบันในช่องต่างๆ
+      const currentEmployeeName = document.getElementById('currentEmployeeName');'
+      const currentUsername = document.getElementById('currentUsername');'
+      const currentRole = document.getElementById('currentRole');'
+      const currentPages = document.getElementById('currentPages');'
+      const currentBranches = document.getElementById('currentBranches');'
+      
+      if (currentEmployeeName) currentEmployeeName.textContent = '-';'
+      if (currentUsername) currentUsername.textContent = '-';'
+      if (currentRole) currentRole.textContent = '-';'
+      if (currentPages) currentPages.textContent = '-';'
+      if (currentBranches) currentBranches.textContent = '-';'
+      
+      // ล้างการเลือก checkbox และ radio
+      document.querySelectorAll('#editUserForm input[type="checkbox"], #editUserForm input[type="radio"]').forEach(input => {'
+        input.checked = false;
+      });
+    }
+    
+    // บันทึกการแก้ไข
+    async function saveUserEdit() {
+      const userId = document.getElementById('editUserId').value;'
+      
+      // Get selected role
+      const selectedRoleInput = document.querySelector('input[name="editRole"]:checked');'
+      if (!selectedRoleInput) {
+        showNotification('กรุณาเลือกบทบาท', 'warning');'
+        return;
+      }
+      
+      const rid = selectedRoleInput.value;
+      const role = appCache.roles?.find(r => r._id === rid);
+      const isAdmin = role?.name.toLowerCase() === 'admin';'
+      let allowedBranches = [], defaultBranches = [];
+
+      if (isAdmin) {
+        const branches = await loadBranches();
+        allowedBranches = branches.map(b => b.id);
+        defaultBranches = branches.map(b => b.id);
+      } else {
+        // Get selected checkin branches (ใช้เป็นทั้งสาขาที่เข้าถึงระบบและเช็คอิน)
+        document.querySelectorAll('input[name="editCheckinBranches"]:checked').forEach(cb => {'
+          allowedBranches.push(cb.value);
+          defaultBranches.push(cb.value); // ใช้สาขาเดียวกัน
+        });
+        
+
+      }
+      
+      const username = document.getElementById('editUsername').value.trim();'
+      const password = document.getElementById('editPassword').value.trim();'
+      const active = document.querySelector('input[name="status"]:checked').value === 'active';'
+      
+      // ตรวจสอบข้อมูลที่จำเป็น
+      if (!username) {
+        showNotification('กรุณากรอกชื่อผู้ใช้', 'warning');'
+        return;
+      }
+      
+      // รวบรวมระบบที่เลือก (allowedPages)
+      const allowedPages = [];
+      document.querySelectorAll('input[name="editAllowedPages"]:checked').forEach(cb => {'
+        allowedPages.push(cb.value);
+      });
+      
+      // สร้าง payload ตาม validation schema ของ API
+      const payload = {
+        username,
+        role: rid,
+        allowedPages,
+        isBlocked: !active // ส่ง isBlocked แทน active (กลับค่า)
+      };
+      
+      // เพิ่ม allowedBranches และ defaultBranches เฉพาะเมื่อมีข้อมูล
+      if (allowedBranches.length > 0) {
+        payload.allowedBranches = allowedBranches;
+        payload.defaultBranches = defaultBranches;
+      }
+      
+              // เพิ่มรหัสผ่านเฉพาะเมื่อมีการกรอก
+        if (password && password.length > 0) {
+          payload.password = password;
+          console.log('🔐 Password will be updated');'
+        } else {
+          console.log('🔐 Password will remain unchanged');'
+        }
+      
+      console.log('🔄 Updating user:', userId);'
+      console.log('📦 Payload:', payload);'
+      console.log('📋 Selected allowedPages:', allowedPages);'
+      console.log('🏢 Selected branches:', allowedBranches);'
+      console.log('🌐 API URL:', `${API_ENDPOINTS.userGet}/${userId}`);'
+      
+      try {
+        // อัปเดตข้อมูลผู้ใช้ก่อน
+        const res = await fetch(`${API_ENDPOINTS.userGet}/${userId}`, {
+          method: 'PATCH','
+          headers: {
+            'Content-Type': 'application/json','
+            'Authorization': 'Bearer ' + token'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('❌ Update User API Error:', errorText);'
+          let errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+          
+          // พยายาม parse JSON ถ้าเป็น JSON error response
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch (e) {
+            // ถ้า parse ไม่ได้ แสดงว่าเป็น HTML error page
+            if (errorText.includes('<!DOCTYPE html>')) {'
+              errorMessage = `เซิร์ฟเวอร์ตอบกลับด้วย HTML Error Page (HTTP ${res.status})`;
+            }
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        const data = await res.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || data.error || 'อัปเดตผู้ใช้ไม่สำเร็จ');'
+        }
+        
+        showNotification('อัปเดตผู้ใช้สำเร็จ!', 'success');'
+        
+        // แสดงข้อมูลที่อัปเดตแล้ว
+        if (password && password.length > 0) {
+          showNotification('รหัสผ่านได้รับการอัปเดตแล้ว', 'info');'
+        }
+        
+        closeEditModal();
+        
+        // รีโหลดตารางผู้ใช้เพื่อแสดงข้อมูลใหม่
+        await loadUsers();
+        
+      } catch (err) {
+        console.error(err);
+        showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');'
+      }
+    }
+    
+    // เพิ่ม event listener ให้กับปุ่มแก้ไข
+    document.addEventListener('click', function(e) {'
+      if (e.target.closest('.edit-user-btn')) {'
+        const btn = e.target.closest('.edit-user-btn');'
+        const userId = btn.getAttribute('data-user-id');'
+        openEditModal(userId);
+      }
+    });
+    
+    // จัดการการเปลี่ยนแปลงสถานะผู้ใช้งาน (toggle switch)
+    document.addEventListener('change', async function(e) {'
+      if (e.target.classList.contains('status-toggle')) {'
+        const toggle = e.target;
+        const userId = toggle.getAttribute('data-user-id');'
+        const isActive = toggle.checked;
+        const toggleContainer = toggle.closest('.toggle-status');'
+        const statusLabel = toggleContainer.querySelector('.status-label');'
+        
+        // เพิ่ม class loading ระหว่างรอการอัปเดต
+        toggleContainer.classList.add('loading');'
+        
+        try {
+          console.log('🔄 Updating user status:', { userId, isActive });'
+          console.log('📡 API endpoint:', `${API_ENDPOINTS.userGet}/${userId}`);'
+          
+          // ส่งคำขอ API เพื่ออัปเดตสถานะ (ใช้ PATCH แทน PUT)
+          const res = await fetch(`${API_ENDPOINTS.userGet}/${userId}`, {
+            method: 'PATCH','
+            headers: {
+              'Content-Type': 'application/json','
+              'Authorization': 'Bearer ' + token'
+            },
+            body: JSON.stringify({
+              isBlocked: !isActive // ส่ง isBlocked แทน active (กลับค่า)
+            })
+          });
+          
+          console.log('📡 Response status:', res.status);'
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error('❌ API Error Response:', errorText);'
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          
+          const data = await res.json();
+          console.log('✅ API Success Response:', data);'
+          
+          if (!data.success) {
+            throw new Error(data.message || data.error || 'อัปเดตสถานะล้มเหลว');'
+          }
+          
+          // อัปเดต UI
+          if (isActive) {
+            statusLabel.textContent = 'ใช้งาน';'
+            statusLabel.className = 'status-label ml-2 text-xs text-green-600';'
+          } else {
+            statusLabel.textContent = 'ระงับการใช้งาน';'
+            statusLabel.className = 'status-label ml-2 text-xs text-gray-500';'
+          }
+          
+          // แสดงการแจ้งเตือน
+          showNotification(
+            `เปลี่ยนสถานะผู้ใช้เป็น "${isActive ? 'ใช้งาน' : 'ระงับการใช้งาน'}" สำเร็จ`, '
+            'success''
+          );
+          
+        } catch (err) {
+          console.error(err);
+          
+          // กลับไปยังสถานะเดิม
+          toggle.checked = !isActive;
+          
+          // อัปเดตข้อความให้ตรงกับสถานะ toggle
+          if (!isActive) {
+            statusLabel.textContent = 'ใช้งาน';'
+            statusLabel.className = 'status-label ml-2 text-xs text-green-600';'
+          } else {
+            statusLabel.textContent = 'ระงับการใช้งาน';'
+            statusLabel.className = 'status-label ml-2 text-xs text-gray-500';'
+          }
+          
+          // แสดงข้อความแจ้งเตือนข้อผิดพลาด
+          showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');'
+        } finally {
+          // ลบ class loading เมื่อเสร็จสิ้น
+          toggleContainer.classList.remove('loading');'
+        }
+      }
+    });
+
+    // ฟังก์ชันแสดงการแจ้งเตือน
+    function showNotification(message, type = 'info') {'
+      const container = document.getElementById('notification-container');'
+      
+      const notification = document.createElement('div');'
+      
+      // กำหนดสีตามประเภทการแจ้งเตือน
+      let bgColor = 'bg-blue-500';'
+      if (type === 'success') bgColor = 'bg-green-500';'
+      if (type === 'error') bgColor = 'bg-red-500';'
+      if (type === 'warning') bgColor = 'bg-yellow-500';'
+      
+      notification.className = `notification ${bgColor} px-4 py-2 rounded-lg shadow-lg`;
+      
+      // เพิ่มไอคอนตามประเภท
+      let icon = 'info-circle';'
+      if (type === 'success') icon = 'check-circle';'
+      if (type === 'error') icon = 'exclamation-circle';'
+      if (type === 'warning') icon = 'exclamation-triangle';'
+      
+      notification.innerHTML = `
+        <i class="fas fa-${icon} mr-2"></i>
+        <span>${message}</span>
+      `;
+      
+      // เพิ่มการแจ้งเตือนลงใน container
+      container.appendChild(notification);
+      
+      // ให้การแจ้งเตือนหายไปหลังจาก 3 วินาที
+      setTimeout(() => {
+        notification.classList.add('hide');'
+        
+        // ลบ element หลังจากการ transition เสร็จสิ้น
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      }, 3000);
+    }
+
+    // Fetch and populate the user table - ปรับปรุงประสิทธิภาพ
+    async function loadUsers(forceRefresh = false) {
+      const tbody = document.querySelector('#usersTable tbody');'
+      
+      try {
+        // แสดง loading state
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4"><i class="fas fa-spinner fa-spin mr-2"></i>กำลังโหลดข้อมูล...</td></tr>';'
+        
+        const res = await fetch(API_ENDPOINTS.userGet, {
+          headers: { 
+            'Authorization': 'Bearer ' + token,'
+            'Content-Type': 'application/json''
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(json.error || json.message || 'โหลดผู้ใช้ไม่สำเร็จ');'
+        }
+
+        // Debug log สำหรับตรวจสอบ API response
+        console.log('📡 Users API Response:', json);'
+        console.log('📊 Number of users:', json.data?.length || 0);'
+
+        // Clear existing rows in the table
+        tbody.innerHTML = '';'
+
+        if (!json.data || json.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-gray-500">ไม่มีข้อมูลผู้ใช้งาน</td></tr>';'
+          return;
+        }
+
+        // สร้างแถวตารางอย่างมีประสิทธิภาพ
+        const fragment = document.createDocumentFragment();
+        
+        json.data.forEach(user => {
+          // Debug log สำหรับตรวจสอบข้อมูลสาขาและระบบ
+          console.log('🔍 User data:', {'
+            username: user.username,
+            role: user.role?.name,
+            roleAllowedPages: user.role?.allowedPages,
+            checkinBranches: user.checkinBranches,
+            allowedBranches: user.allowedBranches,
+            defaultBranches: user.defaultBranches,
+            checkinBranchesType: typeof user.checkinBranches,
+            checkinBranchesLength: user.checkinBranches?.length,
+            firstCheckinBranch: user.checkinBranches?.[0]
+          });
+          
+          // ใช้ checkinBranches เป็นหลัก ถ้าไม่มีให้ fallback เป็น allowedBranches
+          let branches = '-';'
+          
+          if (user.checkinBranches?.length) {
+            branches = user.checkinBranches.map(b => {
+              if (typeof b === 'string') {'
+                return 'ID: ' + b; // ถ้าเป็น string ID'
+              }
+              return b?.name || b?.branch_code || 'Unknown Branch';'
+            }).join(', ');'
+          } else if (user.allowedBranches?.length) {
+            branches = user.allowedBranches.map(b => {
+              if (typeof b === 'string') {'
+                return 'ID: ' + b; // ถ้าเป็น string ID'
+              }
+              return b?.name || b?.branch_code || 'Unknown Branch';'
+            }).join(', ');'
+                     } else if (user.defaultBranches?.length) {
+             branches = user.defaultBranches.map(b => {
+               if (typeof b === 'string') {'
+                 return 'ID: ' + b; // ถ้าเป็น string ID'
+               }
+               return b?.name || b?.branch_code || 'Unknown Branch';'
+             }).join(', ');'
+           }
+           
+           // ถ้าเป็น Admin ให้แสดงข้อความพิเศษ
+           if (user.role?.name?.toLowerCase() === 'admin') {'
+             branches = '🔑 Admin (เข้าถึงทุกสาขา)';'
+           } else if (branches === '-') {'
+             branches = '⚠️ ไม่ได้กำหนดสาขา';'
+           }
+
+          // จัดการแสดงระบบที่เข้าถึงได้ (ดึงจาก role.allowedPages)
+          let allowedSystems = '-';'
+          const roleAllowedPages = user.role?.allowedPages || [];
+          
+          if (roleAllowedPages.length > 0) {
+            const systemNames = roleAllowedPages.map(pageId => {
+              const module = modules.find(m => m.id === pageId);
+              return module ? module.name : pageId;
+            });
+            allowedSystems = systemNames.join(', ');'
+          } else if (user.role?.name?.toLowerCase().includes('admin') || '
+                     user.role?.name?.toLowerCase().includes('ceo') ||'
+                     user.role?.name?.toLowerCase().includes('super') ||'
+                     user.role?.name?.toLowerCase().includes('นักพัฒนา')) {'
+            allowedSystems = '🔑 เข้าถึงทุกระบบ';'
+          } else {
+            allowedSystems = '⚠️ ไม่ได้กำหนดระบบ';'
+          }
+
+          const tr = document.createElement('tr');'
+          tr.innerHTML = `
+            <th>
+              <label>
+                <input type="checkbox" class="checkbox" data-user-id="${user._id}"/></label>
+            </th>
+            <td class="font-medium">${user.username || '-'}</td>'
+            <td>${user.employee?.name || '-'}</td>'
+            <td>
+              <span class="badge badge-sm bg-primary text-white border-0 px-2">
+                ${user.role?.name || 'No Role'}'
+              </span>
+            </td>
+            <td class="text-sm">
+              <div class="max-w-xs overflow-hidden">
+                <div class="text-sm text-gray-800 dark:text-gray-200" title="${allowedSystems}">
+                  ${allowedSystems}
+                </div>
+                ${roleAllowedPages.length ? 
+                  `<div class="text-xs text-gray-500 mt-1">จำนวน: ${roleAllowedPages.length} ระบบ</div>` : 
+                  '''
+                }
+              </div>
+            </td>
+            <td class="text-sm">
+              <div class="max-w-xs overflow-hidden">
+                <div class="text-sm text-gray-800 dark:text-gray-200" title="${branches}">
+                  ${branches}
+                </div>
+                ${user.checkinBranches?.length ? 
+                  `<div class="text-xs text-gray-500 mt-1">เช็คอิน: ${user.checkinBranches.length} สาขา</div>` : 
+                  '''
+                }
+              </div>
+            </td>
+            <td>
+              <div class="toggle-status">
+                <input type="checkbox" class="toggle toggle-success toggle-sm status-toggle"
+                       data-user-id="${user._id}" ${!user.isBlocked ? 'checked' : ''} />'
+                <span class="status-label ml-2 text-xs ${!user.isBlocked ? 'text-green-600' : 'text-gray-500'}">'
+                  ${!user.isBlocked ? 'ใช้งาน' : 'ระงับ'}'
+                </span>
+              </div>
+            </td>
+            <td>
+              <div class="flex gap-1">
+                <button class="btn btn-ghost btn-xs text-blue-600 edit-user-btn hover:bg-blue-50" 
+                        data-user-id="${user._id}" title="แก้ไข">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-ghost btn-xs text-red-600 delete-user-btn hover:bg-red-50" 
+                        data-user-id="${user._id}" title="ลบ">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          fragment.appendChild(tr);
+        });
+        
+        tbody.appendChild(fragment);
+
+        // อัปเดตสถิติ
+        updateUserStats(json.data.length);
+
+      } catch (err) {
+        console.error('Error loading users:', err);'
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>โหลดข้อมูลล้มเหลว</td></tr>';'
+        showNotification('โหลดผู้ใช้ล้มเหลว: ' + err.message, 'error');'
+      }
+    }
+
+    // ฟังก์ชันอัปเดตสถิติ
+    function updateUserStats(userCount) {
+      const statsElement = document.querySelector('.stats-card h3');'
+      if (statsElement) {
+        statsElement.textContent = userCount.toString();
+      }
+    }
+
+    // ฟังก์ชันโหลดสาขาลงใน Edit Modal
+    async function loadBranchesIntoEditModal() {
+      console.log('🔄 Loading branches into Edit Modal...');'
+      
+      const editCheckinBranchContainer = document.getElementById('editCheckinBranchCheckboxes');'
+      
+      if (!editCheckinBranchContainer) {
+        console.error('❌ Edit Branch container not found');'
+        return;
+      }
+      
+      // แสดง loading
+      editCheckinBranchContainer.innerHTML = '<p class="text-gray-400 p-2">กำลังโหลดสาขา...</p>';'
+      
+      try {
+        const branches = await loadBranches();
+        console.log('✅ Branches loaded for Edit Modal:', branches.length);'
+        
+        // เคลียร์ loading
+        editCheckinBranchContainer.innerHTML = '';'
+        
+        // กรองข้อมูลสาขาที่ซ้ำออก
+        const uniqueBranches = branches.filter((branch, index, self) => 
+          index === self.findIndex(b => b.id === branch.id)
+        );
+        
+        if (uniqueBranches.length === 0) {
+          // สร้างข้อมูลทดสอบ
+          const testBranches = [
+            { id: 'test1', name: 'สำนักงานใหญ่', code: 'HQ' },'
+            { id: 'test2', name: 'สาขาหาดใหญ่', code: 'HDY' },'
+            { id: 'test3', name: 'สาขาปัตตานี', code: 'PTN' }'
+          ];
+          
+          populateBranchUI(testBranches, editCheckinBranchContainer, true, true);
+          return;
+        }
+        
+        // สร้าง UI สำหรับสาขาจริง (edit mode)
+        populateBranchUI(uniqueBranches, editCheckinBranchContainer, false, true);
+        
+        console.log('✅ Successfully populated Edit Modal branch UI');'
+        
+      } catch (error) {
+        console.error('❌ Error loading branches into Edit Modal:', error);'
+        editCheckinBranchContainer.innerHTML = '<p class="text-red-600 p-2">โหลดสาขาล้มเหลว</p>';'
+      }
+    }
+
+    // ฟังก์ชันโหลดสาขาลงใน UI ทันที
+    async function loadBranchesIntoUI() {
+      console.log('🔄 Loading branches into UI...');'
+      
+      const checkinBranchContainer = document.getElementById('checkinBranchCheckboxes');'
+      
+      if (!checkinBranchContainer) {
+        console.error('❌ Branch container not found');'
+        return;
+      }
+      
+      // ตรวจสอบว่าโหลดแล้วหรือยัง (ป้องกันการโหลดซ้ำ)
+      if (checkinBranchContainer.children.length > 0 && 
+          !checkinBranchContainer.innerHTML.includes('กำลังโหลด')) {'
+        console.log('✅ Branches already loaded, skipping...');'
+        return;
+      }
+      
+      // แสดง loading
+      checkinBranchContainer.innerHTML = '<p class="text-gray-400 p-2">กำลังโหลดสาขา...</p>';'
+      
+      try {
+        const branches = await loadBranches();
+        console.log('✅ Branches loaded for UI:', branches.length);'
+        console.log('📄 Branch data:', branches);'
+        
+        // เคลียร์ loading
+        checkinBranchContainer.innerHTML = '';'
+        
+        // กรองข้อมูลสาขาที่ซ้ำออก (ใช้ id เป็นตัวกรอง)
+        const uniqueBranches = branches.filter((branch, index, self) => 
+          index === self.findIndex(b => b.id === branch.id)
+        );
+        
+        console.log('🔍 Unique branches:', uniqueBranches.length, 'from', branches.length);'
+        
+        if (uniqueBranches.length === 0) {
+          console.log('⚠️ No branches found, creating test data...');'
+          // สร้างข้อมูลทดสอบ
+          const testBranches = [
+            { id: 'test1', name: 'สำนักงานใหญ่', code: 'HQ' },'
+            { id: 'test2', name: 'สาขาหาดใหญ่', code: 'HDY' },'
+            { id: 'test3', name: 'สาขาปัตตานี', code: 'PTN' }'
+          ];
+          
+          populateBranchUI(testBranches, checkinBranchContainer, true);
+          return;
+        }
+        
+        // สร้าง UI สำหรับสาขาจริง
+        populateBranchUI(uniqueBranches, checkinBranchContainer, false);
+        
+        console.log('✅ Successfully populated branch UI');'
+        
+      } catch (error) {
+        console.error('❌ Error loading branches into UI:', error);'
+        checkinBranchContainer.innerHTML = '<p class="text-red-600 p-2">โหลดสาขาล้มเหลว</p>';'
+      }
+    }
+
+    // ฟังก์ชันช่วยสร้าง UI สาขา (รองรับทั้ง register และ edit)
+    function populateBranchUI(branches, checkinContainer, isTestData = false, isEditMode = false) {
+      if (isTestData) {
+        checkinContainer.innerHTML = '<p class="text-yellow-600 p-2 mb-2">⚠️ ใช้ข้อมูลทดสอบ (API ไม่มีข้อมูลสาขา)</p>';'
+      }
+      
+      branches.forEach(b => {
+        // checkinBranches checkbox
+        const div = document.createElement('div');'
+        div.className = 'checkbox-container';'
+        const cb = document.createElement('input');'
+        cb.type = 'checkbox';'
+        cb.name = isEditMode ? 'editCheckinBranches' : 'checkinBranches';'
+        cb.value = b.id;
+        cb.id = isEditMode ? `edit_checkin_branch_${b.id}` : `checkin_branch_${b.id}`;
+        cb.className = 'checkbox checkbox-sm';'
+        const lbl = document.createElement('label');'
+        lbl.htmlFor = cb.id;
+        lbl.textContent = `${b.name}${b.code ? ` (${b.code})` : ''}`;'
+        div.append(cb, lbl);
+        checkinContainer.append(div);
+      });
+    }
+
+     // ฟังก์ชันสำหรับลบผู้ใช้งาน - ปรับปรุงประสิทธิภาพ
+    async function deleteUser(userId) {
+      // ใช้ Sweet Alert หรือ Modal แทน confirm
+      if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้งานนี้?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้!')) {'
+        return;
+      }
+
+      // หาปุ่มที่เกี่ยวข้องเพื่อแสดง loading
+      const deleteBtn = document.querySelector(`[data-user-id="${userId}"].delete-user-btn`);
+      const originalBtnContent = deleteBtn?.innerHTML;
+
+      try {
+        // แสดง loading บนปุ่ม
+        if (deleteBtn) {
+          deleteBtn.disabled = true;
+          deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';'
+        }
+
+        const res = await fetch(`${API_ENDPOINTS.userGet}/${userId}`, {
+          method: 'DELETE','
+          headers: {
+            'Authorization': 'Bearer ' + token,'
+            'Content-Type': 'application/json''
+          }
+        });
+
+        // ถ้าไม่ใช่ 2xx ให้อ่านเป็น text เพื่อ debug HTML error page
+        if (!res.ok) {
+          const errData = await res.text();
+          console.error('Delete API error:', errData);'
+          throw new Error(`ลบไม่สำเร็จ (HTTP ${res.status})`);
+        }
+
+        // ถ้า OK ค่อยอ่าน JSON
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.message || 'ลบผู้ใช้ล้มเหลว');'
+        }
+
+        showNotification('ลบผู้ใช้สำเร็จ!', 'success');'
+        
+        // ลบแถวออกจาก DOM แทนการโหลดใหม่ทั้งหมด (เพิ่มประสิทธิภาพ)
+        const userRow = deleteBtn?.closest('tr');'
+        if (userRow) {
+          userRow.style.transition = 'all 0.3s ease';'
+          userRow.style.opacity = '0';'
+          userRow.style.transform = 'translateX(-100%)';'
+          
+          setTimeout(() => {
+            userRow.remove();
+            // อัปเดตสถิติ
+            const remainingRows = document.querySelectorAll('#usersTable tbody tr').length;'
+            updateUserStats(remainingRows);
+          }, 300);
+        } else {
+          // ถ้าไม่พบแถว ให้โหลดใหม่
+          await loadUsers();
+        }
+        
+      } catch (err) {
+        console.error('Delete user error:', err);'
+        showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');'
+      } finally {
+        // คืนสถานะปุ่ม
+        if (deleteBtn && originalBtnContent) {
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = originalBtnContent;
+        }
+      }
+    }
+
+// เพิ่ม event listener ให้กับปุ่มลบ
+document.addEventListener('click', function (e) {'
+  if (e.target.closest('.delete-user-btn')) {'
+    const btn = e.target.closest('.delete-user-btn');'
+    const userId = btn.getAttribute('data-user-id');'
+    deleteUser(userId);
+  }
+});
+
+
+
+    // ฟังก์ชันปิด Modal แก้ไข
+    function closeEditModal() {
+      // ปิด modal
+      document.getElementById('edit-user-modal').checked = false;'
+      
+      // รีเซ็ตฟอร์ม
+      document.getElementById('editUserForm').reset();'
+      
+      // ล้างการเลือก checkboxes และ radios
+      document.querySelectorAll('#editUserForm input[type="checkbox"], #editUserForm input[type="radio"]').forEach(input => {'
+        input.checked = false;
+      });
+      
+      // ล้างค่าในฟิลด์ที่ซ่อน
+      document.getElementById('editUserId').value = '';'
+      document.getElementById('editPassword').value = '';'
+    }
+
+    // Initialize application
+    document.addEventListener('DOMContentLoaded', async () => {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+  if (!token) {
+    showNotification('ไม่พบ Token กรุณาล็อกอินใหม่', 'error');'
+    return;
+  }
+  
+  try {
+    showNotification('กำลังโหลดข้อมูลระบบ...', 'info');'
+    
+    // Load ข้อมูลพื้นฐานแบบ parallel
+    const loadPromises = [
+      loadModules(),
+      loadEmployees(),
+      loadRoles(),
+      loadBranches(),
+      loadUsers()
+    ];
+    
+    await Promise.all(loadPromises);
+    
+    // โหลดข้อมูลสาขาลงใน UI ทันที
+    await loadBranchesIntoUI();
+    
+    showNotification('โหลดข้อมูลเสร็จสิ้น', 'success');'
+    
+  } catch (error) {
+    console.error('Error during initialization:', error);'
+    showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'error');'
+  }
+});
+
+  
+}}</script>
+</body>
+</html>

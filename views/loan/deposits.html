@@ -1,0 +1,3065 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>เงินมัดจำ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" type="text/css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Avatar Utils -->
+  <script src="/js/avatar-utils.js"></script>
+
+  <!-- jQuery & Day.js -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+
+  <!-- Lottie Web for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css for smooth animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+
+  <script>
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', 'Prompt', sans-serif;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .hover-scale {
+      transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container -->
+  <div id="sidebarContainer"></div>
+
+  <!-- Main Content -->
+  <div id="mainContent" class="flex-1 flex flex-col ml-64 transition-all duration-300 ease-in-out">
+    <main class="p-6 overflow-y-auto">
+      <!-- Page Header -->
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">จัดการเงินมัดจำ</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-400">บันทึกและจัดการใบรับเงินมัดจำสำหรับการผ่อนชำระ</p>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm card-hover">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">เงินมัดจำทั้งหมด</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white" id="totalDeposits">฿0</p>
+            </div>
+            <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
+              <i class="bi bi-cash-stack text-blue-600 dark:text-blue-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm card-hover">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">จำนวนใบรับเงิน</p>
+              <p class="text-2xl font-bold text-green-600 dark:text-green-400" id="totalReceipts">0</p>
+            </div>
+            <div class="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+              <i class="bi bi-receipt text-green-600 dark:text-green-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm card-hover">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">รอดำเนินการ</p>
+              <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400" id="pendingDeposits">0</p>
+            </div>
+            <div class="bg-yellow-100 dark:bg-yellow-900 p-3 rounded-full">
+              <i class="bi bi-clock-history text-yellow-600 dark:text-yellow-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm card-hover">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">เงินมัดจำวันนี้</p>
+              <p class="text-2xl font-bold text-purple-600 dark:text-purple-400" id="todayDeposits">฿0</p>
+            </div>
+            <div class="bg-purple-100 dark:bg-purple-900 p-3 rounded-full">
+              <i class="bi bi-calendar-check text-purple-600 dark:text-purple-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">ค้นหา</label>
+            <div class="relative">
+              <input type="text" id="searchInput" placeholder="ชื่อลูกค้า, เลขที่ใบรับเงิน..." 
+                     class="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <i class="bi bi-search absolute left-3 top-3 text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div>
+            <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">สถานะ</label>
+            <select id="statusFilter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+              <option value="">ทั้งหมด</option>
+              <option value="active">ใช้งาน</option>
+              <option value="used">ใช้แล้ว</option>
+              <option value="cancelled">ยกเลิก</option>
+              <option value="refunded">คืนเงิน</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">สาขา</label>
+            <select id="branchFilter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+              <option value="">ทุกสาขา</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">วันที่</label>
+            <input type="date" id="dateFilter" 
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+        
+        <div class="flex justify-between items-center mt-4">
+          <button id="btnClearFilters" class="btn btn-sm btn-ghost">
+            <i class="bi bi-x-circle mr-2"></i>ล้างตัวกรอง
+          </button>
+          <div class="flex gap-2">
+            <button id="btnExport" class="btn btn-sm btn-secondary">
+              <i class="bi bi-download mr-2"></i>ส่งออก Excel
+            </button>
+            <button id="btnAddDeposit" class="btn btn-sm btn-primary">
+              <i class="bi bi-plus-circle mr-2"></i>เพิ่มใบรับเงินมัดจำ
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deposits Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  <input type="checkbox" id="selectAll" class="rounded border-gray-300 dark:border-gray-600">
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  เลขที่ใบรับเงิน
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  วันที่
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  ลูกค้า
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  สินค้า
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  จำนวนเงิน
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  สถานะ
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  สาขา
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  จัดการ
+                </th>
+              </tr>
+            </thead>
+            <tbody id="depositTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <!-- Table content will be loaded here -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+              แสดง <span id="showingFrom">0</span> ถึง <span id="showingTo">0</span> จาก <span id="totalCount">0</span> รายการ
+            </div>
+            <div class="flex items-center space-x-2">
+              <button id="btnPrevPage" class="btn btn-sm btn-ghost" disabled>
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <span class="px-3 text-sm text-gray-700 dark:text-gray-300">
+                หน้า <span id="currentPage">1</span> จาก <span id="totalPages">1</span>
+              </span>
+              <button id="btnNextPage" class="btn btn-sm btn-ghost" disabled>
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal for Create/Edit Deposit -->
+      <div id="depositModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800 dark:text-white" id="modalTitle">สร้างใบรับเงินมัดจำ</h2>
+            <button id="closeModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+              <i class="bi bi-x-lg text-xl"></i>
+            </button>
+          </div>
+          
+          <form id="depositForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  เลขที่ใบรับเงินมัดจำ <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="depositNumber" readonly 
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" />
+              </div>
+              
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  วันที่ <span class="text-red-500">*</span>
+                </label>
+                <input type="date" id="depositDate" required
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500" />
+              </div>
+              
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  ลูกค้า <span class="text-red-500">*</span>
+                </label>
+                <select id="customerId" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                  <option value="">เลือกลูกค้า</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  สินค้า <span class="text-red-500">*</span>
+                </label>
+                <select id="productId" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                  <option value="">เลือกสินค้า</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  จำนวนเงินมัดจำ <span class="text-red-500">*</span>
+                </label>
+                <input type="number" id="depositAmount" min="0" step="0.01" required
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500" />
+              </div>
+              
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  วิธีการชำระ <span class="text-red-500">*</span>
+                </label>
+                <select id="paymentMethod" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                  <option value="cash">เงินสด</option>
+                  <option value="transfer">โอนเงิน</option>
+                  <option value="credit">บัตรเครดิต</option>
+                  <option value="mixed">ผสม</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  สาขา <span class="text-red-500">*</span>
+                </label>
+                <select id="branchId" required
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                  <option value="">เลือกสาขา</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                  สถานะ
+                </label>
+                <select id="depositStatus"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                  <option value="active">ใช้งาน</option>
+                  <option value="used">ใช้แล้ว</option>
+                  <option value="cancelled">ยกเลิก</option>
+                  <option value="refunded">คืนเงิน</option>
+                </select>
+              </div>
+            </div>
+            
+            <div>
+              <label class="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+                หมายเหตุ
+              </label>
+              <textarea id="notes" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            
+            <div class="flex justify-end space-x-2 pt-4">
+              <button type="button" id="cancelDepositBtn" class="btn btn-ghost">
+                ยกเลิก
+              </button>
+              <button type="submit" id="saveDepositBtn" class="btn btn-primary">
+                <i class="bi bi-save mr-2"></i>บันทึก
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Utility functions
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    // Load centralized loading manager
+    const loadingScript = document.createElement('script');
+    loadingScript.src = '/js/loading-manager.js';
+    document.head.appendChild(loadingScript);
+
+    // Use centralized loading manager
+    function showLoading(show = true, message = 'กำลังดำเนินการ...') {
+      if (show) {
+        window.LoadingManager?.show('deposits-page', message);
+      } else {
+        window.LoadingManager?.hide('deposits-page');
+      }
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB'
+      }).format(amount || 0);
+    }
+
+    function formatDate(date) {
+      if (!date) return '-';
+      return new Date(date).toLocaleDateString('th-TH');
+    }
+
+    // Make functions globally available
+    window.showToast = showToast;
+    window.showLoading = showLoading;
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+
+    document.addEventListener('DOMContentLoaded', async function() {
+      // Security Configuration
+      const CONFIG = {
+        API_TIMEOUT: 30000,
+        ITEMS_PER_PAGE: 10
+      };
+
+      // Get CSRF Token
+      function getCSRFToken() {
+        const token = document.querySelector('meta[name="csrf-token"]');
+        return token ? token.getAttribute('content') : '';
+      }
+
+      // Enhanced Input Sanitization and Validation
+      function sanitizeHTML(str) {
+        if (!str) return '';
+        try {
+          const div = document.createElement('div');
+          div.textContent = String(str).trim();
+          return div.innerHTML;
+        } catch (error) {
+          console.warn('Error sanitizing HTML:', error);
+          return '';
+        }
+      }
+
+      function validateInput(input, type = 'text', options = {}) {
+        if (input === null || input === undefined) return type === 'number' ? 0 : '';
+
+        try {
+          switch(type) {
+            case 'number':
+              const num = parseFloat(input);
+              if (isNaN(num)) return 0;
+              if (options.min !== undefined && num < options.min) return options.min;
+              if (options.max !== undefined && num > options.max) return options.max;
+              return Math.round(num * 100) / 100; // Fix floating point precision
+
+            case 'currency':
+              const currencyNum = parseFloat(input);
+              if (isNaN(currencyNum) || currencyNum < 0) return 0;
+              return Math.round(currencyNum * 100) / 100;
+
+            case 'date':
+              const date = new Date(input);
+              return isNaN(date.getTime()) ? null : input;
+
+            case 'phone':
+              // Thai phone number validation
+              const cleanPhone = String(input).replace(/[^0-9]/g, '');
+              if (cleanPhone.length >= 9 && cleanPhone.length <= 10) {
+                return cleanPhone;
+              }
+              return '';
+
+            case 'thai-text':
+              // Allow Thai characters, English, numbers, and common punctuation
+              const thaiText = String(input).replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s\-\.\,\(\)]/g, '');
+              return sanitizeHTML(thaiText.trim());
+
+            case 'email':
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              const email = String(input).trim().toLowerCase();
+              return emailRegex.test(email) ? email : '';
+
+            default:
+              return sanitizeHTML(String(input).trim());
+          }
+        } catch (error) {
+          console.warn(`Error validating input (${type}):`, error);
+          return type === 'number' ? 0 : '';
+        }
+      }
+
+      // Thai language validation
+      function isValidThaiText(text) {
+        if (!text) return false;
+        // Check if text contains Thai characters or is valid English/numbers
+        const thaiRegex = /[\u0E00-\u0E7F]/;
+        const englishRegex = /^[a-zA-Z0-9\s\-\.\,\(\)]+$/;
+        return thaiRegex.test(text) || englishRegex.test(text);
+      }
+
+      // Enhanced form validation
+      function validateForm(formData) {
+        const errors = [];
+
+        if (!formData.customer || !formData.customer._id) {
+          errors.push('กรุณาเลือกลูกค้า');
+        }
+
+        if (!formData.product || !formData.product._id) {
+          errors.push('กรุณาเลือกสินค้า');
+        }
+
+        if (!formData.amounts || !formData.amounts.depositAmount || formData.amounts.depositAmount <= 0) {
+          errors.push('กรุณาระบุจำนวนเงินมัดจำที่ถูกต้อง');
+        }
+
+        if (!formData.branch || !formData.branch._id) {
+          errors.push('กรุณาเลือกสาขา');
+        }
+
+        if (!formData.depositDate) {
+          errors.push('กรุณาระบุวันที่มัดจำ');
+        }
+
+        if (!formData.paymentMethod) {
+          errors.push('กรุณาเลือกวิธีการชำระเงิน');
+        }
+
+        return errors;
+      }
+
+      // Enhanced Authentication Check
+      const authToken = localStorage.getItem('authToken');
+    
+      if (!authToken) {
+        console.error('No authentication token found');
+        alert('กรุณาเข้าสู่ระบบก่อน');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+    
+      let sessionId = sessionStorage.getItem('sessionId');
+    
+      if (!sessionId) {
+        sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+        sessionStorage.setItem('sessionId', sessionId);
+      }
+
+      // API headers with security
+      const headers = {
+        'Authorization': 'Bearer ' + authToken,
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCSRFToken(),
+        'X-Session-Id': sessionId
+      };
+
+      // Notification System
+      function showNotification(message, type = 'info') {
+        const notificationDiv = document.createElement('div');
+        const notificationId = 'notification-' + Date.now();
+        notificationDiv.id = notificationId;
+    
+        const typeConfig = {
+          error: 'bg-red-100 border-red-500 text-red-700',
+          success: 'bg-green-100 border-green-500 text-green-700',
+          warning: 'bg-yellow-100 border-yellow-500 text-yellow-700',
+          info: 'bg-blue-100 border-blue-500 text-blue-700'
+        };
+    
+        notificationDiv.className = `fixed top-4 right-4 ${typeConfig[type]} border-l-4 p-4 rounded shadow-lg z-50 animate-fadeIn max-w-md`;
+    
+        const container = document.createElement('div');
+        container.className = 'flex items-center';
+    
+        const iconMap = {
+          error: 'bi-exclamation-triangle',
+          success: 'bi-check-circle',
+          warning: 'bi-exclamation-circle',
+          info: 'bi-info-circle'
+        };
+    
+        const icon = document.createElement('i');
+        icon.className = `bi ${iconMap[type]} mr-3 text-xl`;
+        container.appendChild(icon);
+    
+        const messageP = document.createElement('p');
+        messageP.textContent = message;
+        container.appendChild(messageP);
+    
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'ml-4 font-bold';
+        closeBtn.textContent = '×';
+        closeBtn.addEventListener('click', () => {
+          document.getElementById(notificationId).remove();
+        });
+        container.appendChild(closeBtn);
+    
+        notificationDiv.appendChild(container);
+        document.body.appendChild(notificationDiv);
+    
+        setTimeout(() => {
+          const element = document.getElementById(notificationId);
+          if (element) element.remove();
+        }, 5000);
+      }
+
+      // Confirmation Dialog
+      function showConfirmDialog(title, message, confirmText = 'ยืนยัน', cancelText = 'ยกเลิก') {
+        return new Promise((resolve) => {
+          const modal = document.createElement('div');
+          modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+    
+          const dialog = document.createElement('div');
+          dialog.className = 'bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md mx-4';
+    
+          const titleEl = document.createElement('h3');
+          titleEl.className = 'text-lg font-semibold text-gray-900 dark:text-white mb-2';
+          titleEl.textContent = title;
+    
+          const messageP = document.createElement('p');
+          messageP.className = 'text-gray-600 dark:text-gray-400 mb-6';
+          messageP.textContent = message;
+    
+          const buttonsDiv = document.createElement('div');
+          buttonsDiv.className = 'flex justify-end space-x-3';
+    
+          const cancelBtn = document.createElement('button');
+          cancelBtn.className = 'btn btn-ghost';
+          cancelBtn.textContent = cancelText;
+          cancelBtn.addEventListener('click', () => {
+            modal.remove();
+            resolve(false);
+          });
+    
+          const confirmBtn = document.createElement('button');
+          confirmBtn.className = 'btn btn-primary';
+          confirmBtn.textContent = confirmText;
+          confirmBtn.addEventListener('click', () => {
+            modal.remove();
+            resolve(true);
+          });
+    
+          buttonsDiv.appendChild(cancelBtn);
+          buttonsDiv.appendChild(confirmBtn);
+          dialog.appendChild(titleEl);
+          dialog.appendChild(messageP);
+          dialog.appendChild(buttonsDiv);
+          modal.appendChild(dialog);
+          document.body.appendChild(modal);
+        });
+      }
+
+      // API Request with retry logic
+      async function apiRequest(url, options = {}) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), CONFIG.API_TIMEOUT);
+    
+          const response = await fetch(url, {
+            ...options,
+            headers: { ...headers, ...options.headers },
+            signal: controller.signal
+          });
+    
+          clearTimeout(timeoutId);
+    
+          if (!response.ok) {
+            if (response.status === 401) {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.href = '/login';
+              return null;
+            }
+            throw new Error(`HTTP ${response.status}`);
+          }
+    
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            throw new Error('Request timeout');
+          }
+          throw error;
+        }
+      }
+
+      // Format date function
+      function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+      }
+
+      // Enhanced currency formatting with precision control for Thai Baht
+      function formatCurrency(amount, options = {}) {
+        try {
+          // Validate and sanitize input
+          let num = parseFloat(amount);
+          if (isNaN(num) || num < 0) {
+            num = 0; // Prevent negative values for Thai accounting
+          }
+
+          // Round to prevent floating point precision issues
+          num = Math.round(num * 100) / 100;
+
+          const formatOptions = {
+            style: 'currency',
+            currency: 'THB',
+            minimumFractionDigits: options.minimumFractionDigits || 2,
+            maximumFractionDigits: options.maximumFractionDigits || 2,
+            ...options
+          };
+
+          return new Intl.NumberFormat('th-TH', formatOptions).format(num);
+        } catch (error) {
+          console.warn('Error formatting currency:', error);
+          return '฿0.00';
+        }
+      }
+
+      // Enhanced number formatting for Thai locale
+      function formatNumber(num, decimals = 0) {
+        try {
+          const number = parseFloat(num) || 0;
+          return new Intl.NumberFormat('th-TH', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+          }).format(number);
+        } catch (error) {
+          console.warn('Error formatting number:', error);
+          return '0';
+        }
+      }
+
+      // Global data
+      let deposits = [];
+      let customers = [];
+      let products = [];
+      let branches = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      let currentEditId = null;
+
+      // Initialize sidebar
+      if (typeof initializeLoanSidebar === 'function') {
+        initializeLoanSidebar();
+      }
+
+      // Show loading
+      showLoading(true, 'กำลังโหลดข้อมูลเงินมัดจำ...');
+
+      // Load master data for deposit receipts with enhanced error handling and validation
+      async function loadMasterData() {
+        try {
+          console.log('🔄 Loading master data for deposit receipts...');
+
+          // Load customers with proper error handling and Thai language support
+          try {
+            const customerEndpoints = ['/api/customers', '/api/customer'];
+            let customerData = null;
+
+            for (const endpoint of customerEndpoints) {
+              try {
+                customerData = await apiRequest(endpoint);
+                if (customerData && customerData.success && customerData.data) {
+                  break;
+                }
+              } catch (err) {
+                console.warn(`⚠️ Failed to load from ${endpoint}:`, err.message);
+              }
+            }
+
+            if (customerData && customerData.success) {
+              customers = Array.isArray(customerData.data) ? customerData.data : [];
+              const customerSelect = document.getElementById('customerId');
+              customerSelect.innerHTML = '<option value="">เลือกลูกค้า</option>';
+
+              customers.forEach((customer, index) => {
+                try {
+                  const option = document.createElement('option');
+                  option.value = customer._id || customer.id || '';
+
+                  // Enhanced customer name handling with validation
+                  let customerName = 'ไม่ระบุชื่อ';
+
+                  if (customer.customerType === 'corporate') {
+                    customerName = customer.corporate?.companyName || customer.companyName || 'บริษัท';
+                  } else if (customer.customerType === 'individual' || !customer.customerType) {
+                    const firstName = customer.individual?.firstName || customer.firstName || '';
+                    const lastName = customer.individual?.lastName || customer.lastName || '';
+                    const prefix = customer.individual?.prefix || customer.prefix || '';
+
+                    if (firstName || lastName) {
+                      customerName = [prefix, firstName, lastName].filter(part => part && part.trim()).join(' ').trim();
+                    } else if (customer.name) {
+                      customerName = customer.name;
+                    }
+                  } else if (customer.name) {
+                    customerName = customer.name;
+                  }
+
+                  // Validate Thai characters and sanitize
+                  if (customerName && customerName.trim()) {
+                    customerName = sanitizeHTML(customerName.trim());
+                  } else {
+                    customerName = `ลูกค้า #${index + 1}`;
+                  }
+
+                  option.textContent = customerName;
+                  option.dataset.customerType = customer.customerType || 'individual';
+                  option.dataset.phone = customer.phone || customer.individual?.phone || customer.corporate?.phone || '';
+                  customerSelect.appendChild(option);
+                } catch (itemError) {
+                  console.warn(`⚠️ Error processing customer item ${index}:`, itemError);
+                }
+              });
+              console.log(`✅ Loaded ${customers.length} customers`);
+            } else {
+              console.warn('⚠️ No customer data available from any endpoint');
+              showNotification('ไม่สามารถโหลดข้อมูลลูกค้าได้', 'warning');
+            }
+          } catch (error) {
+            console.error('❌ Error loading customers:', error);
+            showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า', 'error');
+          }
+
+          // Load products with enhanced validation
+          try {
+            const productEndpoints = ['/api/products', '/api/stock/products', '/api/inventory/products'];
+            let productData = null;
+
+            for (const endpoint of productEndpoints) {
+              try {
+                productData = await apiRequest(endpoint);
+                if (productData && productData.success && productData.data) {
+                  break;
+                }
+              } catch (err) {
+                console.warn(`⚠️ Failed to load from ${endpoint}:`, err.message);
+              }
+            }
+
+            if (productData && productData.success) {
+              products = Array.isArray(productData.data) ? productData.data : [];
+              const productSelect = document.getElementById('productId');
+              productSelect.innerHTML = '<option value="">เลือกสินค้า</option>';
+
+              products.forEach((product, index) => {
+                try {
+                  const option = document.createElement('option');
+                  option.value = product._id || product.id || '';
+
+                  // Enhanced product name with brand and model
+                  let productName = product.name || 'ไม่ระบุชื่อสินค้า';
+                  if (product.brand && product.model) {
+                    productName = `${product.brand} ${product.model} - ${productName}`;
+                  } else if (product.brand) {
+                    productName = `${product.brand} - ${productName}`;
+                  }
+
+                  option.textContent = sanitizeHTML(productName);
+                  option.dataset.price = product.price || 0;
+                  option.dataset.brand = product.brand || '';
+                  option.dataset.model = product.model || '';
+                  option.dataset.inStock = product.inStock || false;
+                  productSelect.appendChild(option);
+                } catch (itemError) {
+                  console.warn(`⚠️ Error processing product item ${index}:`, itemError);
+                }
+              });
+              console.log(`✅ Loaded ${products.length} products`);
+            } else {
+              console.warn('⚠️ No product data available from any endpoint');
+              showNotification('ไม่สามารถโหลดข้อมูลสินค้าได้', 'warning');
+            }
+          } catch (error) {
+            console.error('❌ Error loading products:', error);
+            showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูลสินค้า', 'error');
+          }
+
+          // Load branches with enhanced validation
+          try {
+            const branchEndpoints = ['/api/branches', '/api/account/branches', '/api/branch'];
+            let branchData = null;
+
+            for (const endpoint of branchEndpoints) {
+              try {
+                branchData = await apiRequest(endpoint);
+                if (branchData && branchData.success && branchData.data) {
+                  break;
+                }
+              } catch (err) {
+                console.warn(`⚠️ Failed to load from ${endpoint}:`, err.message);
+              }
+            }
+
+            if (branchData && branchData.success) {
+              branches = Array.isArray(branchData.data) ? branchData.data : [];
+
+              // Populate branch filter with validation
+              const branchFilter = document.getElementById('branchFilter');
+              if (branchFilter) {
+                branchFilter.innerHTML = '<option value="">ทุกสาขา</option>';
+                branches.forEach((branch, index) => {
+                  try {
+                    const option = document.createElement('option');
+                    option.value = branch.code || branch._id || `branch_${index}`;
+                    const branchName = branch.name || `สาขา #${index + 1}`;
+                    option.textContent = sanitizeHTML(branchName);
+                    branchFilter.appendChild(option);
+                  } catch (itemError) {
+                    console.warn(`⚠️ Error processing branch filter item ${index}:`, itemError);
+                  }
+                });
+              }
+
+              // Populate branch select in form
+              const branchSelect = document.getElementById('branchId');
+              if (branchSelect) {
+                branchSelect.innerHTML = '<option value="">เลือกสาขา</option>';
+                branches.forEach((branch, index) => {
+                  try {
+                    const option = document.createElement('option');
+                    option.value = branch._id || branch.id || `branch_${index}`;
+                    const branchName = branch.name || `สาขา #${index + 1}`;
+                    option.textContent = sanitizeHTML(branchName);
+                    option.dataset.code = branch.code || '';
+                    option.dataset.address = branch.address || '';
+                    branchSelect.appendChild(option);
+                  } catch (itemError) {
+                    console.warn(`⚠️ Error processing branch select item ${index}:`, itemError);
+                  }
+                });
+              }
+              console.log(`✅ Loaded ${branches.length} branches`);
+            } else {
+              console.warn('⚠️ No branch data available from any endpoint');
+              showNotification('ไม่สามารถโหลดข้อมูลสาขาได้', 'warning');
+            }
+          } catch (error) {
+            console.error('❌ Error loading branches:', error);
+            showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูลสาขา', 'error');
+          }
+
+          console.log('✅ Master data loading completed successfully');
+        } catch (error) {
+          console.error('❌ Critical error loading master data:', error);
+          showNotification('เกิดข้อผิดพลาดร้ายแรงในการโหลดข้อมูลพื้นฐาน', 'error');
+        }
+      }
+
+      // Load deposits data using enhanced deposit receipt API with comprehensive error handling
+      async function loadDeposits(page = 1) {
+        console.log(`🔄 Loading deposit receipts from API (page ${page})...`);
+        const tbody = document.getElementById('depositTableBody');
+
+        // Enhanced loading state with progress indicator
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="px-6 py-12 text-center">
+              <div class="flex flex-col items-center justify-center space-y-3">
+                <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <div class="text-gray-500 dark:text-gray-400">กำลังโหลดข้อมูลใบรับเงินมัดจำ...</div>
+                <div class="text-xs text-gray-400">หน้า ${page} จาก ${totalPages || '?'}</div>
+              </div>
+            </td>
+          </tr>`;
+
+        try {
+          // Build comprehensive query parameters for deposit receipt API
+          const params = new URLSearchParams({
+            page: Math.max(1, parseInt(page) || 1),
+            limit: Math.max(1, Math.min(100, CONFIG.ITEMS_PER_PAGE || 10))
+          });
+
+          // Enhanced filter handling with validation
+          const searchInput = sanitizeHTML(document.getElementById('searchInput')?.value?.trim() || '');
+          const statusFilter = document.getElementById('statusFilter')?.value?.trim() || '';
+          const branchFilter = document.getElementById('branchFilter')?.value?.trim() || '';
+          const dateFilter = document.getElementById('dateFilter')?.value?.trim() || '';
+
+          // Apply filters with proper validation
+          if (searchInput) {
+            // Support multiple search types
+            if (searchInput.includes('DR-') || searchInput.includes('dr-')) {
+              params.append('receiptNumber', searchInput);
+            } else if (/^[0-9\-+\s()]+$/.test(searchInput)) {
+              params.append('customerPhone', searchInput.replace(/[\s\-()]/g, ''));
+            } else {
+              params.append('receiptNumber', searchInput);
+            }
+          }
+
+          if (statusFilter && ['pending', 'confirmed', 'stock_available', 'completed', 'cancelled', 'expired'].includes(statusFilter)) {
+            params.append('status', statusFilter);
+          }
+
+          if (branchFilter) {
+            params.append('branchCode', branchFilter);
+          }
+
+          if (dateFilter) {
+            try {
+              const filterDate = new Date(dateFilter);
+              if (!isNaN(filterDate.getTime())) {
+                const dateStr = filterDate.toISOString().split('T')[0];
+                params.append('startDate', dateStr);
+                params.append('endDate', dateStr);
+              }
+            } catch (dateError) {
+              console.warn('⚠️ Invalid date filter:', dateError);
+            }
+          }
+
+          console.log('🌐 Enhanced API Request URL:', `/api/deposit-receipts?${params}`);
+
+          // Make API request with timeout and retries
+          const data = await apiRequest(`/api/deposit-receipts?${params}`);
+
+          console.log('📊 Enhanced API Response:', {
+            success: data?.success,
+            dataCount: data?.data?.length || 0,
+            pagination: data?.pagination,
+            statistics: data?.statistics
+          });
+
+          if (data && data.success) {
+            deposits = Array.isArray(data.data) ? data.data : [];
+
+            // Enhanced pagination handling
+            const pagination = data.pagination || {};
+            const totalCount = pagination.totalDocs || pagination.total || deposits.length;
+            totalPages = pagination.totalPages || pagination.pages || Math.ceil(totalCount / (CONFIG.ITEMS_PER_PAGE || 10));
+            currentPage = Math.max(1, parseInt(pagination.currentPage || pagination.page || page));
+
+            console.log(`📋 Successfully loaded ${deposits.length} deposit receipts`);
+
+            // Update statistics with validation
+            if (data.statistics && typeof data.statistics === 'object') {
+              updateStatistics(data.statistics);
+            } else {
+              // Calculate basic statistics from data
+              const basicStats = {
+                totalCount: deposits.length,
+                totalAmount: deposits.reduce((sum, item) => sum + (item.amounts?.depositAmount || item.depositAmount || 0), 0),
+                pendingCount: deposits.filter(item => item.status === 'pending').length,
+                todayAmount: deposits
+                  .filter(item => {
+                    const depositDate = new Date(item.depositDate || item.createdAt);
+                    const today = new Date();
+                    return depositDate.toDateString() === today.toDateString();
+                  })
+                  .reduce((sum, item) => sum + (item.amounts?.depositAmount || item.depositAmount || 0), 0)
+              };
+              updateStatistics(basicStats);
+            }
+
+            // Clear table
+            tbody.innerHTML = '';
+
+            if (deposits.length === 0) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="9" class="px-6 py-12 text-center">
+                    <div class="flex flex-col items-center justify-center space-y-3">
+                      <i class="bi bi-inbox text-5xl text-gray-400"></i>
+                      <div class="text-gray-500 dark:text-gray-400 text-lg">ไม่พบข้อมูลใบรับเงินมัดจำ</div>
+                      <div class="text-sm text-gray-400">
+                        ${searchInput ? 'ลองปรับเปลี่ยนคำค้นหาหรือ' : ''}
+                        <button class="text-blue-500 hover:text-blue-700 underline" onclick="document.getElementById('btnClearFilters').click()">
+                          ล้างตัวกรองทั้งหมด
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>`;
+              updatePagination(0, 0, 0);
+              return;
+            }
+
+            console.log('🔧 Creating enhanced table rows...');
+
+            // Populate table with enhanced error handling
+            deposits.forEach((item, index) => {
+              try {
+                const row = createDepositReceiptRow(item, (currentPage - 1) * CONFIG.ITEMS_PER_PAGE + index + 1);
+                if (row) {
+                  tbody.appendChild(row);
+                }
+              } catch (rowError) {
+                console.warn(`⚠️ Error creating row for item ${index}:`, rowError);
+                // Create error row
+                const errorRow = document.createElement('tr');
+                errorRow.className = 'bg-red-50 dark:bg-red-900/20';
+                errorRow.innerHTML = `
+                  <td colspan="9" class="px-6 py-3 text-center text-red-600 dark:text-red-400">
+                    <i class="bi bi-exclamation-triangle mr-2"></i>
+                    ข้อผิดพลาดในการแสดงรายการที่ ${index + 1}: ${rowError.message}
+                  </td>`;
+                tbody.appendChild(errorRow);
+              }
+            });
+
+            console.log('✅ Table rows created successfully with enhanced features');
+
+            // Update pagination with enhanced validation
+            const from = Math.max(1, (currentPage - 1) * CONFIG.ITEMS_PER_PAGE + 1);
+            const to = Math.min(currentPage * CONFIG.ITEMS_PER_PAGE, totalCount);
+            updatePagination(from, to, totalCount);
+          } else {
+            console.error('❌ API returned unsuccessful response:', data);
+            throw new Error(data?.message || data?.error || 'API response indicates failure');
+          }
+        } catch (error) {
+          console.error('❌ Error loading deposit receipts:', error);
+
+          // Enhanced error display with actionable options
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="9" class="px-6 py-12 text-center">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                  <i class="bi bi-exclamation-triangle text-5xl text-red-500"></i>
+                  <div class="text-red-600 dark:text-red-400 text-lg font-medium">ไม่สามารถโหลดข้อมูลได้</div>
+                  <div class="text-gray-600 dark:text-gray-400 text-sm max-w-md text-center">
+                    ${error.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์'}
+                  </div>
+                  <div class="flex gap-2 mt-4">
+                    <button id="retryBtn" class="btn btn-sm btn-primary">
+                      <i class="bi bi-arrow-clockwise mr-2"></i>ลองใหม่
+                    </button>
+                    <button id="clearFiltersBtn" class="btn btn-sm btn-ghost">
+                      <i class="bi bi-x-circle mr-2"></i>ล้างตัวกรอง
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>`;
+
+          // Enhanced retry functionality
+          const retryBtn = document.getElementById('retryBtn');
+          if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+              showNotification('กำลังโหลดข้อมูลใหม่...', 'info');
+              loadDeposits(page);
+            });
+          }
+
+          const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+          if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+              document.getElementById('searchInput').value = '';
+              document.getElementById('statusFilter').value = '';
+              document.getElementById('branchFilter').value = '';
+              document.getElementById('dateFilter').value = '';
+              loadDeposits(1);
+            });
+          }
+
+          // Update statistics to show error state
+          updateStatistics({
+            totalCount: 0,
+            totalAmount: 0,
+            pendingCount: 0,
+            todayAmount: 0
+          });
+
+          showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + (error.message || 'ไม่ทราบสาเหตุ'), 'error');
+        }
+      }
+
+      // Enhanced deposit receipt row creation with comprehensive validation and Thai language support
+      function createDepositReceiptRow(item, index) {
+        try {
+          if (!item) {
+            throw new Error('Empty item data');
+          }
+
+          console.log(`Creating enhanced row ${index} for receipt: ${item.receiptNumber || item.id}`);
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200';
+          tr.dataset.receiptId = item._id || item.id;
+          tr.dataset.status = item.status || 'pending';
+
+          // Enhanced checkbox cell with validation
+          const checkboxTd = document.createElement('td');
+          checkboxTd.className = 'px-6 py-4 whitespace-nowrap';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'rounded border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500';
+          checkbox.dataset.id = item._id || item.id;
+          checkbox.dataset.receiptNumber = item.receiptNumber || '';
+          checkboxTd.appendChild(checkbox);
+
+          // Enhanced receipt number cell with validation
+          const receiptTd = document.createElement('td');
+          receiptTd.className = 'px-6 py-4 whitespace-nowrap';
+          const receiptDiv = document.createElement('div');
+          receiptDiv.className = 'text-sm font-medium text-gray-900 dark:text-white';
+          const receiptNumber = item.receiptNumber || item.documentNumber || `DR-${Date.now()}-${index}`;
+          receiptDiv.textContent = sanitizeHTML(receiptNumber);
+          receiptDiv.title = `เลขที่ใบรับ: ${receiptNumber}`;
+          receiptTd.appendChild(receiptDiv);
+
+          // Enhanced date cell with Thai formatting
+          const dateTd = document.createElement('td');
+          dateTd.className = 'px-6 py-4 whitespace-nowrap';
+          const dateDiv = document.createElement('div');
+          dateDiv.className = 'text-sm text-gray-500 dark:text-gray-300';
+          const depositDate = item.depositDate || item.createdAt;
+          dateDiv.textContent = formatDate(depositDate);
+          if (depositDate) {
+            dateDiv.title = `วันที่: ${new Date(depositDate).toLocaleDateString('th-TH', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              weekday: 'long'
+            })}`;
+          }
+          dateTd.appendChild(dateDiv);
+
+          // Enhanced customer cell with multiple name formats
+          const customerTd = document.createElement('td');
+          customerTd.className = 'px-6 py-4 whitespace-nowrap';
+          const customerDiv = document.createElement('div');
+          customerDiv.className = 'text-sm text-gray-900 dark:text-white';
+
+          let customerName = 'ไม่ระบุ';
+          let customerDetails = '';
+
+          // Handle different customer name structures
+          if (item.customer) {
+            if (item.customer.customerType === 'corporate') {
+              customerName = item.customer.companyName || item.customer.name || 'บริษัท';
+              customerDetails = item.customer.contactPerson ? `ติดต่อ: ${item.customer.contactPerson}` : '';
+            } else {
+              const firstName = item.customer.firstName || '';
+              const lastName = item.customer.lastName || '';
+              const prefix = item.customer.prefix || '';
+
+              if (firstName || lastName) {
+                customerName = [prefix, firstName, lastName].filter(part => part && part.trim()).join(' ').trim();
+              } else if (item.customer.name) {
+                customerName = item.customer.name;
+              }
+
+              customerDetails = item.customer.phone ? `โทร: ${item.customer.phone}` : '';
+            }
+          } else if (item.customerName) {
+            customerName = item.customerName;
+          }
+
+          customerDiv.textContent = sanitizeHTML(customerName);
+          customerDiv.title = customerDetails ? `${customerName}\n${customerDetails}` : customerName;
+          customerTd.appendChild(customerDiv);
+
+          // Enhanced product cell with brand and model
+          const productTd = document.createElement('td');
+          productTd.className = 'px-6 py-4 whitespace-nowrap';
+          const productDiv = document.createElement('div');
+          productDiv.className = 'text-sm text-gray-500 dark:text-gray-300';
+
+          let productName = 'ไม่ระบุ';
+          let productDetails = '';
+
+          if (item.product) {
+            productName = item.product.name || 'ไม่ระบุสินค้า';
+            const brand = item.product.brand || '';
+            const model = item.product.model || '';
+            const price = item.product.price;
+
+            if (brand && model) {
+              productDetails = `${brand} ${model}`;
+              if (price) {
+                productDetails += ` (${formatCurrency(price)})`;
+              }
+            } else if (price) {
+              productDetails = `ราคา: ${formatCurrency(price)}`;
+            }
+          } else if (item.productName) {
+            productName = item.productName;
+          }
+
+          productDiv.textContent = sanitizeHTML(productName);
+          productDiv.title = productDetails ? `${productName}\n${productDetails}` : productName;
+          productTd.appendChild(productDiv);
+
+          // Enhanced amount cell with validation and formatting
+          const amountTd = document.createElement('td');
+          amountTd.className = 'px-6 py-4 whitespace-nowrap';
+          const amountDiv = document.createElement('div');
+          amountDiv.className = 'text-sm font-medium text-blue-600 dark:text-blue-400';
+
+          // Get amount from various possible fields
+          const depositAmount = validateInput(
+            item.depositAmount ||
+            item.amounts?.depositAmount ||
+            item.amounts?.totalAmount ||
+            0,
+            'currency'
+          );
+
+          amountDiv.textContent = formatCurrency(depositAmount);
+
+          // Add tooltip with additional amount details
+          if (item.amounts) {
+            const totalAmount = item.amounts.totalAmount || item.amounts.grandTotal || 0;
+            const remainingAmount = item.amounts.remainingAmount || 0;
+            if (totalAmount > depositAmount) {
+              amountDiv.title = `มัดจำ: ${formatCurrency(depositAmount)}\nยอดรวม: ${formatCurrency(totalAmount)}\nคงเหลือ: ${formatCurrency(remainingAmount)}`;
+            }
+          }
+
+          amountTd.appendChild(amountDiv);
+
+          // Enhanced status cell with proper badge
+          const statusTd = document.createElement('td');
+          statusTd.className = 'px-6 py-4 whitespace-nowrap';
+          const statusBadge = createStatusBadge(item.status || 'pending');
+          statusTd.appendChild(statusBadge);
+
+          // Enhanced branch cell
+          const branchTd = document.createElement('td');
+          branchTd.className = 'px-6 py-4 whitespace-nowrap';
+          const branchDiv = document.createElement('div');
+          branchDiv.className = 'text-sm text-gray-500 dark:text-gray-300';
+
+          const branchName = item.branchName || item.branch?.name || 'ไม่ระบุ';
+          const branchCode = item.branch?.code || '';
+
+          branchDiv.textContent = sanitizeHTML(branchName);
+          branchDiv.title = branchCode ? `${branchName} (${branchCode})` : branchName;
+          branchTd.appendChild(branchDiv);
+
+          // Enhanced actions cell with proper permissions
+          const actionsTd = document.createElement('td');
+          actionsTd.className = 'px-6 py-4 whitespace-nowrap text-right text-sm font-medium';
+          const actionsDiv = document.createElement('div');
+          actionsDiv.className = 'flex justify-end gap-1';
+
+          const itemId = item._id || item.id;
+          const currentStatus = item.status || 'pending';
+
+          // View button (always available)
+          const viewBtn = document.createElement('button');
+          viewBtn.className = 'p-1 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors';
+          viewBtn.innerHTML = '<i class="bi bi-eye text-sm"></i>';
+          viewBtn.title = 'ดูรายละเอียด';
+          viewBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            viewDepositReceipt(itemId);
+          });
+          actionsDiv.appendChild(viewBtn);
+
+          // Print button (always available)
+          const printBtn = document.createElement('button');
+          printBtn.className = 'p-1 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 rounded hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors';
+          printBtn.innerHTML = '<i class="bi bi-printer text-sm"></i>';
+          printBtn.title = 'พิมพ์ใบรับเงิน';
+          printBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            printDepositReceipt(itemId);
+          });
+          actionsDiv.appendChild(printBtn);
+
+          // Edit button (only for pending status)
+          if (['pending', 'confirmed'].includes(currentStatus)) {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'p-1 text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 rounded hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors';
+            editBtn.innerHTML = '<i class="bi bi-pencil text-sm"></i>';
+            editBtn.title = 'แก้ไข';
+            editBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              editDepositReceipt(item);
+            });
+            actionsDiv.appendChild(editBtn);
+          }
+
+          // Complete button (only for pending/confirmed status)
+          if (['pending', 'confirmed', 'stock_available'].includes(currentStatus)) {
+            const completeBtn = document.createElement('button');
+            completeBtn.className = 'p-1 text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 rounded hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors';
+            completeBtn.innerHTML = '<i class="bi bi-check-circle text-sm"></i>';
+            completeBtn.title = 'ทำการเสร็จสิ้น';
+            completeBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              completeDepositReceipt(itemId);
+            });
+            actionsDiv.appendChild(completeBtn);
+          }
+
+          // Cancel button (only if not already cancelled or completed)
+          if (!['cancelled', 'completed'].includes(currentStatus)) {
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'p-1 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors';
+            cancelBtn.innerHTML = '<i class="bi bi-x-circle text-sm"></i>';
+            cancelBtn.title = 'ยกเลิก';
+            cancelBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              cancelDepositReceipt(itemId);
+            });
+            actionsDiv.appendChild(cancelBtn);
+          }
+
+          actionsTd.appendChild(actionsDiv);
+
+          // Append all cells to row
+          tr.appendChild(checkboxTd);
+          tr.appendChild(receiptTd);
+          tr.appendChild(dateTd);
+          tr.appendChild(customerTd);
+          tr.appendChild(productTd);
+          tr.appendChild(amountTd);
+          tr.appendChild(statusTd);
+          tr.appendChild(branchTd);
+          tr.appendChild(actionsTd);
+
+          return tr;
+        } catch (error) {
+          console.error(`Error creating row for item ${index}:`, error);
+
+          // Return error row
+          const errorTr = document.createElement('tr');
+          errorTr.className = 'bg-red-50 dark:bg-red-900/20';
+          errorTr.innerHTML = `
+            <td colspan="9" class="px-6 py-3 text-center text-red-600 dark:text-red-400">
+              <i class="bi bi-exclamation-triangle mr-2"></i>
+              ข้อผิดพลาดในการแสดงรายการที่ ${index}: ${error.message}
+            </td>`;
+          return errorTr;
+        }
+      }
+
+      // Enhanced status badge creation with comprehensive DepositReceipt status support
+      function createStatusBadge(status, options = {}) {
+        const badge = document.createElement('span');
+
+        // Enhanced status configuration matching DepositReceipt schema
+        const statusConfig = {
+          'pending': {
+            class: 'badge-warning',
+            text: 'รอดำเนินการ',
+            icon: 'bi-clock-history',
+            description: 'รอการตรวจสอบสต็อกและดำเนินการ'
+          },
+          'confirmed': {
+            class: 'badge-info',
+            text: 'ยืนยันแล้ว',
+            icon: 'bi-check-circle',
+            description: 'ยืนยันการมัดจำแล้ว'
+          },
+          'stock_available': {
+            class: 'badge-success',
+            text: 'สินค้าพร้อม',
+            icon: 'bi-box-seam',
+            description: 'สินค้าพร้อมสำหรับการขาย'
+          },
+          'completed': {
+            class: 'badge-success',
+            text: 'เสร็จสิ้น',
+            icon: 'bi-check-circle-fill',
+            description: 'ดำเนินการขายเสร็จสิ้นแล้ว'
+          },
+          'cancelled': {
+            class: 'badge-error',
+            text: 'ยกเลิก',
+            icon: 'bi-x-circle-fill',
+            description: 'ยกเลิกการมัดจำแล้ว'
+          },
+          'expired': {
+            class: 'badge-error',
+            text: 'หมดอายุ',
+            icon: 'bi-exclamation-triangle-fill',
+            description: 'หมดอายุการมัดจำแล้ว'
+          },
+          'refunded': {
+            class: 'badge-info',
+            text: 'คืนเงิน',
+            icon: 'bi-arrow-left-circle',
+            description: 'คืนเงินมัดจำแล้ว'
+          },
+          // Legacy compatibility
+          'active': {
+            class: 'badge-success',
+            text: 'ใช้งาน',
+            icon: 'bi-check-circle',
+            description: 'สถานะใช้งาน'
+          },
+          'used': {
+            class: 'badge-info',
+            text: 'ใช้แล้ว',
+            icon: 'bi-check2-all',
+            description: 'ใช้งานแล้ว'
+          }
+        };
+
+        const config = statusConfig[status] || {
+          class: 'badge-ghost',
+          text: status || 'ไม่ระบุ',
+          icon: 'bi-question-circle',
+          description: 'สถานะไม่ทราบ'
+        };
+
+        badge.className = `badge ${config.class} badge-sm inline-flex items-center gap-1`;
+
+        // Add icon if requested
+        if (options.showIcon && config.icon) {
+          const icon = document.createElement('i');
+          icon.className = `${config.icon} text-xs`;
+          badge.appendChild(icon);
+        }
+
+        const textNode = document.createTextNode(config.text);
+        badge.appendChild(textNode);
+
+        // Add tooltip
+        badge.title = config.description;
+        badge.dataset.status = status;
+
+        return badge;
+      }
+
+      // Get status color for progress indicators
+      function getStatusColor(status) {
+        const colorMap = {
+          'pending': 'orange',
+          'confirmed': 'blue',
+          'stock_available': 'green',
+          'completed': 'green',
+          'cancelled': 'red',
+          'expired': 'red',
+          'refunded': 'blue'
+        };
+        return colorMap[status] || 'gray';
+      }
+
+      // Enhanced statistics update with animation and validation
+      function updateStatistics(stats = {}) {
+        try {
+          const elements = {
+            totalDeposits: document.getElementById('totalDeposits'),
+            totalReceipts: document.getElementById('totalReceipts'),
+            pendingDeposits: document.getElementById('pendingDeposits'),
+            todayDeposits: document.getElementById('todayDeposits')
+          };
+
+          // Validate stats object
+          const validatedStats = {
+            totalAmount: validateInput(stats.totalAmount, 'currency'),
+            totalCount: Math.max(0, parseInt(stats.totalCount) || 0),
+            pendingCount: Math.max(0, parseInt(stats.pendingCount) || 0),
+            todayAmount: validateInput(stats.todayAmount, 'currency'),
+            completedCount: Math.max(0, parseInt(stats.completedCount) || 0),
+            cancelledCount: Math.max(0, parseInt(stats.cancelledCount) || 0)
+          };
+
+          // Update with animation
+          if (elements.totalDeposits) {
+            animateValue(elements.totalDeposits, formatCurrency(validatedStats.totalAmount));
+          }
+
+          if (elements.totalReceipts) {
+            animateValue(elements.totalReceipts, formatNumber(validatedStats.totalCount));
+          }
+
+          if (elements.pendingDeposits) {
+            animateValue(elements.pendingDeposits, formatNumber(validatedStats.pendingCount));
+            // Add warning style if too many pending
+            if (validatedStats.pendingCount > 50) {
+              elements.pendingDeposits.className = 'text-2xl font-bold text-red-600 dark:text-red-400';
+            } else {
+              elements.pendingDeposits.className = 'text-2xl font-bold text-yellow-600 dark:text-yellow-400';
+            }
+          }
+
+          if (elements.todayDeposits) {
+            animateValue(elements.todayDeposits, formatCurrency(validatedStats.todayAmount));
+          }
+
+          console.log('✅ Statistics updated successfully:', validatedStats);
+        } catch (error) {
+          console.error('❌ Error updating statistics:', error);
+          // Fallback: set to zero values
+          const fallbackElements = ['totalDeposits', 'totalReceipts', 'pendingDeposits', 'todayDeposits'];
+          fallbackElements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+              element.textContent = id.includes('Deposits') ? formatCurrency(0) : '0';
+            }
+          });
+        }
+      }
+
+      // Animate value changes
+      function animateValue(element, newValue) {
+        if (!element) return;
+
+        element.style.transition = 'all 0.3s ease';
+        element.style.transform = 'scale(1.05)';
+
+        setTimeout(() => {
+          element.textContent = newValue;
+          element.style.transform = 'scale(1)';
+        }, 150);
+      }
+
+      // Update pagination
+      function updatePagination(from, to, total) {
+        document.getElementById('showingFrom').textContent = from;
+        document.getElementById('showingTo').textContent = to;
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('currentPage').textContent = currentPage;
+        document.getElementById('totalPages').textContent = totalPages;
+    
+        const prevBtn = document.getElementById('btnPrevPage');
+        const nextBtn = document.getElementById('btnNextPage');
+    
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
+      }
+
+      // Deposit Receipt Action Functions
+
+      // View deposit receipt
+      async function viewDepositReceipt(id) {
+        try {
+          const data = await apiRequest(`/api/deposit-receipts/${encodeURIComponent(id)}`);
+          if (data && data.success) {
+            showDepositReceiptDetails(data.data);
+          } else {
+            showNotification('ไม่สามารถดึงข้อมูลใบรับเงินมัดจำได้', 'error');
+          }
+        } catch (error) {
+          console.error('Error viewing deposit receipt:', error);
+          showNotification('เกิดข้อผิดพลาดในการดึงข้อมูล', 'error');
+        }
+      }
+
+      // Enhanced PDF generation for Thai language deposit receipts
+      async function printDepositReceipt(id) {
+        if (!id) {
+          showNotification('ไม่พบ ID ของใบรับเงินมัดจำ', 'error');
+          return;
+        }
+
+        try {
+          showNotification('กำลังสร้างไฟล์ PDF...', 'info');
+
+          // Try multiple PDF endpoints
+          const pdfEndpoints = [
+            `/api/deposit-receipts/${encodeURIComponent(id)}/pdf`,
+            `/api/deposit-receipts/${encodeURIComponent(id)}/print`,
+            `/api/pdf/deposit-receipt/${encodeURIComponent(id)}`,
+            `/api/loan/deposits/${encodeURIComponent(id)}/pdf`
+          ];
+
+          let pdfSuccessful = false;
+
+          for (const endpoint of pdfEndpoints) {
+            try {
+              console.log(`📋 Attempting PDF generation from: ${endpoint}`);
+
+              // Create a form for PDF generation with proper headers
+              const form = document.createElement('form');
+              form.method = 'POST';
+              form.action = endpoint;
+              form.target = '_blank';
+              form.style.display = 'none';
+
+              // Add CSRF token
+              const csrfInput = document.createElement('input');
+              csrfInput.type = 'hidden';
+              csrfInput.name = '_csrf';
+              csrfInput.value = getCSRFToken();
+              form.appendChild(csrfInput);
+
+              // Add auth token
+              const authInput = document.createElement('input');
+              authInput.type = 'hidden';
+              authInput.name = 'authToken';
+              authInput.value = localStorage.getItem('authToken');
+              form.appendChild(authInput);
+
+              // Add Thai language preference
+              const langInput = document.createElement('input');
+              langInput.type = 'hidden';
+              langInput.name = 'language';
+              langInput.value = 'th';
+              form.appendChild(langInput);
+
+              // Add PDF options
+              const optionsInput = document.createElement('input');
+              optionsInput.type = 'hidden';
+              optionsInput.name = 'options';
+              optionsInput.value = JSON.stringify({
+                format: 'A4',
+                orientation: 'portrait',
+                margin: { top: 20, bottom: 20, left: 20, right: 20 },
+                encoding: 'UTF-8',
+                fontFamily: 'THSarabunNew, Arial, sans-serif'
+              });
+              form.appendChild(optionsInput);
+
+              document.body.appendChild(form);
+              form.submit();
+              document.body.removeChild(form);
+
+              pdfSuccessful = true;
+              break;
+            } catch (endpointError) {
+              console.warn(`⚠️ PDF generation failed for ${endpoint}:`, endpointError);
+            }
+          }
+
+          if (pdfSuccessful) {
+            showNotification('เปิดไฟล์ PDF ในแท็บใหม่แล้ว', 'success');
+
+            // Update print count (optional)
+            try {
+              await apiRequest(`/api/deposit-receipts/${encodeURIComponent(id)}/print-count`, {
+                method: 'POST'
+              });
+            } catch (countError) {
+              console.warn('Failed to update print count:', countError);
+            }
+          } else {
+            throw new Error('ไม่สามารถเข้าถึง API สำหรับสร้าง PDF ได้');
+          }
+        } catch (error) {
+          console.error('❌ PDF generation error:', error);
+          showNotification('เกิดข้อผิดพลาดในการสร้าง PDF: ' + (error.message || 'ไม่ทราบสาเหตุ'), 'error');
+        }
+      }
+
+      // Enhanced document generation with multiple options
+      async function generateDocument(id, type = 'receipt') {
+        if (!id) {
+          showNotification('ไม่พบ ID ของเอกสาร', 'error');
+          return;
+        }
+
+        const documentTypes = {
+          'receipt': {
+            name: 'ใบรับเงิน',
+            endpoint: 'receipt'
+          },
+          'tax_invoice': {
+            name: 'ใบกำกับภาษี',
+            endpoint: 'tax-invoice'
+          },
+          'quotation': {
+            name: 'ใบเสนอราคา',
+            endpoint: 'quotation'
+          }
+        };
+
+        const docConfig = documentTypes[type] || documentTypes['receipt'];
+
+        try {
+          showNotification(`กำลังสร้าง${docConfig.name}...`, 'info');
+
+          const data = await apiRequest(`/api/deposit-receipts/${encodeURIComponent(id)}/documents`, {
+            method: 'POST',
+            body: JSON.stringify({
+              documentType: type,
+              language: 'th',
+              format: 'pdf'
+            })
+          });
+
+          if (data && data.success) {
+            showNotification(`สร้าง${docConfig.name}เรียบร้อยแล้ว`, 'success');
+
+            // Open the generated document
+            if (data.pdfUrl) {
+              window.open(data.pdfUrl, '_blank');
+            }
+          } else {
+            throw new Error(data?.message || 'ไม่สามารถสร้างเอกสารได้');
+          }
+        } catch (error) {
+          console.error(`❌ Document generation error (${type}):`, error);
+          showNotification(`เกิดข้อผิดพลาดในการสร้าง${docConfig.name}: ${error.message}`, 'error');
+        }
+      }
+
+      // Edit deposit receipt
+      function editDepositReceipt(item) {
+        currentEditId = item._id || item.id;
+        document.getElementById('modalTitle').textContent = 'แก้ไขใบรับเงินมัดจำ';
+    
+        // Populate form with deposit receipt data
+        document.getElementById('depositNumber').value = item.receiptNumber || '';
+        document.getElementById('depositDate').value = item.depositDate ?
+          new Date(item.depositDate).toISOString().split('T')[0] : '';
+        document.getElementById('customerId').value = item.customerId || item.customer?._id || '';
+        document.getElementById('productId').value = item.productId || item.product?._id || '';
+        document.getElementById('depositAmount').value = item.depositAmount || item.amounts?.depositAmount || '';
+        document.getElementById('paymentMethod').value = item.paymentMethod || 'cash';
+        document.getElementById('branchId').value = item.branch?._id || '';
+        document.getElementById('depositStatus').value = item.status || 'pending';
+        document.getElementById('notes').value = item.notes || '';
+    
+        // Show modal
+        document.getElementById('depositModal').classList.remove('hidden');
+      }
+
+      // Complete deposit receipt
+      async function completeDepositReceipt(id) {
+        const confirmed = await showConfirmDialog(
+          'ยืนยันการเสร็จสิ้น',
+          'คุณต้องการเปลี่ยนสถานะใบรับเงินมัดจำนี้เป็น "เสร็จสิ้น" หรือไม่?',
+          'ยืนยัน',
+          'ยกเลิก'
+        );
+    
+        if (!confirmed) return;
+    
+        try {
+          showLoading(true, 'กำลังโหลดข้อมูลเงินมัดจำ...');
+          const data = await apiRequest(`/api/deposit-receipts/${encodeURIComponent(id)}/complete`, {
+            method: 'POST',
+            body: JSON.stringify({
+              convertedBy: 'system',
+              convertedTo: 'sale'
+            })
+          });
+    
+          if (data && data.success) {
+            showNotification('เปลี่ยนสถานะเป็นเสร็จสิ้นแล้ว', 'success');
+            loadDeposits(currentPage);
+          } else {
+            showNotification(data?.message || 'ไม่สามารถเปลี่ยนสถานะได้', 'error');
+          }
+        } catch (error) {
+          console.error('Error completing deposit receipt:', error);
+          showNotification('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ', 'error');
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      // Cancel deposit receipt
+      async function cancelDepositReceipt(id) {
+        const confirmed = await showConfirmDialog(
+          'ยืนยันการยกเลิก',
+          'คุณต้องการยกเลิกใบรับเงินมัดจำนี้หรือไม่?',
+          'ยกเลิก',
+          'ไม่ยกเลิก'
+        );
+    
+        if (!confirmed) return;
+    
+        try {
+          showLoading(true, 'กำลังโหลดข้อมูลเงินมัดจำ...');
+          const data = await apiRequest(`/api/deposit-receipts/${encodeURIComponent(id)}/cancel`, {
+            method: 'POST',
+            body: JSON.stringify({
+              cancelReason: 'ยกเลิกโดยผู้ใช้',
+              cancelledBy: 'system'
+            })
+          });
+    
+          if (data && data.success) {
+            showNotification('ยกเลิกใบรับเงินมัดจำแล้ว', 'success');
+            loadDeposits(currentPage);
+          } else {
+            showNotification(data?.message || 'ไม่สามารถยกเลิกได้', 'error');
+          }
+        } catch (error) {
+          console.error('Error cancelling deposit receipt:', error);
+          showNotification('เกิดข้อผิดพลาดในการยกเลิก', 'error');
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      // Show deposit receipt details in modal
+      function showDepositReceiptDetails(receipt) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+    
+        const content = document.createElement('div');
+        content.className = 'bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto';
+    
+        content.innerHTML = `
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+                รายละเอียดใบรับเงินมัดจำ
+              </h3>
+              <button class="text-gray-400 hover:text-gray-600" onclick="this.closest('.fixed').remove()">
+                <i class="bi bi-x-lg text-xl"></i>
+              </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">หมายเลขใบรับ</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">${receipt.receiptNumber || 'ไม่ระบุ'}</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">วันที่</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">${formatDate(receipt.depositDate)}</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ลูกค้า</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">${receipt.customer?.name || 'ไม่ระบุ'}</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">สินค้า</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">${receipt.product?.name || 'ไม่ระบุ'}</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">จำนวนเงิน</label>
+                <p class="mt-1 text-sm font-medium text-blue-600 dark:text-blue-400">
+                  ${formatCurrency(receipt.depositAmount || receipt.amounts?.depositAmount || 0)}
+                </p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">สถานะ</label>
+                <div class="mt-1">${createStatusBadge(receipt.status).outerHTML}</div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">วิธีการชำระ</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">${receipt.paymentMethod || 'ไม่ระบุ'}</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">สาขา</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">${receipt.branch?.name || 'ไม่ระบุ'}</p>
+              </div>
+            </div>
+            
+            ${receipt.notes ? `
+              <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">หมายเหตุ</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">${receipt.notes}</p>
+              </div>
+            ` : ''}
+            
+            <div class="mt-6 flex justify-end gap-3">
+              <button class="btn btn-ghost" onclick="this.closest('.fixed').remove()">ปิด</button>
+              <button class="btn btn-primary" onclick="printDepositReceipt('${receipt._id}')">
+                <i class="bi bi-printer mr-2"></i>พิมพ์
+              </button>
+            </div>
+          </div>
+        `;
+    
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+      }
+
+      // Legacy function compatibility
+      function viewReceipt(id) {
+        viewDepositReceipt(id);
+      }
+
+      function printReceipt(id) {
+        printDepositReceipt(id);
+      }
+
+      function editDeposit(item) {
+        editDepositReceipt(item);
+      }
+
+      // Delete receipt - updated for deposit receipts API
+      async function deleteReceipt(id) {
+        const confirmed = await showConfirmDialog(
+          'ยืนยันการลบ',
+          'คุณต้องการลบใบรับเงินมัดจำนี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+          'ลบ',
+          'ยกเลิก'
+        );
+    
+        if (!confirmed) return;
+    
+        try {
+          showLoading(true, 'กำลังโหลดข้อมูลเงินมัดจำ...');
+          const data = await apiRequest(`/api/deposit-receipts/${encodeURIComponent(id)}`, {
+            method: 'DELETE'
+          });
+    
+          if (data && data.success) {
+            showNotification('ลบข้อมูลเรียบร้อยแล้ว', 'success');
+            loadDeposits(currentPage);
+          } else {
+            throw new Error(data?.message || 'ลบไม่สำเร็จ');
+          }
+        } catch (error) {
+          showNotification('ไม่สามารถลบข้อมูลได้: ' + error.message, 'error');
+        }
+      }
+
+      // Enhanced deposit receipt number generation
+      async function generateDepositNumber() {
+        try {
+          console.log('🔢 Generating deposit receipt number...');
+
+          // Try multiple generation endpoints
+          const generateEndpoints = [
+            '/api/deposit-receipts/generate-number',
+            '/api/deposit-receipts/number/generate',
+            '/api/loan/deposits/list/generate-number',
+            '/api/documents/generate-number?type=deposit-receipt'
+          ];
+
+          for (const endpoint of generateEndpoints) {
+            try {
+              const data = await apiRequest(endpoint);
+              if (data && data.success && data.receiptNumber) {
+                console.log(`✅ Generated receipt number: ${data.receiptNumber}`);
+                return data.receiptNumber;
+              } else if (data && data.number) {
+                console.log(`✅ Generated number: ${data.number}`);
+                return data.number;
+              }
+            } catch (endpointError) {
+              console.warn(`⚠️ Number generation failed for ${endpoint}:`, endpointError);
+            }
+          }
+
+          console.warn('⚠️ All number generation endpoints failed, using fallback');
+        } catch (error) {
+          console.error('❌ Error generating deposit receipt number:', error);
+        }
+
+        // Enhanced fallback generation with Thai year format
+        const now = new Date();
+        const thaiYear = (now.getFullYear() + 543).toString().slice(-2); // ปี พ.ศ.
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const time = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+        const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+
+        const fallbackNumber = `DR-${thaiYear}${month}${day}${time}${random}`;
+        console.log(`🔢 Generated fallback receipt number: ${fallbackNumber}`);
+        return fallbackNumber;
+      }
+
+      // Validate receipt number format
+      function validateReceiptNumber(receiptNumber) {
+        if (!receiptNumber) return false;
+
+        // Thai format: DR-YYMMDDHHMMSS or DR-YYMMDD-XXX
+        const patterns = [
+          /^DR-\d{6,14}$/,  // DR-YYMMDDHHMMSS format
+          /^DR-\d{6}-\d{3}$/, // DR-YYMMDD-XXX format
+          /^DEP[A-Z0-9]+$/    // Legacy format
+        ];
+
+        return patterns.some(pattern => pattern.test(receiptNumber));
+      }
+
+      // Modal handling
+      const depositModal = document.getElementById('depositModal');
+      const btnAddDeposit = document.getElementById('btnAddDeposit');
+      const closeModal = document.getElementById('closeModal');
+      const cancelDepositBtn = document.getElementById('cancelDepositBtn');
+      const depositForm = document.getElementById('depositForm');
+
+      btnAddDeposit.addEventListener('click', async () => {
+        currentEditId = null;
+        document.getElementById('modalTitle').textContent = 'สร้างใบรับเงินมัดจำ';
+    
+        // Reset form
+        depositForm.reset();
+    
+        // Generate new deposit number
+        const depositNumber = await generateDepositNumber();
+        document.getElementById('depositNumber').value = depositNumber;
+    
+        // Set today's date
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('depositDate').value = today;
+    
+        // Show modal
+        depositModal.classList.remove('hidden');
+      });
+
+      const hideModal = () => {
+        depositModal.classList.add('hidden');
+        depositForm.reset();
+        currentEditId = null;
+      };
+
+      closeModal.addEventListener('click', hideModal);
+      cancelDepositBtn.addEventListener('click', hideModal);
+
+      // Enhanced form submission with comprehensive validation and DepositReceipt model compatibility
+      depositForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('saveDepositBtn');
+        const originalText = submitBtn.innerHTML;
+
+        // Show enhanced loading state
+        submitBtn.innerHTML = '<div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>กำลังบันทึก...';
+        submitBtn.disabled = true;
+
+        try {
+          // Enhanced form data collection with validation
+          const formElements = {
+            receiptNumber: document.getElementById('depositNumber'),
+            depositDate: document.getElementById('depositDate'),
+            customerId: document.getElementById('customerId'),
+            productId: document.getElementById('productId'),
+            depositAmount: document.getElementById('depositAmount'),
+            paymentMethod: document.getElementById('paymentMethod'),
+            branchId: document.getElementById('branchId'),
+            depositStatus: document.getElementById('depositStatus'),
+            notes: document.getElementById('notes')
+          };
+
+          // Validate all form elements exist
+          for (const [key, element] of Object.entries(formElements)) {
+            if (!element) {
+              throw new Error(`ไม่พบอิลิเมนต์ฟอร์: ${key}`);
+            }
+          }
+
+          // Enhanced data validation
+          const depositAmount = validateInput(formElements.depositAmount.value, 'currency');
+          const customerInfo = customers.find(c => c._id === formElements.customerId.value);
+          const productInfo = products.find(p => p._id === formElements.productId.value);
+          const branchInfo = branches.find(b => b._id === formElements.branchId.value);
+
+          // Prepare comprehensive payload matching DepositReceipt schema
+          const payload = {
+            receiptNumber: sanitizeHTML(formElements.receiptNumber.value),
+            depositDate: formElements.depositDate.value,
+            depositTime: new Date().toLocaleTimeString('th-TH'),
+
+            // Customer information with enhanced structure
+            customer: {
+              _id: formElements.customerId.value,
+              customerType: customerInfo?.customerType || 'individual',
+              name: customerInfo?.name || '',
+              firstName: customerInfo?.individual?.firstName || customerInfo?.firstName || '',
+              lastName: customerInfo?.individual?.lastName || customerInfo?.lastName || '',
+              prefix: customerInfo?.individual?.prefix || customerInfo?.prefix || '',
+              phone: customerInfo?.phone || customerInfo?.individual?.phone || '',
+              email: customerInfo?.email || customerInfo?.individual?.email || '',
+              taxId: customerInfo?.taxId || customerInfo?.individual?.taxId || '',
+              // Corporate fields
+              companyName: customerInfo?.corporate?.companyName || '',
+              companyTaxId: customerInfo?.corporate?.taxId || '',
+              contactPerson: customerInfo?.corporate?.contactPerson || '',
+              corporatePhone: customerInfo?.corporate?.phone || ''
+            },
+
+            // Product information with enhanced structure
+            product: {
+              _id: formElements.productId.value,
+              name: productInfo?.name || 'ไม่ระบุสินค้า',
+              brand: productInfo?.brand || '',
+              model: productInfo?.model || '',
+              category: productInfo?.category || '',
+              price: validateInput(productInfo?.price, 'currency'),
+              imei: productInfo?.imei || '',
+              serialNumber: productInfo?.serialNumber || '',
+              color: productInfo?.color || '',
+              storage: productInfo?.storage || '',
+              condition: productInfo?.condition || 'new',
+              inStock: productInfo?.inStock || false,
+              stockLocation: productInfo?.stockLocation || '',
+              image: productInfo?.image || ''
+            },
+
+            // Amount structure matching schema
+            amounts: {
+              depositAmount: depositAmount,
+              totalAmount: validateInput(productInfo?.price, 'currency') || depositAmount,
+              remainingAmount: Math.max(0, (validateInput(productInfo?.price, 'currency') || depositAmount) - depositAmount),
+              subTotal: depositAmount,
+              vatAmount: 0,
+              docFee: 0,
+              discount: 0,
+              grandTotal: depositAmount
+            },
+
+            // Payment and method information
+            paymentMethod: formElements.paymentMethod.value,
+
+            // Branch information with enhanced structure
+            branch: {
+              _id: formElements.branchId.value,
+              name: branchInfo?.name || 'ไม่ระบุสาขา',
+              code: branchInfo?.code || '00000',
+              address: branchInfo?.address || '',
+              phone: branchInfo?.phone || '',
+              taxId: branchInfo?.taxId || ''
+            },
+
+            // Company information (default values)
+            company: {
+              name: 'บริษัท 2 พี่น้อง โมบาย จำกัด',
+              address: '',
+              taxId: '',
+              phone: ''
+            },
+
+            // Salesperson information (from session/auth)
+            salesperson: {
+              _id: null, // Will be set by backend
+              name: 'System',
+              employeeId: '',
+              department: 'Sales'
+            },
+
+            // Status and type information
+            status: formElements.depositStatus.value || 'pending',
+            depositType: 'online', // Default for web interface
+            saleType: 'installment', // Default assumption
+
+            // Notes and metadata
+            notes: validateInput(formElements.notes.value, 'thai-text'),
+            internalNotes: `สร้างโดยระบบเว็บ (${new Date().toLocaleString('th-TH')})`,
+
+            // Tracking and workflow
+            tracking: {
+              stockChecked: false,
+              notificationSent: false,
+              customerContacted: false
+            },
+
+            // Document tracking
+            printing: {
+              printCount: 0,
+              emailSent: false
+            },
+
+            // Metadata
+            metadata: {
+              source: 'web',
+              ipAddress: '', // Will be set by backend
+              userAgent: navigator.userAgent,
+              sessionId: sessionStorage.getItem('sessionId'),
+              version: '2.0.0'
+            }
+          };
+
+          // Enhanced validation
+          const validationErrors = validateForm(payload);
+          if (validationErrors.length > 0) {
+            throw new Error(validationErrors.join(', '));
+          }
+
+          console.log('📤 Enhanced payload for DepositReceipt:', payload);
+
+          // Determine API endpoint and method
+          const url = currentEditId
+            ? `/api/deposit-receipts/${encodeURIComponent(currentEditId)}`
+            : '/api/deposit-receipts';
+
+          const method = currentEditId ? 'PUT' : 'POST';
+
+          // Make API request with enhanced error handling
+          const data = await apiRequest(url, {
+            method: method,
+            body: JSON.stringify(payload)
+          });
+
+          console.log('📥 Enhanced API Response:', data);
+
+          if (data && data.success) {
+            const successMessage = currentEditId
+              ? 'แก้ไขใบรับเงินมัดจำเรียบร้อยแล้ว'
+              : 'สร้างใบรับเงินมัดจำเรียบร้อยแล้ว';
+
+            showNotification(successMessage, 'success');
+
+            // Optional: Show receipt number for new entries
+            if (!currentEditId && data.data?.receiptNumber) {
+              showNotification(`เลขที่ใบรับ: ${data.data.receiptNumber}`, 'info');
+            }
+
+            hideModal();
+            await loadDeposits(currentPage);
+          } else {
+            throw new Error(data?.message || data?.error || 'บันทึกไม่สำเร็จ');
+          }
+        } catch (error) {
+          console.error('❌ Enhanced form submission error:', error);
+
+          let errorMessage = 'ไม่สามารถบันทึกข้อมูลได้';
+
+          if (error.message) {
+            if (error.message.includes('validation')) {
+              errorMessage = 'ข้อมูลไม่ถูกต้อง: ' + error.message;
+            } else if (error.message.includes('duplicate')) {
+              errorMessage = 'ข้อมูลซ้ำกัน: ' + error.message;
+            } else {
+              errorMessage += ': ' + error.message;
+            }
+          }
+
+          showNotification(errorMessage, 'error');
+        } finally {
+          submitBtn.innerHTML = originalText;
+          submitBtn.disabled = false;
+        }
+      });
+
+      // Enhanced filtering and search functionality with comprehensive validation
+      let filterTimeout;
+      let lastSearchQuery = '';
+
+      function applyFilters() {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => {
+          const currentQuery = getCurrentFilterQuery();
+          if (currentQuery !== lastSearchQuery) {
+            lastSearchQuery = currentQuery;
+            loadDeposits(1);
+          }
+        }, 300);
+      }
+
+      function getCurrentFilterQuery() {
+        const searchInput = document.getElementById('searchInput')?.value?.trim() || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        const branchFilter = document.getElementById('branchFilter')?.value || '';
+        const dateFilter = document.getElementById('dateFilter')?.value || '';
+
+        return JSON.stringify({ searchInput, statusFilter, branchFilter, dateFilter });
+      }
+
+      // Enhanced search with multiple criteria support
+      function enhancedSearch() {
+        const searchInput = document.getElementById('searchInput');
+        const searchValue = searchInput?.value?.trim() || '';
+
+        if (searchValue.length === 0) {
+          // Clear search - load all
+          loadDeposits(1);
+          return;
+        }
+
+        if (searchValue.length < 2) {
+          // Wait for at least 2 characters
+          return;
+        }
+
+        // Detect search type and provide visual feedback
+        let searchType = 'general';
+        let searchIcon = 'bi-search';
+
+        if (searchValue.includes('DR-') || searchValue.includes('dr-')) {
+          searchType = 'receiptNumber';
+          searchIcon = 'bi-receipt';
+        } else if (/^[0-9\-+\s()]+$/.test(searchValue)) {
+          searchType = 'phone';
+          searchIcon = 'bi-telephone';
+        } else if (searchValue.includes('@')) {
+          searchType = 'email';
+          searchIcon = 'bi-envelope';
+        } else if (/[\u0E00-\u0E7F]/.test(searchValue)) {
+          searchType = 'thaiName';
+          searchIcon = 'bi-person';
+        }
+
+        // Update search icon
+        const searchIconElement = searchInput?.parentElement?.querySelector('i');
+        if (searchIconElement) {
+          searchIconElement.className = `${searchIcon} absolute left-3 top-3 text-gray-400`;
+        }
+
+        console.log(`🔍 Enhanced search: "${searchValue}" (type: ${searchType})`);
+        applyFilters();
+      }
+
+      // Advanced filter validation
+      function validateFilters() {
+        const filters = {
+          search: document.getElementById('searchInput')?.value?.trim(),
+          status: document.getElementById('statusFilter')?.value,
+          branch: document.getElementById('branchFilter')?.value,
+          date: document.getElementById('dateFilter')?.value
+        };
+
+        const validationResults = {
+          isValid: true,
+          errors: [],
+          warnings: []
+        };
+
+        // Validate search input
+        if (filters.search) {
+          if (filters.search.length > 100) {
+            validationResults.errors.push('คำค้นหายาวเกินไป (ไม่เกิน 100 ตัวอักษร)');
+          } else if (filters.search.length < 2) {
+            validationResults.warnings.push('คำค้นหาสั้นเกินไป (อย่างน้อย 2 ตัวอักษร)');
+          }
+        }
+
+        // Validate date
+        if (filters.date) {
+          const selectedDate = new Date(filters.date);
+          const today = new Date();
+          const maxDate = new Date('2030-12-31');
+          const minDate = new Date('2020-01-01');
+
+          if (isNaN(selectedDate.getTime())) {
+            validationResults.errors.push('รูปแบบวันที่ไม่ถูกต้อง');
+          } else if (selectedDate > maxDate || selectedDate < minDate) {
+            validationResults.warnings.push('วันที่อาจอยู่นอกช่วงที่ระบบรองรับ');
+          } else if (selectedDate > today) {
+            validationResults.warnings.push('คุณเลือกวันที่ในอนาคต');
+          }
+        }
+
+        validationResults.isValid = validationResults.errors.length === 0;
+        return validationResults;
+      }
+
+      // Show filter validation feedback
+      function showFilterFeedback(validationResults) {
+        if (validationResults.errors.length > 0) {
+          showNotification(validationResults.errors.join(', '), 'error');
+        } else if (validationResults.warnings.length > 0) {
+          showNotification(validationResults.warnings.join(', '), 'warning');
+        }
+      }
+
+      // Enhanced event listeners with validation
+      document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        const validationResults = validateFilters();
+        if (validationResults.isValid) {
+          enhancedSearch();
+        } else {
+          showFilterFeedback(validationResults);
+        }
+      });
+
+      document.getElementById('statusFilter')?.addEventListener('change', applyFilters);
+      document.getElementById('branchFilter')?.addEventListener('change', applyFilters);
+      document.getElementById('dateFilter')?.addEventListener('change', (e) => {
+        const validationResults = validateFilters();
+        showFilterFeedback(validationResults);
+        if (validationResults.isValid) {
+          applyFilters();
+        }
+      });
+
+      // Quick filter buttons
+      function addQuickFilters() {
+        const filtersSection = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow-sm.p-4.mb-6');
+        if (!filtersSection) return;
+
+        const quickFiltersDiv = document.createElement('div');
+        quickFiltersDiv.className = 'mt-4 pt-4 border-t border-gray-200 dark:border-gray-700';
+        quickFiltersDiv.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">ตัวกรองด่วน:</span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="filterToday" class="btn btn-xs btn-outline">วันนี้</button>
+            <button id="filterWeek" class="btn btn-xs btn-outline">สัปดาห์นี้</button>
+            <button id="filterMonth" class="btn btn-xs btn-outline">เดือนนี้</button>
+            <button id="filterPending" class="btn btn-xs btn-outline">รอดำเนินการ</button>
+            <button id="filterCompleted" class="btn btn-xs btn-outline">เสร็จสิ้น</button>
+          </div>
+        `;
+
+        filtersSection.appendChild(quickFiltersDiv);
+
+        // Add event listeners for quick filters
+        document.getElementById('filterToday')?.addEventListener('click', () => {
+          document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
+          applyFilters();
+        });
+
+        document.getElementById('filterWeek')?.addEventListener('click', () => {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          document.getElementById('dateFilter').value = weekAgo.toISOString().split('T')[0];
+          applyFilters();
+        });
+
+        document.getElementById('filterMonth')?.addEventListener('click', () => {
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          document.getElementById('dateFilter').value = monthAgo.toISOString().split('T')[0];
+          applyFilters();
+        });
+
+        document.getElementById('filterPending')?.addEventListener('click', () => {
+          document.getElementById('statusFilter').value = 'pending';
+          applyFilters();
+        });
+
+        document.getElementById('filterCompleted')?.addEventListener('click', () => {
+          document.getElementById('statusFilter').value = 'completed';
+          applyFilters();
+        });
+      }
+
+      // Initialize quick filters after DOM is ready
+      setTimeout(addQuickFilters, 1000);
+
+      // Enhanced clear filters with confirmation and animation
+      document.getElementById('btnClearFilters')?.addEventListener('click', async () => {
+        try {
+          // Check if there are any active filters
+          const hasActiveFilters = (
+            document.getElementById('searchInput')?.value?.trim() ||
+            document.getElementById('statusFilter')?.value ||
+            document.getElementById('branchFilter')?.value ||
+            document.getElementById('dateFilter')?.value
+          );
+
+          if (!hasActiveFilters) {
+            showNotification('ไม่มีตัวกรองที่ต้องล้าง', 'info');
+            return;
+          }
+
+          // Show confirmation for extensive filters
+          const searchValue = document.getElementById('searchInput')?.value?.trim();
+          if (searchValue && searchValue.length > 10) {
+            const confirmed = await showConfirmDialog(
+              'ยืนยันการล้างตัวกรอง',
+              'คุณต้องการล้างตัวกรองทั้งหมดและโหลดข้อมูลใหม่หรือไม่?',
+              'ล้างตัวกรอง',
+              'ยกเลิก'
+            );
+
+            if (!confirmed) {
+              return;
+            }
+          }
+
+          // Show clearing animation
+          const filterElements = [
+            document.getElementById('searchInput'),
+            document.getElementById('statusFilter'),
+            document.getElementById('branchFilter'),
+            document.getElementById('dateFilter')
+          ];
+
+          filterElements.forEach(element => {
+            if (element) {
+              element.style.transition = 'all 0.3s ease';
+              element.style.transform = 'scale(0.95)';
+              element.style.opacity = '0.5';
+            }
+          });
+
+          showNotification('กำลังล้างตัวกรอง...', 'info');
+
+          setTimeout(() => {
+            // Clear all filters
+            filterElements.forEach(element => {
+              if (element) {
+                element.value = '';
+                element.style.transform = 'scale(1)';
+                element.style.opacity = '1';
+              }
+            });
+
+            // Reset search query tracking
+            lastSearchQuery = '';
+
+            // Clear quick filter selections
+            const quickFilterButtons = document.querySelectorAll('[id^="filter"].btn-outline');
+            quickFilterButtons.forEach(btn => {
+              btn.classList.remove('btn-active');
+            });
+
+            // Reset search icon
+            const searchIcon = document.querySelector('#searchInput')?.parentElement?.querySelector('i');
+            if (searchIcon) {
+              searchIcon.className = 'bi bi-search absolute left-3 top-3 text-gray-400';
+            }
+
+            showNotification('ล้างตัวกรองเรียบร้อยแล้ว', 'success');
+            loadDeposits(1);
+          }, 300);
+
+        } catch (error) {
+          console.error('❌ Error clearing filters:', error);
+          showNotification('เกิดข้อผิดพลาดในการล้างตัวกรอง', 'error');
+        }
+      });
+
+      // Enhanced pagination with better UX and validation
+      document.getElementById('btnPrevPage')?.addEventListener('click', () => {
+        if (currentPage > 1) {
+          showNotification(`โหลดหน้า ${currentPage - 1}...`, 'info');
+          loadDeposits(currentPage - 1);
+        } else {
+          showNotification('อยู่ในหน้าแรกแล้ว', 'warning');
+        }
+      });
+
+      document.getElementById('btnNextPage')?.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          showNotification(`โหลดหน้า ${currentPage + 1}...`, 'info');
+          loadDeposits(currentPage + 1);
+        } else {
+          showNotification('อยู่ในหน้าสุดท้ายแล้ว', 'warning');
+        }
+      });
+
+      // Enhanced pagination info with keyboard navigation
+      function setupPaginationKeyboard() {
+        document.addEventListener('keydown', (e) => {
+          // Only handle if not in input fields
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+          }
+
+          switch(e.key) {
+            case 'ArrowLeft':
+              if (currentPage > 1) {
+                e.preventDefault();
+                loadDeposits(currentPage - 1);
+              }
+              break;
+            case 'ArrowRight':
+              if (currentPage < totalPages) {
+                e.preventDefault();
+                loadDeposits(currentPage + 1);
+              }
+              break;
+            case 'Home':
+              if (currentPage > 1) {
+                e.preventDefault();
+                loadDeposits(1);
+              }
+              break;
+            case 'End':
+              if (currentPage < totalPages) {
+                e.preventDefault();
+                loadDeposits(totalPages);
+              }
+              break;
+          }
+        });
+      }
+
+      // Jump to page functionality
+      function addPageJump() {
+        const paginationDiv = document.querySelector('.flex.items-center.space-x-2');
+        if (!paginationDiv) return;
+
+        const jumpDiv = document.createElement('div');
+        jumpDiv.className = 'flex items-center space-x-2 ml-4';
+        jumpDiv.innerHTML = `
+          <span class="text-sm text-gray-600 dark:text-gray-400">ไปหน้า:</span>
+          <input type="number" id="pageJump" min="1" max="${totalPages}"
+                 class="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                 placeholder="${currentPage}">
+          <button id="jumpBtn" class="btn btn-xs btn-ghost">ไป</button>
+        `;
+
+        paginationDiv.appendChild(jumpDiv);
+
+        // Add jump functionality
+        document.getElementById('jumpBtn')?.addEventListener('click', () => {
+          const jumpInput = document.getElementById('pageJump');
+          const targetPage = parseInt(jumpInput?.value) || currentPage;
+
+          if (targetPage >= 1 && targetPage <= totalPages && targetPage !== currentPage) {
+            loadDeposits(targetPage);
+          } else if (targetPage === currentPage) {
+            showNotification('อยู่ในหน้านี้อยู่แล้ว', 'info');
+          } else {
+            showNotification('หน้าที่ไม่ถูกต้อง', 'error');
+          }
+        });
+
+        // Enter key support
+        document.getElementById('pageJump')?.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            document.getElementById('jumpBtn')?.click();
+          }
+        });
+      }
+
+      // Initialize enhanced pagination
+      setTimeout(() => {
+        setupPaginationKeyboard();
+        addPageJump();
+      }, 1000);
+
+      // Select all checkbox
+      document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('#depositTableBody input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+      });
+
+      // Enhanced Excel export with proper API endpoints
+      document.getElementById('btnExport').addEventListener('click', async () => {
+        try {
+          showNotification('กำลังเตรียมไฟล์ Excel สำหรับส่งออก...', 'info');
+
+          // Build export parameters
+          const params = new URLSearchParams({
+            format: 'excel',
+            type: 'deposit-receipts',
+            timestamp: new Date().getTime() // Prevent caching
+          });
+
+          // Add current filters to export
+          const filters = {
+            search: document.getElementById('searchInput')?.value?.trim() || '',
+            status: document.getElementById('statusFilter')?.value?.trim() || '',
+            branch: document.getElementById('branchFilter')?.value?.trim() || '',
+            date: document.getElementById('dateFilter')?.value?.trim() || ''
+          };
+
+          // Apply filters with validation
+          Object.entries(filters).forEach(([key, value]) => {
+            if (value) {
+              params.append(key, value);
+            }
+          });
+
+          // Add current sort and pagination info
+          params.append('page', '1');
+          params.append('limit', '1000'); // Export more records
+          params.append('sortBy', 'depositDate');
+          params.append('sortOrder', 'desc');
+
+          // Try multiple export endpoints
+          const exportEndpoints = [
+            `/api/deposit-receipts/export?${params}`,
+            `/api/deposit-receipts/list/export?${params}`,
+            `/api/loan/deposits/list/export?${params}`
+          ];
+
+          let exportSuccessful = false;
+
+          for (const endpoint of exportEndpoints) {
+            try {
+              console.log(`📤 Attempting export from: ${endpoint}`);
+
+              // Create hidden form for file download
+              const form = document.createElement('form');
+              form.method = 'POST';
+              form.action = endpoint;
+              form.target = '_blank';
+              form.style.display = 'none';
+
+              // Add CSRF token
+              const csrfInput = document.createElement('input');
+              csrfInput.type = 'hidden';
+              csrfInput.name = '_csrf';
+              csrfInput.value = getCSRFToken();
+              form.appendChild(csrfInput);
+
+              // Add auth token
+              const authInput = document.createElement('input');
+              authInput.type = 'hidden';
+              authInput.name = 'authToken';
+              authInput.value = localStorage.getItem('authToken');
+              form.appendChild(authInput);
+
+              // Add filters as hidden inputs
+              params.forEach((value, key) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+              });
+
+              document.body.appendChild(form);
+              form.submit();
+              document.body.removeChild(form);
+
+              exportSuccessful = true;
+              break;
+            } catch (endpointError) {
+              console.warn(`⚠️ Export failed for ${endpoint}:`, endpointError);
+            }
+          }
+
+          if (exportSuccessful) {
+            showNotification('เริ่มส่งออกไฟล์ Excel แล้ว กรุณาตรวจสอบโฟลเดอร์ Downloads', 'success');
+          } else {
+            throw new Error('ไม่สามารถเข้าถึง API สำหรับส่งออกได้');
+          }
+        } catch (error) {
+          console.error('❌ Export error:', error);
+          showNotification('เกิดข้อผิดพลาดในการส่งออก: ' + (error.message || 'ไม่ทราบสาเหตุ'), 'error');
+        }
+      });
+
+      // Real-time updates using Socket.IO
+      let socket = null;
+
+      function initializeSocketIO() {
+        try {
+          console.log('🔌 Initializing Socket.IO for real-time updates...');
+          socket = io({
+            auth: {
+              token: localStorage.getItem('authToken')
+            },
+            transports: ['websocket', 'polling']
+          });
+
+          socket.on('connect', () => {
+            console.log('✅ Socket.IO connected successfully');
+            socket.emit('join-room', 'deposit-receipts');
+          });
+
+          socket.on('disconnect', () => {
+            console.log('⚠️ Socket.IO disconnected');
+          });
+
+          // Listen for deposit receipt updates
+          socket.on('deposit-receipt-created', (data) => {
+            console.log('🆕 New deposit receipt created:', data);
+            showNotification(`มีการสร้างใบรับเงินมัดจำใหม่: ${data.receiptNumber}`, 'info');
+
+            // Refresh if on first page
+            if (currentPage === 1) {
+              setTimeout(() => loadDeposits(1), 2000);
+            }
+          });
+
+          socket.on('deposit-receipt-updated', (data) => {
+            console.log('🔄 Deposit receipt updated:', data);
+            showNotification(`ใบรับเงินมัดจำ ${data.receiptNumber} ถูกอัปเดต`, 'info');
+
+            // Update specific row if visible
+            updateDepositReceiptRow(data);
+          });
+
+          socket.on('deposit-receipt-status-changed', (data) => {
+            console.log('🗘️ Status changed:', data);
+            const statusText = {
+              'pending': 'รอดำเนินการ',
+              'confirmed': 'ยืนยัน',
+              'completed': 'เสร็จสิ้น',
+              'cancelled': 'ยกเลิก'
+            };
+
+            showNotification(
+              `สถานะ: ${statusText[data.status] || data.status} - ${data.receiptNumber}`,
+              data.status === 'completed' ? 'success' : data.status === 'cancelled' ? 'error' : 'info'
+            );
+
+            // Update specific row and statistics
+            updateDepositReceiptRow(data);
+            loadStatistics();
+          });
+
+          socket.on('error', (error) => {
+            console.error('❌ Socket.IO error:', error);
+          });
+
+        } catch (error) {
+          console.error('❌ Error initializing Socket.IO:', error);
+        }
+      }
+
+      // Update specific row in table
+      function updateDepositReceiptRow(updatedData) {
+        const rows = document.querySelectorAll('#depositTableBody tr[data-receipt-id]');
+        rows.forEach(row => {
+          if (row.dataset.receiptId === updatedData._id) {
+            // Update status badge
+            const statusCell = row.querySelector('td:nth-child(7)');
+            if (statusCell) {
+              statusCell.innerHTML = '';
+              statusCell.appendChild(createStatusBadge(updatedData.status));
+            }
+
+            // Update row data attributes
+            row.dataset.status = updatedData.status;
+
+            // Add visual feedback
+            row.style.backgroundColor = '#fef3c7';
+            setTimeout(() => {
+              row.style.backgroundColor = '';
+            }, 2000);
+          }
+        });
+      }
+
+      // Load statistics separately
+      async function loadStatistics() {
+        try {
+          const data = await apiRequest('/api/deposit-receipts/statistics/dashboard');
+          if (data && data.success) {
+            updateStatistics(data.data);
+          }
+        } catch (error) {
+          console.warn('Failed to load statistics:', error);
+        }
+      }
+
+      // Enhanced initialization with comprehensive error handling
+      async function initializeSystem() {
+        try {
+          console.log('🚀 Starting enhanced deposits system initialization...');
+
+          // Show loading
+          showLoading(true, 'กำลังโหลดข้อมูลเงินมัดจำ...');
+
+          // Initialize components in sequence
+          console.log('1/4 Loading master data...');
+          await loadMasterData();
+
+          console.log('2/4 Loading deposit receipts...');
+          await loadDeposits(1);
+
+          console.log('3/4 Initializing real-time updates...');
+          initializeSocketIO();
+
+          console.log('4/4 Setting up UI enhancements...');
+          // UI enhancements are set up via timeouts in their respective functions
+
+          console.log('✅ Enhanced deposits system initialized successfully');
+          showNotification('ระบบจัดการเงินมัดจำพร้อมใช้งานแล้ว', 'success');
+
+        } catch (error) {
+          console.error('❌ Enhanced initialization error:', error);
+          showNotification(
+            'เกิดข้อผิดพลาดในการเริ่มระบบ: ' + (error.message || 'ไม่ทราบสาเหตุ'),
+            'error'
+          );
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      // Initialize the enhanced system
+      initializeSystem();
+    });
+
+    // Enhanced cleanup for resources and socket connections
+    window.addEventListener('beforeunload', () => {
+      try {
+        console.log('🧹 Cleaning up resources...');
+
+        // Cleanup Lottie animation
+        if (lottieAnimation) {
+          lottieAnimation.destroy();
+          lottieAnimation = null;
+          console.log('✅ Lottie animation cleaned up');
+        }
+
+        // Cleanup Socket.IO connection
+        if (socket && socket.connected) {
+          socket.emit('leave-room', 'deposit-receipts');
+          socket.disconnect();
+          socket = null;
+          console.log('✅ Socket.IO connection cleaned up');
+        }
+
+        // Clear timeouts
+        if (filterTimeout) {
+          clearTimeout(filterTimeout);
+        }
+
+        console.log('✅ All resources cleaned up successfully');
+      } catch (error) {
+        console.error('❌ Error during cleanup:', error);
+      }
+    });
+
+    // Enhanced visibility change handling for performance
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // Page is hidden - pause real-time updates
+        if (socket && socket.connected) {
+          socket.emit('pause-updates');
+        }
+      } else {
+        // Page is visible - resume real-time updates
+        if (socket && socket.connected) {
+          socket.emit('resume-updates');
+          // Refresh data if page was hidden for more than 5 minutes
+          const lastUpdate = sessionStorage.getItem('lastDataUpdate');
+          if (lastUpdate && Date.now() - parseInt(lastUpdate) > 300000) {
+            loadDeposits(currentPage);
+          }
+        }
+      }
+    });
+
+    // Track last data update
+    setInterval(() => {
+      sessionStorage.setItem('lastDataUpdate', Date.now().toString());
+    }, 60000); // Update every minute
+  </script>
+</body>
+</html>

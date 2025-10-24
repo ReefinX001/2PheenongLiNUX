@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test Sidebar - Marketing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Animate.css for fade animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <!-- User Profile Manager -->
+  <script src="/views/marketing/js/user-profile.js"></script>
+  <!-- Sidebar Manager -->
+  <script src="/views/marketing/js/sidebar.js"></script>
+
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+  <script>
+    let lottieAnimation = null;
+  </script>
+</head>
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  
+  <div class="min-h-screen flex">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container">
+      <!-- Sidebar content will be loaded here -->
+    </div>
+    
+    <!-- Main Content -->
+    <main class="flex-1 p-8">
+      <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Test Sidebar Page</h1>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+          <h2 class="text-xl font-semibold mb-4">Sidebar Test Status</h2>
+          <div id="test-results">
+            <p>Testing sidebar loading...</p>
+          </div>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold mb-4">Features to Test</h2>
+          <ul class="list-disc list-inside space-y-2">
+            <li>✅ Sidebar loading from includes/sidebar.html</li>
+            <li>✅ User profile loading and display</li>
+            <li>✅ Dark mode toggle functionality</li>
+            <li>✅ Active menu item highlighting</li>
+            <li>✅ Logout functionality</li>
+            <li>✅ Navigation menu links</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Show/Hide Loading Function
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // No fallback spinner - just show empty container
+              document.getElementById('lottieContainer').innerHTML = '';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // Load sidebar and initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      const testResults = document.getElementById('test-results');
+    
+      // Load sidebar HTML
+      fetch('/views/marketing/includes/sidebar.html')
+        .then(response => response.text())
+        .then(html => {
+          const sidebarContainer = document.getElementById('sidebar-container');
+          if (sidebarContainer) {
+            sidebarContainer.innerHTML = html;
+            testResults.innerHTML = `
+              <p class="text-green-600">✅ Sidebar HTML loaded successfully</p>
+              <p class="text-gray-600">Initializing sidebar...</p>
+            `;
+    
+            // Initialize sidebar after loading
+            if (typeof initializeSidebar === 'function') {
+              initializeSidebar();
+              testResults.innerHTML += '<p class="text-green-600">✅ Sidebar initialized</p>';
+            } else {
+              testResults.innerHTML += '<p class="text-red-600">❌ initializeSidebar function not found</p>';
+            }
+    
+            // Test user profile loading
+            if (typeof loadUserProfile === 'function') {
+              loadUserProfile().then(() => {
+                testResults.innerHTML += '<p class="text-green-600">✅ User profile loading attempted</p>';
+              });
+            } else {
+              testResults.innerHTML += '<p class="text-red-600">❌ loadUserProfile function not found</p>';
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error loading sidebar:', error);
+          testResults.innerHTML = `
+            <p class="text-red-600">❌ Failed to load sidebar: ${error.message}</p>
+          `;
+    
+          // Fallback: show basic sidebar structure
+          const sidebarContainer = document.getElementById('sidebar-container');
+          if (sidebarContainer) {
+            sidebarContainer.innerHTML = `
+              <aside class="w-64 bg-white dark:bg-gray-800">
+                <div class="p-4">
+                  <h3 class="text-red-600">Sidebar Loading Error</h3>
+                  <p class="text-sm text-gray-600">Check console for details</p>
+                </div>
+              </aside>
+            `;
+          }
+        });
+    });
+  </script>
+</body>
+</html>

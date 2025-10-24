@@ -1,0 +1,3167 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>แคมเปญการตลาด - ระบบการตลาด</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Flatpickr for date/time picker -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Animate.css for fade animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <!-- User Profile Manager -->
+  <script src="/views/marketing/js/user-profile.js"></script>
+  <!-- Sidebar Manager -->
+  <script src="/views/marketing/js/sidebar.js"></script>
+  
+  <!-- Shared Promotion Manager -->
+  <script src="/views/shared/js/promotion-manager.js"></script>
+  
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* เพิ่ม CSS สำหรับความสวยงาม */
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background-color: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+
+    .calendar-day-holiday {
+      background-color: #fee2e2;
+      color: #ef4444;
+    }
+
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    #notificationBtn span.badge-notification { 
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .status-active {
+      background-color: #10b981;
+    }
+
+    .status-away {
+      background-color: #f59e0b;
+    }
+
+    .status-offline {
+      background-color: #6b7280;
+    }
+    
+    /* Dashboard specific styles */
+    .main-content {
+      flex: 1;
+      padding: 20px 30px;
+      overflow-y: auto;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    
+    .page-title h1 {
+      font-size: 1.8rem;
+      color: var(--dark-color);
+      margin-bottom: 5px;
+    }
+    
+    .page-title p {
+      color: var(--gray-color);
+      font-size: 0.9rem;
+    }
+    
+    .date-filter select {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      background-color: white;
+      font-size: 0.9rem;
+      color: #212529;
+      cursor: pointer;
+    }
+    
+    .dark .date-filter select {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+    
+    /* Summary Cards Styles */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    @media (max-width: 1200px) {
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .summary-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+    }
+    
+    .dark .card {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .card-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 1.8rem;
+      color: white;
+    }
+    
+    .sales-icon {
+      background-color: #4361ee;
+    }
+    
+    .customers-icon {
+      background-color: #4cc9f0;
+    }
+    
+    .conversion-icon {
+      background-color: #4caf50;
+    }
+    
+    .avg-sale-icon {
+      background-color: #ff9800;
+    }
+    
+    .card-info h3 {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-bottom: 5px;
+    }
+    
+    .dark .card-info h3 {
+      color: #9ca3af;
+    }
+    
+    .card-info h2 {
+      font-size: 1.5rem;
+      color: #212529;
+      margin-bottom: 5px;
+    }
+    
+    .dark .card-info h2 {
+      color: #f3f4f6;
+    }
+    
+    .trend {
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .trend i {
+      margin-right: 5px;
+    }
+    
+    .positive {
+      color: #4caf50;
+    }
+    
+    .negative {
+      color: #f44336;
+    }
+    
+    /* Charts Container Styles */
+    .charts-container {
+      margin-bottom: 30px;
+    }
+    
+    .chart-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    @media (max-width: 1200px) {
+      .chart-row {
+        flex-direction: column;
+      }
+    }
+    
+    .chart-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      flex: 1;
+    }
+    
+    .dark .chart-card {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .chart-card.large {
+      flex: 2;
+    }
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark .chart-header {
+      border-bottom-color: #4b5563;
+    }
+    
+    .chart-header h3 {
+      font-size: 1.1rem;
+      color: #212529;
+    }
+    
+    .dark .chart-header h3 {
+      color: #f3f4f6;
+    }
+    
+    .chart-actions button {
+      background: none;
+      border: none;
+      color: #6c757d;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    .dark .chart-actions button {
+      color: #9ca3af;
+    }
+    
+    .chart-content {
+      padding: 20px;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .map-container {
+      background-color: #f0f4f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+    }
+    
+    .dark .map-container {
+      background-color: #374151;
+      color: #9ca3af;
+    }
+    
+    /* Data Table Styles */
+    .data-table-section {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+    
+    .dark .data-table-section {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .data-table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark .data-table-header {
+      border-bottom-color: #4b5563;
+    }
+    
+    .data-table-header h3 {
+      font-size: 1.1rem;
+      color: #212529;
+    }
+    
+    .dark .data-table-header h3 {
+      color: #f3f4f6;
+    }
+    
+    .table-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .table-actions input {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .dark .table-actions input {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+    
+    .export-btn {
+      padding: 8px 16px;
+      background-color: #4361ee;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .data-table-container {
+      overflow-x: auto;
+      padding: 10px 20px;
+    }
+    
+    #salesTable {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    #salesTable th, #salesTable td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark #salesTable th, .dark #salesTable td {
+      border-bottom-color: #4b5563;
+    }
+    
+    #salesTable th {
+      font-weight: 600;
+      color: #6c757d;
+    }
+    
+    .dark #salesTable th {
+      color: #9ca3af;
+    }
+    
+    #salesTable tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .status-pill {
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    
+    .status-complete {
+      background-color: rgba(76, 175, 80, 0.15);
+      color: #4caf50;
+    }
+    
+    .dark .status-complete {
+      background-color: rgba(76, 175, 80, 0.3);
+    }
+    
+    .status-pending {
+      background-color: rgba(255, 152, 0, 0.15);
+      color: #ff9800;
+    }
+    
+    .dark .status-pending {
+      background-color: rgba(255, 152, 0, 0.3);
+    }
+    
+    .status-cancelled {
+      background-color: rgba(244, 67, 54, 0.15);
+      color: #f44336;
+    }
+    
+    .dark .status-cancelled {
+      background-color: rgba(244, 67, 54, 0.3);
+    }
+    
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .dark .pagination {
+      border-top-color: #4b5563;
+    }
+    
+    .pagination button {
+      background: none;
+      border: none;
+      color: #4361ee;
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+    
+    .dark .pagination button {
+      color: #93c5fd;
+    }
+    
+    .pagination button:disabled {
+      color: #e9ecef;
+      cursor: not-allowed;
+    }
+    
+    .dark .pagination button:disabled {
+      color: #4b5563;
+    }
+    
+    .pagination span {
+      margin: 0 15px;
+      color: #6c757d;
+    }
+    
+    .dark .pagination span {
+      color: #9ca3af;
+    }
+    
+    /* === Promotion page specific styles === */
+    body { font-family: 'Prompt', sans-serif; /* background moved to <body> */ }
+    .promotion-card { transition: all 0.3s cubic-bezier(.25,.8,.25,1); }
+    .promotion-card:hover { transform: translateY(-4px) scale(1.025); box-shadow: 0 8px 24px rgba(0,0,0,0.11); }
+    .modal.modal-open { display: flex; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.18); align-items: center; justify-content: center; z-index: 50; }
+    .modal-box { background: #fff; border-radius: 1rem; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    .tab.tab-active { background: #facc15 !important; color: #1e293b !important; }
+    .tab { font-weight: 500; }
+    .fade-in { animation: fadein .25s ease; }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(16px);}
+      to { opacity: 1; transform: none;}
+    }
+    .shadow-card { box-shadow: 0 4px 20px rgba(0,0,0,0.06);}
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: #f59e42; box-shadow: 0 0 0 1px #f59e42;
+    }
+    .btn-primary { background: linear-gradient(90deg,#f59e42 0%,#fbbf24 100%); border: none; color: #fff;}
+    .btn-primary:hover { background: linear-gradient(90deg,#fb923c 0%,#facc15 100%);}
+    .btn-secondary { background: #fff7ed; border: 1px solid #f59e42; color: #f59e42;}
+    .btn-secondary:hover { background: #fef3c7;}
+    .badge-success { background: #d1fae5; color: #059669;}
+    .badge-warning { background: #fef9c3; color: #b45309;}
+    .badge-error { background: #fee2e2; color: #e11d48;}
+    .badge-ghost { background: #f3f4f6; color: #64748b;}
+    .modal-action .btn { min-width: 112px; }
+    .select, .input, .textarea { background: #f8fafc;}
+    /* Hide default number spinners */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0;}
+    input[type=number] { -moz-appearance: textfield;}
+    /* Responsive modal */
+    @media (max-width: 768px) {
+      .modal-box { max-width: 98vw; width: 98vw; padding: 1rem; }
+    }
+
+    /* Sales Type Tabs */
+    .sales-type-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      background: #f3f4f6; /* Light gray background for the container */
+      padding: 5px; /* Padding around the tabs */
+      border-radius: 10px; /* Rounded corners for the container */
+    }
+
+    .sales-type-tab {
+      flex: 1; /* Distribute space equally */
+      padding: 10px 20px;
+      border-radius: 8px; /* Rounded corners for individual tabs */
+      background: transparent; /* Default transparent background */
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex; /* For aligning icon, text, and badge */
+      align-items: center;
+      justify-content: center;
+      gap: 8px; /* Space between icon, text, and badge */
+    }
+
+    .sales-type-tab.active {
+      background: white; /* White background for active tab */
+      color: #f59e42; /* Orange text color for active tab */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for active tab */
+    }
+    
+    .sales-type-badge {
+      background-color: #e5e7eb; /* Default badge background */
+      color: #4b5563; /* Default badge text color */
+      padding: 2px 8px;
+      border-radius: 12px; /* Pill shape */
+      font-size: 0.75rem; /* Smaller font size */
+      font-weight: 600;
+    }
+
+    .sales-type-tab.active .sales-type-badge {
+      background-color: #f59e42; /* Orange background for badge in active tab */
+      color: white; /* White text for badge in active tab */
+    }
+
+    /* Dark mode support for sales type tabs */
+    .dark .sales-type-tabs {
+      background: #374151; /* Dark gray background for the container */
+    }
+
+    .dark .sales-type-tab {
+      color: #d1d5db; /* Light gray text for inactive tabs */
+    }
+
+    .dark .sales-type-tab.active {
+      background: #1f2937; /* Dark background for active tab */
+      color: #f59e42; /* Keep orange text color for active tab */
+    }
+
+    .dark .sales-type-badge {
+      background-color: #4b5563; /* Dark badge background */
+      color: #d1d5db; /* Light badge text color */
+    }
+
+    .dark .sales-type-tab.active .sales-type-badge {
+      background-color: #f59e42; /* Orange background for badge in active tab */
+      color: white; /* White text for badge in active tab */
+    }
+
+    /* Dark mode support for form elements */
+    .dark select {
+      color: #f3f4f6;
+    }
+
+    .dark select option {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+
+    .dark input::placeholder {
+      color: #9ca3af;
+    }
+
+  </style>
+
+  <script>
+    let lottieAnimation = null;
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-900 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container">
+      <!-- Sidebar content will be loaded here -->
+    </div>
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="bg-white dark:bg-gray-800 shadow-card border-b dark:border-gray-600 sticky top-0 z-40 fade-in">
+        <div class="container mx-auto px-4 py-4">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+              <i class="bi bi-megaphone-fill text-orange-500 text-3xl"></i>
+              จัดการโปรโมชั่น
+            </h1>
+            <button onclick="openCreateModal()" class="btn btn-primary flex items-center gap-2 shadow">
+              <i class="bi bi-plus-circle"></i>
+              สร้างโปรโมชั่นใหม่
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <section class="container mx-auto px-4 py-4">
+        <div class="sales-type-tabs">
+          <button class="sales-type-tab active" onclick="switchMainTab('promotions')">
+            <i class="bi bi-megaphone-fill"></i>
+            <span>โปรโมชั่น</span>
+            <span class="sales-type-badge" id="promotionsCount">0</span>
+          </button>
+          <button class="sales-type-tab" onclick="switchMainTab('analytics')">
+            <i class="bi bi-graph-up"></i>
+            <span>วิเคราะห์</span>
+            <span class="sales-type-badge" id="analyticsCount">📊</span>
+          </button>
+          <button class="sales-type-tab" onclick="switchMainTab('templates')">
+            <i class="bi bi-file-earmark-text"></i>
+            <span>เทมเพลต</span>
+            <span class="sales-type-badge" id="templatesCount">📋</span>
+          </button>
+          <button class="sales-type-tab" onclick="switchMainTab('notifications')">
+            <i class="bi bi-bell"></i>
+            <span>แจ้งเตือน</span>
+            <span class="sales-type-badge" id="notificationsCount">0</span>
+          </button>
+        </div>
+
+        <!-- Sub Tabs for Promotions -->
+        <div id="promotionSubTabs" class="sales-type-tabs mt-4">
+          <button class="sales-type-tab active" onclick="switchSalesType('all')">
+            <i class="bi bi-grid-3x3-gap"></i>
+            <span>ทั้งหมด</span>
+            <span class="sales-type-badge" id="allCount">0</span>
+          </button>
+          <button class="sales-type-tab" onclick="switchSalesType('cash')">
+            <i class="bi bi-cash-stack"></i>
+            <span>ขายสด</span>
+            <span class="sales-type-badge" id="cashCount">0</span>
+          </button>
+          <button class="sales-type-tab" onclick="switchSalesType('installment')">
+            <i class="bi bi-credit-card"></i>
+            <span>ขายผ่อน</span>
+            <span class="sales-type-badge" id="installmentCount">0</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Filters -->
+      <section class="container mx-auto px-4 py-6 fade-in">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-card p-6">
+          <h3 class="text-lg font-semibold mb-4 text-orange-600 dark:text-orange-400 flex items-center gap-2"><i class="bi bi-funnel"></i> ตัวกรอง</h3>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="text-sm text-gray-600 dark:text-gray-300 font-semibold mb-1 block">สถานะ</label>
+              <select id="filterStatus" class="select select-bordered w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                <option value="all">ทั้งหมด</option>
+                <option value="active">กำลังใช้งาน</option>
+                <option value="upcoming">กำลังจะมา</option>
+                <option value="expired">หมดอายุแล้ว</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-gray-600 dark:text-gray-300 font-semibold mb-1 block">สาขา</label>
+              <select id="filterBranch" class="select select-bordered w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                <option value="all">ทุกสาขา</option>
+                <!-- will be populate -->
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-gray-600 dark:text-gray-300 font-semibold mb-1 block">ประเภท</label>
+              <select id="filterType" class="select select-bordered w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                <option value="all">ทุกประเภท</option>
+                <option value="discount_percentage">ส่วนลด %</option>
+                <option value="discount_amount">ส่วนลดเงิน</option>
+                <option value="special_price">ราคาพิเศษ</option>
+                <option value="buy_x_get_y">ซื้อ X แถม Y</option>
+                <option value="bundle">จัดชุดสินค้า (Bundle)</option>
+                <optgroup label="ขายผ่อน" id="installmentTypes">
+                  <option value="installment_discount">ส่วนลดดอกเบี้ยผ่อน</option>
+                  <option value="installment_free_interest">ผ่อน 0%</option>
+                  <option value="installment_special_terms">เงื่อนไขผ่อนพิเศษ</option>
+                  <option value="installment_down_payment_discount">ลดเงินดาวน์</option>
+                  <option value="installment_gift">ของแถมพิเศษสำหรับผ่อน</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button onclick="applyFilters()" class="btn btn-secondary w-full flex items-center gap-2 shadow">
+                <i class="bi bi-funnel"></i> กรอง
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Summary Cards -->
+      <div class="summary-cards container mx-auto px-4 mb-6">
+        <div class="card">
+          <div class="card-icon bg-orange-500">
+            <i class="bi bi-megaphone"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">แคมเปญทั้งหมด</h3>
+            <h2 class="text-2xl font-semibold">18</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 3 แคมเปญใหม่</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-green-500">
+            <i class="bi bi-play-circle"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">กำลังดำเนินการ</h3>
+            <h2 class="text-2xl font-semibold">7</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 2 จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-blue-600">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">สิ้นสุดแล้ว</h3>
+            <h2 class="text-2xl font-semibold">8</h2>
+            <p class="trend negative"><i class="bi bi-arrow-down"></i> 1 จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-yellow-500">
+            <i class="bi bi-graph-up"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">อัตราการเข้าถึง</h3>
+            <h2 class="text-2xl font-semibold">75.4%</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 12.7% เพิ่มขึ้น</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Promotions Content -->
+      <div id="promotionsContent">
+        <!-- Promotions List -->
+        <section class="container mx-auto px-4 pb-6 fade-in">
+          <div id="promotionsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+            <!-- Promotion cards will be inserted here -->
+          </div>
+        </section>
+      </div>
+
+      <!-- Analytics Dashboard Content -->
+      <div id="analyticsContent" style="display: none;">
+        <!-- Analytics Cards -->
+        <section class="container mx-auto px-4 py-6">
+          <div id="analyticsCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="card">
+              <div class="card-icon bg-green-600">
+                <i class="bi bi-currency-dollar"></i>
+              </div>
+              <div class="card-info">
+                <h3 class="text-gray-500 dark:text-gray-400">ROI เฉลี่ย</h3>
+                <h2 class="text-2xl font-semibold" id="avgROI">-</h2>
+                <p class="trend positive"><i class="bi bi-arrow-up"></i> การคำนวณจากข้อมูล</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-icon bg-blue-600">
+                <i class="bi bi-people-fill"></i>
+              </div>
+              <div class="card-info">
+                <h3 class="text-gray-500 dark:text-gray-400">จำนวนการใช้งาน</h3>
+                <h2 class="text-2xl font-semibold" id="totalUsage">-</h2>
+                <p class="trend neutral">รวมทั้งหมด</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-icon bg-purple-600">
+                <i class="bi bi-percent"></i>
+              </div>
+              <div class="card-info">
+                <h3 class="text-gray-500 dark:text-gray-400">อัตราการแปลง</h3>
+                <h2 class="text-2xl font-semibold" id="conversionRate">-</h2>
+                <p class="trend positive">โปรโมชั่นที่มีผล</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-icon bg-orange-600">
+                <i class="bi bi-star-fill"></i>
+              </div>
+              <div class="card-info">
+                <h3 class="text-gray-500 dark:text-gray-400">การใช้งานเฉลี่ย</h3>
+                <h2 class="text-2xl font-semibold" id="avgUsage">-</h2>
+                <p class="trend neutral">ต่อโปรโมชั่น</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Top Performing Promotions -->
+        <section class="container mx-auto px-4 pb-6">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-card p-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <i class="bi bi-trophy"></i> โปรโมชั่นยอดนิยม
+              </h3>
+              <select id="analyticsDateRange" class="select select-bordered select-sm">
+                <option value="7">7 วันที่ผ่านมา</option>
+                <option value="30">30 วันที่ผ่านมา</option>
+                <option value="90">3 เดือนที่ผ่านมา</option>
+              </select>
+            </div>
+            <div id="topPerformingList" class="space-y-4">
+              <!-- Top performing promotions will be loaded here -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Analytics Chart -->
+        <section class="container mx-auto px-4 pb-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Usage Trends -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-card p-6">
+              <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
+                <i class="bi bi-graph-up"></i> แนวโน้มการใช้งาน
+              </h3>
+              <div id="usageChart" class="h-64 flex items-center justify-center text-gray-500">
+                <div class="text-center">
+                  <i class="bi bi-bar-chart text-4xl mb-2"></i>
+                  <p>กราฟแนวโน้มการใช้งาน</p>
+                  <small>ข้อมูลจะแสดงเมื่อมีข้อมูลเพียงพอ</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-card p-6">
+              <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
+                <i class="bi bi-clock-history"></i> กิจกรรมล่าสุด
+              </h3>
+              <div id="recentActivities" class="space-y-4">
+                <!-- Recent activities will be loaded here -->
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Templates Content -->
+      <div id="templatesContent" style="display: none;">
+        <section class="container mx-auto px-4 py-6">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-card p-6">
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
+              <i class="bi bi-file-earmark-text"></i> เทมเพลตโปรโมชั่น
+            </h3>
+            <div id="templatesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <!-- Templates will be loaded here -->
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Notifications Content -->
+      <div id="notificationsContent" style="display: none;">
+        <section class="container mx-auto px-4 py-6">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-card p-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <i class="bi bi-bell"></i> การแจ้งเตือน
+              </h3>
+              <button onclick="refreshNotifications()" class="btn btn-sm btn-ghost">
+                <i class="bi bi-arrow-clockwise"></i> รีเฟรช
+              </button>
+            </div>
+            <div id="notificationsList">
+              <!-- Notifications will be loaded here -->
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Additional sections can be added here if needed -->
+
+      <!-- Create/Edit Modal -->
+      <div id="promotionModal" class="modal">
+        <div class="modal-box w-11/12 max-w-3xl">
+          <h3 class="font-bold text-lg mb-4 flex gap-2 items-center" id="modalTitle">
+            <i class="bi bi-megaphone-fill text-orange-500"></i>
+            สร้างโปรโมชั่น
+          </h3>
+          <!-- Sales Type Selection -->
+          <div>
+            <label class="label">ประเภทการขาย <span class="text-error">*</span></label>
+            <div class="flex flex-wrap gap-4">
+              <label class="cursor-pointer flex items-center">
+                <input type="radio" name="salesType" value="cash" required class="radio radio-primary" onchange="toggleSalesTypeFields()" />
+                <span class="ml-2"><i class="bi bi-cash-stack mr-1"></i>ขายสด</span>
+              </label>
+              <label class="cursor-pointer flex items-center">
+                <input type="radio" name="salesType" value="installment" required class="radio radio-primary" onchange="toggleSalesTypeFields()" />
+                <span class="ml-2"><i class="bi bi-credit-card mr-1"></i>ขายผ่อน</span>
+              </label>
+              <label class="cursor-pointer flex items-center">
+                <input type="radio" name="salesType" value="both" required class="radio radio-primary" checked onchange="toggleSalesTypeFields()" />
+                <span class="ml-2"><i class="bi bi-grid-3x3-gap mr-1"></i>ทั้งสองประเภท</span>
+              </label>
+            </div>
+          </div>
+          <form id="promotionForm" class="space-y-4 mt-4">
+            <!-- Basic Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">ชื่อโปรโมชั่น <span class="text-error">*</span></label>
+                <input type="text" name="name" required class="input input-bordered w-full" maxlength="64"/>
+              </div>
+              <div>
+                <label class="label">ประเภทโปรโมชั่น <span class="text-error">*</span></label>
+                <select name="type" required class="select select-bordered w-full" onchange="togglePromotionFields()">
+                  <option value="">เลือกประเภท</option>
+                  <option value="discount_percentage">ส่วนลด %</option>
+                  <option value="discount_amount">ส่วนลดเงิน</option>
+                  <option value="special_price">ราคาพิเศษ</option>
+                  <option value="buy_x_get_y">ซื้อ X แถม Y</option>
+                  <option value="bundle">จัดชุดสินค้า (Bundle)</option>
+                  <optgroup label="ขายผ่อน" id="installmentTypes">
+                    <option value="installment_discount">ส่วนลดดอกเบี้ยผ่อน</option>
+                    <option value="installment_free_interest">ผ่อน 0%</option>
+                    <option value="installment_special_terms">เงื่อนไขผ่อนพิเศษ</option>
+                    <option value="installment_down_payment_discount">ลดเงินดาวน์</option>
+                    <option value="installment_gift">ของแถมพิเศษสำหรับผ่อน</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="label">รายละเอียด</label>
+              <textarea name="description" rows="2" class="textarea textarea-bordered w-full" maxlength="255"></textarea>
+            </div>
+            <!-- Type-specific fields -->
+            <div id="typeSpecificFields" class="space-y-4 hidden">
+              <div id="discountFields" class="hidden">
+                <label class="label">ส่วนลด</label>
+                <div class="flex gap-2">
+                  <input type="number" name="discountValue" min="0" class="input input-bordered flex-1" placeholder="เช่น 10"/>
+                  <span class="flex items-center px-4" id="discountUnit">%</span>
+                </div>
+              </div>
+              <div id="specialPriceField" class="hidden">
+                <label class="label">ราคาพิเศษ</label>
+                <input type="number" name="specialPrice" min="0" step="0.01" class="input input-bordered w-full" placeholder="เช่น 199.00"/>
+              </div>
+              <div id="buyGetFields" class="hidden grid grid-cols-2 gap-4">
+                <div>
+                  <label class="label">ซื้อ (จำนวน)</label>
+                  <input type="number" name="buyQuantity" min="1" class="input input-bordered w-full" />
+                </div>
+                <div>
+                  <label class="label">แถม (จำนวน)</label>
+                  <input type="number" name="getQuantity" min="1" class="input input-bordered w-full" />
+                </div>
+              </div>
+              
+              <div id="bundleFields" class="hidden space-y-4">
+                <div>
+                  <label class="label">สินค้าที่อยู่ในชุด <span class="text-error">*</span></label>
+                  <input type="text" placeholder="ค้นหาสินค้าในชุด..." class="input input-bordered w-full mb-3" onkeyup="searchBundleProducts(this.value)" />
+                  <div id="bundleProductList" class="max-h-40 overflow-y-auto border rounded p-3 bg-gray-50 space-y-2">
+                    <!-- Bundle product checkboxes will be inserted here -->
+                  </div>
+                  <div class="text-xs text-gray-500 mt-2">
+                    <i class="bi bi-info-circle mr-1"></i>
+                    เลือกสินค้าอย่างน้อย 2 รายการเพื่อสร้างชุดสินค้า
+                  </div>
+                </div>
+                <div>
+                  <label class="label">ราคาพิเศษของชุด <span class="text-error">*</span></label>
+                  <div class="relative">
+                    <input type="number" name="bundlePrice" min="0" step="0.01" class="input input-bordered w-full pr-12" placeholder="เช่น 499.00"/>
+                    <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">บาท</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ลดเงินดาวน์ -->
+              <div id="installmentDownPaymentDiscountFields" class="hidden space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="label">ส่วนลดเงินดาวน์ (บาท)</label>
+                    <input type="number" name="downPaymentDiscountAmount" min="0" class="input input-bordered w-full" placeholder="เช่น 1000"/>
+                  </div>
+                  <div>
+                    <label class="label">หรือ ส่วนลดเงินดาวน์ (%)</label>
+                    <input type="number" name="downPaymentDiscountPercent" min="0" max="100" class="input input-bordered w-full" placeholder="เช่น 50"/>
+                  </div>
+                </div>
+                <div class="alert alert-info text-sm p-3">
+                  <i class="bi bi-info-circle"></i>
+                  <span>กรอกอย่างใดอย่างหนึ่ง: จำนวนเงิน หรือ เปอร์เซ็นต์</span>
+                </div>
+                <div>
+                  <label class="label">เงื่อนไขจำนวนเดือนผ่อน (สำหรับลดเงินดาวน์)</label>
+                  <select name="installmentMonthsCondition" class="select select-bordered w-full">
+                    <option value="">ทุกแผนการผ่อน</option>
+                    <option value="6">ผ่อน 6 เดือนขึ้นไป</option>
+                    <option value="10">ผ่อน 10 เดือนขึ้นไป</option>
+                    <option value="12">ผ่อน 12 เดือนขึ้นไป</option>
+                    <option value="18">ผ่อน 18 เดือนขึ้นไป</option>
+                    <option value="24">ผ่อน 24 เดือนขึ้นไป</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- ของแถมสำหรับผ่อน -->
+              <div id="installmentGiftFields" class="hidden space-y-4">
+                <div>
+                  <label class="label">รายละเอียดของแถม <span class="text-error">*</span></label>
+                  <textarea name="giftDetail" rows="3" class="textarea textarea-bordered w-full" placeholder="เช่น แถมหูฟัง Bluetooth มูลค่า 990 บาท หรือ แถมประกันมือถือ 1 ปี"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="label">มูลค่าของแถม (บาท)</label>
+                    <input type="number" name="giftValue" min="0" class="input input-bordered w-full" placeholder="เช่น 990"/>
+                  </div>
+                  <div>
+                    <label class="label">จำนวนของแถม</label>
+                    <input type="number" name="giftQuantity" min="1" value="1" class="input input-bordered w-full"/>
+                  </div>
+                </div>
+                <div>
+                  <label class="label">เงื่อนไขการรับของแถม (สำหรับผ่อน)</label>
+                  <select name="giftCondition" class="select select-bordered w-full">
+                    <option value="">ไม่มีเงื่อนไข</option>
+                    <option value="min_6_months">ผ่อนขั้นต่ำ 6 เดือน</option>
+                    <option value="min_10_months">ผ่อนขั้นต่ำ 10 เดือน</option>
+                    <option value="min_12_months">ผ่อนขั้นต่ำ 12 เดือน</option>
+                    <option value="min_amount_30000">ยอดผ่อนขั้นต่ำ 30,000 บาท</option>
+                    <option value="min_amount_50000">ยอดผ่อนขั้นต่ำ 50,000 บาท</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <!-- Date Range -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">วันเวลาเริ่มต้น <span class="text-error">*</span></label>
+                <input type="text" id="startDate" name="startDate" required class="input input-bordered w-full" autocomplete="off" />
+              </div>
+              <div>
+                <label class="label">วันเวลาสิ้นสุด <span class="text-error">*</span></label>
+                <input type="text" id="endDate" name="endDate" required class="input input-bordered w-full" autocomplete="off" />
+              </div>
+            </div>
+            <!-- Applicable Items -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">สินค้าที่ร่วมโปรโมชั่น</label>
+                <div class="tabs tabs-boxed mb-2" id="productTabsContainer">
+                  <button type="button" class="tab tab-active" onclick="switchTab('all', this)">ทุกสินค้า</button>
+                  <button type="button" class="tab" onclick="switchTab('category', this)">ตามหมวดหมู่</button>
+                  <button type="button" class="tab" onclick="switchTab('specific', this)">เลือกสินค้า</button>
+                </div>
+                <div id="productSelection">
+                  <div id="allProductsTab" class="text-center py-4 text-gray-500">
+                    <i class="bi bi-check-circle text-3xl text-green-500"></i>
+                    <p class="mt-2">โปรโมชั่นนี้ใช้ได้กับทุกสินค้า</p>
+                  </div>
+                  <div id="categoryTab" class="hidden">
+                    <div id="categoryList" class="flex flex-wrap gap-2">
+                      <!-- Category checkboxes will be loaded from API -->
+                    </div>
+                  </div>
+                  <div id="specificTab" class="hidden">
+                    <input type="text" placeholder="ค้นหาสินค้า..." class="input input-bordered w-full mb-3" onkeyup="searchProducts(this.value)" />
+                    <div id="productList" class="max-h-44 overflow-y-auto space-y-2">
+                      <!-- Product checkboxes will be inserted here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="label">สาขาที่ร่วมโปรโมชั่น</label>
+                <div class="tabs tabs-boxed mb-2" id="branchTabsContainer">
+                  <button type="button" class="tab tab-active" onclick="switchBranchTab('all', this)">ทุกสาขา</button>
+                  <button type="button" class="tab" onclick="switchBranchTab('specific', this)">เลือกสาขา</button>
+                </div>
+                <div id="branchSelection">
+                  <div id="allBranchesTab" class="text-center py-4 text-gray-500">
+                    <i class="bi bi-shop text-3xl text-blue-500"></i>
+                    <p class="mt-2">โปรโมชั่นนี้ใช้ได้กับทุกสาขา</p>
+                  </div>
+                  <div id="specificBranchesTab" class="hidden">
+                    <div id="branchList" class="max-h-32 overflow-y-auto space-y-2">
+                      <!-- Branch checkboxes will be inserted here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Additional Conditions -->
+            <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+              <input type="checkbox" id="additional-conditions-toggle" />
+              <div class="collapse-title text-lg font-medium">
+                <i class="bi bi-gear-wide mr-2"></i>เงื่อนไขเพิ่มเติม
+              </div>
+              <div class="collapse-content space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="label">ยอดซื้อขั้นต่ำ</label>
+                    <input type="number" name="minPurchaseAmount" min="0" class="input input-bordered w-full" />
+                  </div>
+                  <div>
+                    <label class="label">ส่วนลดสูงสุด (สำหรับ %)</label>
+                    <input type="number" name="maxDiscountAmount" min="0" class="input input-bordered w-full" />
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="label">จำกัดจำนวนการใช้</label>
+                    <input type="number" name="usageLimit" min="0" class="input input-bordered w-full" placeholder="ไม่จำกัด" />
+                  </div>
+                  <div>
+                    <label class="label">ลำดับความสำคัญ</label>
+                    <input type="number" name="priority" min="1" value="100" class="input input-bordered w-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Installment Conditions (Initially Hidden) -->
+            <div id="installmentConditions" class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box hidden">
+              <input type="checkbox" id="installment-conditions-toggle" />
+              <div class="collapse-title text-lg font-medium">
+                <i class="bi bi-credit-card-2-front mr-2"></i>เงื่อนไขการผ่อน
+              </div>
+              <div class="collapse-content">
+                <div>
+                  <label class="label">ธนาคาร/บริษัทไฟแนนซ์ที่ร่วมรายการ (สำหรับโปรโมชั่นผ่อน)</label>
+                  <select name="financePartners" multiple class="select select-bordered w-full" size="5" id="financePartnersList">
+                    <!-- Finance partners will be loaded from API -->
+                  </select>
+                  <div class="text-xs text-gray-500 mt-1">กด Ctrl (หรือ Cmd บน Mac) ค้างไว้เพื่อเลือกหลายรายการ หรือเลือก "ทุกธนาคาร/ไฟแนนซ์" หากไม่จำกัด</div>
+                </div>
+                <!-- Original content for interestDiscount and installmentMonths removed as per request -->
+                <!-- If these are still needed for other installment types, they should be added back or handled differently -->
+              </div>
+            </div>
+
+            <div class="modal-action flex justify-end gap-4">
+              <button type="button" onclick="closeModal()" class="btn btn-ghost">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary flex gap-2 items-center">
+                <i class="bi bi-save"></i> บันทึก
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let isLoading = false;  // เพิ่ม loading state
+
+    // Helper function for formatting price
+    function formatPrice(n) {
+      if (n === undefined || n === null || isNaN(n)) return '0';
+      return Number(n).toLocaleString('th-TH', { minimumFractionDigits: 0 });
+    }
+
+    const socket = io();
+    let editingPromotionId = null;
+    let allProducts = [];
+    let allBranches = [];
+    let promotionsRaw = [];
+    let currentBranchCode = null; // Will be set from user profile or branch selection
+    let currentSalesType = 'all'; // Added
+    // window.activePromotions should be populated elsewhere if checkPromotionsLocally is to be fully functional
+
+    // ฟังก์ชันตรวจสอบและดึง token
+    function getAuthToken() {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      if (!token) {
+        console.error('ไม่พบ token, กำลัง redirect ไปหน้า login...');
+        // Clear any potentially stale tokens
+        localStorage.removeItem('token');
+        localStorage.removeItem('authToken');
+        window.location.href = '/login'; // ส่งไปหน้า login
+        return null;
+      }
+      return token;
+    }
+
+    // ฟังก์ชันสร้าง headers
+    function getAuthHeaders() {
+      const token = getAuthToken();
+      if (!token) return null; // Should have been redirected by getAuthToken already
+      return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    // ————————————————
+    // (1) ประกาศฟังก์ชันเรียกจาก HTML ที่ scope หลัก
+    function openCreateModal() {
+      editingPromotionId = null;
+      document.getElementById('modalTitle').innerHTML = '<i class="bi bi-megaphone-fill text-orange-500"></i> สร้างโปรโมชั่น';
+      document.getElementById('promotionForm').reset();
+      // Reset salesType radio to 'both'
+      document.querySelector('input[name="salesType"][value="both"]').checked = true;
+      toggleSalesTypeFields(); // Call this to set initial state of dependent fields
+
+      document.querySelectorAll('.tabs .tab').forEach((t,i) => t.classList.toggle('tab-active', i===0));
+      document.getElementById('allProductsTab').classList.remove('hidden');
+      document.getElementById('categoryTab').classList.add('hidden');
+      document.getElementById('specificTab').classList.add('hidden');
+      document.getElementById('allBranchesTab').classList.remove('hidden');
+      document.getElementById('specificBranchesTab').classList.add('hidden');
+      document.getElementById('typeSpecificFields').classList.add('hidden');
+      document.querySelectorAll('#discountFields, #specialPriceField, #buyGetFields, #bundleFields, #installmentDownPaymentDiscountFields, #installmentGiftFields')
+        .forEach(el => el.classList.add('hidden'));
+      document.getElementById('promotionModal').classList.add('modal-open');
+    }
+
+    function closeModal() {
+      document.getElementById('promotionModal').classList.remove('modal-open');
+    }
+
+    function togglePromotionFields() {
+      const type = document.querySelector('[name="type"]').value;
+      const container = document.getElementById('typeSpecificFields');
+      document.querySelectorAll('#discountFields, #specialPriceField, #buyGetFields, #bundleFields, #installmentDownPaymentDiscountFields, #installmentGiftFields').forEach(el => {
+        el.classList.add('hidden');
+      });
+      if (type) {
+        container.classList.remove('hidden');
+        switch(type) {
+          case 'discount_percentage':
+            document.getElementById('discountFields').classList.remove('hidden');
+            document.getElementById('discountUnit').textContent = '%';
+            document.querySelector('[name="discountValue"]').setAttribute('max','100');
+            break;
+          case 'discount_amount':
+            document.getElementById('discountFields').classList.remove('hidden');
+            document.getElementById('discountUnit').textContent = 'บาท';
+            document.querySelector('[name="discountValue"]').removeAttribute('max');
+            break;
+          case 'special_price':
+            document.getElementById('specialPriceField').classList.remove('hidden');
+            break;
+          case 'buy_x_get_y':
+            document.getElementById('buyGetFields').classList.remove('hidden');
+            break;
+          case 'bundle':
+            document.getElementById('bundleFields').classList.remove('hidden');
+            displayBundleProductList();
+            break;
+          // Add cases for new installment types if they need specific fields beyond the general installmentConditions block
+          case 'installment_discount':
+          case 'installment_free_interest':
+          case 'installment_special_terms':
+            // These might not need specific fields here if handled by installmentConditions block
+            // Or if they have their own specific fields, add them here.
+            break;
+          case 'installment_down_payment_discount':
+            document.getElementById('installmentDownPaymentDiscountFields').classList.remove('hidden');
+            break;
+          case 'installment_gift':
+            document.getElementById('installmentGiftFields').classList.remove('hidden');
+            break;
+        }
+      } else {
+        container.classList.add('hidden');
+      }
+    }
+
+    function switchTab(tab, el) {
+      document.querySelectorAll('#productTabsContainer .tab').forEach(t => t.classList.remove('tab-active'));
+      if (el) el.classList.add('tab-active');
+      document.getElementById('allProductsTab').classList.add('hidden');
+      document.getElementById('categoryTab').classList.add('hidden');
+      document.getElementById('specificTab').classList.add('hidden');
+      if(tab === 'all') document.getElementById('allProductsTab').classList.remove('hidden');
+      if(tab === 'category') document.getElementById('categoryTab').classList.remove('hidden');
+      if(tab === 'specific') document.getElementById('specificTab').classList.remove('hidden');
+    }
+
+    function switchBranchTab(tab, el) {
+      document.querySelectorAll('#branchTabsContainer .tab').forEach(t => t.classList.remove('tab-active'));
+      if (el) el.classList.add('tab-active');
+      document.getElementById('allBranchesTab').classList.toggle('hidden', tab !== 'all');
+      document.getElementById('specificBranchesTab').classList.toggle('hidden', tab === 'all');
+    }
+
+    // Debounce สำหรับค้นหาสินค้า
+    let searchTimeout;
+    function searchProducts(query) {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+        displayProductList(filtered);
+      }, 300);
+    }
+
+    // Debounce สำหรับค้นหาสินค้าในชุด
+    let bundleSearchTimeout;
+    function searchBundleProducts(query) {
+      clearTimeout(bundleSearchTimeout);
+      bundleSearchTimeout = setTimeout(() => {
+        const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+        displayBundleProductList(filtered);
+      }, 300);
+    }
+
+    // Socket events with real-time updates
+    socket.on('promotionCreated', (data) => {
+      console.log('🎉 New promotion created:', data);
+      loadPromotions();
+      showToast('🎉 มีโปรโมชั่นใหม่!', 'success');
+    });
+    
+    socket.on('promotionUpdated', (data) => {
+      console.log('📝 Promotion updated:', data);
+      loadPromotions();
+      showToast('📝 โปรโมชั่นได้รับการอัพเดต', 'info');
+    });
+    
+    socket.on('promotionDeleted', (data) => {
+      console.log('🗑️ Promotion deleted:', data);
+      loadPromotions();
+      showToast('🗑️ โปรโมชั่นถูกลบแล้ว', 'warning');
+    });
+    
+    socket.on('promotionUsed', (data) => {
+      console.log('🎁 Promotion used:', data);
+      // อัพเดตข้อมูลการใช้งานแบบ real-time
+      updatePromotionUsage(data.promotionId, data.usageCount);
+    });
+
+    // ฟังก์ชันอัพเดตการใช้งานโปรโมชั่นแบบ real-time
+    function updatePromotionUsage(promotionId, newUsageCount) {
+      // อัพเดตข้อมูลใน promotionsRaw
+      const promoIndex = promotionsRaw.findIndex(p => p._id === promotionId);
+      if (promoIndex !== -1) {
+        promotionsRaw[promoIndex].usageCount = newUsageCount;
+    
+        // อัพเดต UI แบบ real-time โดยไม่ต้องโหลดใหม่
+        const promoCard = document.querySelector(`[data-promo-id="${promotionId}"]`);
+        if (promoCard) {
+          const usageElement = promoCard.querySelector('.usage-info');
+          const promo = promotionsRaw[promoIndex];
+          if (usageElement && promo.usageLimit) {
+            const percentage = Math.min((newUsageCount / promo.usageLimit) * 100, 100);
+            usageElement.innerHTML = `
+              <i class="bi bi-people-fill mr-2"></i>
+              ใช้แล้ว ${newUsageCount} / ${promo.usageLimit} ครั้ง
+              <div class="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${percentage}%"></div>
+              </div>
+            `;
+          }
+        }
+    
+        // อัพเดต summary cards
+        updateSummaryCards();
+      }
+    }
+
+    // ฟังก์ชันแสดง Toast notification
+    function showToast(message, type = 'info') {
+      // ใช้ SweetAlert2 สำหรับแสดง notification
+      const icon = type === 'success' ? 'success' :
+                   type === 'warning' ? 'warning' :
+                   type === 'error' ? 'error' : 'info';
+    
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        icon: icon,
+        title: message
+      });
+    }
+
+    // New JS Functions
+    function switchSalesType(type) {
+      currentSalesType = type;
+      document.querySelectorAll('.sales-type-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      // Ensure event.target is available or find the button by type
+      const clickedButton = Array.from(document.querySelectorAll('.sales-type-tab')).find(btn => btn.getAttribute('onclick').includes(`'${type}'`));
+      if (clickedButton) {
+        clickedButton.classList.add('active');
+      }
+      applyFilters();
+    }
+
+    function toggleSalesTypeFields() {
+      const salesType = document.querySelector('[name="salesType"]:checked')?.value;
+      const promotionTypeSelect = document.querySelector('[name="type"]');
+      const installmentTypesOptgroup = document.getElementById('installmentTypes');
+      const installmentConditionsDiv = document.getElementById('installmentConditions');
+
+      // Enable/disable promotion type options based on salesType
+      promotionTypeSelect.querySelectorAll('optgroup[label="ขายผ่อน"] option, option[value^="installment_"]').forEach(opt => {
+        opt.disabled = (salesType === 'cash');
+      });
+    
+      if (salesType === 'cash') {
+        installmentTypesOptgroup.style.display = 'none';
+        if (installmentConditionsDiv) installmentConditionsDiv.classList.add('hidden');
+        // If current promotion type is an installment type, reset it
+        if (promotionTypeSelect.value.startsWith('installment_')) {
+          promotionTypeSelect.value = ''; // Or to a default cash type
+          togglePromotionFields(); // Update specific fields based on new type
+        }
+      } else {
+        installmentTypesOptgroup.style.display = 'block'; // or 'table-row-group' or ''
+        if (installmentConditionsDiv) installmentConditionsDiv.classList.remove('hidden');
+      }
+    }
+
+
+    function updateSalesTypeCounts() {
+      let allCount = 0; // Will be set by total promotions that match current filters (excluding sales type)
+      let cashCount = 0;
+      let installmentCount = 0;
+    
+      // This count should reflect promotionsRaw or the currently filtered list before salesType filter
+      const baseFilteredPromotions = getBaseFilteredPromotions(); // Helper to get promotions based on other filters
+
+      baseFilteredPromotions.forEach(p => {
+        if (p.salesType === 'cash') cashCount++;
+        else if (p.salesType === 'installment') installmentCount++;
+        else if (p.salesType === 'both') {
+          cashCount++;
+          installmentCount++;
+        }
+      });
+      allCount = baseFilteredPromotions.length; // Total before sales type specific filtering
+    
+      document.getElementById('allCount').textContent = allCount;
+      document.getElementById('cashCount').textContent = cashCount;
+      document.getElementById('installmentCount').textContent = installmentCount;
+    }
+
+    // Helper function to get promotions based on filters other than salesType
+    // This is needed for accurate counts on the sales type tabs
+    function getBaseFilteredPromotions() {
+        const status = document.getElementById('filterStatus').value;
+        const branch = document.getElementById('filterBranch').value;
+        const type = document.getElementById('filterType').value;
+        const now = new Date();
+        let filtered = promotionsRaw;
+
+        if (status !== 'all') {
+            filtered = filtered.filter(promo => {
+                const startDate = new Date(promo.startDate);
+                const endDate = new Date(promo.endDate);
+                if (status === 'active') return now >= startDate && now <= endDate && promo.isActive;
+                if (status === 'upcoming') return now < startDate;
+                if (status === 'expired') return now > endDate;
+                return true;
+            });
+        }
+        if (branch !== 'all') {
+            filtered = filtered.filter(promo => promo.applicableBranches?.includes(branch) || promo.applicableBranches?.length === 0);
+        }
+        if (type !== 'all') {
+            filtered = filtered.filter(promo => promo.type === type);
+        }
+        return filtered;
+    }
+
+
+    // Load functions
+    async function loadBranches() {
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const res = await fetch('/api/branch', { headers });
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Token ไม่ถูกต้องหรือหมดอายุ (loadBranches)');
+            getAuthToken(); // This will trigger redirect
+            return;
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data.data) {
+          throw new Error('ไม่พบข้อมูลสาขาจาก API');
+        }
+        allBranches = data.data;
+        // Populate branch filter
+        const branchFilter = document.getElementById('filterBranch');
+        allBranches.forEach(branch => {
+          const option = document.createElement('option');
+          option.value = branch.branch_code;
+          option.textContent = branch.name;
+          branchFilter.appendChild(option);
+        });
+        // Populate branch checkboxes
+        const branchList = document.getElementById('branchList');
+        branchList.innerHTML = allBranches.map(branch => `
+          <label class="cursor-pointer flex items-center p-2 hover:bg-gray-50 rounded">
+            <input type="checkbox" name="branches" value="${branch.branch_code}" class="checkbox checkbox-sm" />
+            <span class="ml-2">${branch.name}</span>
+          </label>
+        `).join('');
+      } catch (err) {
+        console.error('Error loading branches:', err);
+      }
+    }
+
+    async function loadCategories() {
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const res = await fetch('/api/category/public', { headers });
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Token ไม่ถูกต้องหรือหมดอายุ (loadCategories)');
+            getAuthToken(); // This will trigger redirect
+            return;
+          }
+          if (res.status === 403) {
+            console.warn('ไม่มีสิทธิ์เข้าถึง categories - ข้ามการโหลด');
+            return; // Skip loading categories but continue
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data.data) {
+          throw new Error('ไม่พบข้อมูลหมวดหมู่จาก API');
+        }
+        const categories = data.data;
+    
+        // Populate category checkboxes
+        const categoryList = document.getElementById('categoryList');
+        categoryList.innerHTML = categories.map(category => `
+          <label class="cursor-pointer">
+            <input type="checkbox" name="categories" value="${category.code || category._id}" class="checkbox checkbox-primary" />
+            <span class="ml-2">${category.name}</span>
+          </label>
+        `).join('');
+      } catch (err) {
+        console.error('Error loading categories:', err);
+        // Fallback to empty state
+        const categoryList = document.getElementById('categoryList');
+        categoryList.innerHTML = '<div class="text-gray-500 text-sm">ไม่สามารถโหลดหมวดหมู่ได้</div>';
+      }
+    }
+
+    async function loadFinancePartners() {
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const res = await fetch('/api/finance-partners', { headers });
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Token ไม่ถูกต้องหรือหมดอายุ (loadFinancePartners)');
+            getAuthToken(); // This will trigger redirect
+            return;
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!data.data) {
+          throw new Error('ไม่พบข้อมูล Finance Partners จาก API');
+        }
+        const financePartners = data.data;
+    
+        // Populate finance partners select
+        const financePartnersList = document.getElementById('financePartnersList');
+        financePartnersList.innerHTML = financePartners.map(partner => `
+          <option value="${partner.code}">${partner.name}</option>
+        `).join('');
+    
+      } catch (err) {
+        console.error('Error loading finance partners:', err);
+        // Fallback to basic options
+        const financePartnersList = document.getElementById('financePartnersList');
+        financePartnersList.innerHTML = `
+          <option value="all">ทุกธนาคาร/ไฟแนนซ์</option>
+          <option value="ktc">KTC</option>
+          <option value="kbank">กสิกรไทย</option>
+          <option value="scb">ไทยพาณิชย์</option>
+          <option value="bbl">กรุงเทพ</option>
+          <option value="krungsri">กรุงศรี</option>
+        `;
+      }
+    }
+
+    async function loadProducts() {
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const res = await fetch('/api/product-image', { headers });
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Token ไม่ถูกต้องหรือหมดอายุ (loadProducts)');
+            getAuthToken(); // This will trigger redirect
+            return;
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data.data) {
+          throw new Error('ไม่พบข้อมูลสินค้าจาก API');
+        }
+        allProducts = data.data;
+        displayProductList();
+      } catch (err) {
+        console.error('Error loading products:', err);
+      }
+    }
+
+    async function loadPromotions() {
+      // show loading placeholder
+      document.getElementById('promotionsList').innerHTML = `
+        <div class="col-span-full text-center py-12">
+          <div class="loading loading-spinner loading-lg text-orange-500"></div>
+          <p class="mt-4">กำลังโหลดข้อมูล...</p>
+        </div>`;
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const res = await fetch('/api/promotion', { headers });
+    
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Token ไม่ถูกต้องหรือหมดอายุ (loadPromotions)');
+            getAuthToken(); // This will trigger redirect
+            return;
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data.data) {
+          throw new Error('ไม่พบข้อมูลโปรโมชั่นจาก API');
+        }
+        promotionsRaw = data.data;
+    
+        // โหลดข้อมูลสถิติการใช้งานเพิ่มเติม
+        await loadPromotionStats();
+    
+        displayPromotions(promotionsRaw);
+        updateSummaryCards();  // update summary
+        updateSalesTypeCounts(); // Added
+      } catch (err) {
+        console.error('Error loading promotions:', err);
+        document.getElementById('promotionsList').innerHTML = `
+          <div class="col-span-full text-center py-12 text-red-500">
+            <i class="bi bi-exclamation-triangle text-6xl"></i>
+            <p class="mt-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+            <button onclick="loadPromotions()" class="btn btn-sm btn-ghost mt-2">
+              <i class="bi bi-arrow-clockwise"></i> ลองใหม่
+            </button>
+          </div>`;
+      }
+    }
+
+    // ฟังก์ชันโหลดสถิติการใช้งานโปรโมชั่น
+    async function loadPromotionStats() {
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        // โหลดข้อมูลการใช้งานโปรโมชั่น
+        const statsRes = await fetch('/api/promotion/stats', { headers });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          if (statsData.status === 'success' && statsData.data) {
+            // อัพเดตข้อมูล usageCount ในแต่ละโปรโมชั่น
+            promotionsRaw.forEach(promo => {
+              const stat = statsData.data.find(s => s.promotionId === promo._id);
+              if (stat) {
+                promo.usageCount = stat.usageCount || 0;
+                promo.lastUsed = stat.lastUsed;
+                promo.totalRevenue = stat.totalRevenue || 0;
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load promotion stats:', error);
+        // ไม่ต้อง throw error เพราะไม่ใช่ข้อมูลหลัก
+      }
+    }
+
+    // ฟังก์ชันคำนวณอัตราการเข้าถึงโปรโมชั่น
+    function calculateAccessibilityRate() {
+      if (!promotionsRaw.length) return 0;
+    
+      const now = new Date();
+      let accessiblePromotions = 0;
+      let totalActivePromotions = 0;
+    
+      promotionsRaw.forEach(p => {
+        const startDate = new Date(p.startDate);
+        const endDate = new Date(p.endDate);
+    
+        // นับเฉพาะโปรโมชั่นที่ active
+        if (now >= startDate && now <= endDate && p.isActive) {
+          totalActivePromotions++;
+    
+          // ตรวจสอบว่าโปรโมชั่นนี้เข้าถึงได้หรือไม่
+          let isAccessible = true;
+    
+          // ตรวจสอบ usage limit
+          if (p.usageLimit && p.usageLimit > 0) {
+            const usageCount = p.usageCount || 0;
+            if (usageCount >= p.usageLimit) {
+              isAccessible = false;
+            }
+          }
+    
+          // ตรวจสอบ minimum purchase amount
+          if (p.conditions && p.conditions.minPurchaseAmount > 0) {
+            // คำนวณจากยอดขั้นต่ำ - ถ้ายอดสูงมาก accessibility จะลดลง
+            const minAmount = p.conditions.minPurchaseAmount;
+            if (minAmount > 50000) {
+              isAccessible = false; // ยอดสูงมาก เข้าถึงยาก
+            } else if (minAmount > 20000) {
+              // ยอดปานกลาง เข้าถึงได้ 70%
+              accessiblePromotions += 0.7;
+              return; // ออกจาก forEach callback
+            } else if (minAmount > 5000) {
+              // ยอดต่ำ เข้าถึงได้ 90%
+              accessiblePromotions += 0.9;
+              return; // ออกจาก forEach callback
+            }
+            // ยอดต่ำมาก เข้าถึงได้ 100% (จะไม่เข้า condition นี้)
+          }
+    
+          if (isAccessible) {
+            accessiblePromotions++;
+          }
+        }
+      });
+    
+      return totalActivePromotions > 0 ?
+        ((accessiblePromotions / totalActivePromotions) * 100).toFixed(1) : 0;
+    }
+
+    // ฟังก์ชันอัปเดต Summary Cards พร้อมข้อมูลจริง
+    function updateSummaryCards() {
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    
+      let total = promotionsRaw.length;
+      let active = 0, expired = 0, upcoming = 0;
+      let newThisMonth = 0, activeLastMonth = 0;
+      let totalUsage = 0, totalLimit = 0;
+    
+      promotionsRaw.forEach(p => {
+        const startDate = new Date(p.startDate);
+        const endDate = new Date(p.endDate);
+        const createdDate = new Date(p.createdAt || p.startDate);
+    
+        // นับสถานะปัจจุบัน
+        if (now >= startDate && now <= endDate && p.isActive) {
+          active++;
+        } else if (now > endDate) {
+          expired++;
+        } else if (now < startDate) {
+          upcoming++;
+        }
+    
+        // นับโปรโมชั่นใหม่ในเดือนนี้
+        if (createdDate >= new Date(now.getFullYear(), now.getMonth(), 1)) {
+          newThisMonth++;
+        }
+    
+        // นับที่ active เดือนที่แล้ว
+        if (lastMonth >= startDate && lastMonth <= endDate && p.isActive) {
+          activeLastMonth++;
+        }
+    
+        // คำนวณอัตราการใช้งาน
+        if (p.usageLimit && p.usageLimit > 0) {
+          totalUsage += (p.usageCount || 0);
+          totalLimit += p.usageLimit;
+        }
+      });
+    
+      // คำนวณการเปลี่ยนแปลง
+      const activeChange = active - activeLastMonth;
+      const activeChangePercent = activeLastMonth > 0 ? ((activeChange / activeLastMonth) * 100).toFixed(1) : 0;
+    
+      // คำนวณอัตราการเข้าถึง (usage rate)
+      const usageRate = totalLimit > 0 ? ((totalUsage / totalLimit) * 100).toFixed(1) : 0;
+    
+      // คำนวณอัตราการเข้าถึงจากการใช้งานจริง (ถ้ามีข้อมูล)
+      const accessibilityRate = calculateAccessibilityRate();
+    
+      document.querySelector('.summary-cards').innerHTML = `
+        <div class="card">
+          <div class="card-icon bg-orange-500">
+            <i class="bi bi-megaphone"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">แคมเปญทั้งหมด</h3>
+            <h2 class="text-2xl font-semibold">${total}</h2>
+            <p class="trend ${newThisMonth > 0 ? 'positive' : 'text-gray-500'}">
+              <i class="bi bi-arrow-up"></i> ${newThisMonth} แคมเปญใหม่
+            </p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-green-500">
+            <i class="bi bi-play-circle"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">กำลังดำเนินการ</h3>
+            <h2 class="text-2xl font-semibold">${active}</h2>
+            <p class="trend ${activeChange >= 0 ? 'positive' : 'negative'}">
+              <i class="bi bi-arrow-${activeChange >= 0 ? 'up' : 'down'}"></i> 
+              ${Math.abs(activeChange)} จากเดือนที่แล้ว
+            </p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-blue-600">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">สิ้นสุดแล้ว</h3>
+            <h2 class="text-2xl font-semibold">${expired}</h2>
+            <p class="trend text-gray-500">
+              <i class="bi bi-arrow-down"></i> ${expired} รายการ
+            </p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon bg-yellow-500">
+            <i class="bi bi-graph-up"></i>
+          </div>
+          <div class="card-info">
+            <h3 class="text-gray-500 dark:text-gray-400">อัตราการเข้าถึง</h3>
+            <h2 class="text-2xl font-semibold">${accessibilityRate}%</h2>
+            <p class="trend positive">
+              <i class="bi bi-arrow-up"></i> ${usageRate}% การใช้งาน
+            </p>
+          </div>
+        </div>`;
+    }
+
+    // Filtering
+    function applyFilters() {
+      const status = document.getElementById('filterStatus').value;
+      const branch = document.getElementById('filterBranch').value;
+      const type = document.getElementById('filterType').value;
+
+      const now = new Date();
+      let filtered = promotionsRaw;
+
+      if (status !== 'all') {
+        filtered = filtered.filter(promo => {
+          const startDate = new Date(promo.startDate);
+          const endDate = new Date(promo.endDate);
+          if (status === 'active') return now >= startDate && now <= endDate && promo.isActive;
+          if (status === 'upcoming') return now < startDate;
+          if (status === 'expired') return now > endDate;
+          return true;
+        });
+      }
+      if (branch !== 'all') {
+        filtered = filtered.filter(promo => promo.applicableBranches?.includes(branch) || promo.applicableBranches?.length === 0);
+      }
+      if (type !== 'all') {
+        filtered = filtered.filter(promo => promo.type === type);
+      }
+
+      // Filter by currentSalesType
+      if (currentSalesType !== 'all') {
+        filtered = filtered.filter(promo =>
+          promo.salesType === currentSalesType || promo.salesType === 'both'
+        );
+      }
+      updateSalesTypeCounts(); // Update counts after other filters are applied, but before sales type filter for display
+      displayPromotions(filtered);
+    }
+
+    // Display functions
+    function displayPromotions(promotions) {
+      const container = document.getElementById('promotionsList');
+      if (promotions.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12 text-gray-500">
+            <i class="bi bi-megaphone text-6xl opacity-20"></i>
+            <p class="mt-4 text-lg">ยังไม่มีโปรโมชั่น</p>
+          </div>
+        `;
+        return;
+      }
+      container.innerHTML = promotions.map(promo => {
+        const now = new Date();
+        const startDate = new Date(promo.startDate);
+        const endDate = new Date(promo.endDate);
+        let status, statusColor, statusIcon;
+        if (now < startDate) {
+          status = 'กำลังจะมา'; statusColor = 'badge-warning'; statusIcon = 'bi-clock';
+        } else if (now > endDate) {
+          status = 'หมดอายุแล้ว'; statusColor = 'badge-error'; statusIcon = 'bi-x-circle';
+        } else if (!promo.isActive) {
+          status = 'ปิดใช้งาน'; statusColor = 'badge-ghost'; statusIcon = 'bi-pause-circle';
+        } else {
+          status = 'กำลังใช้งาน'; statusColor = 'badge-success'; statusIcon = 'bi-check-circle';
+        }
+
+        let salesTypeBadge = '';
+        if (promo.salesType === 'cash') {
+          salesTypeBadge = '<span class="badge badge-info badge-outline"><i class="bi bi-cash-stack mr-1"></i>ขายสด</span>';
+        } else if (promo.salesType === 'installment') {
+          salesTypeBadge = '<span class="badge badge-warning badge-outline"><i class="bi bi-credit-card mr-1"></i>ขายผ่อน</span>';
+        } else if (promo.salesType === 'both') {
+          salesTypeBadge = '<span class="badge badge-primary badge-outline"><i class="bi bi-grid-3x3-gap mr-1"></i>ทั้งสองประเภท</span>';
+        } else {
+          salesTypeBadge = '<span class="badge badge-ghost badge-outline">ไม่ระบุประเภทขาย</span>';
+        }
+
+
+        return `
+          <div class="promotion-card bg-white rounded-2xl shadow-card p-6 fade-in flex flex-col justify-between min-h-[260px]" data-promo-id="${promo._id}">
+            <div>
+              <div class="flex justify-between items-start mb-3">
+                <h3 class="text-lg font-bold text-gray-800">${promo.name}</h3>
+                <div class="flex flex-col items-end gap-1">
+                  <span class="badge ${statusColor} px-3 py-2 flex items-center gap-1 text-xs">
+                    <i class="bi ${statusIcon} mr-1"></i>${status}
+                  </span>
+                  ${salesTypeBadge}
+                </div>
+              </div>
+              <p class="text-gray-600 text-sm mb-3 line-clamp-2">${promo.description || 'ไม่มีรายละเอียด'}</p>
+              <div class="space-y-1 text-sm">
+                <div class="flex items-center text-gray-500">
+                  <i class="bi bi-tag-fill mr-2"></i>
+                  ${getPromotionTypeLabel(promo.type)}
+                </div>
+                <div class="flex items-center text-gray-500">
+                  <i class="bi bi-calendar-range mr-2"></i>
+                  ${formatDate(promo.startDate)} - ${formatDate(promo.endDate)}
+                </div>
+                ${promo.usageLimit ? `
+                <div class="flex items-center text-gray-500 usage-info">
+                  <i class="bi bi-people-fill mr-2"></i>
+                  ใช้แล้ว ${promo.usageCount || 0} / ${promo.usageLimit} ครั้ง
+                  <div class="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${Math.min(((promo.usageCount || 0) / promo.usageLimit) * 100, 100)}%"></div>
+                  </div>
+                </div>
+                ` : ''}
+                ${promo.totalRevenue ? `
+                <div class="flex items-center text-gray-500">
+                  <i class="bi bi-currency-dollar mr-2"></i>
+                  รายได้: ฿${formatPrice(promo.totalRevenue)}
+                </div>
+                ` : ''}
+                ${promo.lastUsed ? `
+                <div class="flex items-center text-gray-500">
+                  <i class="bi bi-clock mr-2"></i>
+                  ใช้ล่าสุด: ${formatDate(promo.lastUsed)}
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            <div class="mt-4 flex gap-2 justify-end">
+              <button title="แก้ไข" onclick="editPromotion('${promo._id}')" class="btn btn-sm btn-ghost rounded-full shadow">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button title="เปิด/ปิด" onclick="togglePromotion('${promo._id}', ${promo.isActive})" class="btn btn-sm btn-ghost rounded-full shadow">
+                <i class="bi ${promo.isActive ? 'bi-pause' : 'bi-play'}"></i>
+              </button>
+              <button title="ลบ" onclick="deletePromotion('${promo._id}')" class="btn btn-sm btn-ghost rounded-full text-error shadow">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function displayProductList(products = allProducts) {
+      console.log('📦 All products for selection:', products.map(p => ({
+        id: p._id,
+        name: p.name
+      })));
+    
+      const container = document.getElementById('productList');
+      container.innerHTML = products.map(product => `
+        <label class="cursor-pointer flex items-center p-2 hover:bg-gray-50 rounded">
+          <input type="checkbox" name="products" value="${product._id}" class="checkbox checkbox-sm" />
+          <span class="ml-2">${product.name} (ID: ${product._id})</span>
+          <span class="ml-auto text-xs text-gray-400">${product.productType}</span>
+        </label>
+      `).join('');
+    }
+
+    function displayBundleProductList(products = allProducts) {
+      const container = document.getElementById('bundleProductList');
+      container.innerHTML = products.map(product => `
+        <label class="cursor-pointer flex items-center p-2 hover:bg-white rounded border">
+          <input type="checkbox" name="bundleProducts" value="${product._id}" class="checkbox checkbox-sm checkbox-primary" />
+          <div class="ml-3 flex-1">
+            <span class="text-sm font-medium">${product.name}</span>
+            <div class="text-xs text-gray-400">${product.productType} • ${formatPrice(product.price)} บาท</div>
+          </div>
+        </label>
+      `).join('');
+    }
+
+    // Form handling
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const original = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> กำลังบันทึก...';
+    
+      try {
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData); // All values are initially strings
+
+        // Get salesType
+        data.salesType = document.querySelector('[name="salesType"]:checked')?.value;
+
+        // Basic client-side validation
+        if (!data.salesType) {
+          Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ครบถ้วน', text: 'กรุณาเลือกประเภทการขาย' });
+          submitBtn.disabled = false; submitBtn.innerHTML = original; return;
+        }
+
+        if (!data.name || !data.type || !data.startDate || !data.endDate) {
+          Swal.fire({
+            icon: 'error',
+            title: 'ข้อมูลไม่ครบถ้วน',
+            text: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ชื่อ, ประเภท, วันเวลาเริ่มต้น, วันเวลาสิ้นสุด)'
+          });
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = original;
+          return;
+        }
+    
+        // Process arrays first
+        data.applicableCategories = [...formData.getAll('categories')];
+        data.applicableProducts = [...formData.getAll('products')];
+        data.applicableBranches = [...formData.getAll('branches')];
+        data.bundleProducts = [...formData.getAll('bundleProducts')];
+        data.financePartners = [...formData.getAll('financePartners')];
+
+
+        // Convert and manage type-specific numeric fields
+        if (data.type === 'discount_percentage' || data.type === 'discount_amount') {
+            data.discountValue = (data.discountValue === '' || typeof data.discountValue === 'undefined') ? 0 : Number(data.discountValue);
+        } else {
+            delete data.discountValue;
+        }
+
+        if (data.type === 'special_price') {
+            data.specialPrice = (data.specialPrice === '' || typeof data.specialPrice === 'undefined') ? 0 : Number(data.specialPrice);
+        } else {
+            delete data.specialPrice;
+        }
+
+        if (data.type === 'buy_x_get_y') {
+            data.buyQuantity = (data.buyQuantity === '' || typeof data.buyQuantity === 'undefined') ? 1 : Number(data.buyQuantity);
+            data.getQuantity = (data.getQuantity === '' || typeof data.getQuantity === 'undefined') ? 1 : Number(data.getQuantity);
+        } else {
+            delete data.buyQuantity;
+            delete data.getQuantity;
+        }
+    
+        if (data.type === 'bundle') {
+            data.bundlePrice = (data.bundlePrice === '' || typeof data.bundlePrice === 'undefined') ? 0 : Number(data.bundlePrice);
+            if (data.bundleProducts.length < 2 && editingPromotionId === null) { // Check only for new promotions or if explicitly required for updates
+               Swal.fire({ icon:'error', title:'ข้อมูลไม่ครบถ้วน', text: 'สำหรับโปรโมชั่นแบบชุดสินค้า ต้องเลือกสินค้าอย่างน้อย 2 รายการ' });
+               submitBtn.disabled = false; submitBtn.innerHTML = original; return;
+            }
+        } else {
+            delete data.bundlePrice;
+            data.bundleProducts = []; // Ensure bundleProducts is empty if not bundle type
+        }
+    
+        // Convert general numeric fields
+        data.usageLimit = (data.usageLimit === '' || typeof data.usageLimit === 'undefined') ? null : Number(data.usageLimit);
+        data.priority = (data.priority === '' || typeof data.priority === 'undefined') ? 100 : Number(data.priority);
+
+        // Process conditions: ensure numeric values
+        const minPurchaseAmountStr = data.minPurchaseAmount;
+        const maxDiscountAmountStr = data.maxDiscountAmount;
+        data.conditions = {
+          minPurchaseAmount: (minPurchaseAmountStr === '' || typeof minPurchaseAmountStr === 'undefined') ? 0 : Number(minPurchaseAmountStr),
+          maxDiscountAmount: (maxDiscountAmountStr === '' || typeof maxDiscountAmountStr === 'undefined') ? null : Number(maxDiscountAmountStr)
+        };
+    
+        // Clean up original form fields that are now structured differently or typed
+        delete data.categories;
+        delete data.products;
+        delete data.branches;
+        delete data.minPurchaseAmount;
+        delete data.maxDiscountAmount;
+
+        // Handle installment specific fields
+        if (data.type === 'installment_discount' || data.type === 'installment_free_interest' || data.type === 'installment_special_terms') {
+            // data.interestDiscount = (data.interestDiscount === '' || typeof data.interestDiscount === 'undefined') ? null : Number(data.interestDiscount);
+            // data.installmentMonths = data.installmentMonths ? data.installmentMonths.split(',').map(m => m.trim()).filter(m => m) : [];
+            // These fields were removed from the HTML, so commenting out processing.
+            // If they are part of the schema and needed, ensure they are collected or handled.
+        } else {
+            // delete data.interestDiscount; // Ensure these are not sent if not applicable
+            // delete data.installmentMonths;
+        }
+
+        // Handle new installment-specific fields
+        if (data.type === 'installment_down_payment_discount') {
+          data.downPaymentDiscountAmount = data.downPaymentDiscountAmount ? Number(data.downPaymentDiscountAmount) : null;
+          data.downPaymentDiscountPercent = data.downPaymentDiscountPercent ? Number(data.downPaymentDiscountPercent) : null;
+          data.installmentMonthsCondition = data.installmentMonthsCondition ? Number(data.installmentMonthsCondition) : null;
+    
+          if (data.downPaymentDiscountAmount && data.downPaymentDiscountPercent) {
+            Swal.fire({
+              icon: 'error',
+              title: 'ข้อมูลไม่ถูกต้อง',
+              text: 'กรุณาเลือกส่วนลดเงินดาวน์เป็นจำนวนเงิน หรือ เปอร์เซ็นต์ อย่างใดอย่างหนึ่ง'
+            });
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = original;
+            return;
+          }
+        } else {
+          delete data.downPaymentDiscountAmount;
+          delete data.downPaymentDiscountPercent;
+          delete data.installmentMonthsCondition;
+        }
+
+        if (data.type === 'installment_gift') {
+          data.giftDetail = data.giftDetail || '';
+          data.giftValue = data.giftValue ? Number(data.giftValue) : 0;
+          data.giftQuantity = data.giftQuantity ? Number(data.giftQuantity) : 1;
+          data.giftCondition = data.giftCondition || '';
+           if (!data.giftDetail && editingPromotionId === null) { // Basic validation for new gift promo
+             Swal.fire({ icon: 'error', title: 'ข้อมูลไม่ครบถ้วน', text: 'กรุณาระบุรายละเอียดของแถมสำหรับโปรโมชั่นของแถมผ่อน' });
+             submitBtn.disabled = false; submitBtn.innerHTML = original; return;
+           }
+        } else {
+          delete data.giftDetail;
+          delete data.giftValue;
+          delete data.giftQuantity;
+          delete data.giftCondition;
+        }
+
+        // Consolidate installmentConditions if needed, or handle financePartners directly
+        // For now, financePartners is directly on data. If it should be nested:
+        // data.installmentConditions = { financePartners: data.financePartners };
+        // delete data.financePartners; // if moved to nested structure
+
+
+        // Log data before sending
+        console.log('Data to send:', JSON.parse(JSON.stringify(data))); // Use JSON.parse(JSON.stringify()) for a clean log of the object state'
+
+        const headers = getAuthHeaders();
+        if (!headers) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = original;
+          return;
+        }
+
+        const url = editingPromotionId
+          ? `/api/promotion/${editingPromotionId}`
+          : '/api/promotion';
+        const method = editingPromotionId ? 'PATCH' : 'POST';
+    
+        const res = await fetch(url, {
+          method,
+          headers: headers,
+          body: JSON.stringify(data)
+        });
+    
+        if (!res.ok) {
+          let errorData = { message: `HTTP error! status: ${res.status}` };
+          try {
+            errorData = await res.json(); // Attempt to parse error response from server
+            console.error('Server error response:', errorData);
+          } catch (parseError) {
+            console.error('Could not parse error response:', parseError);
+          }
+    
+          if (res.status === 401) {
+            console.error('Token ไม่ถูกต้องหรือหมดอายุ (handleSubmit)');
+            getAuthToken();
+            return;
+          }
+          throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+        }
+    
+        Swal.fire({ icon:'success', title: editingPromotionId ? 'แก้ไขสำเร็จ!' : 'สร้างสำเร็จ!', timer:2000, showConfirmButton:false });
+        closeModal();
+        await loadPromotions();
+      } catch (err) {
+        console.error('Error saving promotion:', err);
+        Swal.fire({
+          icon:'error',
+          title:'เกิดข้อผิดพลาด!',
+          text: err.message || 'ไม่สามารถบันทึกได้'
+        });
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = original;
+      }
+    }
+
+    // Export promotions เป็น CSV
+    function exportPromotions() {
+      if (!promotionsRaw.length) return;
+      const data = promotionsRaw.map(p => ({
+        'ชื่อโปรโมชั่น': p.name,
+        'ประเภท': getPromotionTypeLabel(p.type),
+        'วันเริ่มต้น': formatDate(p.startDate),
+        'วันสิ้นสุด': formatDate(p.endDate),
+        'สถานะ': p.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
+        'จำนวนการใช้': p.usageCount || 0
+      }));
+      const csv = [
+        Object.keys(data[0]).join(','),
+        ...data.map(row => Object.values(row).join(','))
+      ].join('\n');
+      const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `promotions_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+
+    // For edit functionality (not present in original, but for completeness)
+    async function editPromotion(id) {
+      const promo = promotionsRaw.find(p => p._id === id);
+      if (!promo) return;
+    
+      editingPromotionId = id;
+    
+      // Open modal and fill data
+      document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil-square text-orange-500"></i> แก้ไขโปรโมชั่น';
+      document.getElementById('promotionForm').reset();
+    
+      // Set basic fields
+      document.querySelector('[name="name"]').value = promo.name || '';
+      document.querySelector('[name="type"]').value = promo.type || '';
+      document.querySelector('[name="description"]').value = promo.description || '';
+      document.getElementById('startDate').value = formatInputDate(promo.startDate);
+      document.getElementById('endDate').value = formatInputDate(promo.endDate);
+
+      // Set salesType radio
+      const salesTypeRadio = document.querySelector(`input[name="salesType"][value="${promo.salesType || 'both'}"]`);
+      if (salesTypeRadio) salesTypeRadio.checked = true;
+      toggleSalesTypeFields(); // Call after setting salesType
+    
+      // Toggle type-specific fields
+      togglePromotionFields();
+    
+      // Set type-specific values
+      if (promo.type === 'discount_percentage' || promo.type === 'discount_amount') {
+        document.querySelector('[name="discountValue"]').value = promo.discountValue || '';
+      }
+      if (promo.type === 'special_price') {
+        document.querySelector('[name="specialPrice"]').value = promo.specialPrice || '';
+      }
+      if (promo.type === 'buy_x_get_y') {
+        document.querySelector('[name="buyQuantity"]').value = promo.buyQuantity || '';
+        document.querySelector('[name="getQuantity"]').value = promo.getQuantity || '';
+      }
+      if (promo.type === 'bundle') {
+        // Set bundle products
+        if (promo.bundleProducts && promo.bundleProducts.length) {
+          setTimeout(() => {
+            promo.bundleProducts.forEach(item => {
+              const id = item._id || item;
+              const el = document.querySelector(`#bundleProductList [value="${id}"]`);
+              if (el) el.checked = true;
+            });
+          }, 100);
+        }
+        document.querySelector('[name="bundlePrice"]').value = promo.bundlePrice || '';
+      }
+
+      // Set installment specific fields if they exist on promo object
+      // Commenting out old fields as they were removed from HTML
+      // if (promo.interestDiscount !== undefined) {
+      //   document.querySelector('[name="interestDiscount"]').value = promo.interestDiscount;
+      // }
+      // if (promo.installmentMonths !== undefined) {
+      //   document.querySelector('[name="installmentMonths"]').value = Array.isArray(promo.installmentMonths) ? promo.installmentMonths.join(',') : promo.installmentMonths;
+      // }
+
+      // Set new installment specific fields
+      if (promo.type === 'installment_down_payment_discount') {
+        document.querySelector('[name="downPaymentDiscountAmount"]').value = promo.downPaymentDiscountAmount || '';
+        document.querySelector('[name="downPaymentDiscountPercent"]').value = promo.downPaymentDiscountPercent || '';
+        document.querySelector('[name="installmentMonthsCondition"]').value = promo.installmentMonthsCondition || '';
+      }
+      if (promo.type === 'installment_gift') {
+        document.querySelector('[name="giftDetail"]').value = promo.giftDetail || '';
+        document.querySelector('[name="giftValue"]').value = promo.giftValue || '';
+        document.querySelector('[name="giftQuantity"]').value = promo.giftQuantity || '1';
+        document.querySelector('[name="giftCondition"]').value = promo.giftCondition || '';
+      }
+    
+      // Set finance partners
+      const financePartnersSelect = document.querySelector('[name="financePartners"]');
+      if (promo.financePartners && promo.financePartners.length > 0) {
+        promo.financePartners.forEach(partner => {
+          const option = financePartnersSelect.querySelector(`option[value="${partner}"]`);
+          if (option) option.selected = true;
+        });
+      } else {
+        // If no specific partners, 'all' might be the default or no selection'
+        // Check if 'all' should be selected by default if promo.financePartners is empty or not present'
+        const allOption = financePartnersSelect.querySelector('option[value="all"]');
+        if (allOption && (!promo.financePartners || promo.financePartners.length === 0)) {
+            // allOption.selected = true; // Decide if 'all' should be pre-selected'
+        }
+      }
+    
+      // Set conditions
+      if (promo.conditions) {
+        document.querySelector('[name="minPurchaseAmount"]').value = promo.conditions.minPurchaseAmount || '';
+        document.querySelector('[name="maxDiscountAmount"]').value = promo.conditions.maxDiscountAmount || '';
+      }
+    
+      // Set usage limit and priority
+      document.querySelector('[name="usageLimit"]').value = promo.usageLimit || '';
+      document.querySelector('[name="priority"]').value = promo.priority || 100;
+    
+      // ตั้งค่า Product tabs
+      if (promo.applicableCategories && promo.applicableCategories.length > 0) {
+        // เลือกตามหมวดหมู่
+        switchTab('category', document.querySelectorAll('#productTabsContainer .tab')[1]);
+        setTimeout(() => {
+          promo.applicableCategories.forEach(cat => {
+            const checkbox = document.querySelector(`#categoryList [value="${cat}"]`);
+            if (checkbox) checkbox.checked = true;
+          });
+        }, 100); // Delay to ensure category list is populated
+      } else if (promo.applicableProducts && promo.applicableProducts.length > 0) {
+        // เลือกสินค้าเฉพาะ
+        switchTab('specific', document.querySelectorAll('#productTabsContainer .tab')[2]);
+        setTimeout(() => {
+          promo.applicableProducts.forEach(item => {
+            const id = item._id || item; // Handle populated vs non-populated
+            const checkbox = document.querySelector(`#productList [value="${id}"]`);
+            if (checkbox) checkbox.checked = true;
+          });
+        }, 100); // Delay to ensure product list is populated
+      } else {
+        // ทุกสินค้า (default)
+        switchTab('all', document.querySelectorAll('#productTabsContainer .tab')[0]);
+      }
+    
+      // ตั้งค่า Branch tabs
+      if (promo.applicableBranches && promo.applicableBranches.length > 0) {
+        // เลือกสาขาเฉพาะ
+        switchBranchTab('specific', document.querySelectorAll('#branchTabsContainer .tab')[1]);
+        setTimeout(() => { // Delay to ensure branch list might be populated if needed
+          promo.applicableBranches.forEach(branchCode => {
+            const checkbox = document.querySelector(`#branchList [value="${branchCode}"]`);
+            if (checkbox) checkbox.checked = true;
+          });
+        }, 100);
+      } else {
+        // ทุกสาขา (default)
+        switchBranchTab('all', document.querySelectorAll('#branchTabsContainer .tab')[0]);
+      }
+    
+      // Open modal
+      document.getElementById('promotionModal').classList.add('modal-open');
+    }
+
+    async function togglePromotion(id, isActive) {
+      const newStatus = !isActive;
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const res = await fetch(`/api/promotion/${id}`, {
+          method: 'PATCH',
+          headers: headers, // Use the generated headers
+          body: JSON.stringify({ isActive: newStatus })
+        });
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Token ไม่ถูกต้องหรือหมดอายุ (togglePromotion)');
+            getAuthToken(); // This will trigger redirect
+            return;
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        Swal.fire({
+          icon: 'success',
+          title: `โปรโมชั่น ${newStatus ? 'เปิด' : 'ปิด'}ใช้งานแล้ว`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+        await loadPromotions();
+      } catch (err) {
+        console.error('Error toggling promotion status:', err);
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด!', text: 'ไม่สามารถเปลี่ยนสถานะโปรโมชั่นได้' });
+      }
+    }
+
+    async function deletePromotion(id) {
+      const result = await Swal.fire({
+        title: 'คุณแน่ใจหรือไม่?',
+        text: 'คุณจะไม่สามารถกู้คืนโปรโมชั่นนี้ได้!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'ใช่, ลบเลย!',
+        cancelButtonText: 'ยกเลิก'
+      });
+
+      if (result.isConfirmed) {
+        try {
+          const headers = getAuthHeaders();
+          if (!headers) return;
+    
+          // Remove 'Content-Type' for DELETE if no body is sent, or keep if backend expects it'
+          const deleteHeaders = { ...headers };
+          // delete deleteHeaders['Content-Type']; // Uncomment if backend doesn't need Content-Type for DELETE'
+
+          const res = await fetch(`/api/promotion/${id}`, {
+            method: 'DELETE',
+            headers: deleteHeaders
+          });
+          if (!res.ok) {
+            if (res.status === 401) {
+              console.error('Token ไม่ถูกต้องหรือหมดอายุ (deletePromotion)');
+              getAuthToken(); // This will trigger redirect
+              return;
+            }
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          Swal.fire({
+            icon: 'success',
+            title: 'ลบโปรโมชั่นสำเร็จ!',
+            timer: 2000,
+            showConfirmButton: false
+          });
+          await loadPromotions();
+        } catch (err) {
+          console.error('Error deleting promotion:', err);
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด!', text: 'ไม่สามารถลบโปรโมชั่นได้' });
+        }
+      }
+    }
+
+    // Helper function for formatting date
+    function formatInputDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
+
+    // Helper function to format date as DD/MM/YYYY
+    function formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed'
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    // Helper function to get promotion type label
+    function getPromotionTypeLabel(type) {
+      switch (type) {
+        case 'discount_percentage': return 'ส่วนลด %';
+        case 'discount_amount': return 'ส่วนลดเงิน';
+        case 'special_price': return 'ราคาพิเศษ';
+        case 'buy_x_get_y': return 'ซื้อ X แถม Y';
+        case 'bundle': return 'จัดชุดสินค้า';
+        case 'installment_discount': return 'ส่วนลดดอกเบี้ยผ่อน';
+        case 'installment_free_interest': return 'ผ่อน 0%';
+        case 'installment_special_terms': return 'เงื่อนไขผ่อนพิเศษ';
+        case 'installment_down_payment_discount': return 'ลดเงินดาวน์';
+        case 'installment_gift': return 'ของแถม (ผ่อน)';
+        default: return type;
+      }
+    }
+
+    // --- New functions to be added below ---
+
+    // Fallback function for local checking (optional)
+    function checkPromotionsLocally(productId) {
+      console.log('⚠️ Falling back to local promotion check for product:', productId);
+    
+      if (!window.activePromotions || window.activePromotions.length === 0) {
+        console.log('No local active promotions found.');
+        return false;
+      }
+    
+      // ตรวจสอบแบบเดิม (local)
+      for (const promo of window.activePromotions) {
+        // Check if promo is active and within date range (assuming window.activePromotions are already filtered)
+        // Check branch applicability
+        const branchMatch = !promo.applicableBranches || promo.applicableBranches.length === 0 || promo.applicableBranches.includes(currentBranchCode);
+        if (!branchMatch) continue;
+
+        if (!promo.applicableProducts || promo.applicableProducts.length === 0) {
+          console.log(`Promo "${promo.name}" applies to all products.`);
+          return true; // ใช้ได้กับทุกสินค้า
+        }
+        // ตรวจสอบว่า productId ตรงกับสินค้าในโปรโมชั่นหรือไม่
+        const hasProduct = promo.applicableProducts.some(p => {
+          const id = p._id || p; // p could be an objectId string or a populated product object
+          return id.toString() === productId.toString();
+        });
+        if (hasProduct) {
+          console.log(`Promo "${promo.name}" applies to product ${productId}.`);
+          return true;
+        }
+      }
+    
+      console.log(`No local promotions found for product ${productId}.`);
+      return false;
+    }
+
+    // Use shared promotion manager functions
+    // Functions are now available via window.promotionManager or global aliases
+
+    // All promotion functions are now handled by shared promotion manager
+    // Available via window.promotionManager or global aliases
+
+    // ฟังก์ชันโหลดข้อมูลผู้ใช้ (ใช้ API เดียวกับ PO.html)
+    async function loadUserProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          console.warn('No auth token found');
+          return;
+        }
+    
+        const response = await fetch('/api/users/me', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+    
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'Load profile failed');
+    
+        const user = result.data;
+    
+        // Set current branch code from user data
+        if (user.branchCode) {
+          currentBranchCode = user.branchCode;
+          console.log('🏢 Set current branch code:', currentBranchCode);
+        }
+    
+        // Update ชื่อผู้ใช้
+        const employeeNameElement = document.getElementById('employeeName');
+        if (employeeNameElement) {
+          employeeNameElement.textContent = user.name || '(ไม่พบชื่อ)';
+        }
+    
+        // Update รูปผู้ใช้
+        const employeePhotoElement = document.getElementById('employeePhoto');
+        if (employeePhotoElement) {
+          let url = user.photoUrl || '';
+          if (url && !url.startsWith('/') && !/^https?:\/\//.test(url)) url = '/' + url;
+          employeePhotoElement.src = url;
+        }
+    
+      } catch (error) {
+        console.error('loadUserProfile error:', error);
+        // Fallback: ใช้ข้อมูลจาก localStorage
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        const employeeNameElement = document.getElementById('employeeName');
+        if (employeeNameElement) {
+          employeeNameElement.textContent = userInfo.name || userInfo.fullName || 'ผู้ใช้';
+        }
+      }
+    }
+
+    // Show/Hide Loading Function
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // No fallback spinner - just show empty container
+              document.getElementById('lottieContainer').innerHTML = '';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // ===== NEW ADVANCED FUNCTIONS =====
+
+    let currentMainTab = 'promotions';
+
+    // Main Tab Switching
+    function switchMainTab(tab) {
+      currentMainTab = tab;
+
+      // Update active tab
+      document.querySelectorAll('.sales-type-tab').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.sales-type-tab').classList.add('active');
+
+      // Hide all content sections
+      const contentSections = ['promotionsContent', 'analyticsContent', 'templatesContent', 'notificationsContent'];
+      contentSections.forEach(section => {
+        const element = document.getElementById(section);
+        if (element) element.style.display = 'none';
+      });
+
+      // Show selected content and sub-tabs
+      const selectedContent = document.getElementById(tab + 'Content');
+      const promotionSubTabs = document.getElementById('promotionSubTabs');
+
+      if (selectedContent) selectedContent.style.display = 'block';
+
+      // Show/hide promotion sub-tabs
+      if (promotionSubTabs) {
+        promotionSubTabs.style.display = tab === 'promotions' ? 'flex' : 'none';
+      }
+
+      // Load content based on tab
+      switch(tab) {
+        case 'analytics':
+          loadAnalytics();
+          break;
+        case 'templates':
+          loadTemplates();
+          break;
+        case 'notifications':
+          loadNotifications();
+          break;
+        case 'promotions':
+        default:
+          loadPromotions();
+          break;
+      }
+    }
+
+    // Load Analytics Data
+    async function loadAnalytics() {
+      try {
+        const headers = getAuthHeaders();
+        const response = await fetch('/api/promotion/analytics', { headers });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const result = await response.json();
+        if (result.status === 'success') {
+          displayAnalytics(result.data);
+        }
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลวิเคราะห์', 'error');
+      }
+    }
+
+    // Display Analytics Data
+    function displayAnalytics(data) {
+      // Update analytics cards
+      document.getElementById('totalUsage').textContent = data.overview.totalUsage || '0';
+      document.getElementById('conversionRate').textContent = `${data.overview.conversionRate || '0'}%`;
+      document.getElementById('avgUsage').textContent = Math.round(data.avgUsagePerPromotion || 0);
+
+      // Display top performing promotions
+      const topPerformingContainer = document.getElementById('topPerformingList');
+      if (data.topPerforming && data.topPerforming.length > 0) {
+        topPerformingContainer.innerHTML = data.topPerforming.map((promo, index) => `
+          <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div class="flex items-center gap-3">
+              <div class="flex items-center justify-center w-8 h-8 rounded-full bg-orange-100 text-orange-600 font-bold">
+                ${index + 1}
+              </div>
+              <div>
+                <h4 class="font-semibold">${promo.name}</h4>
+                <p class="text-sm text-gray-500">${getPromotionTypeLabel(promo.type)}</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="font-bold text-lg">${promo.usageCount}</p>
+              <p class="text-sm text-gray-500">ครั้ง</p>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        topPerformingContainer.innerHTML = '<p class="text-center text-gray-500 py-8">ยังไม่มีข้อมูลโปรโมชั่นยอดนิยม</p>';
+      }
+
+      // Display recent activities
+      const recentContainer = document.getElementById('recentActivities');
+      if (data.recentActivity && data.recentActivity.length > 0) {
+        recentContainer.innerHTML = data.recentActivity.map(activity => `
+          <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <i class="bi bi-clock text-gray-400"></i>
+            <div>
+              <p class="font-medium">${activity.name}</p>
+              <p class="text-sm text-gray-500">${formatDate(activity.createdAt)}</p>
+            </div>
+            <div class="ml-auto">
+              <span class="badge ${activity.isActive ? 'badge-success' : 'badge-ghost'}">
+                ${activity.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+              </span>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        recentContainer.innerHTML = '<p class="text-center text-gray-500 py-8">ยังไม่มีกิจกรรมล่าสุด</p>';
+      }
+    }
+
+    // Load Templates
+    async function loadTemplates() {
+      try {
+        const headers = getAuthHeaders();
+        const response = await fetch('/api/promotion/templates', { headers });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const result = await response.json();
+        if (result.status === 'success') {
+          displayTemplates(result.data);
+        }
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดเทมเพลต', 'error');
+      }
+    }
+
+    // Display Templates
+    function displayTemplates(templates) {
+      const container = document.getElementById('templatesList');
+
+      container.innerHTML = templates.map(template => `
+        <div class="bg-white dark:bg-gray-700 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-orange-400 to-red-500 text-white">
+              <i class="bi bi-file-earmark-text text-lg"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-lg">${template.name}</h3>
+              <p class="text-sm text-gray-500">${template.category}</p>
+            </div>
+          </div>
+
+          <p class="text-gray-600 dark:text-gray-300 mb-4">${template.description}</p>
+
+          ${template.suggestedDiscount ? `
+            <div class="mb-4">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                แนะนำ ${template.suggestedDiscount}% ลด
+              </span>
+            </div>
+          ` : ''}
+
+          <button onclick="useTemplate('${template.id}')" class="btn btn-primary w-full">
+            <i class="bi bi-plus-circle"></i>
+            ใช้เทมเพลตนี้
+          </button>
+        </div>
+      `).join('');
+    }
+
+    // Use Template
+    function useTemplate(templateId) {
+      // This would pre-fill the create promotion modal with template data
+      showToast('ฟีเจอร์นี้จะพัฒนาในอนาคต - ขณะนี้กรุณาสร้างโปรโมชั่นด้วยตนเอง', 'info');
+      openCreateModal();
+    }
+
+    // Load Notifications
+    async function loadNotifications() {
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch('/api/promotion/notifications', { headers });
+
+        if (response.status === 401) {
+          console.error('Token ไม่ถูกต้องหรือหมดอายุ (loadNotifications)');
+          return;
+        }
+
+        if (!response.ok) {
+          console.warn(`Notifications API error: ${response.status} - using empty state`);
+          // Show empty notifications state
+          displayNotifications({ notifications: [], summary: { total: 0 } });
+          document.getElementById('notificationsCount').textContent = '0';
+          return;
+        }
+
+        const result = await response.json();
+        if (result.status === 'success') {
+          displayNotifications(result.data);
+
+          // Update notification count in tab
+          const notifCount = result.data.summary.total;
+          const notifCountElement = document.getElementById('notificationsCount');
+          if (notifCountElement) {
+            notifCountElement.textContent = notifCount || '0';
+          }
+        }
+      } catch (error) {
+        console.warn('Notifications not available:', error.message);
+        // Show empty state instead of error
+        displayNotifications({ notifications: [], summary: { total: 0 } });
+        const notifCountElement = document.getElementById('notificationsCount');
+        if (notifCountElement) {
+          notifCountElement.textContent = '0';
+        }
+      }
+    }
+
+    // Display Notifications
+    function displayNotifications(data) {
+      const container = document.getElementById('notificationsList');
+      if (!container) {
+        console.warn('Notifications container not found');
+        return;
+      }
+
+      if (data && data.notifications && data.notifications.length > 0) {
+        container.innerHTML = data.notifications.map(notif => {
+          const iconClass = {
+            'warning': 'bi-exclamation-triangle text-yellow-500',
+            'info': 'bi-info-circle text-blue-500',
+            'alert': 'bi-exclamation-circle text-red-500'
+          }[notif.type] || 'bi-bell text-gray-500';
+
+          return `
+            <div class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <i class="bi ${iconClass} text-xl flex-shrink-0 mt-1"></i>
+              <div class="flex-grow">
+                <h4 class="font-semibold mb-1">${notif.title}</h4>
+                <p class="text-gray-600 dark:text-gray-300 mb-3">${notif.message}</p>
+                ${notif.action ? `
+                  <button onclick="handleNotificationAction('${notif.action}', '${notif.promotionId}')"
+                          class="btn btn-sm btn-outline">
+                    ดำเนินการ
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        container.innerHTML = `
+          <div class="text-center py-12">
+            <i class="bi bi-bell-slash text-4xl text-gray-400 mb-4"></i>
+            <p class="text-gray-500">ไม่มีการแจ้งเตือนในขณะนี้</p>
+          </div>
+        `;
+      }
+    }
+
+    // Handle Notification Actions
+    function handleNotificationAction(action, promotionId) {
+      switch(action) {
+        case 'extend_promotion':
+          // Would show extend modal
+          showToast('ฟีเจอร์ขยายเวลาโปรโมชั่นจะพัฒนาในอนาคต', 'info');
+          break;
+        case 'increase_limit':
+          // Would show increase limit modal
+          showToast('ฟีเจอร์เพิ่มลิมิตการใช้งานจะพัฒนาในอนาคต', 'info');
+          break;
+        case 'optimize_promotion':
+          // Would show optimization suggestions
+          showToast('ฟีเจอร์คำแนะนำการปรับปรุงจะพัฒนาในอนาคต', 'info');
+          break;
+        default:
+          showToast('ไม่รู้จักประเภทการดำเนินการนี้', 'error');
+      }
+    }
+
+    // Refresh Notifications
+    function refreshNotifications() {
+      if (currentMainTab === 'notifications') {
+        loadNotifications();
+        showToast('รีเฟรชการแจ้งเตือนเรียบร้อย', 'success');
+      }
+    }
+
+    // Enhanced Export Functionality
+    function exportPromotions() {
+      const format = 'csv'; // Could be made selectable
+      const params = new URLSearchParams({
+        format: format,
+        status: 'all',
+        type: 'all',
+        branch: 'all'
+      });
+
+      // Create download link
+      const link = document.createElement('a');
+      link.href = `/api/promotion/export?${params}`;
+      link.download = `promotions_${new Date().toISOString().split('T')[0]}.csv`;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('กำลังดาวน์โหลดไฟล์...', 'info');
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Load sidebar first
+      try {
+        const response = await fetch('/views/marketing/includes/sidebar.html');
+        const sidebarHtml = await response.text();
+        const sidebarContainer = document.getElementById('sidebar-container');
+        if (sidebarContainer) {
+          sidebarContainer.innerHTML = sidebarHtml;
+          // Initialize sidebar functionality
+          if (typeof initializeSidebar === 'function') {
+            initializeSidebar();
+          }
+        }
+      } catch (error) {
+        console.error('Error loading sidebar:', error);
+        // Fallback: show basic sidebar structure
+        const sidebarContainer = document.getElementById('sidebar-container');
+        if (sidebarContainer) {
+          sidebarContainer.innerHTML = '<aside class="w-64 bg-white dark:bg-gray-800 sticky top-0 h-screen"><div class="p-4">Sidebar Loading Error</div></aside>';
+        }
+      }
+
+      // ตรวจสอบ token ก่อน
+      const token = getAuthToken();
+      if (!token) {
+        return; // จะ redirect ไปหน้า login แล้วโดย getAuthToken
+      }
+    
+      // โหลดข้อมูลผู้ใช้
+      await loadUserProfile();
+    
+      // Initialize shared promotion manager
+      if (window.promotionManager) {
+        await window.promotionManager.initialize();
+        console.log('✅ Shared promotion manager initialized for campaigns');
+      }
+    
+      // โหลดข้อมูล
+      try {
+        await loadBranches();
+
+        // Load optional endpoints with individual error handling
+        await loadCategories().catch(err => console.warn('Categories skipped:', err.message));
+        await loadFinancePartners().catch(err => console.warn('Finance partners skipped:', err.message));
+
+        await loadProducts();
+        await loadPromotions();
+
+        // Load notifications count on startup (non-blocking)
+        if (window.promotionManager) {
+          loadNotifications().catch(err => console.warn('Notifications skipped:', err.message));
+        }
+    
+        // ตั้งค่า flatpickr
+        flatpickr('#startDate', { enableTime:true, dateFormat:'Y-m-d H:i', minDate:'today' });
+        flatpickr('#endDate', {
+          enableTime: true, dateFormat:'Y-m-d H:i', minDate:'today',
+          onChange(selectedDates) {
+            const start = document.getElementById('startDate')._flatpickr.selectedDates[0];
+            if (start && selectedDates[0] <= start) {
+              Swal.fire({ icon:'warning', title:'วันที่ไม่ถูกต้อง', text:'วันสิ้นสุดต้องมากกว่าวันเริ่มต้น' });
+              this.clear();
+            }
+          }
+        });
+        document.getElementById('promotionForm').addEventListener('submit', handleSubmit);
+      } catch (err) {
+        console.error('Error in DOMContentLoaded:', err);
+      }
+    });
+  </script>
+</body>
+</html>

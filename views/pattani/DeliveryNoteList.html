@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <title>รายการใบส่งของ</title>
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+
+    <script src="../js/activity-tracker.js"></script>
+    <script src="/js/branch-navigation.js"></script>
+    <!-- Notification System JavaScript -->
+    <script src="/js/notification-system.js"></script>
+    <script src="/views/pattani/sidebar/sidebar.js"></script>
+    <!-- โหลด Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Prompt', 'sans-serif'],
+            },
+          },
+        },
+        daisyui: {
+          themes: ['light', 'dark', 'corporate'],
+        },
+      };
+    </script>
+    <!-- โหลด DaisyUI -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+      rel="stylesheet"
+    />
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    />
+  <!-- Google Fonts: Prompt -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+    <!-- Lottie Animation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Notification System CSS -->
+  <link rel="stylesheet" href="/css/notification-system.css" />
+    <style>
+      .loading-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(12px);
+      }
+      body {
+        font-family: "Prompt", sans-serif;
+        background-color: #f3f4f6;
+      }
+
+      /* Delivery Note Specific Styles */
+      .delivery-card {
+        border-left: 4px solid #3b82f6;
+        transition: all 0.3s ease;
+      }
+
+      .delivery-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+
+      .delivery-badge {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .amount-highlight {
+        background: linear-gradient(135deg, #10b981, #059669);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
+      }
+
+      .status-badge {
+        border-radius: 1rem;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .status-delivered {
+        background-color: #dcfce7;
+        color: #166534;
+      }
+
+      .status-pending {
+        background-color: #fef3c7;
+        color: #92400e;
+      }
+
+      .status-preparing {
+        background-color: #dbeafe;
+        color: #1e40af;
+      }
+
+      .page-link {
+        cursor: pointer;
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+
+      .page-link.active {
+        background-color: #3b82f6;
+        color: #fff;
+        border-color: #3b82f6;
+      }
+
+      .page-link:hover {
+        background-color: #e2e2e2;
+        transform: translateY(-1px);
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 dark:bg-gray-900">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+      <div class="text-center">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <p class="mt-4 text-gray-700 dark:text-gray-300">กำลังโหลดข้อมูล...</p>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Content -->
+    <div class="main-content min-h-screen p-6 ml-64 transition-all duration-300">
+      <!-- Header Section -->
+      <div class="mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white flex items-center">
+              <i class="bi bi-truck text-blue-600 mr-3"></i>
+              รายการใบส่งของ
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">
+              จัดการและติดตามใบส่งของทั้งหมด
+            </p>
+          </div>
+
+          <div class="mt-4 md:mt-0">
+            <button onclick="refreshDeliveryNotes()" class="btn btn-primary">
+              <i class="bi bi-arrow-clockwise mr-2"></i>
+              รีเฟรช
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search and Filter Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Search Box -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-search mr-2"></i>ค้นหา
+            </label>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="ค้นหาเลขที่ใบส่งของหรือชื่อลูกค้า..."
+              class="input input-bordered w-full"
+              oninput="searchDeliveryNotes()"
+            />
+          </div>
+
+          <!-- Status Filter -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-funnel mr-2"></i>สถานะ
+            </label>
+            <select id="statusFilter" class="select select-bordered w-full" onchange="filterDeliveryNotes()">
+              <option value="">ทั้งหมด</option>
+              <option value="delivered">ส่งแล้ว</option>
+              <option value="preparing">กำลังเตรียม</option>
+              <option value="pending">รอดำเนินการ</option>
+              <option value="out_for_delivery">กำลังจัดส่ง</option>
+            </select>
+          </div>
+
+          <!-- Date Filter -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-calendar3 mr-2"></i>วันที่
+            </label>
+            <input
+              type="date"
+              id="dateFilter"
+              class="input input-bordered w-full"
+              onchange="filterDeliveryNotes()"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">ทั้งหมด</p>
+              <p class="text-2xl font-bold text-gray-800 dark:text-white" id="totalCount">0</p>
+            </div>
+            <div class="bg-blue-100 dark:bg-blue-900 rounded-full p-3">
+              <i class="bi bi-truck text-blue-600 dark:text-blue-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">ส่งแล้ว</p>
+              <p class="text-2xl font-bold text-green-600" id="deliveredCount">0</p>
+            </div>
+            <div class="bg-green-100 dark:bg-green-900 rounded-full p-3">
+              <i class="bi bi-check-circle text-green-600 dark:text-green-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">กำลังเตรียม</p>
+              <p class="text-2xl font-bold text-blue-600" id="preparingCount">0</p>
+            </div>
+            <div class="bg-blue-100 dark:bg-blue-900 rounded-full p-3">
+              <i class="bi bi-box-seam text-blue-600 dark:text-blue-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">รอดำเนินการ</p>
+              <p class="text-2xl font-bold text-yellow-600" id="pendingCount">0</p>
+            </div>
+            <div class="bg-yellow-100 dark:bg-yellow-900 rounded-full p-3">
+              <i class="bi bi-clock text-yellow-600 dark:text-yellow-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delivery Notes Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="table w-full">
+            <thead>
+              <tr class="bg-blue-600 text-white">
+                <th class="text-left">เลขที่เอกสาร</th>
+                <th class="text-left">วันที่</th>
+                <th class="text-left">ลูกค้า</th>
+                <th class="text-left">เบอร์โทร</th>
+                <th class="text-center">จำนวนรายการ</th>
+                <th class="text-right">ยอดรวม</th>
+                <th class="text-center">สถานะ</th>
+                <th class="text-center">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="deliveryNotesTableBody">
+              <!-- Rows will be dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="paginationContainer" class="mt-6 flex justify-center items-center gap-2">
+        <!-- Pagination buttons will be inserted here -->
+      </div>
+    </div>
+
+    <!-- Delivery Note Detail Modal -->
+    <div id="deliveryNoteDetailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
+        <div class="p-6">
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+              <i class="bi bi-truck text-blue-600 mr-2"></i>
+              รายละเอียดใบส่งของ
+            </h3>
+            <button id="closeDeliveryNoteModal" class="text-gray-400 hover:text-gray-600">
+              <i class="bi bi-x-lg text-xl"></i>
+            </button>
+          </div>
+
+          <!-- Delivery Note Content -->
+          <div id="deliveryNoteContent">
+            <!-- Content will be inserted here -->
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-3 mt-6 border-t pt-4">
+            <button id="printDeliveryNoteModal" class="btn btn-primary gap-2">
+              <i class="bi bi-printer"></i>
+              พิมพ์
+            </button>
+            <button id="downloadDeliveryNotePDF" class="btn btn-outline gap-2">
+              <i class="bi bi-file-earmark-pdf"></i>
+              ดาวน์โหลด PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let allDeliveryNotes = [];
+      let filteredDeliveryNotes = [];
+      let currentPage = 1;
+      const itemsPerPage = 10;
+
+      // โหลดข้อมูลใบส่งของ
+      async function loadDeliveryNotes() {
+        try {
+          showLoading(true);
+          const token = localStorage.getItem('authToken');
+          const branchCode = window.BRANCH_CODE || localStorage.getItem('activeBranch') || '00000';
+
+          const response = await fetch(`/api/delivery-note?branchCode=${branchCode}&limit=100`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error('ไม่สามารถดึงข้อมูลใบส่งของได้');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            allDeliveryNotes = result.data.deliveryNotes || [];
+            filteredDeliveryNotes = [...allDeliveryNotes];
+
+            updateStats();
+            renderDeliveryNotes();
+            console.log('✅ โหลดใบส่งของสำเร็จ:', allDeliveryNotes.length, 'รายการ');
+          } else {
+            throw new Error(result.error || 'ไม่พบข้อมูล');
+          }
+        } catch (error) {
+          console.error('❌ Error loading delivery notes:', error);
+          showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      // อัปเดตสถิติ
+      function updateStats() {
+        const total = allDeliveryNotes.length;
+        const delivered = allDeliveryNotes.filter(d => d.status === 'delivered').length;
+        const preparing = allDeliveryNotes.filter(d => d.status === 'preparing').length;
+        const pending = allDeliveryNotes.filter(d => d.status === 'pending').length;
+
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('deliveredCount').textContent = delivered;
+        document.getElementById('preparingCount').textContent = preparing;
+        document.getElementById('pendingCount').textContent = pending;
+      }
+
+      // แสดงรายการใบส่งของ
+      function renderDeliveryNotes() {
+        const tbody = document.getElementById('deliveryNotesTableBody');
+        tbody.innerHTML = '';
+
+        if (filteredDeliveryNotes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" class="text-center py-12">
+                <i class="bi bi-inbox text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+                <p class="text-gray-600 dark:text-gray-400 text-lg">ไม่พบรายการใบส่งของ</p>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        // คำนวณรายการที่จะแสดงในหน้าปัจจุบัน
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageItems = filteredDeliveryNotes.slice(startIndex, endIndex);
+
+        pageItems.forEach(note => {
+          const row = createDeliveryNoteRow(note);
+          tbody.appendChild(row);
+        });
+
+        renderPagination();
+      }
+
+      // สร้างแถวตารางใบส่งของ
+      function createDeliveryNoteRow(note) {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
+
+        const statusText = getStatusText(note.status);
+        const statusClass = getStatusClass(note.status);
+        const date = new Date(note.documentDate);
+        const formattedDate = date.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+
+        row.innerHTML = `
+          <td class="text-left">
+            <span class="font-semibold text-blue-600 dark:text-blue-400">
+              ${note.documentNumber}
+            </span>
+          </td>
+          <td class="text-left text-gray-700 dark:text-gray-300">
+            ${formattedDate}
+          </td>
+          <td class="text-left">
+            <div class="font-medium text-gray-800 dark:text-gray-200">
+              ${note.customer?.name || 'ไม่ระบุ'}
+            </div>
+          </td>
+          <td class="text-left text-gray-600 dark:text-gray-400">
+            ${note.customer?.phone || '-'}
+          </td>
+          <td class="text-center text-gray-700 dark:text-gray-300">
+            ${note.items?.length || 0}
+          </td>
+          <td class="text-right font-semibold text-green-600 dark:text-green-400">
+            ฿${(note.summary?.totalAmount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+          </td>
+          <td class="text-center">
+            <span class="status-badge ${statusClass}">
+              ${statusText}
+            </span>
+          </td>
+          <td class="text-center">
+            <div class="flex justify-center gap-2">
+              <button
+                onclick="viewDeliveryNote('${note._id}')"
+                class="btn btn-outline btn-sm gap-2 hover:bg-green-50 hover:border-green-300"
+                title="ดูรายละเอียด"
+              >
+                <i class="bi bi-eye"></i>
+                ดูรายละเอียด
+              </button>
+              <button
+                onclick="printDeliveryNote('${note._id}')"
+                class="btn btn-outline btn-sm gap-2 hover:bg-blue-50 hover:border-blue-300"
+                title="พิมพ์"
+              >
+                <i class="bi bi-printer"></i>
+                พิมพ์
+              </button>
+            </div>
+          </td>
+        `;
+
+        return row;
+      }
+
+      // แปลงสถานะเป็นข้อความภาษาไทย
+      function getStatusText(status) {
+        const statusMap = {
+          'pending': 'รอดำเนินการ',
+          'preparing': 'กำลังเตรียม',
+          'out_for_delivery': 'กำลังจัดส่ง',
+          'delivered': 'ส่งแล้ว',
+          'failed': 'ล้มเหลว',
+          'cancelled': 'ยกเลิก'
+        };
+        return statusMap[status] || status;
+      }
+
+      // กำหนด CSS class สำหรับแต่ละสถานะ
+      function getStatusClass(status) {
+        const classMap = {
+          'pending': 'status-pending',
+          'preparing': 'status-preparing',
+          'out_for_delivery': 'status-preparing',
+          'delivered': 'status-delivered',
+          'failed': 'bg-red-100 text-red-800',
+          'cancelled': 'bg-gray-100 text-gray-800'
+        };
+        return classMap[status] || '';
+      }
+
+      // ค้นหาใบส่งของ
+      function searchDeliveryNotes() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+        filteredDeliveryNotes = allDeliveryNotes.filter(note => {
+          return (
+            note.documentNumber.toLowerCase().includes(searchTerm) ||
+            (note.customer?.name || '').toLowerCase().includes(searchTerm) ||
+            (note.customer?.phone || '').includes(searchTerm)
+          );
+        });
+
+        currentPage = 1;
+        renderDeliveryNotes();
+      }
+
+      // กรองตามสถานะและวันที่
+      function filterDeliveryNotes() {
+        const statusFilter = document.getElementById('statusFilter').value;
+        const dateFilter = document.getElementById('dateFilter').value;
+
+        filteredDeliveryNotes = allDeliveryNotes.filter(note => {
+          const matchStatus = !statusFilter || note.status === statusFilter;
+
+          let matchDate = true;
+          if (dateFilter) {
+            const noteDate = new Date(note.documentDate).toISOString().split('T')[0];
+            matchDate = noteDate === dateFilter;
+          }
+
+          return matchStatus && matchDate;
+        });
+
+        currentPage = 1;
+        renderDeliveryNotes();
+      }
+
+      // Pagination
+      function renderPagination() {
+        const totalPages = Math.ceil(filteredDeliveryNotes.length / itemsPerPage);
+        const container = document.getElementById('paginationContainer');
+        container.innerHTML = '';
+
+        if (totalPages <= 1) return;
+
+        // Previous button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'page-link' + (currentPage === 1 ? ' disabled' : '');
+        prevBtn.innerHTML = '<i class="bi bi-chevron-left"></i>';
+        prevBtn.onclick = () => changePage(currentPage - 1);
+        prevBtn.disabled = currentPage === 1;
+        container.appendChild(prevBtn);
+
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+          if (
+            i === 1 ||
+            i === totalPages ||
+            (i >= currentPage - 2 && i <= currentPage + 2)
+          ) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = 'page-link' + (i === currentPage ? ' active' : '');
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => changePage(i);
+            container.appendChild(pageBtn);
+          } else if (
+            i === currentPage - 3 ||
+            i === currentPage + 3
+          ) {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'px-2 text-gray-500';
+            ellipsis.textContent = '...';
+            container.appendChild(ellipsis);
+          }
+        }
+
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'page-link' + (currentPage === totalPages ? ' disabled' : '');
+        nextBtn.innerHTML = '<i class="bi bi-chevron-right"></i>';
+        nextBtn.onclick = () => changePage(currentPage + 1);
+        nextBtn.disabled = currentPage === totalPages;
+        container.appendChild(nextBtn);
+      }
+
+      function changePage(page) {
+        const totalPages = Math.ceil(filteredDeliveryNotes.length / itemsPerPage);
+        if (page < 1 || page > totalPages) return;
+
+        currentPage = page;
+        renderDeliveryNotes();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // ดูใบส่งของ
+      async function viewDeliveryNote(id) {
+        try {
+          showLoading(true);
+          const token = localStorage.getItem('authToken');
+
+          const response = await fetch(`/api/delivery-note/${id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error('ไม่สามารถดึงข้อมูลใบส่งของได้');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            const note = result.data;
+            const modal = document.getElementById('deliveryNoteDetailModal');
+            const content = document.getElementById('deliveryNoteContent');
+
+            if (modal && content) {
+              content.innerHTML = generateDeliveryNoteHTML(note);
+              modal.classList.remove('hidden');
+
+              // Setup modal close
+              const closeBtn = document.getElementById('closeDeliveryNoteModal');
+              if (closeBtn) {
+                closeBtn.onclick = () => modal.classList.add('hidden');
+              }
+
+              // Setup print button
+              const printBtn = document.getElementById('printDeliveryNoteModal');
+              if (printBtn) {
+                printBtn.onclick = () => printDeliveryNote(id);
+              }
+
+              // Setup download PDF button
+              const downloadBtn = document.getElementById('downloadDeliveryNotePDF');
+              if (downloadBtn) {
+                downloadBtn.onclick = () => window.open(`/DeliveryNotePDF?id=${id}`, '_blank');
+              }
+            }
+          } else {
+            throw new Error(result.error || 'ไม่พบข้อมูล');
+          }
+        } catch (error) {
+          console.error('Error viewing delivery note:', error);
+          showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      // สร้าง HTML สำหรับแสดงรายละเอียดใบส่งของ
+      function generateDeliveryNoteHTML(note) {
+        const date = new Date(note.documentDate);
+        const formattedDate = date.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        const itemsHTML = note.items.map((item, index) => `
+          <tr class="border-b dark:border-gray-700">
+            <td class="py-2 text-center">${index + 1}</td>
+            <td class="py-2">
+              ${item.name}
+              ${item.imei ? `<br><span class="text-sm text-gray-500">IMEI: ${item.imei}</span>` : ''}
+            </td>
+            <td class="py-2 text-center">${item.quantity}</td>
+            <td class="py-2 text-right">฿${item.unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+            <td class="py-2 text-right">฿${item.totalPrice.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+          </tr>
+        `).join('');
+
+        return `
+          <div class="space-y-4">
+            <!-- Document Info -->
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">เลขที่เอกสาร</p>
+                  <p class="font-semibold text-blue-600">${note.documentNumber}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">วันที่</p>
+                  <p class="font-semibold">${formattedDate}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">สถานะ</p>
+                  <span class="status-badge ${getStatusClass(note.status)}">${getStatusText(note.status)}</span>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">สาขา</p>
+                  <p class="font-semibold">${note.branchName || ''} (${note.branchCode || ''})</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Customer Info -->
+            <div class="border-t dark:border-gray-700 pt-4">
+              <h4 class="font-semibold mb-3 text-gray-800 dark:text-gray-200">ข้อมูลลูกค้า</h4>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">ชื่อ</p>
+                  <p class="font-medium">${note.customer?.name || '-'}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">เบอร์โทร</p>
+                  <p class="font-medium">${note.customer?.phone || '-'}</p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-sm text-gray-600 dark:text-gray-400">ที่อยู่จัดส่ง</p>
+                  <p class="font-medium">${note.delivery?.address || note.customer?.address || '-'}</p>
+                </div>
+                ${note.customer?.taxId ? `
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">เลขประจำตัวผู้เสียภาษี</p>
+                  <p class="font-medium">${note.customer.taxId}</p>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="border-t dark:border-gray-700 pt-4">
+              <h4 class="font-semibold mb-3 text-gray-800 dark:text-gray-200">รายการสินค้า</h4>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th class="py-2 px-2 text-center">ลำดับ</th>
+                      <th class="py-2 px-2 text-left">รายการ</th>
+                      <th class="py-2 px-2 text-center">จำนวน</th>
+                      <th class="py-2 px-2 text-right">ราคา/หน่วย</th>
+                      <th class="py-2 px-2 text-right">รวม</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemsHTML}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="border-t dark:border-gray-700 pt-4">
+              <div class="flex justify-end">
+                <div class="w-64 space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">รวมเป็นเงิน</span>
+                    <span class="font-semibold">฿${(note.summary?.subtotal || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">ภาษีมูลค่าเพิ่ม 7%</span>
+                    <span class="font-semibold">฿${(note.summary?.taxAmount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div class="flex justify-between border-t pt-2">
+                    <span class="font-bold text-lg">ยอดรวมทั้งสิ้น</span>
+                    <span class="font-bold text-lg text-green-600">฿${(note.summary?.totalAmount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            ${note.notes?.deliveryNotes ? `
+            <!-- Notes -->
+            <div class="border-t dark:border-gray-700 pt-4">
+              <h4 class="font-semibold mb-2 text-gray-800 dark:text-gray-200">หมายเหตุ</h4>
+              <p class="text-gray-600 dark:text-gray-400">${note.notes.deliveryNotes}</p>
+            </div>
+            ` : ''}
+
+            ${note.staff?.preparedBy?.name ? `
+            <!-- Staff Info -->
+            <div class="border-t dark:border-gray-700 pt-4">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">ผู้จัดเตรียม</p>
+                  <p class="font-medium">${note.staff.preparedBy.name}</p>
+                </div>
+                ${note.staff.deliveredBy?.name ? `
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">ผู้จัดส่ง</p>
+                  <p class="font-medium">${note.staff.deliveredBy.name}</p>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      // พิมพ์ใบส่งของ
+      function printDeliveryNote(id) {
+        const printWindow = window.open(`/DeliveryNotePDF?id=${id}`, '_blank');
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+      }
+
+      // รีเฟรชข้อมูล
+      function refreshDeliveryNotes() {
+        loadDeliveryNotes();
+        showToast('กำลังรีเฟรชข้อมูล...', 'info');
+      }
+
+      // Loading helper
+      function showLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (show) {
+          overlay.classList.remove('hidden');
+        } else {
+          overlay.classList.add('hidden');
+        }
+      }
+
+      // Toast notification helper
+      function showToast(message, type = 'info') {
+        console.log(`${type.toUpperCase()}: ${message}`);
+        // ใช้ notification system ถ้ามี
+        if (window.posNotificationSystem) {
+          window.posNotificationSystem.showToast('delivery', {
+            title: type === 'error' ? 'เกิดข้อผิดพลาด' : 'แจ้งเตือน',
+            message: message,
+            type: type,
+            duration: 3000
+          });
+        }
+      }
+
+      // Click outside modal to close
+      document.addEventListener('click', function(e) {
+        const modal = document.getElementById('deliveryNoteDetailModal');
+        if (modal && e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+
+      // Escape key to close modal
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          const modal = document.getElementById('deliveryNoteDetailModal');
+          if (modal && !modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+          }
+        }
+      });
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 Initializing Delivery Note List...');
+        loadDeliveryNotes();
+      });
+    </script>
+  </body>
+</html>

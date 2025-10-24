@@ -1,0 +1,2307 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>เกณฑ์หนี้สูญ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzM3ODNmZiIvPgo8cGF0aCBkPSJNOCAxMmg0djhoLTR2LTh6bTYgMGg0djhoLTR2LTh6bTYgMGg0djhoLTR2LTh6IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K">
+
+  <!-- Google Fonts - Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS & DaisyUI (Production Build) -->
+  <link href="/dist/output.css" rel="stylesheet" />
+image.png
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+thai-accounting-maintenance
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Day.js with Thai locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  <script>dayjs.locale('th');</script>
+
+  <!-- Chart.js for charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Utility Functions -->
+  <script>
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      if (typeof Swal !== 'undefined') {
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info', title: message });
+      }
+    }
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+    function formatCurrency(amount) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount || 0); }
+    function formatDate(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY'); }
+    function formatDateTime(date) { return !date ? '-' : dayjs(date).format('DD/MM/YYYY HH:mm'); }
+    window.showToast = showToast; window.showLoading = showLoading; window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate; window.formatDateTime = formatDateTime;
+  </script>
+
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', 'Prompt', sans-serif; }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .spinner { border:4px solid #f3f3f3;border-top:4px solid #3498db;border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite; }
+    .Logo { max-width:100%;height:auto; }
+    .status-paid { color: #16a34a; }
+    .status-pending { color: #ca8a04; }
+    .status-late { color: #dc2626; }
+    
+    /* Button styles like dashboard */
+    .btn {
+      @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-colors;
+    }
+
+    .btn-primary {
+      @apply bg-blue-600 text-white hover:bg-blue-700;
+    }
+
+    .btn-secondary {
+      @apply bg-gray-600 text-white hover:bg-gray-700;
+    }
+    
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+    
+    /* Sidebar styles handled by loan-sidebar.js and sidebar.css */
+  </style>
+</head>
+
+<body class="w-full border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition 
+             bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container - จะถูกสร้างโดย loan-sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <div class="min-h-screen flex">
+
+    <!-- Main Content -->
+    <main id="mainContent" class="flex-1 p-4 transition-all duration-300 ml-64">
+      <!-- Breadcrumbs -->
+      <nav class="text-sm breadcrumbs mb-4">
+        <ul class="flex flex-wrap items-center space-x-2">
+          <li><a href="loan_dashboard" class="text-blue-500 hover:text-blue-700">หน้าหลัก</a></li>
+          <li class="flex items-center space-x-2">
+            <i class="bi bi-chevron-right text-gray-400"></i>
+            <span class="text-gray-600 dark:text-gray-300">เกณฑ์หนี้สูญ</span>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Content Header -->
+      <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 rounded-lg mb-6">
+        <div class="max-w-full px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between items-center py-4">
+            <div class="flex items-center space-x-4">
+              <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-lg">
+                <i class="bi bi-journal-check text-2xl text-blue-500"></i>
+              </div>
+              <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">กำหนดเกณฑ์หนี้สูญ</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400">ตั้งค่าเกณฑ์สำหรับค่าเผื่อหนี้สงสัยจะสูญ, หนี้สงสัยจะสูญ, หนี้สูญ และค่าใช้จ่ายในการยึดคืนสินค้า</p>
+              </div>
+            </div>
+            <!-- Action Button -->
+            <div class="flex items-center space-x-3">
+              <button type="button" id="btnOpenCriteriaModal"
+                      class="btn btn-primary flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">
+                <i class="bi bi-gear-fill text-lg"></i>
+                <span>ตั้งค่าเกณฑ์</span>
+              </button>
+              <button type="button" id="btnRefreshData"
+                      class="btn btn-secondary flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200">
+                <i class="bi bi-arrow-clockwise text-lg"></i>
+                <span>รีเฟรช</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Display Current Criteria -->
+      <div id="currentCriteriaDisplay" class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 mb-6 mt-6 hidden">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">เกณฑ์ที่บันทึกไว้ปัจจุบัน</h3>
+          <div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              <p><strong>ค่าเผื่อหนี้สงสัยจะสูญ:</strong> <span id="displayAllowance">N/A</span>%</p>
+              <p><strong>หนี้สงสัยจะสูญ:</strong> <span id="displayDoubtful">N/A</span>%</p>
+              <p><strong>หนี้สูญ:</strong> <span id="displayBadDebt">N/A</span>%</p>
+              <p><strong>ค่าใช้จ่ายในการยึดคืนสินค้า:</strong> <span id="displayRepossession">N/A</span> บาท</p>
+              <p><strong>นโยบายเพิ่มเติม:</strong> <span id="displayPolicyNotes" class="whitespace-pre-wrap">N/A</span></p>
+          </div>
+      </div>
+
+      <!-- Bad Debt Summary by Aging -->
+      <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+            <i class="bi bi-pie-chart-fill mr-2 text-blue-500"></i>
+            สรุปสถานะหนี้สูญตามอายุลูกหนี้
+          </h2>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="debtSummaryStats">
+          <!-- สรุปค่าเผื่อหนี้สงสัยจะสูญ -->
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div class="stat">
+              <div class="stat-figure text-primary">
+                <i class="bi bi-shield-check text-2xl"></i>
+            </div>
+              <div class="stat-title">ค่าเผื่อหนี้สงสัยจะสูญ</div>
+              <div class="stat-value text-primary" id="allowanceStatValue">-</div>
+              <div class="stat-desc" id="allowanceStatDesc">กำลังโหลด...</div>
+            </div>
+          </div>
+
+          <!-- สรุปหนี้สงสัยจะสูญ -->
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div class="stat">
+              <div class="stat-figure text-warning">
+                <i class="bi bi-exclamation-triangle text-2xl"></i>
+            </div>
+              <div class="stat-title">หนี้สงสัยจะสูญ</div>
+              <div class="stat-value text-warning" id="doubtfulStatValue">-</div>
+              <div class="stat-desc" id="doubtfulStatDesc">กำลังโหลด...</div>
+            </div>
+          </div>
+
+          <!-- สรุปหนี้สูญ -->
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div class="stat">
+              <div class="stat-figure text-error">
+                <i class="bi bi-x-circle text-2xl"></i>
+            </div>
+              <div class="stat-title">หนี้สูญ</div>
+              <div class="stat-value text-error" id="badDebtStatValue">-</div>
+              <div class="stat-desc" id="badDebtStatDesc">กำลังโหลด...</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ค่าใช้จ่ายในการยึดคืนสินค้า -->
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-4">
+          <div class="stat">
+            <div class="stat-figure text-secondary">
+              <i class="bi bi-gear text-2xl"></i>
+          </div>
+            <div class="stat-title">ค่าใช้จ่ายในการยึดคืนสินค้า (เฉลี่ย)</div>
+            <div class="stat-value text-secondary" id="repossessionStatValue">-</div>
+            <div class="stat-desc" id="repossessionStatDesc">กำลังโหลด...</div>
+          </div>
+        </div>
+
+        <!-- กราฟแสดงข้อมูล -->
+        <div class="rounded-lg overflow-hidden mb-6">
+          <canvas id="badDebtChart" height="200"></canvas>
+        </div>
+
+        <!-- ตารางสรุปข้อมูลรายละเอียด -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm mb-6">
+          <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+            <i class="bi bi-table mr-2"></i>สรุปรายละเอียดตามอายุลูกหนี้
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    ประเภทหนี้
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    อายุหนี้ (วัน)
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    จำนวนราย
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    จำนวนเงิน (บาท)
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    สัดส่วน (%)
+                  </th>
+                  <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    ระดับความเสี่ยง
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="agingSummaryTableBody">
+                <tr>
+                  <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <div class="flex flex-col items-center">
+                      <i class="bi bi-hourglass-split text-4xl mb-2"></i>
+                      <p class="text-lg font-medium mb-1">กำลังโหลดข้อมูลสรุป...</p>
+                      <p class="text-sm">กรุณารอสักครู่</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ข้อมูลค่าใช้จ่ายและลูกหนี้ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <!-- ค่าใช้จ่ายต่าง ๆ -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              <i class="bi bi-cash mr-2 text-green-500"></i>ข้อมูลค่าใช้จ่าย
+            </h2>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">รายการ</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-right">จำนวนเงิน</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-right">สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="expenseTableBody">
+                  <!-- Dynamic content will be populated here by JavaScript -->
+                  <tr>
+                    <td colspan="3" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <div class="flex flex-col items-center">
+                        <i class="bi bi-hourglass-split text-4xl mb-2"></i>
+                        <p class="text-lg font-medium mb-1">กำลังโหลดข้อมูลค่าใช้จ่าย...</p>
+                        <p class="text-sm">กรุณารอสักครู่</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- สรุปยอดค่าใช้จ่าย -->
+            <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">ยอดค่าใช้จ่ายรวม:</span>
+                <span class="text-lg font-semibold text-red-600 dark:text-red-400" id="totalExpenseAmount">
+                  กำลังคำนวณ...
+                </span>
+              </div>
+              <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                รวมค่าใช้จ่ายทั้งหมดที่เกี่ยวข้องกับการจัดการหนี้สูญ
+              </div>
+            </div>
+          </div>
+
+          <!-- ข้อมูลลูกหนี้ -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              <i class="bi bi-people mr-2 text-blue-500"></i>สรุปข้อมูลลูกหนี้
+            </h2>
+            
+            <!-- กราฟแสดงแนวโน้ม -->
+            <div class="h-48 mb-4">
+              <canvas id="debtorsChart"></canvas>
+            </div>
+            
+            <!-- ตารางข้อมูลลูกหนี้ -->
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ประเภทลูกหนี้</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-center">จำนวน (ราย)</th>
+                    <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-right">มูลค่า (บาท)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="debtorSummaryTableBody">
+                  <!-- Dynamic content will be populated here by JavaScript -->
+                  <tr>
+                    <td colspan="3" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <div class="flex flex-col items-center">
+                        <i class="bi bi-hourglass-split text-4xl mb-2"></i>
+                        <p class="text-lg font-medium mb-1">กำลังโหลดข้อมูลลูกหนี้...</p>
+                        <p class="text-sm">กรุณารอสักครู่</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- รายการลูกหนี้ค้างชำระและมีความเสี่ยง -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm mb-6">
+          <div class="flex flex-wrap items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">
+              <i class="bi bi-exclamation-circle mr-2 text-red-500"></i>รายการลูกหนี้ค้างชำระและมีความเสี่ยง
+            </h2>
+            <div class="flex space-x-2 mt-2 md:mt-0">
+              <div class="relative">
+                <input type="text" id="overdueSearchInput" placeholder="ค้นหาลูกหนี้..." class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-200">
+                <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              </div>
+              <select id="overdueFilterSelect" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-200">
+                <option value="all">ทั้งหมด</option>
+                <option value="30days">ค้างชำระ 30 วัน</option>
+                <option value="60days">ค้างชำระ 60 วัน</option>
+                <option value="90days">ค้างชำระ 90+ วัน</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="min-w-full table-auto">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">รหัสลูกค้า</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อลูกค้า</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ยอดค้างชำระ</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ระยะเวลาค้าง</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300">ความเสี่ยง</th>
+                  <th class="p-3 text-sm font-medium text-gray-700 dark:text-gray-300 text-center">การจัดการ</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="overdueCustomersList">
+                <!-- Dynamic content will be populated here by JavaScript -->
+                <tr>
+                  <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <div class="flex flex-col items-center">
+                      <i class="bi bi-hourglass-split text-4xl mb-2"></i>
+                      <p class="text-lg font-medium mb-1">กำลังโหลดข้อมูลลูกหนี้ค้างชำระ...</p>
+                      <p class="text-sm">กรุณารอสักครู่</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Pagination -->
+          <div class="flex items-center justify-between mt-4" id="overduePagination">
+            <div class="text-sm text-gray-600 dark:text-gray-400" id="overduePaginationInfo">
+              ไม่มีข้อมูล
+            </div>
+            <div class="flex space-x-1" id="overduePaginationButtons">
+              <!-- Pagination will be populated dynamically -->
+            </div>
+          </div>
+        </div>
+        
+        <!-- Footer / ปุ่มดำเนินการ -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm mb-6">
+          <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+            <i class="bi bi-gear-fill mr-2 text-gray-600"></i>การดำเนินการ
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button class="btn btn-primary" onclick="window.print()">
+              <i class="bi bi-printer mr-2"></i>
+              พิมพ์รายงานหนี้สูญ
+            </button>
+            <button class="btn btn-secondary" onclick="refreshBadDebtData()">
+              <i class="bi bi-arrow-repeat mr-2"></i>
+              อัปเดตสถานะลูกหนี้
+            </button>
+            <button class="btn btn-secondary" onclick="exportBadDebtData()">
+              <i class="bi bi-file-earmark-excel mr-2"></i>
+              นำออกข้อมูล (Excel)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Data by Aging -->
+      <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+            <i class="bi bi-people-fill mr-2 text-green-500"></i>
+            ข้อมูลลูกค้าตามเกณฑ์อายุลูกหนี้
+          </h2>
+          <div class="flex space-x-2">
+            <div class="relative">
+              <input type="text" id="searchCustomer" placeholder="ค้นหาลูกค้า..." 
+                     class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-blue-500 focus:border-blue-500">
+              <i class="bi bi-search absolute right-3 top-2.5 text-gray-400"></i>
+            </div>
+            <select id="filterCustomerStatus" class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-blue-500 focus:border-blue-500">
+              <option value="">ทุกสถานะ</option>
+              <option value="active">ปกติ</option>
+              <option value="allowance">ค่าเผื่อหนี้สงสัยจะสูญ</option>
+              <option value="doubtful">หนี้สงสัยจะสูญ</option>
+              <option value="baddebt">หนี้สูญ</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  รหัสลูกค้า
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  ชื่อลูกค้า
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  สินค้า
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  ยอดหนี้คงเหลือ
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  อายุหนี้ (วัน)
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  สถานะ
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  ค่าเผื่อหนี้สูญ
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  การดำเนินการ
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="customerList">
+              <!-- Dynamic content will be populated here by JavaScript from loadCustomerData() -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6" id="customerPagination">
+          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div id="customerPaginationInfo">
+              <p class="text-sm text-gray-700 dark:text-gray-300">
+                ไม่มีข้อมูล
+              </p>
+            </div>
+            <div id="customerPaginationButtons">
+              <!-- Pagination will be populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- เพิ่ม JavaScript สำหรับการทำงาน -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show loading initially
+      showLoading(true);
+    
+      try {
+        // Initialize loan sidebar first
+        if (typeof initializeLoanSidebar === 'function') {
+          initializeLoanSidebar();
+        }
+
+        // Check authentication
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          window.location.href = '/login';
+          return;
+        }
+
+        // API headers configuration
+        const headers = {
+          'Authorization': 'Bearer ' + authToken,
+          'Content-Type': 'application/json'
+        };
+
+        // Note: Dark mode, sidebar toggle, logout, and employee profile
+        // are now handled by loan-sidebar.js
+
+        // Global variables
+        let customerData = [];
+        let filteredCustomerData = [];
+        let overdueCustomersData = [];
+        let filteredOverdueData = [];
+        let currentPage = 1;
+        let currentOverduePage = 1;
+        const itemsPerPage = 10;
+        const overdueItemsPerPage = 10;
+
+        // Bad Debt Criteria Logic - Modal only
+        const criteriaForm = document.getElementById('modalBadDebtCriteriaForm');
+
+        // Display elements for current criteria
+        const currentCriteriaDisplaySection = document.getElementById('currentCriteriaDisplay');
+        const displayAllowanceEl = document.getElementById('displayAllowance');
+        const displayDoubtfulEl = document.getElementById('displayDoubtful');
+        const displayBadDebtEl = document.getElementById('displayBadDebt');
+        const displayRepossessionEl = document.getElementById('displayRepossession');
+        const displayPolicyNotesEl = document.getElementById('displayPolicyNotes');
+
+        // ตั้งค่าเริ่มต้นของเกณฑ์หนี้สูญ
+        const DEFAULT_CRITERIA = {
+          allowance: '5.00',
+          doubtful: '2.00',
+          badDebt: '1.00',
+          repossession: '500',
+          policyNotes: 'เกณฑ์การพิจารณาหนี้สงสัยจะสูญ:\n1. ค่าเผื่อหนี้สงสัยจะสูญ: ลูกหนี้ที่มีอายุหนี้ 60-90 วัน\n2. หนี้สงสัยจะสูญ: ลูกหนี้ที่มีอายุหนี้ 90-180 วัน\n3. หนี้สูญ: ลูกหนี้ที่มีอายุหนี้เกิน 180 วัน หรือไม่สามารถติดต่อได้ หรือเสียชีวิตโดยไม่มีผู้รับผิดชอบหนี้'
+        };
+
+        // Load criteria from API
+        async function loadCriteria() {
+          try {
+            showLoading(true);
+            let criteria = DEFAULT_CRITERIA;
+    
+            try {
+              // เช็ค auth token
+              const authToken = localStorage.getItem('authToken');
+              if (!authToken) {
+                console.warn('No auth token found');
+                throw new Error('No authentication token');
+              }
+    
+              // Try multiple API endpoints in order of preference
+              let response;
+              const apiEndpoints = [
+                '/api/loan/bad-debt-criteria',
+                '/api/bad-debt/criteria',
+                '/api/loan/bad-debt/criteria'
+              ];
+    
+              let lastError;
+              for (const endpoint of apiEndpoints) {
+                try {
+                  console.log(`🔄 Trying API endpoint: ${endpoint}`);
+                  response = await fetch(endpoint, {
+                    headers: {
+                      'Authorization': 'Bearer ' + authToken,
+                      'Content-Type': 'application/json'
+                    }
+                  });
+    
+                  if (response.ok) {
+                    console.log(`✅ Successfully connected to: ${endpoint}`);
+                    break;
+                  } else if (response.status === 403) {
+                    console.warn(`🔐 Permission denied for: ${endpoint}`);
+                    lastError = new Error(`Permission denied (403) for ${endpoint}`);
+                    continue;
+                  } else {
+                    console.warn(`⚠️ Failed to connect to: ${endpoint} (${response.status})`);
+                    lastError = new Error(`API returned ${response.status}: ${response.statusText}`);
+                    continue;
+                  }
+                } catch (fetchError) {
+                  console.warn(`❌ Network error for: ${endpoint}`, fetchError.message);
+                  lastError = fetchError;
+                  continue;
+                }
+              }
+    
+              if (!response || !response.ok) {
+                throw lastError || new Error('All API endpoints failed');
+              }
+    
+              if (response.ok) {
+                const text = await response.text();
+                if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                  const data = JSON.parse(text);
+                  if (data.success && data.data) {
+                    criteria = data.data;
+                  }
+                }
+              } else {
+                throw new Error(`API returned ${response.status}: ${response.statusText}`);
+              }
+            } catch (apiError) {
+              // Handle different types of API errors
+              if (apiError.message.includes('403')) {
+                console.warn('🔐 Permission denied for bad debt criteria API - using defaults');
+                showNotification('ไม่มีสิทธิ์เข้าถึงเกณฑ์หนี้สูญ - ใช้ค่าเริ่มต้น', 'info');
+              } else if (apiError.message.includes('401')) {
+                console.warn('🔑 Authentication failed for bad debt criteria API - using defaults');
+                showNotification('การยืนยันตัวตนล้มเหลว - ใช้ค่าเริ่มต้น', 'warning');
+              } else {
+                console.error('❌ API not available:', apiError.message);
+                showNotification('ไม่สามารถโหลดเกณฑ์หนี้สูญได้ - ใช้ค่าเริ่มต้น', 'warning');
+              }
+            }
+    
+            // Load criteria into display only (modal will be populated when opened)
+            updateCurrentCriteriaDisplay(criteria);
+          } catch (error) {
+            console.error('Error loading criteria:', error);
+            // ใช้ค่าเริ่มต้นเมื่อเกิดข้อผิดพลาด
+            const criteria = DEFAULT_CRITERIA;
+            updateCurrentCriteriaDisplay(criteria);
+          } finally {
+            showLoading(false);
+          }
+        }
+
+        // Load customer data for debt analysis
+        async function loadCustomerData() {
+          try {
+            // เช็ค auth token
+            const authToken = localStorage.getItem('authToken');
+            if (!authToken) {
+              console.warn('No auth token found');
+              displayEmptyState();
+              showNotification('กรุณาเข้าสู่ระบบใหม่', 'error');
+              return;
+            }
+    
+            const response = await fetch('/api/loan/dashboard/debtors', {
+              headers: {
+                'Authorization': 'Bearer ' + authToken,
+                'Content-Type': 'application/json'
+              }
+            });
+    
+            if (response.ok) {
+              const text = await response.text();
+              if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                const data = JSON.parse(text);
+                if (data.success && data.data) {
+                  customerData = data.data;
+                  filteredCustomerData = [...customerData];
+                  updateDebtStats(data.data);
+                  updateExpenseTable(data.expenses || []);
+                  updateDebtorSummaryTable(data.summary || {});
+                  updateAgingSummaryTable(data.data);
+                  updateOverdueCustomersList(data.data);
+                  displayCustomerTable();
+                  initializeCharts();
+                  return;
+                }
+              }
+            }
+            throw new Error(`API returned ${response.status}: ${response.statusText}`);
+          } catch (error) {
+            console.error('Error loading customer data:', error);
+            displayEmptyState();
+            showNotification('ไม่สามารถโหลดข้อมูลลูกค้าได้', 'error');
+          }
+        }
+
+        // Update debt statistics
+        function updateDebtStats(customers) {
+          if (!customers || !Array.isArray(customers)) {
+            console.warn('Invalid customers data for updateDebtStats');
+            // Set default values when no data
+            document.getElementById('allowanceStatValue').textContent = '0.00%';
+            document.getElementById('allowanceStatDesc').textContent = '0 ราย | 0 บาท';
+            document.getElementById('doubtfulStatValue').textContent = '0.00%';
+            document.getElementById('doubtfulStatDesc').textContent = '0 ราย | 0 บาท';
+            document.getElementById('badDebtStatValue').textContent = '0.00%';
+            document.getElementById('badDebtStatDesc').textContent = '0 ราย | 0 บาท';
+            document.getElementById('repossessionStatValue').textContent = '500 บาท/สัญญา';
+            document.getElementById('repossessionStatDesc').textContent = 'ยอดรวมปีนี้: 0 บาท';
+            return;
+          }
+    
+          const allowanceCustomers = customers.filter(c => c.status === 'allowance');
+          const doubtfulCustomers = customers.filter(c => c.status === 'doubtful');
+          const badDebtCustomers = customers.filter(c => c.status === 'baddebt');
+    
+          const allowanceAmount = allowanceCustomers.reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0);
+          const doubtfulAmount = doubtfulCustomers.reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0);
+          const badDebtAmount = badDebtCustomers.reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0);
+    
+          const totalAmount = customers.reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0);
+    
+          // Update stats cards
+          document.getElementById('allowanceStatValue').textContent =
+            totalAmount > 0 ? ((allowanceAmount / totalAmount) * 100).toFixed(2) + '%' : '0.00%';
+          document.getElementById('allowanceStatDesc').textContent =
+            `${allowanceCustomers.length} ราย | ${allowanceAmount.toLocaleString('th-TH')} บาท`;
+    
+          document.getElementById('doubtfulStatValue').textContent =
+            totalAmount > 0 ? ((doubtfulAmount / totalAmount) * 100).toFixed(2) + '%' : '0.00%';
+          document.getElementById('doubtfulStatDesc').textContent =
+            `${doubtfulCustomers.length} ราย | ${doubtfulAmount.toLocaleString('th-TH')} บาท`;
+    
+          document.getElementById('badDebtStatValue').textContent =
+            totalAmount > 0 ? ((badDebtAmount / totalAmount) * 100).toFixed(2) + '%' : '0.00%';
+          document.getElementById('badDebtStatDesc').textContent =
+            `${badDebtCustomers.length} ราย | ${badDebtAmount.toLocaleString('th-TH')} บาท`;
+    
+          // Update repossession cost (use default if no input available)
+          const repossessionCost = 500; // Default value
+          const totalRepossessionCost = (allowanceCustomers.length + doubtfulCustomers.length + badDebtCustomers.length) * repossessionCost;
+    
+          document.getElementById('repossessionStatValue').textContent = `${repossessionCost.toLocaleString('th-TH')} บาท/สัญญา`;
+          document.getElementById('repossessionStatDesc').textContent = `ยอดรวมปีนี้: ${totalRepossessionCost.toLocaleString('th-TH')} บาท`;
+        }
+
+        // Update expense table
+        function updateExpenseTable(expenses) {
+          const tableBody = document.getElementById('expenseTableBody');
+          const totalExpenseElement = document.getElementById('totalExpenseAmount');
+
+          if (!expenses || !Array.isArray(expenses) || expenses.length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="3" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center">
+                    <i class="bi bi-inbox text-4xl mb-2"></i>
+                    <p class="text-lg font-medium mb-1">ไม่มีข้อมูลค่าใช้จ่าย</p>
+                    <p class="text-sm">ระบบจะแสดงข้อมูลเมื่อมีการบันทึกค่าใช้จ่าย</p>
+                  </div>
+                </td>
+              </tr>
+            `;
+            if (totalExpenseElement) {
+              totalExpenseElement.textContent = '฿ 0';
+            }
+            return;
+          }
+
+          // Calculate total expenses
+          const totalExpense = expenses.reduce((sum, expense) => sum + Math.max(0, expense.amount || 0), 0);
+
+          const rows = expenses.map(expense => {
+            const amount = Math.max(0, expense.amount || 0);
+            const percentage = totalExpense > 0 ? ((amount / totalExpense) * 100).toFixed(1) : '0.0';
+
+            return `
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <td class="p-3 text-sm text-gray-700 dark:text-gray-300">
+                  <div>
+                    <div class="font-medium">${expense.name || 'ไม่ระบุ'}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">${percentage}% ของค่าใช้จ่ายรวม</div>
+                  </div>
+                </td>
+                <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-right font-medium">
+                  ฿ ${amount.toLocaleString('th-TH')}
+                </td>
+                <td class="p-3 text-right">
+                  <span class="px-2 py-1 text-xs rounded-full ${expense.trend === 'up' ? 'bg-red-100 text-red-800' : expense.trend === 'down' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} dark:bg-gray-700 dark:text-gray-300">
+                    <i class="bi bi-arrow-${expense.trend === 'up' ? 'up' : expense.trend === 'down' ? 'down' : 'dash'} mr-1"></i>
+                    ${expense.changeText || 'ไม่เปลี่ยนแปลง'}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          tableBody.innerHTML = rows;
+
+          // Update total expense display
+          if (totalExpenseElement) {
+            totalExpenseElement.textContent = `฿ ${totalExpense.toLocaleString('th-TH')}`;
+          }
+        }
+
+        // Update debtor summary table
+        function updateDebtorSummaryTable(summary) {
+          const tableBody = document.getElementById('debtorSummaryTableBody');
+          if (!summary || Object.keys(summary).length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="3" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center">
+                    <i class="bi bi-inbox text-4xl mb-2"></i>
+                    <p class="text-lg font-medium mb-1">ไม่มีข้อมูลลูกหนี้</p>
+                    <p class="text-sm">ระบบจะแสดงข้อมูลเมื่อมีการบันทึกข้อมูลลูกหนี้</p>
+                  </div>
+                </td>
+              </tr>
+            `;
+            return;
+          }
+    
+          // Create summary from customerData if summary from API is not complete
+          if (customerData && customerData.length > 0) {
+            const generatedSummary = {
+              'ลูกหนี้ปกติ': {
+                count: customerData.filter(c => c.status === 'active').length,
+                amount: customerData.filter(c => c.status === 'active').reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0)
+              },
+              'ค่าเผื่อหนี้สงสัยจะสูญ': {
+                count: customerData.filter(c => c.status === 'allowance').length,
+                amount: customerData.filter(c => c.status === 'allowance').reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0)
+              },
+              'หนี้สงสัยจะสูญ': {
+                count: customerData.filter(c => c.status === 'doubtful').length,
+                amount: customerData.filter(c => c.status === 'doubtful').reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0)
+              },
+              'หนี้สูญ': {
+                count: customerData.filter(c => c.status === 'baddebt').length,
+                amount: customerData.filter(c => c.status === 'baddebt').reduce((sum, c) => sum + Math.max(0, c.remainingAmount || 0), 0)
+              }
+            };
+    
+            const rows = Object.entries(generatedSummary).map(([type, data]) => `
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${type}</td>
+                <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-center font-medium">${data.count || 0}</td>
+                <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-right font-medium">฿ ${Math.max(0, data.amount || 0).toLocaleString('th-TH')}</td>
+              </tr>
+            `).join('');
+    
+            tableBody.innerHTML = rows;
+          } else {
+            // Fallback to API summary with safe property access
+            const rows = Object.entries(summary).map(([type, data]) => {
+              const count = data && typeof data === 'object' ? (data.count || 0) : 0;
+              const amount = data && typeof data === 'object' ? Math.max(0, data.amount || 0) : 0;
+    
+              return `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300">${type}</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-center font-medium">${count}</td>
+                  <td class="p-3 text-sm text-gray-700 dark:text-gray-300 text-right font-medium">฿ ${Math.max(0, amount).toLocaleString('th-TH')}</td>
+                </tr>
+              `;
+            }).join('');
+    
+            tableBody.innerHTML = rows;
+          }
+        }
+
+        // ============================================
+        // MODAL FUNCTIONS
+        // ============================================
+
+        // Setup modal event handlers
+        function setupModalHandlers() {
+          const modal = document.getElementById('criteriaModal');
+          const openBtn = document.getElementById('btnOpenCriteriaModal');
+          const closeBtn = document.getElementById('closeCriteriaModal');
+          const cancelBtn = document.getElementById('cancelCriteriaModal');
+          const saveBtn = document.getElementById('saveCriteriaModal');
+          const refreshBtn = document.getElementById('btnRefreshData');
+          const modalForm = document.getElementById('modalBadDebtCriteriaForm');
+
+          // Open modal
+          if (openBtn) {
+            openBtn.addEventListener('click', openCriteriaModal);
+          }
+
+          // Close modal events
+          if (closeBtn) {
+            closeBtn.addEventListener('click', closeCriteriaModal);
+          }
+          if (cancelBtn) {
+            cancelBtn.addEventListener('click', closeCriteriaModal);
+          }
+
+          // Click outside modal to close
+          if (modal) {
+            modal.addEventListener('click', function(e) {
+              if (e.target === modal) {
+                closeCriteriaModal();
+              }
+            });
+          }
+
+          // Refresh data button
+          if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+              showLoading(true);
+              loadCriteria();
+              loadCustomerData();
+              showToast('ข้อมูลได้รับการรีเฟรชแล้ว', 'success');
+            });
+          }
+
+          // Save criteria
+          if (modalForm) {
+            modalForm.addEventListener('submit', handleModalSave);
+          }
+
+          // ESC key to close modal
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+              closeCriteriaModal();
+            }
+          });
+        }
+
+        // Open modal and load current criteria
+        async function openCriteriaModal() {
+          const modal = document.getElementById('criteriaModal');
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden'; // Prevent background scrolling
+
+          // Load current criteria into modal
+          try {
+            showLoading(true);
+            await loadCriteriaIntoModal();
+            showLoading(false);
+          } catch (error) {
+            console.error('Error loading criteria into modal:', error);
+            showLoading(false);
+            showToast('ไม่สามารถโหลดข้อมูลเกณฑ์ปัจจุบันได้', 'error');
+          }
+        }
+
+        // Close modal
+        function closeCriteriaModal() {
+          const modal = document.getElementById('criteriaModal');
+          modal.classList.add('hidden');
+          document.body.style.overflow = ''; // Restore scrolling
+        }
+
+        // Load current criteria into modal form
+        async function loadCriteriaIntoModal() {
+          try {
+            const authToken = localStorage.getItem('authToken');
+            if (!authToken) {
+              throw new Error('ไม่พบ token การยืนยันตัวตน');
+            }
+
+            // Try multiple API endpoints in order of preference
+            let response;
+            const apiEndpoints = [
+              '/api/loan/bad-debt-criteria',
+              '/api/bad-debt/criteria',
+              '/api/loan/bad-debt/criteria'
+            ];
+    
+            let lastError;
+            for (const endpoint of apiEndpoints) {
+              try {
+                response = await fetch(endpoint, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': 'Bearer ' + authToken,
+                    'Content-Type': 'application/json'
+                  }
+                });
+    
+                if (response.ok) {
+                  break;
+                } else {
+                  lastError = new Error(`API returned ${response.status}: ${response.statusText}`);
+                  continue;
+                }
+              } catch (fetchError) {
+                lastError = fetchError;
+                continue;
+              }
+            }
+
+            if (response && response.ok) {
+              const text = await response.text();
+              if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                const data = JSON.parse(text);
+                if (data.success && data.data) {
+                  const criteria = data.data;
+
+                  // Populate modal form fields
+                  document.getElementById('modalAllowanceForDoubtfulAccounts').value = criteria.allowance || DEFAULT_CRITERIA.allowance;
+                  document.getElementById('modalDoubtfulAccounts').value = criteria.doubtful || DEFAULT_CRITERIA.doubtful;
+                  document.getElementById('modalBadDebt').value = criteria.badDebt || DEFAULT_CRITERIA.badDebt;
+                  document.getElementById('modalRepossessionCost').value = criteria.repossession || DEFAULT_CRITERIA.repossession;
+                  document.getElementById('modalPolicyNotes').value = criteria.policyNotes || DEFAULT_CRITERIA.policyNotes;
+                  return;
+                }
+              }
+            }
+    
+            throw lastError || new Error('ไม่สามารถดึงข้อมูลเกณฑ์ได้');
+          } catch (error) {
+            console.error('Error loading criteria:', error);
+            // Use default values
+            document.getElementById('modalAllowanceForDoubtfulAccounts').value = DEFAULT_CRITERIA.allowance;
+            document.getElementById('modalDoubtfulAccounts').value = DEFAULT_CRITERIA.doubtful;
+            document.getElementById('modalBadDebt').value = DEFAULT_CRITERIA.badDebt;
+            document.getElementById('modalRepossessionCost').value = DEFAULT_CRITERIA.repossession;
+            document.getElementById('modalPolicyNotes').value = DEFAULT_CRITERIA.policyNotes;
+          }
+        }
+
+        // Handle modal save
+        async function handleModalSave(e) {
+          e.preventDefault();
+
+          const form = e.target;
+          const formData = new FormData(form);
+
+          const criteria = {
+            allowance: parseFloat(formData.get('allowanceForDoubtfulAccounts')) || 5.0,
+            doubtful: parseFloat(formData.get('doubtfulAccounts')) || 2.0,
+            badDebt: parseFloat(formData.get('badDebt')) || 1.0,
+            repossession: parseFloat(formData.get('repossessionCost')) || 500,
+            notes: formData.get('policyNotes') || ''
+          };
+
+          // Validate criteria
+          if (criteria.allowance < 0 || criteria.allowance > 100) {
+            showToast('ค่าเผื่อหนี้สงสัยจะสูญต้องอยู่ระหว่าง 0-100%', 'error');
+            return;
+          }
+          if (criteria.doubtful < 0 || criteria.doubtful > 100) {
+            showToast('หนี้สงสัยจะสูญต้องอยู่ระหว่าง 0-100%', 'error');
+            return;
+          }
+          if (criteria.badDebt < 0 || criteria.badDebt > 100) {
+            showToast('หนี้สูญต้องอยู่ระหว่าง 0-100%', 'error');
+            return;
+          }
+          if (criteria.repossession < 0) {
+            showToast('ค่าใช้จ่ายในการยึดคืนต้องมีค่าไม่ติดลบ', 'error');
+            return;
+          }
+
+          try {
+            showLoading(true);
+
+            const authToken = localStorage.getItem('authToken');
+            if (!authToken) {
+              throw new Error('ไม่พบ token การยืนยันตัวตน');
+            }
+
+            // Try multiple API endpoints for saving
+            let response;
+            const apiEndpoints = [
+              '/api/loan/bad-debt-criteria',
+              '/api/bad-debt/criteria',
+              '/api/loan/bad-debt/criteria'
+            ];
+    
+            let lastError;
+            for (const endpoint of apiEndpoints) {
+              try {
+                response = await fetch(endpoint, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': 'Bearer ' + authToken,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(criteria)
+                });
+    
+                if (response.ok) {
+                  break;
+                } else {
+                  lastError = new Error(`API returned ${response.status}: ${response.statusText}`);
+                  continue;
+                }
+              } catch (fetchError) {
+                lastError = fetchError;
+                continue;
+              }
+            }
+
+            if (response && response.ok) {
+              const text = await response.text();
+              let result;
+    
+              if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                result = JSON.parse(text);
+              } else {
+                result = { success: true, message: 'บันทึกเรียบร้อย' };
+              }
+    
+              if (result.success !== false) {
+                showLoading(false);
+                closeCriteriaModal();
+                showNotification('บันทึกเกณฑ์หนี้สูญเรียบร้อยแล้ว', 'success');
+
+                // Reload data to reflect changes
+                await loadCriteria();
+                await loadCustomerData();
+              } else {
+                throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึก');
+              }
+            } else {
+              throw lastError || new Error('ไม่สามารถบันทึกข้อมูลได้');
+            }
+          } catch (error) {
+            console.error('Error saving criteria:', error);
+            showLoading(false);
+            showNotification('ไม่สามารถบันทึกเกณฑ์ได้: ' + error.message, 'error');
+          }
+        }
+
+        // Update aging summary table
+        function updateAgingSummaryTable(customers) {
+          const tableBody = document.getElementById('agingSummaryTableBody');
+
+          if (!customers || !Array.isArray(customers) || customers.length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center">
+                    <i class="bi bi-info-circle text-4xl mb-2"></i>
+                    <p class="text-lg font-medium mb-1">ไม่มีข้อมูลลูกหนี้</p>
+                    <p class="text-sm">ไม่พบข้อมูลลูกหนี้ในระบบ</p>
+                  </div>
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          // Define aging categories
+          const agingCategories = [
+            {
+              name: 'ลูกหนี้ปกติ',
+              status: 'active',
+              ageRange: '0-59 วัน',
+              minAge: 0,
+              maxAge: 59,
+              riskLevel: 'ต่ำ',
+              riskColor: 'bg-green-100 text-green-800',
+              description: 'ลูกหนี้ที่ไม่มีความเสี่ยง'
+            },
+            {
+              name: 'ค่าเผื่อหนี้สงสัยจะสูญ',
+              status: 'allowance',
+              ageRange: '60-89 วัน',
+              minAge: 60,
+              maxAge: 89,
+              riskLevel: 'ปานกลาง',
+              riskColor: 'bg-yellow-100 text-yellow-800',
+              description: 'ลูกหนี้ที่ควรเฝ้าระวัง'
+            },
+            {
+              name: 'หนี้สงสัยจะสูญ',
+              status: 'doubtful',
+              ageRange: '90-179 วัน',
+              minAge: 90,
+              maxAge: 179,
+              riskLevel: 'สูง',
+              riskColor: 'bg-orange-100 text-orange-800',
+              description: 'ลูกหนี้ที่มีความเสี่ยงสูง'
+            },
+            {
+              name: 'หนี้สูญ',
+              status: 'baddebt',
+              ageRange: '180+ วัน',
+              minAge: 180,
+              maxAge: Infinity,
+              riskLevel: 'สูงมาก',
+              riskColor: 'bg-red-100 text-red-800',
+              description: 'หนี้ที่ไม่สามารถเก็บได้'
+            }
+          ];
+
+          // Calculate data for each category
+          const totalAmount = customers.reduce((sum, c) => sum + (c.remainingAmount || 0), 0);
+
+          const categoryData = agingCategories.map(category => {
+            // Filter customers by status and age
+            const categoryCustomers = customers.filter(customer => {
+              const ageInDays = customer.ageInDays || 0;
+              const hasStatus = customer.status === category.status;
+              const hasAge = ageInDays >= category.minAge && ageInDays <= category.maxAge;
+
+              // For active customers, also check age range
+              if (category.status === 'active') {
+                return hasStatus && ageInDays < 60;
+              }
+
+              // For other statuses, check both status and age
+              return hasStatus || hasAge;
+            });
+
+            const count = categoryCustomers.length;
+            const amount = categoryCustomers.reduce((sum, c) => sum + (c.remainingAmount || 0), 0);
+            const percentage = totalAmount > 0 ? ((amount / totalAmount) * 100).toFixed(1) : '0.0';
+
+            return {
+              ...category,
+              count,
+              amount,
+              percentage
+            };
+          });
+
+          // Generate table rows
+          const rows = categoryData.map(data => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+              <td class="px-4 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                  ${data.name}
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  ${data.description}
+                </div>
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                ${data.ageRange}
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right font-medium">
+                ${data.count.toLocaleString('th-TH')} ราย
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right font-medium">
+                ฿ ${data.amount.toLocaleString('th-TH')}
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 text-right">
+                ${data.percentage}%
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-center">
+                <span class="px-3 py-1 text-xs font-semibold rounded-full ${data.riskColor}">
+                  ${data.riskLevel}
+                </span>
+              </td>
+            </tr>
+          `).join('');
+
+          // Add total row
+          const totalRow = `
+            <tr class="bg-gray-50 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-600">
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
+                รวมทั้งหมด
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                ทุกช่วงอายุ
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white text-right">
+                ${customers.length.toLocaleString('th-TH')} ราย
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white text-right">
+                ฿ ${totalAmount.toLocaleString('th-TH')}
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white text-right">
+                100.0%
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-center">
+                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                  สรุป
+                </span>
+              </td>
+            </tr>
+          `;
+
+          tableBody.innerHTML = rows + totalRow;
+        }
+
+        // Update overdue customers list
+        function updateOverdueCustomersList(customers) {
+          if (!customers || !Array.isArray(customers)) {
+            overdueCustomersData = [];
+            filteredOverdueData = [];
+            displayOverdueCustomers();
+            return;
+          }
+
+          // Filter for overdue customers (those with positive ageInDays indicating they're past due)
+          overdueCustomersData = customers.filter(customer => {
+            const ageInDays = customer.ageInDays || 0;
+            const isOverdue = ageInDays > 0 && customer.remainingAmount > 0;
+            const isRiskyStatus = ['allowance', 'doubtful', 'baddebt'].includes(customer.status);
+            return isOverdue || isRiskyStatus;
+          });
+
+          // Sort by risk level and age
+          overdueCustomersData.sort((a, b) => {
+            const riskPriority = { 'baddebt': 4, 'doubtful': 3, 'allowance': 2, 'active': 1 };
+            const aPriority = riskPriority[a.status] || 1;
+            const bPriority = riskPriority[b.status] || 1;
+
+            if (aPriority !== bPriority) {
+              return bPriority - aPriority; // Higher risk first
+            }
+
+            return (b.ageInDays || 0) - (a.ageInDays || 0); // Older debts first
+          });
+
+          filteredOverdueData = [...overdueCustomersData];
+          currentOverduePage = 1;
+          displayOverdueCustomers();
+        }
+
+        // Display overdue customers with pagination
+        function displayOverdueCustomers() {
+          const overdueList = document.getElementById('overdueCustomersList');
+          const overduePaginationInfo = document.getElementById('overduePaginationInfo');
+
+          if (filteredOverdueData.length === 0) {
+            overdueList.innerHTML = `
+              <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center">
+                    <i class="bi bi-check-circle text-4xl mb-2 text-green-500"></i>
+                    <p class="text-lg font-medium mb-1">ไม่มีลูกหนี้ค้างชำระ</p>
+                    <p class="text-sm">ยินดีด้วย! ไม่มีลูกหนี้ที่มีความเสี่ยง</p>
+                  </div>
+                </td>
+              </tr>
+            `;
+            overduePaginationInfo.textContent = 'ไม่มีลูกหนี้ค้างชำระ';
+            return;
+          }
+
+          // Pagination
+          const startIndex = (currentOverduePage - 1) * overdueItemsPerPage;
+          const endIndex = startIndex + overdueItemsPerPage;
+          const currentData = filteredOverdueData.slice(startIndex, endIndex);
+
+          // Generate table rows
+          const rows = currentData.map(customer => {
+            const ageInDays = customer.ageInDays || 0;
+            const remainingAmount = Math.max(0, customer.remainingAmount || 0);
+
+            // Determine risk level
+            let riskLevel = 'ต่ำ';
+            let riskColor = 'bg-green-100 text-green-800';
+
+            if (customer.status === 'baddebt' || ageInDays > 180) {
+              riskLevel = 'สูงมาก';
+              riskColor = 'bg-red-100 text-red-800';
+            } else if (customer.status === 'doubtful' || ageInDays > 90) {
+              riskLevel = 'สูง';
+              riskColor = 'bg-orange-100 text-orange-800';
+            } else if (customer.status === 'allowance' || ageInDays > 60) {
+              riskLevel = 'ปานกลาง';
+              riskColor = 'bg-yellow-100 text-yellow-800';
+            } else if (ageInDays > 30) {
+              riskLevel = 'ปานกลาง';
+              riskColor = 'bg-yellow-100 text-yellow-800';
+            }
+
+            // Format overdue period
+            let overduePeriod = 'ไม่ค้างชำระ';
+            if (ageInDays > 0) {
+              if (ageInDays >= 365) {
+                overduePeriod = `${Math.floor(ageInDays / 365)} ปี ${ageInDays % 365} วัน`;
+              } else if (ageInDays >= 30) {
+                overduePeriod = `${Math.floor(ageInDays / 30)} เดือน ${ageInDays % 30} วัน`;
+              } else {
+                overduePeriod = `${ageInDays} วัน`;
+              }
+            }
+
+            return `
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="p-3 text-sm text-gray-900 dark:text-white font-medium">
+                  ${customer.contractNo || 'ไม่ระบุ'}
+                </td>
+                <td class="p-3 text-sm text-gray-900 dark:text-white">
+                  ${customer.customerName || 'ไม่ระบุ'}
+                </td>
+                <td class="p-3 text-sm text-gray-900 dark:text-white text-right font-medium">
+                  ฿ ${remainingAmount.toLocaleString('th-TH')}
+                </td>
+                <td class="p-3 text-sm text-gray-500 dark:text-gray-300">
+                  ${overduePeriod}
+                </td>
+                <td class="p-3">
+                  <span class="px-2 py-1 text-xs font-semibold rounded-full ${riskColor}">
+                    ${riskLevel}
+                  </span>
+                </td>
+                <td class="p-3 text-center">
+                  <div class="flex justify-center space-x-2">
+                    <button class="text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                            onclick="viewCustomerDetail('${customer.contractNo}')"
+                            title="ดูรายละเอียด">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="text-green-600 hover:text-green-800 dark:text-green-400"
+                            onclick="contactCustomer('${customer.contractNo}')"
+                            title="ติดต่อลูกค้า">
+                      <i class="bi bi-telephone"></i>
+                    </button>
+                    <button class="text-orange-600 hover:text-orange-800 dark:text-orange-400"
+                            onclick="scheduleFollowUp('${customer.contractNo}')"
+                            title="นัดติดตาม">
+                      <i class="bi bi-calendar-plus"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          overdueList.innerHTML = rows;
+
+          // Update pagination info
+          const totalItems = filteredOverdueData.length;
+          const totalPages = Math.ceil(totalItems / overdueItemsPerPage);
+          const startItem = startIndex + 1;
+          const endItem = Math.min(endIndex, totalItems);
+
+          overduePaginationInfo.textContent = `แสดง ${startItem}-${endItem} จาก ${totalItems} รายการ`;
+
+          // Update pagination buttons
+          updateOverduePagination(totalPages);
+        }
+
+        // Update overdue pagination buttons
+        function updateOverduePagination(totalPages) {
+          const paginationButtons = document.getElementById('overduePaginationButtons');
+
+          if (totalPages <= 1) {
+            paginationButtons.innerHTML = '';
+            return;
+          }
+
+          let buttons = '';
+
+          // Previous button
+          buttons += `
+            <button class="px-3 py-1 rounded border ${currentOverduePage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
+                    onclick="changeOverduePage(${currentOverduePage - 1})"
+                    ${currentOverduePage === 1 ? 'disabled' : ''}>
+              <i class="bi bi-chevron-left"></i>
+            </button>
+          `;
+
+          // Page numbers
+          for (let i = 1; i <= totalPages; i++) {
+            if (i === currentOverduePage) {
+              buttons += `
+                <button class="px-3 py-1 rounded border bg-blue-500 text-white">
+                  ${i}
+                </button>
+              `;
+            } else {
+              buttons += `
+                <button class="px-3 py-1 rounded border bg-white text-gray-700 hover:bg-gray-50"
+                        onclick="changeOverduePage(${i})">
+                  ${i}
+                </button>
+              `;
+            }
+          }
+
+          // Next button
+          buttons += `
+            <button class="px-3 py-1 rounded border ${currentOverduePage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}"
+                    onclick="changeOverduePage(${currentOverduePage + 1})"
+                    ${currentOverduePage === totalPages ? 'disabled' : ''}>
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          `;
+
+          paginationButtons.innerHTML = buttons;
+        }
+
+        // Change overdue page
+        window.changeOverduePage = function(page) {
+          const totalPages = Math.ceil(filteredOverdueData.length / overdueItemsPerPage);
+          if (page >= 1 && page <= totalPages) {
+            currentOverduePage = page;
+            displayOverdueCustomers();
+          }
+        };
+
+        // Filter overdue customers
+        function filterOverdueCustomers() {
+          const searchTerm = document.getElementById('overdueSearchInput')?.value.toLowerCase() || '';
+          const filterValue = document.getElementById('overdueFilterSelect')?.value || 'all';
+
+          filteredOverdueData = overdueCustomersData.filter(customer => {
+            // Search filter
+            const customerName = (customer.customerName || '').toLowerCase();
+            const contractNo = (customer.contractNo || '').toLowerCase();
+            const matchesSearch = customerName.includes(searchTerm) || contractNo.includes(searchTerm);
+
+            // Age filter
+            const ageInDays = customer.ageInDays || 0;
+            let matchesFilter = true;
+
+            switch (filterValue) {
+              case '30days':
+                matchesFilter = ageInDays >= 30 && ageInDays < 60;
+                break;
+              case '60days':
+                matchesFilter = ageInDays >= 60 && ageInDays < 90;
+                break;
+              case '90days':
+                matchesFilter = ageInDays >= 90;
+                break;
+              case 'all':
+              default:
+                matchesFilter = true;
+                break;
+            }
+
+            return matchesSearch && matchesFilter;
+          });
+
+          currentOverduePage = 1;
+          displayOverdueCustomers();
+        }
+
+        // Save criteria function is now handled by modal save handler
+
+        function updateCurrentCriteriaDisplay(criteria) {
+            const formatPercent = (val) => val ? parseFloat(val).toFixed(2) : 'N/A';
+            const formatCurrency = (val) => val ? Math.max(0, parseFloat(val) || 0).toLocaleString('th-TH') : 'N/A';
+
+            displayAllowanceEl.textContent = formatPercent(criteria.allowance);
+            displayDoubtfulEl.textContent = formatPercent(criteria.doubtful);
+            displayBadDebtEl.textContent = formatPercent(criteria.badDebt);
+            displayRepossessionEl.textContent = formatCurrency(criteria.repossession);
+            displayPolicyNotesEl.textContent = criteria.policyNotes || 'N/A';
+
+            // Show or hide the display section based on whether there's data
+            const hasData = Object.values(criteria).some(value => value && value.toString().trim() !== '');
+            if (hasData) {
+                currentCriteriaDisplaySection.classList.remove('hidden');
+            } else {
+                currentCriteriaDisplaySection.classList.add('hidden');
+            }
+        }
+
+        // Display customer table
+        function displayCustomerTable() {
+          const customerList = document.getElementById('customerList');
+    
+          if (filteredCustomerData.length === 0) {
+            customerList.innerHTML = `
+              <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <div class="flex flex-col items-center">
+                    <i class="bi bi-inbox text-4xl mb-2"></i>
+                    <p class="text-lg font-medium mb-1">ไม่มีข้อมูลลูกค้า</p>
+                    <p class="text-sm">ไม่พบข้อมูลลูกค้าตามเกณฑ์ที่กำหนด</p>
+                </div>
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          const startIndex = (currentPage - 1) * itemsPerPage;
+          const endIndex = startIndex + itemsPerPage;
+          const currentData = filteredCustomerData.slice(startIndex, endIndex);
+
+          const rows = currentData.map(customer => {
+            const statusInfo = getStatusInfo(customer.status);
+            const allowanceAmount = Math.max(0, customer.allowance || 0);
+    
+            return `
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                  ${customer.contractNo || 'ไม่ระบุ'}
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  ${customer.customerName || 'ไม่ระบุ'}
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                  ${customer.productName || 'ไม่ระบุ'}
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">
+                  ฿ ${Math.max(0, customer.remainingAmount || 0).toLocaleString('th-TH')}
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">
+                  ${customer.ageInDays || 0} วัน
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusInfo.bgColor} ${statusInfo.textColor}">
+                    ${statusInfo.text}
+                  </span>
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">
+                  ฿ ${Math.max(0, allowanceAmount).toLocaleString('th-TH', {minimumFractionDigits: 2})}
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                  <button class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-2" onclick="viewCustomerDetail('${customer.contractNo}')">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300" onclick="contactCustomer('${customer.contractNo}')">
+                    <i class="bi bi-telephone"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          customerList.innerHTML = rows;
+          updatePagination();
+        }
+
+        // Get status information for display
+        function getStatusInfo(status) {
+          switch (status) {
+            case 'active':
+              return { text: 'ปกติ', bgColor: 'bg-green-100', textColor: 'text-green-800' };
+            case 'allowance':
+              return { text: 'ค่าเผื่อหนี้สงสัยจะสูญ', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800' };
+            case 'doubtful':
+              return { text: 'หนี้สงสัยจะสูญ', bgColor: 'bg-orange-100', textColor: 'text-orange-800' };
+            case 'baddebt':
+              return { text: 'หนี้สูญ', bgColor: 'bg-red-100', textColor: 'text-red-800' };
+            default:
+              return { text: 'ไม่ระบุ', bgColor: 'bg-gray-100', textColor: 'text-gray-800' };
+          }
+        }
+
+        // Update pagination
+        function updatePagination() {
+          const totalPages = Math.ceil(filteredCustomerData.length / itemsPerPage);
+          const paginationInfo = document.getElementById('customerPaginationInfo');
+          const paginationButtons = document.getElementById('customerPaginationButtons');
+    
+          if (filteredCustomerData.length === 0) {
+            paginationInfo.innerHTML = '<p class="text-sm text-gray-700 dark:text-gray-300">ไม่มีข้อมูล</p>';
+            paginationButtons.innerHTML = '';
+            return;
+          }
+    
+          const startIndex = (currentPage - 1) * itemsPerPage + 1;
+          const endIndex = Math.min(currentPage * itemsPerPage, filteredCustomerData.length);
+    
+          paginationInfo.innerHTML = `
+            <p class="text-sm text-gray-700 dark:text-gray-300">
+              แสดง <span class="font-medium">${startIndex}</span> ถึง <span class="font-medium">${endIndex}</span> จาก <span class="font-medium">${filteredCustomerData.length}</span> รายการ
+            </p>
+          `;
+    
+          if (totalPages <= 1) {
+            paginationButtons.innerHTML = '';
+            return;
+          }
+    
+          let buttonsHTML = '';
+    
+          // Previous button
+          buttonsHTML += `
+            <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+                    class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+          `;
+    
+          // Page numbers
+          for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            const isActive = i === currentPage;
+            buttonsHTML += `
+              <button onclick="changePage(${i})" 
+                      class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-200' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-white'} hover:bg-gray-50 dark:hover:bg-gray-700">
+                ${i}
+              </button>
+            `;
+          }
+    
+          // Next button
+          buttonsHTML += `
+            <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} 
+                    class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          `;
+    
+          paginationButtons.innerHTML = `<nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">${buttonsHTML}</nav>`;
+        }
+
+        // Change page
+        window.changePage = function(page) {
+          const totalPages = Math.ceil(filteredCustomerData.length / itemsPerPage);
+          if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            displayCustomerTable();
+          }
+        };
+
+        // Display empty state
+        function displayEmptyState() {
+          const customerList = document.getElementById('customerList');
+          customerList.innerHTML = `
+            <tr>
+              <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                <div class="flex flex-col items-center">
+                  <i class="bi bi-exclamation-triangle text-4xl mb-2"></i>
+                  <p class="text-lg font-medium mb-1">ไม่สามารถโหลดข้อมูลได้</p>
+                  <p class="text-sm">กรุณาตรวจสอบการเชื่อมต่อและลองใหม่อีกครั้ง</p>
+                </div>
+              </td>
+            </tr>
+          `;
+    
+          // Clear stats
+          document.getElementById('allowanceStatValue').textContent = '-';
+          document.getElementById('allowanceStatDesc').textContent = 'ไม่มีข้อมูล';
+          document.getElementById('doubtfulStatValue').textContent = '-';
+          document.getElementById('doubtfulStatDesc').textContent = 'ไม่มีข้อมูล';
+          document.getElementById('badDebtStatValue').textContent = '-';
+          document.getElementById('badDebtStatDesc').textContent = 'ไม่มีข้อมูล';
+          document.getElementById('repossessionStatValue').textContent = '-';
+          document.getElementById('repossessionStatDesc').textContent = 'ไม่มีข้อมูล';
+        }
+
+        // Wait for Chart.js to load
+        function waitForChart(callback, maxAttempts = 10) {
+          if (typeof Chart !== 'undefined') {
+            callback();
+          } else if (maxAttempts > 0) {
+            setTimeout(() => waitForChart(callback, maxAttempts - 1), 100);
+                        } else {
+            console.warn('Chart.js failed to load after waiting');
+          }
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+          // Use waitForChart to ensure Chart.js is loaded
+          waitForChart(() => {
+            // Bad debt chart
+            const badDebtCtx = document.getElementById('badDebtChart');
+            if (badDebtCtx) {
+              try {
+                // Properly destroy existing chart
+                if (window.badDebtChart && typeof window.badDebtChart.destroy === 'function') {
+                  window.badDebtChart.destroy();
+                }
+    
+                const chartData = getChartData();
+                window.badDebtChart = new Chart(badDebtCtx, {
+                  type: 'doughnut',
+                  data: chartData,
+                  options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'bottom',
+                        labels: {
+                          usePointStyle: true,
+                          padding: 15,
+                          font: {
+                            size: 12
+                          }
+                        }
+                      },
+                      tooltip: {
+                        callbacks: {
+                          label: function(context) {
+                            const dataset = context.dataset;
+                            const amounts = dataset.amounts || dataset.data;
+                            const amount = amounts[context.dataIndex];
+                            const total = amounts.reduce((sum, val) => sum + val, 0);
+                            const percentage = total > 0 ? ((amount / total) * 100).toFixed(1) : '0.0';
+
+                            return [
+                              context.label,
+                              `จำนวนเงิน: ฿${amount.toLocaleString('th-TH')}`,
+                              `สัดส่วน: ${percentage}%`
+                            ];
+                          }
+                        },
+                        titleFont: {
+                          size: 14
+                        },
+                        bodyFont: {
+                          size: 12
+                        },
+                        padding: 12
+                      }
+                    },
+                    elements: {
+                      arc: {
+                        borderWidth: 2
+                      }
+                    }
+                  }
+                });
+              } catch (error) {
+                console.error('Error initializing bad debt chart:', error);
+                // Show fallback message in chart container
+                badDebtCtx.parentElement.innerHTML = `
+                  <div class="flex items-center justify-center h-48 text-gray-500">
+                    <div class="text-center">
+                      <i class="bi bi-bar-chart text-4xl mb-2"></i>
+                      <p>ไม่สามารถแสดงกราฟได้</p>
+                    </div>
+                  </div>
+                `;
+              }
+            }
+    
+            // Debtors trend chart
+        const debtorsCtx = document.getElementById('debtorsChart');
+            if (debtorsCtx) {
+              try {
+                // Properly destroy existing chart
+                if (window.debtorsChart && typeof window.debtorsChart.destroy === 'function') {
+                  window.debtorsChart.destroy();
+                }
+    
+                const trendData = getTrendData();
+                window.debtorsChart = new Chart(debtorsCtx, {
+            type: 'line',
+                  data: trendData,
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+                    scales: {
+                      y: {
+                        beginAtZero: true
+                      }
+                    },
+                    plugins: {
+                      legend: {
+                    display: false
+                  }
+                    }
+                  }
+                });
+              } catch (error) {
+                console.error('Error initializing debtors chart:', error);
+                // Show fallback message in chart container
+                debtorsCtx.parentElement.innerHTML = `
+                  <div class="flex items-center justify-center h-48 text-gray-500">
+                    <div class="text-center">
+                      <i class="bi bi-graph-up text-4xl mb-2"></i>
+                      <p>ไม่สามารถแสดงกราฟได้</p>
+                    </div>
+                  </div>
+                `;
+              }
+            }
+          });
+        }
+    
+        // Get chart data
+
+        // Get chart data for bad debt doughnut chart
+        function getChartData() {
+          if (!customerData || customerData.length === 0) {
+            return {
+              labels: ['ไม่มีข้อมูล'],
+              datasets: [{
+                data: [1],
+                backgroundColor: ['#e5e7eb'],
+                borderColor: ['#d1d5db'],
+                borderWidth: 1
+              }]
+            };
+          }
+
+          // Count customers by status
+          const statusCounts = {
+            'active': customerData.filter(c => c.status === 'active').length,
+            'allowance': customerData.filter(c => c.status === 'allowance').length,
+            'doubtful': customerData.filter(c => c.status === 'doubtful').length,
+            'baddebt': customerData.filter(c => c.status === 'baddebt').length
+          };
+
+          // Calculate amounts by status
+          const statusAmounts = {
+            'active': customerData.filter(c => c.status === 'active').reduce((sum, c) => sum + (c.remainingAmount || 0), 0),
+            'allowance': customerData.filter(c => c.status === 'allowance').reduce((sum, c) => sum + (c.remainingAmount || 0), 0),
+            'doubtful': customerData.filter(c => c.status === 'doubtful').reduce((sum, c) => sum + (c.remainingAmount || 0), 0),
+            'baddebt': customerData.filter(c => c.status === 'baddebt').reduce((sum, c) => sum + (c.remainingAmount || 0), 0)
+          };
+
+          const labels = [];
+          const data = [];
+          const amounts = [];
+          const backgroundColors = [];
+          const borderColors = [];
+
+          // Add data for each status that has customers
+          if (statusCounts.active > 0) {
+            labels.push(`ลูกหนี้ปกติ (${statusCounts.active} ราย)`);
+            data.push(statusAmounts.active);
+            amounts.push(statusAmounts.active);
+            backgroundColors.push('rgba(34, 197, 94, 0.8)'); // Green
+            borderColors.push('rgb(34, 197, 94)');
+          }
+
+          if (statusCounts.allowance > 0) {
+            labels.push(`ค่าเผื่อหนี้สงสัยจะสูญ (${statusCounts.allowance} ราย)`);
+            data.push(statusAmounts.allowance);
+            amounts.push(statusAmounts.allowance);
+            backgroundColors.push('rgba(251, 191, 36, 0.8)'); // Yellow
+            borderColors.push('rgb(251, 191, 36)');
+          }
+
+          if (statusCounts.doubtful > 0) {
+            labels.push(`หนี้สงสัยจะสูญ (${statusCounts.doubtful} ราย)`);
+            data.push(statusAmounts.doubtful);
+            amounts.push(statusAmounts.doubtful);
+            backgroundColors.push('rgba(249, 115, 22, 0.8)'); // Orange
+            borderColors.push('rgb(249, 115, 22)');
+          }
+
+          if (statusCounts.baddebt > 0) {
+            labels.push(`หนี้สูญ (${statusCounts.baddebt} ราย)`);
+            data.push(statusAmounts.baddebt);
+            amounts.push(statusAmounts.baddebt);
+            backgroundColors.push('rgba(239, 68, 68, 0.8)'); // Red
+            borderColors.push('rgb(239, 68, 68)');
+          }
+
+          // If no data, show placeholder
+          if (data.length === 0) {
+            return {
+              labels: ['ไม่มีข้อมูลลูกหนี้'],
+              datasets: [{
+                data: [1],
+                backgroundColor: ['#e5e7eb'],
+                borderColor: ['#d1d5db'],
+                borderWidth: 1
+              }]
+            };
+          }
+
+          return {
+            labels: labels,
+            datasets: [{
+              data: data,
+              amounts: amounts, // Store amounts for tooltip
+              backgroundColor: backgroundColors,
+              borderColor: borderColors,
+              borderWidth: 2,
+              hoverBorderWidth: 3
+            }]
+          };
+        }
+
+        // Get trend data
+        function getTrendData() {
+          const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.'];
+          const data = customerData.length > 0 ?
+            [20, 35, 25, 40, 30, customerData.length] :
+            [0, 0, 0, 0, 0, 0];
+    
+          return {
+            labels: months,
+            datasets: [{
+              label: 'จำนวนลูกหนี้',
+              data: data,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          };
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+          const notification = document.createElement('div');
+          const bgColor = type === 'error' ? 'bg-red-100 border-red-400 text-red-700' :
+                          type === 'success' ? 'bg-green-100 border-green-400 text-green-700' :
+                          'bg-blue-100 border-blue-400 text-blue-700';
+    
+          notification.className = `fixed top-4 right-4 ${bgColor} px-4 py-3 rounded z-50 max-w-md`;
+          notification.innerHTML = `
+            <div class="flex items-center">
+              <i class="bi bi-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'} mr-2"></i>
+              <span>${message}</span>
+              <button class="ml-4 text-current hover:opacity-75" onclick="this.parentElement.parentElement.remove()">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          `;
+          document.body.appendChild(notification);
+    
+          setTimeout(() => {
+            if (document.body.contains(notification)) {
+              document.body.removeChild(notification);
+            }
+          }, 5000);
+        }
+
+        // Filter customers
+        function filterCustomers() {
+          const searchTerm = document.getElementById('searchCustomer').value.toLowerCase();
+          const statusFilter = document.getElementById('filterCustomerStatus').value;
+    
+          filteredCustomerData = customerData.filter(customer => {
+            const matchesSearch = !searchTerm ||
+              (customer.customerName && customer.customerName.toLowerCase().includes(searchTerm)) ||
+              (customer.contractNo && customer.contractNo.toLowerCase().includes(searchTerm));
+    
+            const matchesStatus = !statusFilter || customer.status === statusFilter;
+    
+            return matchesSearch && matchesStatus;
+          });
+    
+          currentPage = 1;
+          displayCustomerTable();
+        }
+
+        // Event listeners - criteriaForm is now handled by modal
+    
+        document.getElementById('searchCustomer').addEventListener('input', filterCustomers);
+        document.getElementById('filterCustomerStatus').addEventListener('change', filterCustomers);
+
+        // Global functions
+        window.refreshBadDebtData = async function() {
+          showLoading(true);
+          await loadCustomerData();
+          showLoading(false);
+          showNotification('ข้อมูลถูกอัปเดตเรียบร้อยแล้ว', 'success');
+        };
+    
+        window.exportBadDebtData = async function() {
+          try {
+            const response = await fetch('/api/loan/bad-debt/export', { headers });
+            if (response.ok) {
+              const blob = await response.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `bad_debt_report_${new Date().toISOString().split('T')[0]}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+              showNotification('ส่งออกข้อมูลเรียบร้อยแล้ว', 'success');
+            } else {
+              throw new Error('Export failed');
+            }
+          } catch (error) {
+            console.error('Export error:', error);
+            showNotification('ไม่สามารถส่งออกข้อมูลได้', 'error');
+          }
+        };
+
+        window.viewCustomerDetail = function(customerCode) {
+          showNotification(`แสดงรายละเอียดลูกค้า ${customerCode}`, 'info');
+        };
+
+        window.contactCustomer = function(customerCode) {
+          showNotification(`ติดต่อลูกค้า ${customerCode}`, 'info');
+        };
+
+        window.scheduleFollowUp = function(customerCode) {
+          showNotification(`นัดติดตามลูกค้า ${customerCode}`, 'info');
+        };
+
+        // Add event listeners for overdue customers search and filter
+        const overdueSearchInput = document.getElementById('overdueSearchInput');
+        const overdueFilterSelect = document.getElementById('overdueFilterSelect');
+
+        if (overdueSearchInput) {
+          overdueSearchInput.addEventListener('input', filterOverdueCustomers);
+        }
+
+        if (overdueFilterSelect) {
+          overdueFilterSelect.addEventListener('change', filterOverdueCustomers);
+        }
+
+        // Modal control handlers
+        setupModalHandlers();
+
+        // Load data on page load
+        loadCriteria();
+        loadCustomerData();
+
+      } catch (error) {
+        console.error('Error initializing page:', error);
+        showLoading(false);
+      }
+    });
+  </script>
+
+  <!-- Avatar Utils Script -->
+  <script src="/js/avatar-utils.js"></script>
+
+  <!-- Bad Debt Criteria Modal -->
+  <div id="criteriaModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white dark:bg-gray-800">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+          <i class="bi bi-gear-fill mr-2 text-blue-500"></i>
+          ตั้งค่าเกณฑ์หนี้สูญ
+        </h3>
+        <button type="button" id="closeCriteriaModal"
+                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
+          <i class="bi bi-x-lg w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6">
+        <form id="modalBadDebtCriteriaForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- ค่าเผื่อหนี้สงสัยจะสูญ -->
+            <div>
+              <label for="modalAllowanceForDoubtfulAccounts" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <i class="bi bi-shield-check mr-1 text-green-500"></i>
+                ค่าเผื่อหนี้สงสัยจะสูญ (%)
+              </label>
+              <input type="number" id="modalAllowanceForDoubtfulAccounts" name="allowanceForDoubtfulAccounts"
+                     min="0" max="100" step="0.01"
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                     placeholder="เช่น 5.00">
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">เปอร์เซ็นต์ของยอดหนี้คงค้างทั้งหมดที่คาดว่าจะเก็บเงินไม่ได้</p>
+            </div>
+
+            <!-- หนี้สงสัยจะสูญ -->
+            <div>
+              <label for="modalDoubtfulAccounts" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <i class="bi bi-exclamation-triangle mr-1 text-yellow-500"></i>
+                หนี้สงสัยจะสูญ (%)
+              </label>
+              <input type="number" id="modalDoubtfulAccounts" name="doubtfulAccounts"
+                     min="0" max="100" step="0.01"
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                     placeholder="เช่น 2.00">
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">เปอร์เซ็นต์ของหนี้ที่ค้างชำระเกินกำหนดระยะเวลาหนึ่ง และมีความไม่แน่นอนสูงในการได้รับชำระคืน</p>
+            </div>
+
+            <!-- หนี้สูญ -->
+            <div>
+              <label for="modalBadDebt" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <i class="bi bi-x-circle mr-1 text-red-500"></i>
+                หนี้สูญ (%)
+              </label>
+              <input type="number" id="modalBadDebt" name="badDebt"
+                     min="0" max="100" step="0.01"
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                     placeholder="เช่น 1.00">
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">เปอร์เซ็นต์ของหนี้ที่พิจารณาแล้วว่าจะไม่ได้รับชำระคืนแน่นอน และจะถูกตัดออกจากบัญชี</p>
+            </div>
+
+            <!-- ค่าใช้จ่ายในการยึดคืนสินค้า -->
+            <div>
+              <label for="modalRepossessionCost" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <i class="bi bi-gear mr-1 text-purple-500"></i>
+                ค่าใช้จ่ายในการยึดคืนสินค้า (บาทต่อสัญญา)
+              </label>
+              <input type="number" id="modalRepossessionCost" name="repossessionCost"
+                     min="0" step="1"
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                     placeholder="เช่น 500">
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">ค่าใช้จ่ายโดยประมาณที่เกิดขึ้นในการติดตามและยึดคืนสินค้าจากลูกหนี้</p>
+            </div>
+          </div>
+
+          <!-- Policy Notes -->
+          <div class="mt-6">
+            <label for="modalPolicyNotes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-journal-text mr-1 text-indigo-500"></i>
+              คำอธิบายและนโยบายเพิ่มเติม
+            </label>
+            <textarea id="modalPolicyNotes" name="policyNotes" rows="4"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="ระบุนโยบายการตั้งสำรอง, เกณฑ์การพิจารณาหนี้สงสัยจะสูญ, หรือเงื่อนไขอื่นๆ ที่เกี่ยวข้อง"></textarea>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
+        <div class="flex items-center text-sm text-gray-500 dark:text-gray-400">
+          <i class="bi bi-info-circle mr-2"></i>
+          การเปลี่ยนแปลงจะมีผลทันทีหลังจากบันทึก
+        </div>
+        <div class="flex space-x-3">
+          <button type="button" id="cancelCriteriaModal"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
+            <i class="bi bi-x-circle mr-1"></i>
+            ยกเลิก
+          </button>
+          <button type="submit" id="saveCriteriaModal" form="modalBadDebtCriteriaForm"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <i class="bi bi-check-circle mr-1"></i>
+            บันทึกเกณฑ์
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+
+</body>
+</html>

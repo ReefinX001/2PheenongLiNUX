@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>เซ็นชื่อ | Signature Pad</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Sarabun', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .info-section {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #212529;
+            font-weight: 600;
+        }
+
+        .signature-section {
+            padding: 30px;
+        }
+
+        .signature-label {
+            font-size: 18px;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .signature-label::before {
+            content: '✍️';
+            font-size: 24px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            border: 3px dashed #dee2e6;
+            border-radius: 15px;
+            background: #f8f9fa;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #signature-canvas {
+            display: block;
+            width: 100%;
+            height: 300px;
+            cursor: crosshair;
+            background: white;
+        }
+
+        .canvas-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #adb5bd;
+            font-size: 16px;
+            text-align: center;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .canvas-placeholder.hidden {
+            opacity: 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-clear {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .status-message.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .timer {
+            text-align: center;
+            padding: 15px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .timer.warning {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        /* iPad Landscape Optimization */
+        @media (min-width: 768px) and (orientation: landscape) {
+            #signature-canvas {
+                height: 400px;
+            }
+        }
+
+        /* Mobile Portrait */
+        @media (max-width: 576px) {
+            .container {
+                border-radius: 0;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .signature-section {
+                padding: 20px;
+            }
+
+            #signature-canvas {
+                height: 250px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 ลงนามเอกสาร</h1>
+            <p>กรุณาเซ็นชื่อในกรอบด้านล่าง</p>
+        </div>
+
+        <div class="info-section">
+            <div class="info-row">
+                <span class="info-label">เอกสาร:</span>
+                <span class="info-value" id="receipt-id">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">ประเภทลายเซ็น:</span>
+                <span class="info-value" id="signature-type">-</span>
+            </div>
+        </div>
+
+        <div class="signature-section">
+            <div class="signature-label">ลงนามที่นี่</div>
+
+            <div class="canvas-wrapper">
+                <canvas id="signature-canvas"></canvas>
+                <div class="canvas-placeholder" id="placeholder">
+                    วาดลายเซ็นของคุณที่นี่
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-clear" id="btn-clear">
+                    🗑️ ลบ
+                </button>
+                <button class="btn btn-submit" id="btn-submit" disabled>
+                    ✅ บันทึกลายเซ็น
+                </button>
+            </div>
+
+            <div class="status-message" id="status-message"></div>
+            <div class="timer" id="timer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Get session ID from URL
+        const pathParts = window.location.pathname.split('/');
+        const sessionId = pathParts[pathParts.length - 1];
+
+        // Canvas setup
+        const canvas = document.getElementById('signature-canvas');
+        const ctx = canvas.getContext('2d');
+        const placeholder = document.getElementById('placeholder');
+        const btnClear = document.getElementById('btn-clear');
+        const btnSubmit = document.getElementById('btn-submit');
+        const statusMessage = document.getElementById('status-message');
+        const timerElement = document.getElementById('timer');
+
+        let isDrawing = false;
+        let hasDrawn = false;
+        let sessionData = null;
+        let timerInterval = null;
+
+        // Set canvas size
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Load session data
+        async function loadSession() {
+            try {
+                const response = await fetch(`/api/qr-signature/session/${sessionId}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    showStatus('error', result.message);
+                    return;
+                }
+
+                sessionData = result.data;
+                document.getElementById('receipt-id').textContent = sessionData.receiptId;
+
+                const typeLabels = {
+                    'employee': 'พนักงาน',
+                    'customer': 'ลูกค้า',
+                    'witness': 'พยาน'
+                };
+                document.getElementById('signature-type').textContent =
+                    typeLabels[sessionData.signatureType] || sessionData.signatureType;
+
+                startTimer(sessionData.expiresAt);
+            } catch (error) {
+                showStatus('error', 'ไม่สามารถโหลดข้อมูลเซสชันได้');
+            }
+        }
+
+        // Timer
+        function startTimer(expiresAt) {
+            function updateTimer() {
+                const now = Date.now();
+                const remaining = expiresAt - now;
+
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerElement.innerHTML = '⏰ หมดเวลา';
+                    timerElement.classList.add('warning');
+                    showStatus('error', 'เซสชันหมดอายุแล้ว กรุณาสแกน QR Code ใหม่');
+                    btnSubmit.disabled = true;
+                    return;
+                }
+
+                const minutes = Math.floor(remaining / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                timerElement.innerHTML = `⏱️ เหลือเวลา ${minutes}:${seconds.toString().padStart(2, '0')} นาที`;
+
+                if (remaining < 60000) {
+                    timerElement.classList.add('warning');
+                }
+            }
+
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        // Drawing functions
+        function startDrawing(e) {
+            isDrawing = true;
+            hasDrawn = true;
+            placeholder.classList.add('hidden');
+
+            const pos = getPosition(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            e.preventDefault();
+            const pos = getPosition(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+
+            btnSubmit.disabled = false;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function getPosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            return {
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            };
+        }
+
+        // Event listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // Clear button
+        btnClear.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasDrawn = false;
+            placeholder.classList.remove('hidden');
+            btnSubmit.disabled = true;
+        });
+
+        // Submit button
+        btnSubmit.addEventListener('click', async () => {
+            if (!hasDrawn) {
+                showStatus('error', 'กรุณาเซ็นชื่อก่อน');
+                return;
+            }
+
+            try {
+                btnSubmit.disabled = true;
+                showStatus('loading', '⏳ กำลังบันทึกลายเซ็น...');
+
+                const signatureData = canvas.toDataURL('image/png');
+
+                const response = await fetch(`/api/qr-signature/save/${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ signatureData })
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    showStatus('error', result.message);
+                    btnSubmit.disabled = false;
+                    return;
+                }
+
+                showStatus('success', '✅ บันทึกลายเซ็นสำเร็จ! คุณสามารถปิดหน้านี้ได้แล้ว');
+                clearInterval(timerInterval);
+                timerElement.innerHTML = '';
+
+                // Disable canvas
+                canvas.style.pointerEvents = 'none';
+                canvas.style.opacity = '0.6';
+
+            } catch (error) {
+                showStatus('error', 'เกิดข้อผิดพลาดในการบันทึกลายเซ็น');
+                btnSubmit.disabled = false;
+            }
+        });
+
+        // Show status message
+        function showStatus(type, message) {
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.textContent = message;
+        }
+
+        // Initialize
+        loadSession();
+    </script>
+</body>
+</html>

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่าระบบพนักงาน</title>
+
+    <script>
+  // เช็ค token ก่อนจะโหลดอะไรเพิ่มเติม
+  const token = localStorage.getItem('authToken');  // <-- เปลี่ยนตรงนี้
+  if (!token) {
+    alert('กรุณาเข้าสู่ระบบก่อน');
+    window.location.replace('/login');
+  }
+</script>
+
+
+    <!-- Favicon ต่างๆ -->
+    <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <!-- Tailwind + DaisyUI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Prompt','sans-serif'] }
+                }
+            },
+            daisyui: { themes: ['light','dark','corporate'] },
+        };
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+    <!-- Google Fonts - Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+      // Apply saved theme on load
+      const storedTheme = localStorage.getItem('theme');
+      if (storedTheme) {
+        const isDark = storedTheme === 'dark';
+        document.documentElement.classList.toggle('dark', isDark);
+        document.documentElement.setAttribute('data-theme', storedTheme);
+      }
+    </script>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .tab-transition {
+            transition: all 0.3s ease;
+        }
+        
+        .form-input-effect:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-save-effect {
+            transition: all 0.2s ease;
+        }
+        
+        .btn-save-effect:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* Indicator for saved status */
+        .save-indicator {
+            transition: opacity 0.5s ease;
+        }
+
+        /* ปรับแต่ง scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .dark ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb {
+            background: #555;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+
+        /* เพิ่มเอฟเฟกต์ฮฟเวอร์ให้กับ input */
+        .input-hover-effect {
+            transition: all 0.2s ease;
+        }
+        
+        .input-hover-effect:hover {
+            border-color: #3b82f6;
+        }
+        
+        /* เอฟเฟกต์สำหรับการเช็คบ็อกซ์ */
+        .checkbox-wrapper label {
+            transition: all 0.2s ease;
+        }
+        
+        .checkbox-wrapper:hover label {
+            color: #3b82f6;
+        }
+
+        @layer components {
+          .quota-card {
+            @apply bg-white dark:bg-gray-800 shadow rounded-lg p-6 m-2 flex flex-col justify-between w-full sm:w-1/2 lg:w-1/3;
+          }
+          .quota-input {
+            @apply input input-bordered input-sm w-20 text-center;
+          }
+          .quota-btn {
+            @apply btn btn-sm btn-primary;
+          }
+        }
+    </style>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+    <script>
+      // globals & handlers must load before buttons are clicked
+      const initialCenter = [13.7563, 100.5018];
+
+      // Define user‐profile API
+      const USER_PROFILE_API = '/api/users/me';
+      const USERS_API_BASE = '/api/users';
+
+      async function getToken() {
+        return localStorage.getItem('authToken');
+      }
+
+
+      // โหลดข้อมูลโปรไฟล์พนักงาน
+      async function loadEmployeeProfile() {
+        try {
+          const token = await getToken();
+          if (!token) return window.location.replace('/login');
+
+          const res    = await fetch(`${USERS_API_BASE}/me`, {
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json'
+            }
+          });
+          const json   = await res.json();
+          if (!res.ok) throw new Error(json.error || json.message || res.status);
+
+          const u      = json.data;
+          document.getElementById('employeeName').textContent = u.name || '(ไม่พบชื่อ)';
+          let photoUrl = u.photoUrl || '';
+          if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+            photoUrl = '/' + photoUrl;
+          }
+          document.getElementById('employeePhoto').src = photoUrl;
+          window.currentUserId = u._id || u.id;
+        } catch (err) {
+          console.error('Load Employee Profile Error:', err);
+          alert('ไม่สามารถโหลดโปรไฟล์ได้: ' + err.message);
+          logout();
+        }
+      }
+
+
+      function openTab(tabName) {
+        document.querySelectorAll('.tab-content')
+          .forEach(c => c.classList.toggle('hidden', c.id !== tabName));
+        document.querySelectorAll('.tab')
+          .forEach(t => t.classList.toggle('tab-active', t.id === 'tab-' + tabName));
+      }
+
+      function bindTabs() {
+        // ผูกคลิกแท็บ
+        document.querySelectorAll('.tab')
+          .forEach(tab => tab.addEventListener('click', () =>
+            openTab(tab.id.replace('tab-', ''))
+          ));
+      }
+
+
+      // Generic form-submit handler
+      document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formId = this.id;
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split animate-spin mr-2"></i> กำลังบันทึก...';
+            submitBtn.disabled = true;
+
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                const saveIndicator = document.getElementById(formId.replace('Form', '-save-indicator'));
+                if (saveIndicator) {
+                    saveIndicator.style.opacity = '1';
+                    setTimeout(() => saveIndicator.style.opacity = '0', 3000);
+                }
+            }, 800);
+        });
+      });
+
+      // เริ่มต้นแอป
+      async function initApp() {
+        await loadEmployeeProfile();    // ← โหลดโปรไฟล์ก่อนส่วนอื่นๆ
+        bindTabs();
+        openTab('worktime');
+        if (typeof loadSettings === 'function') {
+          loadSettings();
+        }
+      }
+      document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+
+    <!-- Toggle Sidebar Button -->
+    <button id="btnToggleMenu" class="fixed left-0 top-1/2 -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition-all">
+        <i class="bi bi-chevron-left"></i>
+    </button>
+    
+    <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="hr_dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="hr_dashboard" class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="employee_directory" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-people-fill text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">พนักงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="attendance" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+            </a>
+          </li>
+          <li>
+            <a href="leave_requests" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+              <span class="ml-3">การลา</span>
+            </a>
+          </li>
+          <li>
+            <a href="payroll" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+              <span class="ml-3">เงินเดือน</span>
+            </a>
+          </li>
+          <li>
+            <a href="performance_reviews" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">ประเมินผลงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="bonus_list" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>รายการโบนัส</span>
+            </a>
+          </li>
+          </li>
+          <li class="mt-4">
+            <a href="role_management" class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark" class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar" class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <li>
+            <div id="profile" class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <img id="employeePhoto" src="/uploads/avatar-default.png" alt="Employee Photo" class="w-10 h-10 rounded-full mr-3" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNEMUQ1REIiLz4KPHBhdGggZD0iTTIwIDEwQzE3LjIzODYgMTAgMTUgMTIuMjM4NiAxNSAxNUMxNSAxNy43NjE0IDE3LjIzODYgMjAgMjAgMjBDMjIuNzYxNCAyMCAyNSAxNy43NjE0IDI1IDE1QzI1IDEyLjIzODYgMjIuNzYxNCAxMCAyMCAxMFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yMCAyMkMxNS41ODE3IDIyIDEyIDI1LjU4MTcgMTIgMzBIMjhDMjggMjUuNTgxNyAyNC40MTgzIDIyIDIwIDIyWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg=='"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+          <!-- Main Content Area -->
+          <div class="flex-1 flex flex-col overflow-hidden">
+              <!-- Header -->
+              <header class="bg-white dark:bg-gray-800 shadow-sm z-10 p-4 flex justify-between items-center">
+                  <div class="flex items-center">
+                      <h1 class="text-2xl font-bold text-gray-800 dark:text-white">การตั้งค่าระบบ</h1>
+                  </div>
+                  
+                  <div class="flex items-center space-x-4">
+                      <div class="dropdown dropdown-end">
+                          <button id="notificationBtn" tabindex="0" class="btn btn-ghost btn-circle">
+                              <div class="indicator">
+                                  <i class="bi bi-bell-fill text-xl"></i>
+                                  <span class="badge badge-sm badge-primary indicator-item badge-notification">3</span>
+                              </div>
+                          </button>
+                          <div tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-80 dark:bg-gray-700">
+                              <div class="p-3 text-sm font-medium border-b border-gray-200 dark:border-gray-600">
+                                  การแจ้งเตือน
+                              </div>
+                              <div class="max-h-60 overflow-y-auto">
+                                  <a class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 block">
+                                      <div class="font-medium">มีการอนุมัติคำขอลา</div>
+                                      <div class="text-xs text-gray-500 dark:text-gray-400">10 นาทีที่แล้ว</div>
+                                  </a>
+                                  <a class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 block">
+                                      <div class="font-medium">มีการส่งเอกสารใหม่</div>
+                                      <div class="text-xs text-gray-500 dark:text-gray-400">1 ชั่วโมงที่แล้ว</div>
+                                  </a>
+                                  <a class="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 block">
+                                      <div class="font-medium">แจ้งเตือนการประชุม</div>
+                                      <div class="text-xs text-gray-500 dark:text-gray-400">วันนี้ 15:00 น.</div>
+                                  </a>
+                              </div>
+                              <div class="p-2 text-center border-t border-gray-200 dark:border-gray-600">
+                                  <a class="text-sm text-blue-500 dark:text-blue-400 hover:underline">ดูการแจ้งเตือนทั้งหมด</a>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </header>
+
+              <!-- Settings Content -->
+              <main class="flex-1 overflow-y-auto p-5 bg-gray-100 dark:bg-gray-900">
+                  <div class="max-w-4xl mx-auto animate-fadeIn">
+                      <!-- Breadcrumb Navigation -->
+                      <div class="text-sm breadcrumbs mb-4 text-gray-500 dark:text-gray-400">
+                          <ul>
+                              <li><a href="hr_dashboard">หน้าหลัก</a></li>
+                              <li><a href="role_management">การตั้งค่า</a></li>
+                              <li>ตั้งค่าระบบพนักงาน</li>
+                          </ul>
+                      </div>
+                      
+                      <!-- Settings Card -->
+                      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                          <div class="p-6">
+                              <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center">
+                                  <i class="bi bi-sliders mr-3 text-blue-500"></i>
+                                  ตั้งค่าระบบพนักงาน
+                              </h2>
+                              
+                              <!-- Tab Navigation -->
+                              <div class="tabs tabs-boxed bg-gray-100 dark:bg-gray-700 p-1 mb-8">
+                                  <button id="tab-worktime" class="tab tab-active tab-transition flex items-center">
+                                      <i class="bi bi-clock mr-2"></i> เวลาทำงาน
+                                  </button>
+                                  <button id="tab-computer" class="tab tab-transition flex items-center">
+                                      <i class="bi bi-laptop mr-2"></i> ค่าคอม
+                                  </button>
+                                  <button id="tab-bonus" class="tab tab-transition flex items-center">
+                                      <i class="bi bi-gift mr-2"></i> โบนัส
+                                  </button>
+                              </div>
+                              
+                              <!-- Tab Content -->
+                              <div>
+                                  <!-- Worktime Tab -->
+                                  <div id="worktime" class="tab-content block">
+                                      <div class="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg mb-6">
+                                          <div class="flex items-start">
+                                              <i class="bi bi-info-circle text-blue-500 text-xl mt-1"></i>
+                                              <div class="ml-4">
+                                                  <h4 class="text-blue-700 dark:text-blue-300 font-semibold">เกี่ยวกับการตั้งค่าเวลาทำงาน</h4>
+                                                  <p class="text-sm text-blue-600 dark:text-blue-400">
+                                                      การตั้งค่าเวลาทำงานจะมีผลต่อการบันทึกเวลาเข้า-ออกงานและการคำนวณการมาสาย 
+                                                      ระบบจะใช้ค่านี้ในการคำนวณโบนัสการมาทำงานของพนักงาน
+                                                  </p>
+                                              </div>
+                                          </div>
+                                      </div>
+                                      
+                                      <form id="worktimeForm" action="settings" method="post" class="space-y-6" onsubmit="return validateWorktimeForm()">
+                                          <input type="hidden" name="setting_type" value="worktime">
+                                          
+                                          <!-- การตั้งค่าเวลาทำงานปกติ -->
+                                          <div class="grid md:grid-cols-2 gap-6">
+                                              <div class="form-control">
+                                                  <label for="work_start_time" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-sunrise mr-2 text-yellow-500"></i>
+                                                          เวลาเริ่มงาน
+                                                      </span>
+                                                  </label>
+                                                  <input type="time" 
+                                                      id="work_start_time" 
+                                                      name="work_start_time" 
+                                                      value="09:00" 
+                                                      required 
+                                                      class="input input-bordered form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                              </div>
+                                              
+                                              <div class="form-control">
+                                                  <label for="work_end_time" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-sunset mr-2 text-orange-500"></i>
+                                                          เวลาเลิกงาน
+                                                      </span>
+                                                  </label>
+                                                  <input type="time" 
+                                                      id="work_end_time" 
+                                                      name="work_end_time" 
+                                                      value="18:00" 
+                                                      required 
+                                                      class="input input-bordered form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                              </div>
+                                          </div>
+                                          
+                                          <div class="form-control">
+                                              <label for="late_threshold" class="label font-semibold">
+                                                  <span class="label-text dark:text-gray-200">
+                                                      <i class="bi bi-exclamation-triangle mr-2 text-red-500"></i>
+                                                      ถือว่าสายหลังจาก (นาที)
+                                                  </span>
+                                              </label>
+                                              <div class="relative">
+                                                  <input type="number" 
+                                                      id="late_threshold" 
+                                                      name="late_threshold" 
+                                                      min="0" max="60" 
+                                                      value="15" 
+                                                      required 
+                                                      class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                  <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">นาที</span>
+                                              </div>
+                                              <label class="label">
+                                                  <span class="label-text-alt text-gray-500 dark:text-gray-400">การมาทำงานหลังจากเวลาที่กำหนดจะถูกบันทึกเป็นการมาสาย</span>
+                                              </label>
+                                          </div>
+
+                                          <!-- บันทึกการตั้งค่า -->
+                                          <div class="mt-8 flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                                              <span id="worktime-save-indicator" class="save-indicator text-green-500 opacity-0">
+                                                  <i class="bi bi-check-circle mr-1"></i> บันทึกการตั้งค่าเรียบร้อย
+                                              </span>
+                                              <div>
+                                                  <button type="reset" class="btn btn-outline mr-2">
+                                                      <i class="bi bi-arrow-counterclockwise mr-2"></i> ยกเลิก
+                                                  </button>
+                                                  <button type="submit" class="btn btn-primary btn-save-effect">
+                                                      <i class="bi bi-save mr-2"></i> บันทึกการตั้งค่า
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      </form>
+                                  </div>
+                                  <script>
+                                      function validateWorktimeForm() {
+                                          const startTime = document.getElementById('work_start_time').value;
+                                          const endTime = document.getElementById('work_end_time').value;
+
+                                          if (startTime >= endTime) {
+                                              alert('เวลาเริ่มงานต้องน้อยกว่าเวลาเลิกงาน');
+                                              return false;
+                                          }
+                                          return true;
+                                      }
+                                  </script>
+                                  
+                                  <!-- Computer Tab -->
+                                  <div id="computer" class="tab-content hidden">
+                                      <div class="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg mb-6">
+                                          <div class="flex items-start">
+                                              <i class="bi bi-info-circle text-green-500 text-xl mt-1"></i>
+                                              <div class="ml-4">
+                                                  <h4 class="text-green-700 dark:text-green-300 font-semibold">เกี่ยวกับการตั้งค่าค่าคอม</h4>
+                                                  <p class="text-sm text-green-600 dark:text-green-400">
+                                                      การตั้งค่าค่าคอมกำหนดจำนวนเงินที่พนักงานสามารถเบิกเพื่อซื้อหรือบำรุงรักษาอุปกรณ์คอมสำหรับการทำงาน
+                                                  </p>
+                                              </div>
+                                          </div>
+                                      </div>
+                                      
+                                      <form id="computerForm" action="settings" method="post" class="space-y-6">
+                                          <input type="hidden" name="setting_type" value="computer">
+                                          
+                                          <div class="grid md:grid-cols-2 gap-6">
+                                              <div class="form-control">
+                                                  <label for="computer_allowance" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-currency-dollar mr-2 text-green-500"></i>
+                                                          ค่าคอมต่อเดือน
+                                                      </span>
+                                                  </label>
+                                                  <div class="relative">
+                                                      <input type="number" 
+                                                          id="computer_allowance" 
+                                                          name="computer_allowance" 
+                                                          min="0" step="100" 
+                                                          value="1000" 
+                                                          required 
+                                                          class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">บาท</span>
+                                                  </div>
+                                              </div>
+                                              
+                                              <div class="form-control">
+                                                  <label for="computer_allowance_max" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-calculator mr-2 text-purple-500"></i>
+                                                          ค่าคอมสูงสุด
+                                                      </span>
+                                                  </label>
+                                                  <div class="relative">
+                                                      <input type="number" 
+                                                          id="computer_allowance_max" 
+                                                          name="computer_allowance_max" 
+                                                          min="0" step="1000" 
+                                                          value="50000" 
+                                                          required 
+                                                          class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">บาท</span>
+                                                  </div>
+                                              </div>
+                                          </div>
+                                          
+                                          <div class="form-control">
+                                              <label for="eligibility_months" class="label font-semibold">
+                                                  <span class="label-text dark:text-gray-200">
+                                                      <i class="bi bi-calendar-check mr-2 text-blue-500"></i>
+                                                      ระยะเวลาการทำงานขั้นต่ำเพื่อรับสิทธิ์
+                                                  </span>
+                                              </label>
+                                              <div class="relative">
+                                                  <input type="number" 
+                                                      id="eligibility_months" 
+                                                      name="eligibility_months" 
+                                                      min="0"  
+                                                      value="3" 
+                                                      required 
+                                                      class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                  <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">เดือน</span>
+                                              </div>
+                                              <label class="label">
+                                                  <span class="label-text-alt text-gray-500 dark:text-gray-400">พนักงานต้องทำงานครบตามระยะเวลานี้จึงมีสิทธิ์เบิกค่าคอมพิวเตอร์</span>
+                                              </label>
+                                          </div>
+                                          
+                                          <div class="form-control checkbox-wrapper">
+                                              <label class="label cursor-pointer justify-start">
+                                                  <input type="checkbox" id="require_receipts" name="require_receipts" class="checkbox checkbox-primary mr-3" checked>
+                                                  <span class="label-text dark:text-gray-200">
+                                                      <i class="bi bi-receipt mr-2 text-amber-500"></i>
+                                                      ต้องแนบใบเสร็จเพื่อเบิก
+                                                  </span>
+                                              </label>
+                                              <label class="label ml-8">
+                                                  <span class="label-text-alt text-gray-500 dark:text-gray-400">พนักงานต้องแนบใบเสร็จรับเงินเพื่อขอเบิกค่าคอม</span>
+                                              </label>
+                                          </div>
+                                          
+                                          <div class="mt-8 flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                                              <span id="computer-save-indicator" class="save-indicator text-green-500 opacity-0">
+                                                  <i class="bi bi-check-circle mr-1"></i> บันทึกการตั้งค่าเรียบร้อย
+                                              </span>
+                                              <div>
+                                                  <button type="reset" class="btn btn-outline mr-2">
+                                                      <i class="bi bi-arrow-counterclockwise mr-2"></i> ยกเลิก
+                                                  </button>
+                                                  <button type="submit" class="btn btn-primary btn-save-effect">
+                                                      <i class="bi bi-save mr-2"></i> บันทึกการตั้งค่า
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      </form>
+                                  </div>
+                                  
+                                  <!-- Bonus Tab -->
+                                  <div id="bonus" class="tab-content hidden">
+                                      <div class="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-lg mb-6">
+                                          <div class="flex items-start">
+                                              <i class="bi bi-info-circle text-purple-500 text-xl mt-1"></i>
+                                              <div class="ml-4">
+                                                  <h4 class="text-purple-700 dark:text-purple-300 font-semibold">เกี่ยวกับการตั้งค่าโบนัส</h4>
+                                                  <p class="text-sm text-purple-600 dark:text-purple-400">
+                                                      การตั้งค่าโบนัสกำหนดรูปแบบและเงื่อนไขการจ่ายโบนัสให้กับพนักงาน 
+                                                      ระบบจะคำนวณโบนัสตามเกณฑ์ที่กำหนดไว้
+                                                  </p>
+                                              </div>
+                                          </div>
+                                      </div>
+                                      
+                                      <form id="bonusForm" action="settings" method="post" class="space-y-6">
+                                          <input type="hidden" name="setting_type" value="bonus">
+                                          
+                                          <div class="grid md:grid-cols-2 gap-6">
+                                              <div class="form-control">
+                                                  <label for="annual_bonus_months" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-calendar-event mr-2 text-red-500"></i>
+                                                          โบนัสประจำปี
+                                                      </span>
+                                                  </label>
+                                                  <div class="relative">
+                                                      <input type="number" 
+                                                          id="annual_bonus_months" 
+                                                          name="annual_bonus_months" 
+                                                          min="0" step="0.5" 
+                                                          value="2" 
+                                                          required 
+                                                          class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">เดือน</span>
+                                                  </div>
+                                                  <label class="label">
+                                                      <span class="label-text-alt text-gray-500 dark:text-gray-400">จำนวนเดือนของเงินเดือนที่จะจ่ายเป็นโบนัสประจำปี</span>
+                                                  </label>
+                                              </div>
+                                              
+                                              <div class="form-control">
+                                                  <label for="performance_bonus_percent" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-graph-up-arrow mr-2 text-emerald-500"></i>
+                                                          โบนัสตามผลงาน
+                                                      </span>
+                                                  </label>
+                                                  <div class="relative">
+                                                      <input type="number" 
+                                                          id="performance_bonus_percent" 
+                                                          name="performance_bonus_percent" 
+                                                          min="0" max="100" 
+                                                          value="10" 
+                                                          required 
+                                                          class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">%</span>
+                                                  </div>
+                                                  <label class="label">
+                                                      <span class="label-text-alt text-gray-500 dark:text-gray-400">เปอร์เซ็นต์ของเงินเดือนที่จะจ่ายเพิ่มตามผลการประเมิน</span>
+                                                  </label>
+                                              </div>
+                                          </div>
+                                          
+                                          <div class="grid md:grid-cols-2 gap-6">
+                                              <div class="form-control">
+                                                  <label for="attendance_bonus" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-calendar-check mr-2 text-blue-500"></i>
+                                                          โบนัสการมาทำงาน
+                                                      </span>
+                                                  </label>
+                                                  <div class="relative">
+                                                      <input type="number" 
+                                                          id="attendance_bonus" 
+                                                          name="attendance_bonus" 
+                                                          min="0" step="100" 
+                                                          value="1000" 
+                                                          required 
+                                                          class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">บาท/เดือน</span>
+                                                  </div>
+                                              </div>
+                                              
+                                              <div class="form-control">
+                                                  <label for="max_late_days" class="label font-semibold">
+                                                      <span class="label-text dark:text-gray-200">
+                                                          <i class="bi bi-exclamation-triangle mr-2 text-amber-500"></i>
+                                                          จำนวนวันสายสูงสุดที่ยังได้รับโบนัส
+                                                      </span>
+                                                  </label>
+                                                  <div class="relative">
+                                                      <input type="number" 
+                                                          id="max_late_days" 
+                                                          name="max_late_days" 
+                                                          min="0" max="31" 
+                                                          value="3" 
+                                                          required 
+                                                          class="input input-bordered w-full form-input-effect input-hover-effect focus:input-primary dark:bg-gray-700 dark:border-gray-600">
+                                                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">วัน</span>
+                                                  </div>
+                                                  <label class="label">
+                                                      <span class="label-text-alt text-gray-500 dark:text-gray-400">พนักงานที่มาสายเกินจำนวนวันที่กำหนดจะไม่ได้รับโบนัสการมาทำงาน</span>
+                                                  </label>
+                                              </div>
+                                          </div>
+                                          
+                                          <div class="mt-8 flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                                              <span id="bonus-save-indicator" class="save-indicator text-green-500 opacity-0">
+                                                  <i class="bi bi-check-circle mr-1"></i> บันทึกการตั้งค่าเรียบร้อย
+                                              </span>
+                                              <div>
+                                                  <button type="reset" class="btn btn-outline mr-2">
+                                                      <i class="bi bi-arrow-counterclockwise mr-2"></i> ยกเลิก
+                                                  </button>
+                                                  <button type="submit" class="btn btn-primary btn-save-effect">
+                                                      <i class="bi bi-save mr-2"></i> บันทึกการตั้งค่า
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      </form>
+                                  </div>
+
+                                  
+                              </div>
+                          </div>
+                      </div>
+                    
+                    <!-- Last Update Info -->
+                    <div class="mt-4 text-right text-sm text-gray-500 dark:text-gray-400">
+                        การอัปเดตล่าสุด: <span class="font-medium">10 พ.ค. 2568 15:59:45</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    // Toggle dark mode with persistence
+    document.getElementById('btnToggleDark').addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        const theme = isDark ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        document.getElementById('darkModeLabel').innerText = isDark ? 'Light Mode' : 'Dark Mode';
+    });
+
+    // Toggle sidebar แบบโค้ดที่ 1
+    document.getElementById('btnToggleMenu').addEventListener('click', function() {
+        const sidebar = document.getElementById('sidebar');
+        // เรียกใช้คลาสเดียวเพื่อเลื่อน Sidebar เข้-ออก
+        sidebar.classList.toggle('-ml-64');
+        const btnIcon = this.querySelector('i');
+        // สลับไอคอนให้เหมือนโค้ดที่ 1
+        btnIcon.classList.toggle('bi-chevron-right');
+        btnIcon.classList.toggle('bi-chevron-left');
+    });
+
+    // logout: ลบ authToken และ redirect ไป login
+    async function logout() {
+        const token = localStorage.getItem('authToken');
+        try {
+            await fetch('/api/users/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+        } catch (e) {
+            console.error('Logout error', e);
+        } finally {
+            localStorage.removeItem('authToken');
+            window.location.href = '/login';
+        }
+    }
+    // ผูก event ให้ปุ่ม logout
+    document.getElementById('btnLogoutSidebar').addEventListener('click', logout);
+
+    // Load actual settings values from server (replace with actual data loading in production)
+    function loadSettings() {
+        console.log('Loading settings from server...');
+
+        const tabs = ['worktime', 'computer', 'bonus'];
+        tabs.forEach(tab => {
+            const form = document.getElementById(tab + 'Form');
+            if (form) {
+                form.querySelectorAll('input').forEach(input => {
+                    input.classList.add('animate-pulse', 'bg-gray-100', 'dark:bg-gray-700');
+                });
+
+                setTimeout(() => {
+                    form.querySelectorAll('input').forEach(input => {
+                        input.classList.remove('animate-pulse', 'bg-gray-100', 'dark:bg-gray-700');
+                    });
+                }, 800);
+            }
+        });
+    }
+
+  </script>
+
+</body>
+</html>

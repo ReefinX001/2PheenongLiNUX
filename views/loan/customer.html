@@ -1,0 +1,3787 @@
+﻿<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบผ่อนโทรศัพท์ - หน้าแรก (Pro Version)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // โหลดธีมที่บันทึกไว้ (ก่อน CSS/Lazy load)
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          animation: {
+            'fadeIn': 'fadeIn 0.5s ease-out',
+            'pulse-slow': 'pulse 3s infinite',
+            'bounce-slow': 'bounce 3s infinite',
+          }
+        },
+      },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Icons & Socket.io -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <!-- Socket.io will be loaded below via CDN -->
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Day.js with Thai locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  <script>dayjs.locale('th');</script>
+
+  <!-- Chart.js for charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Lottie Web for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css for smooth animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Avatar Utils -->
+  <script src="/js/avatar-utils.js"></script>
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+
+  <!-- Customer API Integration -->
+  <!-- <script src="/views/loan/js/customer-api-integration.js"></script> ไม่ใช้ UnifiedCustomer แล้ว -->
+
+  <!-- Utility Functions -->
+  <script>
+    // Utility functions to prevent console errors
+    // Debounce function for search performance optimization
+    function debounce(func, delay) {
+      let timeoutId;
+      return function (...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+
+    function showToast(message, type = 'info') {
+      // Only log errors and important messages
+      if (type === 'error') {
+        console.error(`[${type.toUpperCase()}] ${message}`);
+      }
+      // If SweetAlert2 is available, use it
+      if (typeof Swal !== 'undefined') {
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
+        });
+        Toast.fire({
+          icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+          title: message
+        });
+      }
+    }
+
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => response.json())
+            .then(animationData => {
+              console.log('✅ Lottie animation data loaded successfully');
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: false,
+                animationData: animationData
+              });
+            })
+            .catch(error => {
+              console.warn('Failed to load Lottie animation:', error);
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        }
+        if (lottieAnimation) lottieAnimation.play();
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 300);
+      }
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }).format(amount || 0);
+    }
+
+    function formatDate(date) {
+      if (!date) return '-';
+      return dayjs(date).format('DD/MM/YYYY');
+    }
+
+    function formatDateTime(date) {
+      if (!date) return '-';
+      return dayjs(date).format('DD/MM/YYYY HH:mm');
+    }
+
+    // Make functions globally available
+    window.showToast = showToast;
+    window.showLoading = showLoading;
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+    window.formatDateTime = formatDateTime;
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth }
+    body { font-family: 'Inter', sans-serif; }
+    
+    /* Animation Effects */
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to {opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation:fadeIn .5s ease-out }
+    
+    /* Loading Animation */
+    @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    /* Logo */
+    .Logo { max-width:100%; height:auto; transition: transform 0.3s ease-in-out; }
+    .Logo:hover { transform: scale(1.05); }
+    
+    /* Enhanced Table */
+    .enhanced-table th {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+      font-weight: 600;
+    }
+    .dark .enhanced-table th {
+      background-color: rgba(96, 165, 250, 0.2);
+      color: #93c5fd;
+    }
+    
+
+    
+    /* Minimal enhancements */
+    .search-input {
+      transition: all 0.2s ease;
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+</head>
+  <body class="bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar Container - จะถูกเติมด้วย loan-sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col ml-64 main-content">
+      <header class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-4 flex justify-between items-center">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800 dark:text-white">จัดการข้อมูลลูกค้า</h1>
+          <p class="text-sm text-gray-600 dark:text-gray-400">รายการลูกค้าและข้อมูลการผ่อนชำระ</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-medium p-2 bg-blue-50 dark:bg-gray-700 rounded-lg shadow-sm" id="currentDate">
+            <i class="bi bi-calendar-check mr-1 text-blue-500"></i>
+            <span id="dateDisplay">กำลังโหลด...</span>
+          </span>
+        </div>
+      </header>
+
+      <!-- Customer Analytics Dashboard -->
+      <div id="customerAnalyticsDashboard" class="mb-4 space-y-4">
+        <!-- Key Metrics Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">ลูกค้าทั้งหมด</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="totalCustomers">0</p>
+              </div>
+              <div class="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                <i class="bi bi-people text-blue-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">สัญญาใช้งาน</p>
+                <p class="text-2xl font-bold text-green-600" id="activeContracts">0</p>
+              </div>
+              <div class="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                <i class="bi bi-file-earmark-check text-green-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">หนี้ค้างชำระ</p>
+                <p class="text-2xl font-bold text-red-600" id="overdueContracts">0</p>
+              </div>
+              <div class="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                <i class="bi bi-exclamation-triangle text-red-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">ยอดหนี้คงเหลือ</p>
+                <p class="text-2xl font-bold text-orange-600" id="totalDebt">0</p>
+              </div>
+              <div class="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                <i class="bi bi-currency-dollar text-orange-600 text-xl"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk Analysis Summary -->
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">สรุปการประเมินความเสี่ยง</h3>
+            <button class="btn btn-sm btn-outline-primary" onclick="refreshCustomerAnalytics()">
+              <i class="bi bi-arrow-clockwise"></i> อัพเดต
+            </button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <div class="text-2xl font-bold text-green-600" id="lowRiskCustomers">0</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400">ความเสี่ยงต่ำ</div>
+            </div>
+            <div class="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+              <div class="text-2xl font-bold text-yellow-600" id="mediumRiskCustomers">0</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400">ความเสี่ยงกลาง</div>
+            </div>
+            <div class="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <div class="text-2xl font-bold text-red-600" id="highRiskCustomers">0</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400">ความเสี่ยงสูง</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-4">
+          <input type="text" id="searchInput" class="input input-bordered search-input w-full sm:w-60" placeholder="ค้นหา (เลขบัตร / เบอร์โทร)..." />
+          
+          <select id="branchSelector" class="select select-bordered w-full sm:w-48">
+            <option value="">ทุกสาขา</option>
+            <option value="1">สาขาที่ 1</option>
+            <option value="2">สาขาที่ 2</option>
+            <!-- เพิ่มสาขาเองกรณีไม่มี API -->
+          </select>
+          
+          <select id="monthSelector" class="select select-bordered w-full sm:w-36">
+            <option value="">ทุกเดือน</option>
+            <option value="1">มกราคม</option>
+            <option value="2">กุมภาพันธ์</option>
+            <option value="3">มีนาคม</option>
+            <option value="4">เมษายน</option>
+            <option value="5">พฤษภาคม</option>
+            <option value="6">มิถุนายน</option>
+            <option value="7">กรกฎาคม</option>
+            <option value="8">สิงหาคม</option>
+            <option value="9">กันยายน</option>
+            <option value="10">ตุลาคม</option>
+            <option value="11">พฤศจิกายน</option>
+            <option value="12">ธันวาคม</option>
+          </select>
+          
+          <select id="yearSelector" class="select select-bordered w-full sm:w-32">
+            <option value="">ทุกปี</option>
+            <!-- จะถูกเติมข้อมูลโดย JavaScript -->
+          </select>
+          
+          <button id="btnSearch" class="btn btn-primary flex items-center gap-1 w-full sm:w-auto">
+            <i class="bi bi-search"></i><span>ค้นหา</span>
+          </button>
+          
+          <button id="btnAddCustomer" class="btn btn-secondary flex items-center gap-1 ml-auto w-full sm:w-auto">
+            <i class="bi bi-plus-circle"></i><span>เพิ่มลูกค้าใหม่</span>
+          </button>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border dark:border-gray-700 shadow-sm">
+          <div class="p-4 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">รายการลูกค้า (ผ่อนชำระ)</h3>
+            <div class="flex items-center">
+              <span class="text-sm text-gray-500 dark:text-gray-400 mr-2" id="customerCounter">0 รายการ</span>
+              <button id="btnExportExcel" class="btn btn-sm btn-secondary flex items-center gap-1">
+                <i class="bi bi-file-earmark-excel"></i><span class="hidden sm:inline">Excel</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="table w-full table-zebra enhanced-table">
+              <thead>
+                <tr>
+                  <th class="text-center">#</th>
+                  <th>รูปเซลฟี</th>
+                  <th>ข้อมูลลูกค้า</th>
+                  <th>เลขที่สัญญา</th>
+                  <th>สินค้า</th>
+                  <th>ข้อมูลการเงิน</th>
+                  <th>สถานะ</th>
+                  <th>วันที่สร้าง</th>
+                  <th>สาขา</th>
+                  <th class="text-center">การดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody id="customerTableBody"></tbody>
+            </table>
+            <div id="pager" class="mt-4 mb-2 flex justify-center items-center gap-2"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  </div>
+  
+  <!-- Modal for Customer Details -->
+  <div class="modal" id="customerDetailModal">
+    <div class="modal-box w-11/12 max-w-3xl">
+      <h3 class="font-bold text-lg mb-4">รายละเอียดลูกค้า</h3>
+      <div id="customerDetailContent" class="space-y-4">
+        <!-- จะถูกเติมข้อมูลโดย JavaScript -->
+      </div>
+      <div class="modal-action">
+        <button class="btn" id="closeCustomerModal">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Add New Customer -->
+  <div class="modal" id="addCustomerModal">
+    <div class="modal-box w-11/12 max-w-4xl">
+      <h3 class="font-bold text-lg mb-4">เพิ่มลูกค้าใหม่</h3>
+      <form id="addCustomerForm" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- ข้อมูลส่วนตัว -->
+          <div class="space-y-4">
+            <h4 class="font-semibold text-primary">ข้อมูลส่วนตัว</h4>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">คำนำหน้า <span class="text-red-500">*</span></span>
+              </label>
+              <select id="prefix" class="select select-bordered w-full" required>
+                <option value="">เลือกคำนำหน้า</option>
+                <option value="นาย">นาย</option>
+                <option value="นาง">นาง</option>
+                <option value="นางสาว">นางสาว</option>
+              </select>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">ชื่อ <span class="text-red-500">*</span></span>
+              </label>
+              <input type="text" id="firstName" class="input input-bordered w-full" required>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">นามสกุล <span class="text-red-500">*</span></span>
+              </label>
+              <input type="text" id="lastName" class="input input-bordered w-full" required>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">เลขบัตรประชาชน <span class="text-red-500">*</span></span>
+              </label>
+              <input type="text" id="taxId" class="input input-bordered w-full" maxlength="13" required>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">เบอร์โทรศัพท์ <span class="text-red-500">*</span></span>
+              </label>
+              <input type="tel" id="phoneNumber" class="input input-bordered w-full" required>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">วันเกิด</span>
+              </label>
+              <input type="date" id="birthDate" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">อีเมล</span>
+              </label>
+              <input type="email" id="email" class="input input-bordered w-full">
+            </div>
+          </div>
+          
+          <!-- ข้อมูลที่อยู่และอื่นๆ -->
+          <div class="space-y-4">
+            <h4 class="font-semibold text-primary">ข้อมูลที่อยู่</h4>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">บ้านเลขที่</span>
+              </label>
+              <input type="text" id="houseNo" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">หมู่ที่</span>
+              </label>
+              <input type="text" id="moo" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">ตำบล</span>
+              </label>
+              <input type="text" id="subDistrict" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">อำเภอ</span>
+              </label>
+              <input type="text" id="district" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">จังหวัด</span>
+              </label>
+              <input type="text" id="province" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">รหัสไปรษณีย์</span>
+              </label>
+              <input type="text" id="zipcode" class="input input-bordered w-full" maxlength="5">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">สาขา <span class="text-red-500">*</span></span>
+              </label>
+              <select id="customerBranch" class="select select-bordered w-full" required>
+                <option value="">เลือกสาขา</option>
+                <!-- จะถูกเติมข้อมูลโดย JavaScript -->
+              </select>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Facebook URL</span>
+              </label>
+              <input type="url" id="facebookUrl" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Line ID</span>
+              </label>
+              <input type="text" id="lineId" class="input input-bordered w-full">
+            </div>
+            
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">รูปเซลฟี่</span>
+              </label>
+              <input type="file" id="selfieImage" class="file-input file-input-bordered w-full" accept="image/*">
+              <div class="label">
+                <span class="label-text-alt">รองรับไฟล์ JPG, PNG, GIF ขนาดไม่เกิน 2MB</span>
+              </div>
+              <!-- Preview area -->
+              <div id="imagePreview" class="mt-2 hidden">
+                <img id="previewImg" class="w-24 h-24 rounded-full object-cover border-2 border-gray-300" alt="Preview">
+                <button type="button" id="removeImage" class="btn btn-sm btn-outline mt-1">ลบรูปภาพ</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-action">
+          <button type="button" class="btn" id="closeAddCustomerModal">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="submitAddCustomer">
+            <span class="loading loading-spinner loading-sm hidden" id="submitLoading"></span>
+            <span id="submitText">บันทึก</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+// Fixed syntax error - Updated 2025-08-25
+
+// Auto login function
+async function autoLogin() {
+  try {
+    // Auto login attempt
+    // ลอง login ด้วย user ต่างๆ
+    const loginAttempts = [
+      { username: 'admin', password: 'admin123' },
+      { username: 'admin', password: 'password' },
+      { username: 'user', password: 'password' },
+    ];
+
+    let loginSuccess = false;
+    let res;
+
+    for (const attempt of loginAttempts) {
+      console.log(`🔑 Trying login with: ${attempt.username}`);
+      res = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(attempt)
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.token) {
+        localStorage.setItem('authToken', data.token);
+        console.log('✅ Auto login successful with:', attempt.username);
+        console.log('Token saved:', data.token.substring(0, 20) + '...');
+        loginSuccess = true;
+        break;
+      }
+    }
+
+    if (!loginSuccess) {
+      console.error('❌ All auto login attempts failed');
+      // login ไม่สำเร็จ
+      console.error('Unable to authenticate');
+      return false;
+    }
+
+    return loginSuccess;
+  } catch (error) {
+    console.error('❌ Auto login error:', error);
+    return false;
+  }
+}
+
+// Process installment data helper
+function processInstallmentData(apiResponse) {
+  console.log('🔄 Processing installment data:', apiResponse);
+
+  const customerMap = new Map();
+
+  if (apiResponse.success && apiResponse.data) {
+    console.log('📊 Raw data items:', apiResponse.data.length);
+
+    // จัดกลุ่มข้อมูลตามลูกค้า
+    apiResponse.data.forEach((order, index) => {
+      console.log(`📋 Processing order ${index + 1}:`, order);
+
+      const customerKey = order.customer_info?.taxId || order.customer_info?.phone || order.customer?._id || order.customerPhone || `customer-${index}`;
+
+      if (!customerMap.has(customerKey)) {
+        const fullName = `${order.customer_info?.firstName || ''} ${order.customer_info?.lastName || ''}`.trim() || order.customerName || 'ไม่ระบุชื่อ';
+
+        customerMap.set(customerKey, {
+          _id: order.customer?._id || customerKey,
+          customerCode: order.customer?.customerCode || `CUST-${customerKey ? customerKey.slice(-6) : Date.now()}`,
+          fullName: fullName,
+          phone: order.customer_info?.phone || order.customerPhone,
+          nationalId: order.customer_info?.taxId,
+          installmentSummary: {
+            totalOrders: 0,
+            activeOrders: 0,
+            completedOrders: 0,
+            overdueOrders: 0,
+            totalDebt: 0,
+            monthlyPayment: 0
+          },
+          orders: []
+        });
+      }
+
+      const customer = customerMap.get(customerKey);
+      customer.orders.push(order);
+      customer.installmentSummary.totalOrders++;
+
+      if (order.status === 'active') {
+        customer.installmentSummary.activeOrders++;
+        customer.installmentSummary.totalDebt += order.remainingAmount || 0;
+        customer.installmentSummary.monthlyPayment += order.installmentAmount || 0;
+      } else if (order.status === 'completed') {
+        customer.installmentSummary.completedOrders++;
+      } else if (order.status === 'overdue') {
+        customer.installmentSummary.overdueOrders++;
+        customer.installmentSummary.totalDebt += order.remainingAmount || 0;
+      }
+    });
+  }
+
+  const result = {
+    success: true,
+    data: Array.from(customerMap.values()),
+    pagination: apiResponse.pagination || {
+      currentPage: 1,
+      totalPages: 1,
+      totalItems: customerMap.size
+    }
+  };
+
+  console.log('✅ Processed customers:', result.data.length);
+  console.log('🔍 First processed customer:', result.data[0]);
+
+  return result;
+}
+
+// 1. helper normalize URL
+ function getImageUrl(pathInDb) {
+  if (!pathInDb) return '';               // ไม่มีรูป
+  if (pathInDb.startsWith('http')) return pathInDb;        // กรณีเป็น URL เต็ม
+  if (pathInDb.startsWith('/uploads/'))   // เก็บมาแล้วมี /uploads นำหน้า
+    return pathInDb;                      // คืนตรงๆ
+  // กรณีเก็บแบบ 'uploads/selfies/...' หรือ 'selfies/...'
+  return '/' + pathInDb.replace(/^\/+/, '');
+}
+
+let allCustomers = [];      // เก็บข้อมูลทั้งหมด
+let currentPage = 1;        // หน้าแรก
+const pageSize = 10;        // แสดง 10 รายการต่อหน้า
+let branches = [];          // เก็บรายการสาขา
+
+// Global functions that need to be accessible outside DOMContentLoaded
+// Consolidated render function - replaces renderCustomersWithFullData, renderCustomers, and enhancedPopulateTable
+function renderCustomers(customers, usesPagination = false) {
+  console.log('🎨 Rendering customers:', customers);
+
+  const tbody = document.getElementById('customerTableBody');
+  if (!tbody) {
+    console.error('customerTableBody element not found');
+    return;
+  }
+
+  tbody.innerHTML = '';
+
+  if (!customers || customers.length === 0) {
+    console.log('⚠️ No customers to display');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="10" class="text-center py-8 text-gray-500">
+          <i class="bi bi-inbox text-4xl mb-2"></i>
+          <p>ไม่พบข้อมูลลูกค้า</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  // Handle pagination if needed
+  let displayCustomers = customers;
+  if (usesPagination) {
+    const start = (currentPage - 1) * pageSize;
+    displayCustomers = customers.slice(start, start + pageSize);
+  }
+
+  console.log('👥 Customers to display:', displayCustomers.length);
+
+  // Set global variable for button handlers
+  window.allCustomers = customers;
+  allCustomers = customers;
+
+  // Generate table rows
+  displayCustomers.forEach((customer, index) => {
+    const actualIndex = usesPagination ? (currentPage - 1) * pageSize + index : index;
+    console.log(`🔧 Generating row ${actualIndex + 1} for customer:`, customer.fullName);
+    const rowHTML = generateCustomerTableRow(customer, actualIndex);
+    tbody.innerHTML += rowHTML;
+  });
+
+  console.log('✅ Table rendered successfully');
+
+  // Update summary
+  const summaryElement = document.getElementById('customerCounter');
+  if (summaryElement) {
+    summaryElement.textContent = `${customers.length} รายการ`;
+    console.log('📊 Updated counter to:', customers.length);
+  }
+}
+
+// ฟังก์ชันสร้างแถวตารางลูกค้า
+function generateCustomerTableRow(customer, index) {
+  console.log(`🏗️ Building row for customer ${index + 1}:`, customer);
+
+  const installmentSummary = customer.installmentSummary || {};
+  const firstOrder = customer.orders && customer.orders.length > 0 ? customer.orders[0] : {};
+  const customerInfo = firstOrder.customer_info || {};
+
+  console.log('📊 Row data sources:', {
+    installmentSummary,
+    firstOrder: firstOrder,
+    customerInfo
+  });
+
+  // ข้อมูลสำหรับแสดงในตาราง
+  const selfieUrl = customer.selfieUrl || customerInfo.selfieImage || firstOrder.selfieUrl;
+  const fullName = customer.fullName || `${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`.trim() || 'ไม่ระบุชื่อ';
+  const phone = customer.phone || customerInfo.phone || firstOrder.customerPhone || '-';
+  const contractNo = firstOrder.contractNo || firstOrder.contract_no || '-';
+
+  // ข้อมูลสินค้า
+  const items = firstOrder.items || [];
+  const productInfo = items.length > 0 ? items[0] : {};
+  const productName = productInfo.name || productInfo.productName || firstOrder.productName || '-';
+
+  // ข้อมูลการเงิน
+  const totalDebt = installmentSummary.totalDebt || firstOrder.remainingAmount || 0;
+  const monthlyPayment = installmentSummary.monthlyPayment || firstOrder.installmentAmount || 0;
+
+  // สถานะ
+  const status = firstOrder.status || 'active';
+  const statusBadge = getStatusBadge(installmentSummary.overdueOrders > 0 ? 'overdue' :
+                                     installmentSummary.activeOrders > 0 ? 'active' : 'normal');
+
+  // วันที่สร้าง
+  const createdDate = firstOrder.createdAt ? formatDate(firstOrder.createdAt) : '-';
+
+  // สาขา
+  const branchInfo = firstOrder.branch_name || firstOrder.branchName || firstOrder.branch_code || firstOrder.branchCode || '-';
+
+  console.log('📋 Extracted data for row:', {
+    fullName,
+    phone,
+    contractNo,
+    productName,
+    totalDebt,
+    monthlyPayment,
+    status,
+    createdDate,
+    branchInfo
+  });
+
+  return `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="text-center">${index + 1}</td>
+      <td class="text-center">
+        ${selfieUrl ?
+          `<div class="avatar">
+             <div class="w-8 h-8 rounded">
+               <img src="${getImageUrl(selfieUrl)}" alt="รูปเซลฟี่" class="object-cover" onerror="this.parentElement.innerHTML='<div class=\\"w-8 h-8 rounded bg-gray-200 flex items-center justify-center\\"><i class=\\"bi bi-person text-gray-400\\"></i></div>'">
+             </div>
+           </div>` :
+          '<div class="w-8 h-8 rounded bg-gray-200 flex items-center justify-center mx-auto"><i class="bi bi-person text-gray-400"></i></div>'
+        }
+      </td>
+      <td>
+        <div>
+          <div class="font-medium">${fullName}</div>
+          <div class="text-sm text-gray-500">${phone}</div>
+          <div class="text-xs text-gray-400">${customer.nationalId || customerInfo.taxId || '-'}</div>
+        </div>
+      </td>
+      <td>
+        <span class="font-mono text-sm">${contractNo}</span>
+      </td>
+      <td>
+        <div class="text-sm">${productName}</div>
+        ${productInfo.imei ? `<div class="text-xs text-gray-500">IMEI: ${productInfo.imei}</div>` : ''}
+      </td>
+      <td>
+        <div class="text-right">
+          <div class="font-medium text-red-600">${formatCurrency(totalDebt)}</div>
+          <div class="text-sm text-gray-500">${formatCurrency(monthlyPayment)}/เดือน</div>
+        </div>
+      </td>
+      <td class="text-center">${statusBadge}</td>
+      <td class="text-center text-sm">${createdDate}</td>
+      <td class="text-center text-sm">${branchInfo}</td>
+      <td class="text-center">
+        <div class="dropdown dropdown-end">
+          <label tabindex="0" class="btn btn-ghost btn-sm">
+            <i class="bi bi-three-dots-vertical"></i>
+          </label>
+          <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
+            <li><a onclick="viewCustomerDetail('${customer._id}')"><i class="bi bi-eye"></i> ดูรายละเอียด</a></li>
+            <li><a onclick="editCustomer('${customer._id}')"><i class="bi bi-pencil"></i> แก้ไข</a></li>
+            <li><a onclick="viewInstallmentHistory('${customer._id}')"><i class="bi bi-clock-history"></i> ประวัติ</a></li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+// ฟังก์ชันจัดรูปแบบสถานะ
+function getStatusBadge(status) {
+  const badges = {
+    'overdue': '<span class="badge badge-error badge-sm">ค้างชำระ</span>',
+    'active': '<span class="badge badge-warning badge-sm">ผ่อนชำระ</span>',
+    'normal': '<span class="badge badge-success badge-sm">ปกติ</span>'
+  };
+  return badges[status] || badges.normal;
+}
+
+// ฟังก์ชันจัดรูปแบบตัวเลข
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('th-TH', {
+    style: 'currency',
+    currency: 'THB',
+    minimumFractionDigits: 0
+  }).format(amount || 0);
+}
+
+// Wrap authentication and initialization in DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Show loading initially
+    showLoading(true);
+
+    try {
+      // Note: Sidebar toggle is handled by loan-sidebar.js
+
+      // Note: Dark mode toggle is handled by loan-sidebar.js
+
+      // Authentication & headers
+      const authToken = localStorage.getItem('authToken');
+
+    if (!authToken) {
+      console.error('No authentication token found');
+      alert('กรุณาเข้าสู่ระบบก่อน');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/login';
+      return;
+    }
+    const headers   = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + authToken
+    };
+
+    // Initialize the page
+    initializePage();
+
+    function initializePage() {
+        // เพิ่มฟังก์ชัน updateDateDisplay ที่หายไป
+        updateDateDisplay();
+        setInterval(updateDateDisplay, 60000); // อัพเดททุกนาที
+
+        // Initialize loan sidebar first
+        if (typeof initializeLoanSidebar === 'function') {
+          initializeLoanSidebar();
+        }
+
+        // เติมปีใน selector
+        const yearSelector = document.getElementById('yearSelector');
+        if (yearSelector) {
+          const currentYear = new Date().getFullYear();
+          for (let year = currentYear; year >= currentYear - 5; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year + 543; // แปลงเป็น พ.ศ.
+            if (year === currentYear) option.selected = true;
+            yearSelector.appendChild(option);
+          }
+        }
+
+        // Setup event listeners
+        setupEventListeners();
+
+        // Load data
+        fetchBranches();
+        loadInstallmentCustomers();
+
+        // ทำให้ฟังก์ชันเป็น global เพื่อใช้ใน onclick
+        window.viewCustomerDetail = viewCustomerDetail;
+        window.getImageUrl = getImageUrl;
+        window.calculateAge = calculateAge;
+    }
+
+    // เพิ่มฟังก์ชัน updateDateDisplay ที่หายไป
+    function updateDateDisplay() {
+      const now = new Date();
+
+      // ชื่อเดือนภาษาไทย
+      const thaiMonths = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
+        'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
+        'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+      ];
+
+      // วันที่ เดือน ปี พ.ศ.
+      const day = now.getDate();
+      const month = thaiMonths[now.getMonth()];
+      const year = now.getFullYear() + 543; // แปลงเป็น พ.ศ.
+
+      // จัดรูปแบบวันที่แบบไทยz
+      const formattedDate = `${day} ${month} ${year}`;
+
+      // แสดงผลในหน้าเว็บ
+      document.getElementById('dateDisplay').textContent = formattedDate;
+    }
+
+    // Note: Employee profile loading is handled by loan-sidebar.js
+
+    // เพิ่มฟังก์ชันโหลดรายการสาขา - ปรับให้ไม่ล้มเมื่อเจอ 404
+    async function fetchBranches() {
+      try {
+        console.log('🔄 Loading branches...');
+
+        // ใช้ API ที่ถูกต้อง: /api/branch (ไม่มี s)
+        const res = await fetch('/api/branch', { headers });
+
+        // ถ้า API ตอบกลับปกติ
+        if (res.ok) {
+          const contentType = res.headers.get('content-type');
+          // ตรวจสอบว่าเป็น JSON จริงหรือไม่
+          if (contentType && contentType.includes('application/json')) {
+            const json = await res.json();
+
+            if (json.success && json.data) {
+            branches = json.data || [];
+
+            // เติมข้อมูลลงใน dropdown
+            const branchSelector = document.getElementById('branchSelector');
+            // ล้างตัวเลือกเดิม แต่เก็บตัวเลือก "ทุกสาขา"
+            while (branchSelector.options.length > 1) {
+              branchSelector.remove(1);
+            }
+
+            branches.forEach(branch => {
+              const option = document.createElement('option');
+                option.value = branch._id || branch.branch_code;
+                option.textContent = branch.name || branch.branch_code;
+              branchSelector.appendChild(option);
+            });
+
+              console.log('✅ Loaded', branches.length, 'branches');
+            } else {
+              console.warn('❌ Branch API response not successful:', json.error || json.message);
+              throw new Error('API response not successful');
+            }
+          } else {
+            // ไม่ใช่ JSON ไม่ต้องทำอะไร ใช้ค่าเริ่มต้น
+            console.log('❌ Branch API responded but not with JSON');
+            throw new Error('API response not JSON');
+          }
+        } else {
+          // API ไม่พร้อมใช้งาน - ใช้ค่าเริ่มต้น
+          console.warn('❌ Branch API error:', res.status, res.statusText);
+          throw new Error(`API Error: ${res.status}`);
+        }
+      } catch (err) {
+        console.warn('❌ Fetch branches failed, using fallback:', err.message);
+
+        // ใช้ fallback branches
+        branches = [
+          { _id: 'PATTANI', name: 'สาขาปัตตานี', branch_code: 'PATTANI' },
+          { _id: 'YALA', name: 'สาขายะลา', branch_code: 'YALA' },
+          { _id: 'NARATHIWAT', name: 'สาขานราธิวาส', branch_code: 'NARATHIWAT' },
+          { _id: 'MAIN', name: 'สาขาหลัก', branch_code: 'MAIN' }
+        ];
+
+        const branchSelector = document.getElementById('branchSelector');
+        // ล้างตัวเลือกเดิม แต่เก็บตัวเลือก "ทุกสาขา"
+        while (branchSelector.options.length > 1) {
+          branchSelector.remove(1);
+        }
+
+        branches.forEach(branch => {
+          const option = document.createElement('option');
+          option.value = branch._id;
+          option.textContent = branch.name;
+          branchSelector.appendChild(option);
+        });
+
+        console.log('📋 Using fallback branches:', branches.length);
+      }
+    }
+
+    // อ่านพารามิเตอร์ ?id=...
+  function getCustomerIdFromUrl() {
+    return new URLSearchParams(window.location.search).get('id');
+  }
+
+  // เรียก API เพื่อดึงข้อมูลลูกค้า
+  async function loadCustomerDetail() {
+    const id = getCustomerIdFromUrl();
+    if (!id) return alert('ไม่พบรหัสลูกค้าใน URL');
+    try {
+      const res = await fetch(`/api/customers/${id}`, { headers });
+      if (!res.ok) throw new Error('Response '+res.status);
+      const js = await res.json();
+      if (!js.success) throw new Error(js.error||'Unknown error');
+
+      const c = js.data;
+      // แสดงข้อมูลบนหน้า
+      document.getElementById('custName').textContent    = `${c.first_name} ${c.last_name}`;
+      document.getElementById('custPhone').textContent   = c.phone_number || '-';
+      document.getElementById('custEmail').textContent   = c.email || '-';
+      document.getElementById('custTaxId').textContent   = c.tax_id || '-';
+      // รวบที่อยู่เป็นสตริงเดียว
+      const a = c.address || {};
+      document.getElementById('custAddress').textContent =
+        [a.houseNo, a.moo&&'หมู่'+a.moo, a.subDistrict&&'ต.'+a.subDistrict,
+         a.district&&'อ.'+a.district, a.province&&'จ.'+a.province, a.zipcode]
+         .filter(Boolean).join(' ') || '-';
+
+      // ถ้าอยากโชว์รายการสัญญาผ่อน ก็เรียก API เพิ่ม หรือขยาย endpoint ข้างบนให้ return js.data.installmentOrders
+      renderInstallmentOrders(js.data.installmentOrders || []);
+
+    } catch (e) {
+      console.error('Error in loadCustomers:', e);
+      showToast('เกิดข้อผิดพลาดในการดึงข้อมูลลูกค้า: ' + e.message, 'error');
+    }
+  }
+
+  // ตัวอย่างฟังก์ชัน render รายการผ่อน ถ้ามี
+  function renderInstallmentOrders(orders) {
+    const ul = document.getElementById('installmentList');
+    if (!ul) {
+      console.error('installmentList element not found');
+      return;
+    }
+    ul.innerHTML = orders.length
+      ? orders.map(o=>`<li>${o.contractNo} — ${o.status}</li>`).join('')
+      : '<li>ไม่มีรายการผ่อน</li>';
+  }
+
+
+
+    async function deleteCustomer(id,name) {
+      if (!confirm(`ต้องการลบลูกค้า: ${name} ?`)) return;
+      try {
+        const res = await fetch(`/api/customers/${id}`, {
+          method: 'DELETE',
+          headers
+        });
+        if (res.status === 401) return window.location.href = '/login';
+        if (!res.ok) throw new Error(await res.text());
+        alert('ลบลูกค้าเรียบร้อย');
+        fetchAllCustomers();
+      } catch (e) {
+        console.error('Delete error:', e);
+        alert('เกิดข้อผิดพลาด: '+e.message);
+      }
+    }
+
+
+
+    // ฟังก์ชันอัพเดท pagination
+    function updatePagination(pagination) {
+      if (!pagination) return;
+
+      currentPage = pagination.currentPage;
+      totalPages = pagination.totalPages;
+
+      // อัพเดท UI pagination
+      const pageInfo = document.getElementById('pageInfo');
+      if (pageInfo) {
+        pageInfo.textContent = `หน้า ${currentPage} จาก ${totalPages}`;
+      }
+
+      // อัพเดทปุ่ม prev/next
+      const prevBtn = document.getElementById('prevPage');
+      const nextBtn = document.getElementById('nextPage');
+
+      if (prevBtn) prevBtn.disabled = currentPage <= 1;
+      if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+    }
+
+    // Remove this duplicate function - using consolidated renderCustomers function above
+
+    // เพิ่มฟังก์ชันสร้าง PDF สัญญา
+    window.generateContract = async function(customerId) {
+      try {
+        const customer = allCustomers.find(c => c._id === customerId);
+        if (!customer) {
+          alert('ไม่พบข้อมูลลูกค้า');
+          return;
+        }
+
+        showToast('กำลังสร้างสัญญา PDF...', 'info');
+
+        const response = await fetch(`/api/installment/${customerId}/generate-contract`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `สัญญา_${customer.contractNo || customerId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          showToast('ดาวน์โหลดสัญญา PDF เรียบร้อย', 'success');
+        } else {
+          throw new Error('ไม่สามารถสร้าง PDF ได้');
+        }
+      } catch (error) {
+        console.error('Error generating contract:', error);
+        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
+      }
+    };
+
+    function renderPagination() {
+      const totalPages = Math.ceil(allCustomers.length / pageSize);
+      const pager = document.getElementById('pager');
+      pager.innerHTML = '';
+
+      // ปุ่มก่อนหน้า
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'btn btn-sm';
+      prevBtn.textContent = '‹ ก่อนหน้า';
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderCustomers(allCustomers);
+        }
+      };
+      pager.appendChild(prevBtn);
+
+      // แสดงเลขหน้า
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+          const pageBtn = document.createElement('button');
+          pageBtn.className = `btn btn-sm ${i === currentPage ? 'btn-primary' : ''}`;
+          pageBtn.textContent = i;
+          pageBtn.onclick = () => {
+            currentPage = i;
+            renderCustomers(allCustomers);
+          };
+          pager.appendChild(pageBtn);
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+          const dots = document.createElement('span');
+          dots.textContent = '...';
+          dots.className = 'mx-2';
+          pager.appendChild(dots);
+        }
+      }
+
+      // ปุ่มถัดไป
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'btn btn-sm';
+      nextBtn.textContent = 'ถัดไป ›';
+      nextBtn.disabled = currentPage === totalPages;
+      nextBtn.onclick = () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderCustomers(allCustomers);
+        }
+      };
+      pager.appendChild(nextBtn);
+    }
+
+    async function fetchAllCustomers() {
+      try {
+        const branchId = document.getElementById('branchSelector').value;
+        const month = document.getElementById('monthSelector').value;
+        const year = document.getElementById('yearSelector').value;
+
+        // ใช้ API installment เพื่อดึงข้อมูลลูกค้าผ่อนเฉพาะ
+        let url = '/api/installment/customers';
+
+        // เพิ่มการกรองตามสาขา
+        if (branchId) {
+          url += `?branch=${branchId}`;
+        }
+
+        // เพิ่มการกรองตามเดือน
+        if (month) {
+          url += branchId ? `&month=${month}` : `?month=${month}`;
+        }
+
+        // เพิ่มการกรองตามปี
+        if (year) {
+          url += (branchId || month) ? `&year=${year}` : `?year=${year}`;
+        }
+
+        console.log('🔄 Fetching installment customers from:', url);
+
+        const res = await fetch(url, {
+          headers
+        });
+        if (res.status === 401) return window.location.href = '/login';
+
+        const responseData = await res.json();
+        // Received installment customers data
+
+        allCustomers = responseData.data || [];
+        renderCustomers(allCustomers);
+      } catch (err) {
+        console.error('Fetch installment customers failed:', err);
+        showToast('ไม่สามารถโหลดข้อมูลลูกค้าผ่อนได้', 'error');
+      }
+    }
+
+    // ฟังก์ชันค้นหา
+    async function performSearch() {
+      const searchTerm = document.getElementById('searchInput').value.trim();
+      const branch = document.getElementById('branchSelector').value;
+      const month = document.getElementById('monthSelector').value;
+      const year = document.getElementById('yearSelector').value;
+
+      if (!searchTerm && !branch && !month && !year) {
+        // ถ้าไม่มีเงื่อนไข แสดงทั้งหมด
+        await loadInstallmentCustomers();
+        return;
+      }
+
+      try {
+        // Performing search
+
+        // ใช้ API ที่ถูกต้องสำหรับการค้นหา
+        let url = '/api/loan/installment/history?';
+        const params = new URLSearchParams();
+
+        // ปรับ parameters ให้ตรงกับ backend
+        if (searchTerm) params.append('customerName', searchTerm);
+        if (branch) params.append('branchCode', branch);
+        if (month && year) {
+          // สร้าง date range สำหรับเดือน/ปีที่เลือก
+          const startDate = new Date(year, month - 1, 1);
+          const endDate = new Date(year, month, 0);
+          params.append('startDate', startDate.toISOString().split('T')[0]);
+          params.append('endDate', endDate.toISOString().split('T')[0]);
+        }
+
+        const response = await fetch(url + params.toString(), { headers });
+
+        if (!response.ok) {
+          throw new Error(`Search API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          // แปลงข้อมูล history เป็นรูปแบบ customers
+          allCustomers = data.data.map(order => ({
+            _id: order._id || order.contractId,
+            customerName: order.customer_info ?
+              `${order.customer_info.firstName || ''} ${order.customer_info.lastName || ''}`.trim() : '-',
+            firstName: order.customer_info?.firstName || '',
+            lastName: order.customer_info?.lastName || '',
+            phone: order.customer_info?.phone || '-',
+            phone_number: order.customer_info?.phone || '-',
+            taxId: order.customer_info?.taxId || '-',
+            tax_id: order.customer_info?.taxId || '-',
+            branchName: order.branchName || order.branch_code || '-',
+            branch_name: order.branchName || order.branch_code || '-',
+            totalAmount: Math.max(0, order.totalAmount || order.installmentAmount || 0),
+            monthlyPayment: Math.max(0, order.monthlyPayment || order.monthlyAmount || 0),
+            overdueAmount: Math.max(0, order.overdueAmount || 0),
+            status: order.status || 'active',
+            contractNo: order.contractNo || order.contractId || '-',
+            startDate: order.startDate || order.createdAt || order.created_at,
+            remainingAmount: Math.max(0, order.remainingAmount || order.totalAmount || 0),
+            age: order.customer_info?.age || '-',
+            birth_date: order.customer_info?.birthDate || null,
+            email: order.customer_info?.email || '-',
+            prefix: order.customer_info?.prefix || '-',
+            address: order.customer_info?.address || {},
+            facebook_url: order.customer_info?.facebook_url || null,
+            line_id: order.customer_info?.line_id || null,
+            selfie_url: order.customer_info?.selfie_url || null
+          }));
+
+          currentPage = 1;
+          // Search completed
+          renderCustomers(allCustomers);
+        } else {
+          console.warn('❌ Search API response not successful:', data.error || data.message);
+          allCustomers = [];
+          renderCustomers(allCustomers);
+        }
+      } catch (error) {
+        console.error('❌ Search error:', error);
+
+        // แสดง error ให้ผู้ใช้
+        alert('เกิดข้อผิดพลาดในการค้นหา กรุณาลองใหม่อีกครั้ง');
+
+        // กลับไปแสดงข้อมูลทั้งหมด
+        await loadInstallmentCustomers();
+      }
+    }
+
+    // Enhanced customer detail modal with integrated data
+    function showEnhancedCustomerDetailModal(customerData) {
+      try {
+        console.log('🔍 Displaying enhanced customer profile:', customerData);
+
+        const customer = customerData.customer;
+        const installmentData = customerData.installmentData;
+        const badDebtData = customerData.badDebtData;
+        const costsData = customerData.costsData;
+        const riskAssessment = customerData.riskAssessment;
+        const financialTimeline = customerData.financialTimeline;
+        const points = customerData.points;
+        const credit = customerData.credit;
+
+        // Enhanced modal content with all integrated data
+        const modalContent = `
+          <div class="space-y-6">
+
+            <!-- Customer Header with Risk Assessment -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-lg border">
+              <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <h3 class="text-2xl font-bold text-gray-900 dark:text-white">${customer.fullName || 'ไม่ระบุชื่อ'}</h3>
+                  <div class="flex flex-wrap gap-2 mt-2">
+                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                      รหัส: ${customer.customerCode || '-'}
+                    </span>
+                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                      ระดับ: ${customer.customerLevel || 'BRONZE'}
+                    </span>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                      riskAssessment.riskLevel === 'สูง' ? 'bg-red-100 text-red-800' :
+                      riskAssessment.riskLevel === 'กลาง' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-green-100 text-green-800'
+                    }">
+                      ความเสี่ยง: ${riskAssessment.riskLevel}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-sm text-gray-600 dark:text-gray-300">คะแนนความเสี่ยง</div>
+                  <div class="text-2xl font-bold ${
+                    riskAssessment.riskScore >= 70 ? 'text-red-600' :
+                    riskAssessment.riskScore >= 40 ? 'text-yellow-600' :
+                    'text-green-600'
+                  }">${riskAssessment.riskScore}/100</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Stats Dashboard -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border text-center">
+                <div class="text-2xl font-bold text-blue-600">${installmentData.totalContracts}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-300">สัญญาทั้งหมด</div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border text-center">
+                <div class="text-2xl font-bold text-green-600">${installmentData.activeContracts}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-300">สัญญาใช้งาน</div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border text-center">
+                <div class="text-2xl font-bold text-red-600">${formatCurrency(installmentData.totalRemainingDebt)}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-300">หนี้คงเหลือ</div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border text-center">
+                <div class="text-2xl font-bold text-purple-600">${formatCurrency(installmentData.totalMonthlyPayment)}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-300">ค่างวด/เดือน</div>
+              </div>
+            </div>
+
+            <!-- Tabbed Content -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg border">
+              <!-- Tab Navigation -->
+              <div class="flex border-b border-gray-200 dark:border-gray-700">
+                <button class="customer-tab-btn px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50" data-tab="basic">ข้อมูลพื้นฐาน</button>
+                <button class="customer-tab-btn px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700" data-tab="contracts">สัญญาผ่อน</button>
+                <button class="customer-tab-btn px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700" data-tab="baddebt">หนี้สงสัย</button>
+                <button class="customer-tab-btn px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700" data-tab="costs">ต้นทุน</button>
+                <button class="customer-tab-btn px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700" data-tab="timeline">Timeline</button>
+                <button class="customer-tab-btn px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700" data-tab="risk">การประเมินความเสี่ยง</button>
+              </div>
+
+              <!-- Tab Content -->
+              <div class="p-6">
+
+                <!-- Basic Information Tab -->
+                <div id="tab-basic" class="customer-tab-content">
+                  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <h4 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">ข้อมูลติดต่อ</h4>
+                      <div class="space-y-3">
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">เบอร์โทรศัพท์:</span>
+                          <span class="font-medium">${customer.phone || '-'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">อีเมล:</span>
+                          <span class="font-medium">${customer.email || '-'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">เลขบัตรประชาชน:</span>
+                          <span class="font-medium">${customer.nationalId || '-'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">เพศ:</span>
+                          <span class="font-medium">${customer.gender || '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">ข้อมูลสมาชิกและคะแนน</h4>
+                      <div class="space-y-3">
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">สมาชิกตั้งแต่:</span>
+                          <span class="font-medium">${new Date(customer.memberSince).toLocaleDateString('th-TH')}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">แต้มปัจจุบัน:</span>
+                          <span class="font-medium text-blue-600">${points.current.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">แต้มสะสมตลอดกาล:</span>
+                          <span class="font-medium">${points.lifetime.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">วงเงินสินเชื่อ:</span>
+                          <span class="font-medium text-green-600">${formatCurrency(credit.creditLimit)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600 dark:text-gray-400">วงเงินคงเหลือ:</span>
+                          <span class="font-medium text-orange-600">${formatCurrency(credit.creditAvailable)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Contracts Tab -->
+                <div id="tab-contracts" class="customer-tab-content hidden">
+                  <div class="space-y-4">
+                    ${installmentData.contracts.map(contract => `
+                      <div class="border rounded-lg p-4 ${
+                        contract.status === 'active' ? 'border-green-200 bg-green-50' :
+                        contract.status === 'overdue' ? 'border-red-200 bg-red-50' :
+                        'border-gray-200 bg-gray-50'
+                      }">
+                        <div class="flex justify-between items-start mb-2">
+                          <div>
+                            <h5 class="font-semibold">${contract.contractNo}</h5>
+                            <p class="text-sm text-gray-600">${contract.productName || 'ไม่ระบุสินค้า'}</p>
+                          </div>
+                          <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                            contract.status === 'active' ? 'bg-green-100 text-green-800' :
+                            contract.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                            contract.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }">
+                            ${contract.status === 'active' ? 'ใช้งาน' :
+                              contract.status === 'overdue' ? 'เกินกำหนด' :
+                              contract.status === 'completed' ? 'เสร็จสิ้น' : contract.status}
+                          </span>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span class="text-gray-600">ยอดรวม:</span>
+                            <div class="font-medium">${formatCurrency(contract.totalAmount)}</div>
+                          </div>
+                          <div>
+                            <span class="text-gray-600">ค่างวด:</span>
+                            <div class="font-medium">${formatCurrency(contract.monthlyPayment)}</div>
+                          </div>
+                          <div>
+                            <span class="text-gray-600">คงเหลือ:</span>
+                            <div class="font-medium text-red-600">${formatCurrency(contract.remainingAmount)}</div>
+                          </div>
+                          <div>
+                            <span class="text-gray-600">สาขา:</span>
+                            <div class="font-medium">${contract.branch || '-'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <!-- Bad Debt Tab -->
+                <div id="tab-baddebt" class="customer-tab-content hidden">
+                  <div class="space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div class="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <div class="text-lg font-bold text-red-600">${badDebtData.totalBadDebtRecords}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">รายการหนี้สงสัย</div>
+                      </div>
+                      <div class="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                        <div class="text-lg font-bold text-orange-600">${formatCurrency(badDebtData.totalBadDebtAmount)}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">ยอดหนี้สงสัย</div>
+                      </div>
+                      <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <div class="text-lg font-bold text-blue-600">${formatCurrency(badDebtData.debtAging.past30 + badDebtData.debtAging.past60)}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">หนี้เก่า 30-90 วัน</div>
+                      </div>
+                      <div class="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                        <div class="text-lg font-bold text-purple-600">${formatCurrency(badDebtData.debtAging.past120)}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">หนี้เก่า 120+ วัน</div>
+                      </div>
+                    </div>
+
+                    ${badDebtData.records.length > 0 ? `
+                      <div class="space-y-3">
+                        ${badDebtData.records.map(debt => `
+                          <div class="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
+                            <div class="flex justify-between items-start mb-2">
+                              <div>
+                                <h5 class="font-semibold">${debt.contractNo}</h5>
+                                <p class="text-sm text-gray-600">อายุหนี้: ${debt.agingDays} วัน</p>
+                              </div>
+                              <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                debt.riskLevel === 'สูง' ? 'bg-red-100 text-red-800' :
+                                debt.riskLevel === 'กลาง' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }">
+                                ${debt.riskLevel}
+                              </span>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <span class="text-gray-600">ยอดหนี้เดิม:</span>
+                                <div class="font-medium">${formatCurrency(debt.originalAmount)}</div>
+                              </div>
+                              <div>
+                                <span class="text-gray-600">ยอดคงเหลือ:</span>
+                                <div class="font-medium text-red-600">${formatCurrency(debt.currentAmount)}</div>
+                              </div>
+                              <div>
+                                <span class="text-gray-600">ขั้นตอนติดตาม:</span>
+                                <div class="font-medium">${debt.collectionStage || '-'}</div>
+                              </div>
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    ` : '<div class="text-center py-8 text-gray-500">ไม่มีหนี้สงสัย</div>'}
+                  </div>
+                </div>
+
+                <!-- Costs Tab -->
+                <div id="tab-costs" class="customer-tab-content hidden">
+                  <div class="space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                      <div class="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                        <div class="text-lg font-bold text-yellow-600">${formatCurrency(costsData.totalCosts)}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">ต้นทุนรวม</div>
+                      </div>
+                      <div class="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <div class="text-lg font-bold text-red-600">${formatCurrency(costsData.debtCollectionCosts)}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">ต้นทุนติดตามหนี้</div>
+                      </div>
+                      <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <div class="text-lg font-bold text-blue-600">${costsData.recentCosts.length}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">รายการล่าสุด</div>
+                      </div>
+                    </div>
+
+                    ${costsData.recentCosts.length > 0 ? `
+                      <div class="space-y-3">
+                        <h5 class="font-semibold">รายการต้นทุนล่าสุด</h5>
+                        ${costsData.recentCosts.map(cost => `
+                          <div class="border rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
+                            <div class="flex justify-between items-start mb-2">
+                              <div>
+                                <h6 class="font-medium">${cost.description || 'ไม่ระบุรายละเอียด'}</h6>
+                                <p class="text-sm text-gray-600">ประเภท: ${cost.costType}</p>
+                              </div>
+                              <div class="text-right">
+                                <div class="font-bold text-red-600">${formatCurrency(cost.amount)}</div>
+                                <div class="text-xs text-gray-500">${new Date(cost.date).toLocaleDateString('th-TH')}</div>
+                              </div>
+                            </div>
+                            ${cost.contractNo ? `<div class="text-sm text-gray-600">สัญญา: ${cost.contractNo}</div>` : ''}
+                          </div>
+                        `).join('')}
+                      </div>
+                    ` : '<div class="text-center py-8 text-gray-500">ไม่มีข้อมูลต้นทุน</div>'}
+                  </div>
+                </div>
+
+                <!-- Timeline Tab -->
+                <div id="tab-timeline" class="customer-tab-content hidden">
+                  <div class="space-y-4">
+                    ${financialTimeline.length > 0 ? `
+                      <div class="space-y-3">
+                        ${financialTimeline.map(event => `
+                          <div class="flex items-start space-x-3 p-3 rounded-lg ${
+                            event.status === 'positive' ? 'bg-green-50 dark:bg-green-900/20' :
+                            event.status === 'negative' ? 'bg-red-50 dark:bg-red-900/20' :
+                            'bg-gray-50 dark:bg-gray-700'
+                          }">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                              event.status === 'positive' ? 'bg-green-100 text-green-600' :
+                              event.status === 'negative' ? 'bg-red-100 text-red-600' :
+                              'bg-gray-100 text-gray-600'
+                            }">
+                              ${
+                                event.type === 'contract_created' ? '📄' :
+                                event.type === 'payment' ? '💰' :
+                                event.type === 'bad_debt_created' ? '⚠️' :
+                                '📊'
+                              }
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <div class="flex justify-between items-start">
+                                <div>
+                                  <h6 class="font-medium">${event.description}</h6>
+                                  <p class="text-sm text-gray-600">${new Date(event.date).toLocaleDateString('th-TH')}</p>
+                                </div>
+                                <div class="text-right">
+                                  <div class="font-bold ${
+                                    event.status === 'positive' ? 'text-green-600' :
+                                    event.status === 'negative' ? 'text-red-600' :
+                                    'text-gray-600'
+                                  }">${formatCurrency(event.amount)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    ` : '<div class="text-center py-8 text-gray-500">ไม่มีข้อมูลประวัติ</div>'}
+                  </div>
+                </div>
+
+                <!-- Risk Assessment Tab -->
+                <div id="tab-risk" class="customer-tab-content hidden">
+                  <div class="space-y-6">
+                    <div class="text-center">
+                      <div class="inline-flex items-center justify-center w-24 h-24 rounded-full ${
+                        riskAssessment.riskScore >= 70 ? 'bg-red-100 text-red-600' :
+                        riskAssessment.riskScore >= 40 ? 'bg-yellow-100 text-yellow-600' :
+                        'bg-green-100 text-green-600'
+                      } mb-4">
+                        <span class="text-2xl font-bold">${riskAssessment.riskScore}</span>
+                      </div>
+                      <h4 class="text-xl font-semibold mb-2">ระดับความเสี่ยง: ${riskAssessment.riskLevel}</h4>
+                    </div>
+
+                    <div>
+                      <h5 class="font-semibold mb-3">ปัจจัยเสี่ยง</h5>
+                      ${riskAssessment.riskFactors.length > 0 ? `
+                        <ul class="space-y-2">
+                          ${riskAssessment.riskFactors.map(factor => `
+                            <li class="flex items-start space-x-2">
+                              <span class="text-red-500 mt-1">⚠️</span>
+                              <span>${factor}</span>
+                            </li>
+                          `).join('')}
+                        </ul>
+                      ` : '<p class="text-green-600">✅ ไม่พบปัจจัยเสี่ยงที่สำคัญ</p>'}
+                    </div>
+
+                    <div>
+                      <h5 class="font-semibold mb-3">คำแนะนำ</h5>
+                      <ul class="space-y-2">
+                        ${riskAssessment.recommendations.map(rec => `
+                          <li class="flex items-start space-x-2">
+                            <span class="text-blue-500 mt-1">💡</span>
+                            <span>${rec}</span>
+                          </li>
+                        `).join('')}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3 mt-6">
+              <button class="btn btn-sm btn-primary" onclick="editCustomer('${customer._id}')">
+                <i class="bi bi-pencil"></i> แก้ไขข้อมูล
+              </button>
+              <button class="btn btn-sm btn-info" onclick="viewInstallmentHistory('${customer._id}')">
+                <i class="bi bi-clock-history"></i> ประวัติการผ่อน
+              </button>
+              <button class="btn btn-sm btn-warning" onclick="viewBadDebtAnalysis('${customer._id}')">
+                <i class="bi bi-exclamation-triangle"></i> วิเคราะห์หนี้สงสัย
+              </button>
+              <button class="btn btn-sm btn-success" onclick="viewCostAnalysis('${customer._id}')">
+                <i class="bi bi-graph-up"></i> วิเคราะห์ต้นทุน
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="generateContract('${customer._id}')">
+                <i class="bi bi-file-earmark-pdf"></i> พิมพ์สัญญา
+              </button>
+            </div>
+
+          </div>
+        `;
+
+        document.getElementById('customerDetailContent').innerHTML = modalContent;
+
+        // Setup tab functionality
+        setupCustomerDetailTabs();
+
+        const modal = document.getElementById('customerDetailModal');
+        modal.classList.add('modal-open');
+
+      } catch (error) {
+        console.error('Error displaying enhanced customer modal:', error);
+        showToast('เกิดข้อผิดพลาดในการแสดงข้อมูลลูกค้า', 'error');
+      }
+    }
+
+    // Setup tab functionality for customer detail modal
+    function setupCustomerDetailTabs() {
+      const tabButtons = document.querySelectorAll('.customer-tab-btn');
+      const tabContents = document.querySelectorAll('.customer-tab-content');
+
+      tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const targetTab = button.getAttribute('data-tab');
+
+          // Remove active class from all buttons and contents
+          tabButtons.forEach(btn => {
+            btn.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
+            btn.classList.add('text-gray-500');
+          });
+          tabContents.forEach(content => {
+            content.classList.add('hidden');
+          });
+
+          // Add active class to clicked button and show corresponding content
+          button.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
+          button.classList.remove('text-gray-500');
+
+          const targetContent = document.getElementById(`tab-${targetTab}`);
+          if (targetContent) {
+            targetContent.classList.remove('hidden');
+          }
+        });
+      });
+    }
+
+    // Additional analysis functions
+    window.viewBadDebtAnalysis = async function(customerId) {
+      try {
+        const headers = {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        };
+
+        const response = await fetch(`/api/installment/customers/${customerId}/bad-debt-analysis`, {
+          method: 'GET',
+          headers: headers
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Bad debt analysis:', result.data);
+          showToast('ดูข้อมูลการวิเคราะห์หนี้สงสัยในแท็บ "หนี้สงสัย"', 'info');
+        }
+      } catch (error) {
+        console.error('Error loading bad debt analysis:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลหนี้สงสัย', 'error');
+      }
+    };
+
+    window.viewCostAnalysis = async function(customerId) {
+      try {
+        const headers = {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        };
+
+        const response = await fetch(`/api/installment/customers/${customerId}/cost-analysis`, {
+          method: 'GET',
+          headers: headers
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Cost analysis:', result.data);
+          showToast('ดูข้อมูลการวิเคราะห์ต้นทุนในแท็บ "ต้นทุน"', 'info');
+        }
+      } catch (error) {
+        console.error('Error loading cost analysis:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลต้นทุน', 'error');
+      }
+    };
+
+    // ฟังก์ชันแสดงรายละเอียดลูกค้าใน modal (Fallback for old data)
+    function showCustomerDetailModal(customer) {
+      try {
+        // Showing customer detail modal
+        console.log('🔍 Customer data structure:', customer); // Debug log to see available data
+
+        // Handle different data structures - check if this is already a processed customer or raw order data
+        const orders = customer.orders || [customer]; // If no orders array, treat customer as the order itself
+        const firstOrder = orders.length > 0 ? orders[0] : customer;
+        console.log('🔍 Orders array:', orders);
+        console.log('🔍 First order data:', firstOrder);
+
+        // ข้อมูลลูกค้าจาก customer_info ของ order แรก
+        const customerInfo = firstOrder.customer_info || {};
+        const fullName = customer.fullName || `${customerInfo.prefix || ''} ${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`.trim() || 'ไม่ระบุชื่อ';
+
+        // ข้อมูลสัญญา - ใช้ข้อมูลจาก order แรก
+        const contractNo = firstOrder.contractNo || firstOrder.contract_no || '-';
+        const status = firstOrder.status || '-';
+        const planType = firstOrder.planType || firstOrder.plan_type || '-';
+        const installmentType = firstOrder.installmentType || firstOrder.installment_type || '-';
+        const branchCode = firstOrder.branch_code || firstOrder.branchCode || '-';
+        const branchName = firstOrder.branch_name || firstOrder.branchName || branchCode;
+
+        // ข้อมูลสินค้า - ใช้ข้อมูลจาก order แรก
+        const items = firstOrder.items || [];
+        const productInfo = items.length > 0 ? items[0] : {};
+        const productName = productInfo.name || productInfo.productName || firstOrder.productName || (items.length > 0 ? `${items[0].brand || ''} ${items[0].model || ''}`.trim() : '-');
+
+        // ข้อมูลการเงิน - ใช้ข้อมูลรวมและจาก order แรก
+        const totalAmount = firstOrder.totalAmount || firstOrder.total_amount || 0;
+        const finalTotalAmount = firstOrder.finalTotalAmount || firstOrder.final_total_amount || totalAmount;
+        const downPayment = firstOrder.downPayment || firstOrder.down_payment || 0;
+        const monthlyPayment = (customer.installmentSummary && customer.installmentSummary.monthlyPayment) || firstOrder.installmentAmount || 0;
+        const installmentCount = firstOrder.installmentCount || firstOrder.installment_count || firstOrder.installmentPeriod || 0;
+        const paidAmount = firstOrder.paidAmount || firstOrder.paid_amount || 0;
+        const remainingAmount = (customer.installmentSummary && customer.installmentSummary.totalDebt) || Math.max(0, (firstOrder.remainingAmount || firstOrder.remaining_amount || finalTotalAmount - paidAmount));
+        const promotionDiscount = firstOrder.promotionDiscount || firstOrder.promotion_discount || 0;
+
+        // ข้อมูลที่อยู่
+        const address = customerInfo.address || {};
+        const contactAddress = customerInfo.contactAddress || {};
+
+        // ข้อมูลพยาน
+        const witness = firstOrder.witness || {};
+
+        // ข้อมูลพนักงานขาย
+        const salesperson = firstOrder.salesperson || {};
+
+        // ข้อมูลการชำระ
+        const payments = firstOrder.payments || [];
+        const lastPayment = payments.length > 0 ? payments[payments.length - 1] : null;
+
+        // Debug image URLs
+        console.log('🖼️ Image data debug:', {
+          customer_selfie: customer.selfieUrl,
+          customerInfo_selfie: customerInfo.selfieImage,
+          firstOrder_selfie: firstOrder.customer_info?.selfieImage,
+          customer_idCard: customer.idCardImageUrl,
+          customerInfo_idCard: customerInfo.idCardImage,
+          firstOrder_idCard: firstOrder.customer_info?.idCardImage
+        });
+
+        // สร้าง HTML สำหรับแสดงข้อมูลลูกค้าครบถ้วน
+        const modalContent = `
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            ${orders.length > 1 ? `
+            <!-- สรุปข้อมูลรวม (กรณีมีหลายสัญญา) -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-700 lg:col-span-2">
+              <h4 class="font-semibold text-lg mb-3 text-yellow-600 dark:text-yellow-400">
+                📊 สรุปข้อมูลรวม (ลูกค้ามี ${orders.length} สัญญา)
+              </h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div class="text-center">
+                  <div class="font-medium text-green-600">สัญญาที่ใช้งานอยู่</div>
+                  <div class="text-xl font-bold">${(customer.installmentSummary && customer.installmentSummary.activeOrders) || 0}</div>
+                </div>
+                <div class="text-center">
+                  <div class="font-medium text-blue-600">สัญญาที่เสร็จสิ้น</div>
+                  <div class="text-xl font-bold">${(customer.installmentSummary && customer.installmentSummary.completedOrders) || 0}</div>
+                </div>
+                <div class="text-center">
+                  <div class="font-medium text-red-600">หนี้รวมคงเหลือ</div>
+                  <div class="text-xl font-bold">${formatCurrency((customer.installmentSummary && customer.installmentSummary.totalDebt) || 0)}</div>
+                </div>
+                <div class="text-center">
+                  <div class="font-medium text-purple-600">ค่างวดรวม/เดือน</div>
+                  <div class="text-xl font-bold">${formatCurrency((customer.installmentSummary && customer.installmentSummary.monthlyPayment) || 0)}</div>
+                </div>
+              </div>
+            </div>
+            ` : ''}
+            
+            <!-- ข้อมูลลูกค้า -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+              <h4 class="font-semibold text-lg mb-3 text-blue-600 dark:text-blue-400">
+                👤 ข้อมูลลูกค้า
+              </h4>
+              <div class="space-y-2 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ชื่อ-นามสกุล:</span>
+                  <span class="col-span-2">${fullName}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">เบอร์โทร:</span>
+                  <span class="col-span-2">${customer.phone || customerInfo.phone || '-'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">อีเมล:</span>
+                  <span class="col-span-2">${customerInfo.email || '-'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">เลขบัตรประชาชน:</span>
+                  <span class="col-span-2">${customer.nationalId || customerInfo.taxId || '-'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">อายุ:</span>
+                  <span class="col-span-2">${customerInfo.age || '-'} ปี</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">หมายเลขใบแจ้งหนี้:</span>
+                  <span class="col-span-2">${firstOrder.invoiceNo || customerInfo.invoiceNo || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ข้อมูลสัญญา -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+              <h4 class="font-semibold text-lg mb-3 text-green-600 dark:text-green-400">
+                📋 ข้อมูลสัญญา${orders.length > 1 ? ` (แสดงสัญญาแรก)` : ''}
+              </h4>
+              <div class="space-y-2 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">เลขที่สัญญา:</span>
+                  <span class="col-span-2 font-mono">${contractNo}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">แผนการผ่อน:</span>
+                  <span class="col-span-2">${planType}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ประเภทการผ่อน:</span>
+                  <span class="col-span-2">${installmentType === 'pay-as-you-go' ? 'ผ่อนไปใช้ไป' : 'ผ่อนหมดรับของ'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">สาขา:</span>
+                  <span class="col-span-2">${branchName !== branchCode ? `${branchName} (${branchCode})` : branchCode}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">สถานะ:</span>
+                  <span class="col-span-2">${getStatusBadge(status)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">วันที่สร้าง:</span>
+                  <span class="col-span-2">${firstOrder.createdAt ? formatDateTime(firstOrder.createdAt) : '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ข้อมูลสินค้า -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+              <h4 class="font-semibold text-lg mb-3 text-purple-600 dark:text-purple-400">
+                📱 ข้อมูลสินค้า${orders.length > 1 ? ` (สัญญาแรก)` : ''}
+              </h4>
+              <div class="space-y-2 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ชื่อสินค้า:</span>
+                  <span class="col-span-2">${productName}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">จำนวน:</span>
+                  <span class="col-span-2">${productInfo.qty || productInfo.quantity || 1} ชิ้น</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">IMEI:</span>
+                  <span class="col-span-2 font-mono">${productInfo.imei || productInfo.serialNumber || '-'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">เงินดาวน์สินค้า:</span>
+                  <span class="col-span-2">${formatCurrency(productInfo.downAmount || 0)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">จำนวนงวดสินค้า:</span>
+                  <span class="col-span-2">${productInfo.payUseInstallmentCount || 0} งวด</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ค่างวดสินค้า:</span>
+                  <span class="col-span-2">${formatCurrency(productInfo.payUseInstallment || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ข้อมูลการเงิน -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+              <h4 class="font-semibold text-lg mb-3 text-yellow-600 dark:text-yellow-400">
+                💰 ข้อมูลการเงิน${orders.length > 1 ? ` (รวมทุกสัญญา)` : ''}
+              </h4>
+              <div class="space-y-2 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ยอดรวมก่อนส่วนลด:</span>
+                  <span class="col-span-2 font-semibold">${formatCurrency(totalAmount)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ส่วนลดโปรโมชั่น:</span>
+                  <span class="col-span-2 text-red-600">${formatCurrency(promotionDiscount)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ยอดรวมสุทธิ:</span>
+                  <span class="col-span-2 font-semibold text-blue-600">${formatCurrency(finalTotalAmount)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">เงินดาวน์:</span>
+                  <span class="col-span-2">${formatCurrency(downPayment)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ค่างวดต่อเดือน:</span>
+                  <span class="col-span-2 font-semibold text-blue-600">${formatCurrency(orders.length > 1 && customer.installmentSummary ? customer.installmentSummary.monthlyPayment : monthlyPayment)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">จำนวนงวด:</span>
+                  <span class="col-span-2">${installmentCount} งวด</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ยอดที่ชำระแล้ว:</span>
+                  <span class="col-span-2 font-semibold text-green-600">${formatCurrency(paidAmount)}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ยอดคงเหลือ:</span>
+                  <span class="col-span-2 font-semibold text-red-600">${formatCurrency(orders.length > 1 && customer.installmentSummary ? customer.installmentSummary.totalDebt : remainingAmount)}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ที่อยู่ -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border lg:col-span-2">
+              <h4 class="font-semibold text-lg mb-3 text-indigo-600 dark:text-indigo-400">
+                🏠 ที่อยู่
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h5 class="font-medium mb-2">ที่อยู่ตามบัตรประชาชน:</h5>
+                  <div class="text-sm space-y-1">
+                    <div>บ้านเลขที่: ${address.houseNo || '-'}</div>
+                    <div>หมู่: ${address.moo || '-'}</div>
+                    <div>ตำบล: ${address.subDistrict || '-'}</div>
+                    <div>อำเภอ: ${address.district || '-'}</div>
+                    <div>จังหวัด: ${address.province || '-'}</div>
+                    <div>รหัสไปรษณีย์: ${address.zipcode || '-'}</div>
+                  </div>
+                </div>
+                <div>
+                  <h5 class="font-medium mb-2">ที่อยู่ที่สามารถติดต่อได้:</h5>
+                  <div class="text-sm space-y-1">
+                    ${contactAddress.useSameAddress ?
+                      '<div class="text-gray-600">ใช้ที่อยู่เดียวกันกับบัตรประชาชน</div>' :
+                      `<div>บ้านเลขที่: ${contactAddress.houseNo || '-'}</div>
+                       <div>หมู่: ${contactAddress.moo || '-'}</div>
+                       <div>ซอย: ${contactAddress.lane || '-'}</div>
+                       <div>ถนน: ${contactAddress.road || '-'}</div>
+                       <div>ตำบล: ${contactAddress.subDistrict || '-'}</div>
+                       <div>อำเภอ: ${contactAddress.district || '-'}</div>
+                       <div>จังหวัด: ${contactAddress.province || '-'}</div>
+                       <div>รหัสไปรษณีย์: ${contactAddress.zipcode || '-'}</div>`
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ข้อมูลพยาน -->
+            ${(witness.name || witness.firstName || witness.idCard) ? `
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+              <h4 class="font-semibold text-lg mb-3 text-orange-600 dark:text-orange-400">
+                👥 ข้อมูลพยาน
+              </h4>
+              <div class="space-y-2 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ชื่อ:</span>
+                  <span class="col-span-2">${witness.name || `${witness.firstName || ''} ${witness.lastName || ''}`.trim() || '-'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">เลขบัตรประชาชน:</span>
+                  <span class="col-span-2">${witness.idCard || witness.taxId || '-'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">เบอร์โทร:</span>
+                  <span class="col-span-2">${witness.phone || witness.phoneNumber || '-'}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ความสัมพันธ์:</span>
+                  <span class="col-span-2">${witness.relation || witness.relationship || '-'}</span>
+                </div>
+                ${(witness.idCardImageUrl || witness.selfieUrl) ? `
+                <div class="grid grid-cols-3 gap-2 mt-3">
+                  <span class="font-medium">รูปภาพ:</span>
+                  <div class="col-span-2 flex gap-2">
+                    ${witness.idCardImageUrl ? `
+                      <img src="${getImageUrl(witness.idCardImageUrl)}" 
+                           class="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-75" 
+                           alt="บัตรพยาน" 
+                           onclick="window.open('${getImageUrl(witness.idCardImageUrl)}', '_blank')"
+                           onerror="this.parentElement.removeChild(this)">
+                    ` : ''}
+                    ${witness.selfieUrl ? `
+                      <img src="${getImageUrl(witness.selfieUrl)}" 
+                           class="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-75" 
+                           alt="รูปพยาน" 
+                           onclick="window.open('${getImageUrl(witness.selfieUrl)}', '_blank')"
+                           onerror="this.parentElement.removeChild(this)">
+                    ` : ''}
+                  </div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            ` : ''}
+
+            <!-- ข้อมูลพนักงานขาย -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+              <h4 class="font-semibold text-lg mb-3 text-teal-600 dark:text-teal-400">
+                👨‍💼 ข้อมูลพนักงานขาย
+              </h4>
+              <div class="space-y-2 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                  <span class="font-medium">ชื่อ:</span>
+                  <span class="col-span-2">${salesperson.name || customer.staffName || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ประวัติการชำระ -->
+            ${payments.length > 0 ? `
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border lg:col-span-2">
+              <h4 class="font-semibold text-lg mb-3 text-cyan-600 dark:text-cyan-400">
+                💳 ประวัติการชำระ (${payments.length} รายการ)
+              </h4>
+              <div class="overflow-x-auto max-h-64">
+                <table class="table table-compact w-full">
+                  <thead>
+                    <tr>
+                      <th>วันที่</th>
+                      <th>จำนวนเงิน</th>
+                      <th>วิธีการชำระ</th>
+                      <th>หมายเหตุ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${payments.map(payment => `
+                      <tr>
+                        <td class="text-sm">${formatDate(payment.payDate)}</td>
+                        <td class="text-sm font-medium">${formatCurrency(payment.amount)}</td>
+                        <td class="text-sm">${payment.method === 'cash' ? 'เงินสด' : payment.method}</td>
+                        <td class="text-sm">${payment.note || '-'}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            ` : ''}
+
+            <!-- เอกสารแนบ -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border lg:col-span-2">
+              <h4 class="font-semibold text-lg mb-3 text-rose-600 dark:text-rose-400">
+                📎 เอกสารแนบ
+              </h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center">
+                  <div class="text-sm font-medium mb-2">รูปเซลฟี่</div>
+                  ${(() => {
+                    const selfieUrl = customer.selfieUrl || customerInfo.selfieImage || firstOrder.customer_info?.selfieImage || firstOrder.selfieUrl;
+                    const imageUrl = selfieUrl ? getImageUrl(selfieUrl) : null;
+                    return imageUrl ?
+                      `<img src="${imageUrl}" class="w-20 h-20 object-cover rounded border mx-auto cursor-pointer hover:opacity-75" alt="รูปเซลฟี่" onclick="window.open('${imageUrl}', '_blank')" onerror="this.parentElement.innerHTML='<div class=&quot;w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center&quot;><i class=&quot;bi bi-image text-gray-400&quot;></i></div>'">` :
+                      '<div class="w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center"><i class="bi bi-image text-gray-400"></i></div>';
+                  })()}
+                </div>
+                <div class="text-center">
+                  <div class="text-sm font-medium mb-2">บัตรประชาชน</div>
+                  ${(() => {
+                    const idCardUrl = customer.idCardImageUrl || customerInfo.idCardImage || firstOrder.customer_info?.idCardImage || firstOrder.idCardImageUrl;
+                    const imageUrl = idCardUrl ? getImageUrl(idCardUrl) : null;
+                    return imageUrl ?
+                      `<img src="${imageUrl}" class="w-20 h-20 object-cover rounded border mx-auto cursor-pointer hover:opacity-75" alt="บัตรประชาชน" onclick="window.open('${imageUrl}', '_blank')" onerror="this.parentElement.innerHTML='<div class=&quot;w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center&quot;><i class=&quot;bi bi-image text-gray-400&quot;></i></div>'">` :
+                      '<div class="w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center"><i class="bi bi-image text-gray-400"></i></div>';
+                  })()}
+                </div>
+                <div class="text-center">
+                  <div class="text-sm font-medium mb-2">สลิปเงินเดือน</div>
+                  ${(() => {
+                    const salaryUrl = customer.salarySlipUrl || customerInfo.salarySlipImage || firstOrder.customer_info?.salarySlipImage || firstOrder.salarySlipUrl;
+                    const imageUrl = salaryUrl ? getImageUrl(salaryUrl) : null;
+                    return imageUrl ?
+                      `<img src="${imageUrl}" class="w-20 h-20 object-cover rounded border mx-auto cursor-pointer hover:opacity-75" alt="สลิปเงินเดือน" onclick="window.open('${imageUrl}', '_blank')" onerror="this.parentElement.innerHTML='<div class=&quot;w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center&quot;><i class=&quot;bi bi-image text-gray-400&quot;></i></div>'">` :
+                      '<div class="w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center"><i class="bi bi-image text-gray-400"></i></div>';
+                  })()}
+                </div>
+                <div class="text-center">
+                  <div class="text-sm font-medium mb-2">ลายเซ็น</div>
+                  ${(() => {
+                    const signatureUrl = customer.customerSignatureUrl || customerInfo.signatureImage || firstOrder.customer_info?.signatureImage || firstOrder.customerSignatureUrl;
+                    const imageUrl = signatureUrl ? getImageUrl(signatureUrl) : null;
+                    return imageUrl ?
+                      `<img src="${imageUrl}" class="w-20 h-20 object-cover rounded border mx-auto cursor-pointer hover:opacity-75" alt="ลายเซ็น" onclick="window.open('${imageUrl}', '_blank')" onerror="this.parentElement.innerHTML='<div class=&quot;w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center&quot;><i class=&quot;bi bi-image text-gray-400&quot;></i></div>'">` :
+                      '<div class="w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center"><i class="bi bi-image text-gray-400"></i></div>';
+                  })()}
+                </div>
+                <div class="text-center">
+                  <div class="text-sm font-medium mb-2">รูปพยาน</div>
+                  ${(() => {
+                    const witnessImageUrl = firstOrder.witness?.selfieUrl || firstOrder.witness?.idCardImageUrl;
+                    const imageUrl = witnessImageUrl ? getImageUrl(witnessImageUrl) : null;
+                    return imageUrl ?
+                      `<img src="${imageUrl}" class="w-20 h-20 object-cover rounded border mx-auto cursor-pointer hover:opacity-75" alt="รูปพยาน" onclick="window.open('${imageUrl}', '_blank')" onerror="this.parentElement.innerHTML='<div class=\\"w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center\\"><i class=\\"bi bi-image text-gray-400\\"></i></div>'">` :
+                      '<div class="w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center"><i class="bi bi-image text-gray-400"></i></div>';
+                  })()}
+                </div>
+              </div>
+            </div>
+                    '<div class="w-20 h-20 bg-gray-200 rounded border mx-auto flex items-center justify-center"><i class="bi bi-image text-gray-400"></i></div>'
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ปุ่มจัดการ -->
+          <div class="mt-6 flex flex-wrap gap-2 justify-end">
+            <button class="btn btn-sm btn-secondary" onclick="generateContract('${customer._id}')">
+              <i class="bi bi-file-pdf"></i> สร้าง PDF
+            </button>
+            <button class="btn btn-sm btn-info" onclick="editCustomer('${customer._id}')">
+              <i class="bi bi-pencil"></i> แก้ไข
+            </button>
+            <button class="btn btn-sm btn-warning" onclick="viewInstallmentHistory('${customer._id}')">
+              <i class="bi bi-clock-history"></i> ประวัติการชำระ
+            </button>
+          </div>
+        `;
+
+        document.getElementById('customerDetailContent').innerHTML = modalContent;
+
+        // แสดง modal
+        const modal = document.getElementById('customerDetailModal');
+        modal.checked = true;
+        modal.classList.add('modal-open');
+
+      } catch (error) {
+        console.error('Error showing customer detail modal:', error);
+        alert('เกิดข้อผิดพลาดในการแสดงข้อมูลลูกค้า');
+      }
+    }
+
+    // ฟังก์ชันจัดการข้อมูลลูกค้า - โหลดข้อมูลลูกค้าผ่อนจาก Installment API
+
+    // ฟังก์ชันดูรายละเอียดลูกค้า (สำหรับ compatibility)
+    async function viewCustomerDetail(customerId) {
+      try {
+        const customer = allCustomers.find(c => c._id === customerId);
+        if (customer) {
+          showCustomerDetailModal(customer);
+        } else {
+          console.error('Customer not found:', customerId);
+          alert('ไม่พบข้อมูลลูกค้า');
+        }
+      } catch (error) {
+        console.error('Error loading customer detail:', error);
+      }
+    }
+
+    // Expose functions to window object for onclick handlers
+    window.viewCustomerDetail = viewCustomerDetail;
+
+        // เพิ่มฟังก์ชันดึงข้อมูลลูกค้าผ่อนจาก Installment API
+    async function loadInstallmentCustomers() {
+      try {
+        // Loading customers from database
+
+        // ตรวจสอบและทำความสะอาด token
+        let authToken = localStorage.getItem('authToken');
+
+        // ตรวจสอบว่า token ถูกต้องหรือไม่
+        if (authToken && authToken !== 'null' && authToken !== 'undefined') {
+          // ตรวจสอบว่าเป็น JWT token ที่ถูกต้อง (มี 3 ส่วน คั่นด้วย .)
+          const tokenParts = authToken.split('.');
+          if (tokenParts.length !== 3) {
+            console.warn('⚠️ Invalid token format, clearing and getting new token...');
+            localStorage.removeItem('authToken');
+            authToken = null;
+          }
+        } else {
+          authToken = null;
+        }
+
+        if (!authToken) {
+          console.warn('⚠️ No valid auth token found, trying to get new token...');
+          // ลอง login อัตโนมัติ ถ้าไม่มี token
+          const loginSuccess = await autoLogin();
+          if (!loginSuccess) {
+            console.error('❌ Auto login failed, showing empty data');
+            return {
+              success: false,
+              data: [],
+              pagination: { currentPage: 1, totalPages: 1, totalItems: 0 }
+            };
+          }
+        }
+
+        // ดึงข้อมูลจาก InstallmentOrder โดยตรง
+        const params = new URLSearchParams();
+        params.append('page', 1);
+        params.append('limit', 100); // ดึงเยอะๆ เพื่อ group ตาม customer
+
+        const branchSelector = document.getElementById('branchSelector');
+        const branchId = branchSelector ? branchSelector.value : '';
+        console.log('Branch selector value:', branchId);
+
+        // ส่ง branch_code เฉพาะเมื่อมีค่าที่ไม่ใช่ค่าว่าง
+        if (branchId && branchId !== '' && branchId !== 'all') {
+          params.append('branch_code', branchId);
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        const searchTerm = searchInput ? searchInput.value : '';
+        console.log('Search term:', searchTerm);
+
+        if (searchTerm && searchTerm.trim() !== '') {
+          params.append('search', searchTerm.trim());
+        }
+
+        console.log('API params:', params.toString());
+
+        // เรียก API InstallmentOrder โดยตรง
+        // ลองเรียกหลาย endpoints จนกว่าจะได้ข้อมูล
+        const endpoints = [
+          `/api/installment/customers?${params}`,
+          `/api/installment/reports/debtors?${params}`
+        ];
+
+        let res;
+        let apiResponse = null;
+
+        for (const endpoint of endpoints) {
+          console.log(`🔍 Trying endpoint: ${endpoint}`);
+          res = await fetch(endpoint, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (res.ok) {
+            apiResponse = await res.json();
+            console.log(`✅ Got data from: ${endpoint}`);
+            break;
+          } else {
+            console.log(`❌ Failed: ${endpoint} - Status: ${res.status}`);
+          }
+        }
+
+        // ถ้าไม่ได้ข้อมูลจาก endpoint ไหนเลย
+        if (!apiResponse) {
+          console.warn('⚠️ No data from any endpoint');
+
+          // ไม่มีข้อมูล
+          apiResponse = {
+            success: false,
+            data: [],
+            pagination: { currentPage: 1, totalPages: 1, totalItems: 0 }
+          };
+        }
+
+        // ใช้ helper function processInstallmentData
+        const response = processInstallmentData(apiResponse);
+
+        if (response.success) {
+          console.log(`✅ Loaded ${response.data.length} customers with installment data`);
+
+          // อัพเดทข้อมูล
+          allCustomers = response.data;
+          totalPages = response.pagination?.totalPages || 1;
+
+          // แสดงข้อมูลในตาราง
+          renderCustomers(response.data, true);
+          updatePagination(response.pagination);
+
+          return true;
+        }
+
+        // Fallback to old API if new one fails
+        console.log('⚠️ New API failed, trying fallback endpoints...');
+        const apiEndpoints = [
+          '/api/installment/customers',
+          '/api/installment/reports/debtors',
+          '/api/loan/dashboard/debtors',
+          '/api/customers?hasInstallment=true'
+        ];
+
+        let success = false;
+        let rawData = [];
+
+        for (const endpoint of apiEndpoints) {
+          try {
+            console.log(`🔄 Trying API endpoint: ${endpoint}`);
+            const response = await fetch(endpoint, { headers });
+
+            if (response.ok) {
+              const data = await response.json();
+
+              if (data.success && data.data && Array.isArray(data.data) && data.data.length > 0) {
+                rawData = data.data;
+                success = true;
+                console.log(`✅ Successfully loaded data from ${endpoint}:`, rawData.length, 'records');
+
+                // Debug: แสดงโครงสร้างข้อมูลตัวแรก
+                console.log('📊 Raw data structure:', rawData[0]);
+                break;
+              } else {
+                console.warn(`⚠️ API ${endpoint} returned empty or invalid data:`, data);
+              }
+            } else {
+              console.warn(`⚠️ API ${endpoint} failed:`, response.status, response.statusText);
+            }
+          } catch (endpointError) {
+            console.warn(`❌ Error with ${endpoint}:`, endpointError.message);
+          }
+        }
+
+        if (success && rawData.length > 0) {
+          // แปลงข้อมูลให้เป็นรูปแบบมาตรฐาน - ใช้ข้อมูลจริงจาก API
+          allCustomers = rawData.map((item, index) => {
+            // Map ข้อมูลจาก API response ไปยัง frontend format
+            return {
+              _id: item._id || `cust_${index}`,
+
+              // ข้อมูลชื่อ - ใช้ข้อมูลจาก API ที่ได้มา
+              first_name: item.firstName || (item.customerName ? item.customerName.split(' ')[0] : ''),
+              last_name: item.lastName || (item.customerName ? item.customerName.split(' ').slice(1).join(' ') : ''),
+              customerName: item.customerName || `${item.firstName || ''} ${item.lastName || ''}`.trim(),
+
+              // ข้อมูลติดต่อ - ใช้ข้อมูลจาก API
+              phone_number: item.phone || item.phone_number || '',
+              email: item.email || '',
+              tax_id: item.idCard || item.tax_id || '',
+
+              // ข้อมูลส่วนตัว
+              prefix: item.prefix || 'นาย',
+              gender: item.gender || '',
+              age: item.age || '',
+              birth_date: item.birth_date || null,
+
+              // ข้อมูลการทำงาน
+              occupation: item.occupation || '',
+              income: item.income || null,
+              workplace: item.workplace || '',
+
+              // ข้อมูลสาขา
+              branch_name: item.branchName || item.branch_name || `สาขา ${item.branchCode || 'ไม่ระบุ'}`,
+              branchCode: item.branchCode || '',
+
+              // ข้อมูลที่อยู่
+              address: item.address || null,
+              coordinates: item.coordinates || '',
+
+              // Social Media
+              facebook_url: item.facebook_url || null,
+              line_id: item.line_id || null,
+              referral_code: item.referral_code || '',
+
+              // รูปภาพ
+              selfieImage: item.selfieImage || item.selfie_url || null,
+
+              // ข้อมูลการผ่อนชำระ
+              contractNo: item.contracts?.[0]?.contractNo || item.contractNo || '-',
+              totalAmount: Math.max(0, item.totalAmount || 0),
+              monthlyPayment: Math.max(0, item.monthlyPayment || 0),
+              remainingAmount: Math.max(0, item.totalRemaining || item.remainingAmount || 0),
+              overdueAmount: Math.max(0, item.overdueAmount || 0),
+              paidAmount: Math.max(0, item.totalPaid || item.paidAmount || 0),
+              installmentCount: item.totalContracts || item.installmentCount || 0,
+
+              // สถานะ
+              status: item.status || 'active',
+              statusLabel: item.status === 'completed' ? 'ชำระครบ' :
+                          item.status === 'active' ? 'ปกติ' :
+                          item.status === 'overdue' ? 'ค้างชำระ' : 'อื่นๆ',
+              statusColor: item.status === 'completed' ? 'success' :
+                          item.status === 'active' ? 'info' :
+                          item.status === 'overdue' ? 'warning' : 'default',
+
+              // วันที่
+              startDate: item.startDate || item.createdAt || null,
+              dueDate: item.dueDate || null,
+
+              // คำนวณข้อมูลเพิ่มเติม
+              progress: item.totalAmount > 0 ? Math.round((item.totalPaid || 0) / item.totalAmount * 100) : 0,
+              isOverdue: item.status === 'overdue' || (item.overdueAmount || 0) > 0,
+              daysOverdue: item.daysOverdue || 0,
+              priority: item.priority || 'normal'
+            };
+          });
+
+          console.log('✅ Processed customers:', allCustomers.length);
+          console.log('📊 First processed customer:', allCustomers[0]);
+
+          // Debug: แสดงข้อมูลลูกค้าที่ประมวลผลแล้ว
+          console.group('🔍 Customer Data Debug');
+          console.log('Total customers loaded:', allCustomers.length);
+          if (allCustomers.length > 0) {
+            console.log('Sample customer data structure:', JSON.stringify(allCustomers[0], null, 2));
+            console.log('Customer fields available:', Object.keys(allCustomers[0]));
+          }
+          console.groupEnd();
+
+          // ดึงข้อมูลเพิ่มเติมจาก API ลูกค้า
+          await enrichCustomerData();
+
+          renderCustomers(allCustomers);
+        } else {
+          console.error('❌ All API endpoints failed');
+          allCustomers = [];
+          renderCustomers(allCustomers);
+        }
+      } catch (error) {
+        console.error('❌ Error loading installment customers:', error.message);
+
+        // แสดงข้อความเมื่อเกิดข้อผิดพลาด
+        console.error('Failed to load customer data');
+        allCustomers = [];
+        renderCustomers(allCustomers);
+      }
+    }
+
+    // ฟังก์ชันดึงข้อมูลเพิ่มเติมของลูกค้า
+    async function enrichCustomerData() {
+      try {
+        console.log('🔄 Enriching customer data from additional APIs...');
+
+        // ใช้ API installment เป็นหลัก
+        const customerApiEndpoints = [
+          '/api/installment/customers',
+          '/api/installment/reports/debtors',
+          '/api/customers',
+          '/api/loan/customers'
+        ];
+
+        for (const endpoint of customerApiEndpoints) {
+          try {
+            console.log(`🔄 Trying customer API: ${endpoint}`);
+            const response = await fetch(endpoint, { headers });
+
+            if (response.ok) {
+              const data = await response.json();
+
+              if (data.success && data.data && Array.isArray(data.data)) {
+                console.log(`✅ Got additional customer data from ${endpoint}:`, data.data.length, 'records');
+
+                // เพิ่มข้อมูลลงในลูกค้าที่มีอยู่
+                allCustomers.forEach(customer => {
+                  // ค้นหาข้อมูลเพิ่มเติมจากเบอร์โทรหรือสัญญา
+                  const additionalData = data.data.find(item =>
+                    item.phone === customer.phone ||
+                    item.phone_number === customer.phone_number ||
+                    item.contractNo === customer.contractNo ||
+                    item.customerName === customer.customerName ||
+                    item.customer_name === `${customer.first_name} ${customer.last_name}`.trim()
+                  );
+
+                  if (additionalData) {
+                    // เพิ่มข้อมูลที่หายไป
+                    customer.tax_id = additionalData.tax_id || additionalData.idCard || customer.tax_id;
+                    customer.prefix = additionalData.prefix || customer.prefix;
+                    customer.gender = additionalData.gender || customer.gender;
+                    customer.age = additionalData.age || customer.age;
+                    customer.birth_date = additionalData.birth_date || additionalData.birthDate || customer.birth_date;
+                    customer.email = additionalData.email || customer.email;
+                    customer.occupation = additionalData.occupation || customer.occupation;
+                    customer.income = additionalData.income || customer.income;
+                    customer.workplace = additionalData.workplace || customer.workplace;
+                    customer.address = additionalData.address || customer.address;
+                    customer.coordinates = additionalData.coordinates || additionalData.lat && additionalData.lng ?
+                      `${additionalData.lat}, ${additionalData.lng}` : customer.coordinates;
+                    customer.facebook_url = additionalData.facebook_url || customer.facebook_url;
+                    customer.line_id = additionalData.line_id || customer.line_id;
+                    customer.referral_code = additionalData.referral_code || customer.referral_code;
+                    customer.selfieImage = additionalData.selfieImage || additionalData.selfie_url || customer.selfieImage;
+
+                    console.log(`📝 Enriched customer: ${customer.first_name} ${customer.last_name}`);
+                  }
+                });
+
+                break; // หยุดทันทีที่ได้ข้อมูล
+              }
+            }
+          } catch (endpointError) {
+            console.warn(`❌ Customer API ${endpoint} failed:`, endpointError.message);
+          }
+        }
+
+        console.log('✅ Customer data enrichment completed');
+      } catch (error) {
+        console.warn('❌ Error enriching customer data:', error.message);
+      }
+    }
+
+
+
+    // Setup event listeners function
+    function setupEventListeners() {
+        updateDateDisplay();
+        setInterval(updateDateDisplay, 60000); // อัพเดททุกนาที
+
+        // Initialize loan sidebar first
+        if (typeof initializeLoanSidebar === 'function') {
+          initializeLoanSidebar();
+        }
+
+        // เติมปีใน selector
+        const yearSelector = document.getElementById('yearSelector');
+        if (yearSelector) {
+          const currentYear = new Date().getFullYear();
+          for (let year = currentYear; year >= currentYear - 5; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year + 543; // แปลงเป็น พ.ศ.
+            if (year === currentYear) option.selected = true;
+            yearSelector.appendChild(option);
+          }
+        }
+
+        // Event listeners with null checks
+        const btnSearch = document.getElementById('btnSearch');
+        if (btnSearch) {
+          btnSearch.addEventListener('click', performSearch);
+        }
+
+
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+          // Add debounced search for better performance
+          const debouncedSearch = debounce(performSearch, 500);
+
+          searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+          });
+
+          // Add real-time search with debounce
+          searchInput.addEventListener('input', debouncedSearch);
+        }
+
+        const closeCustomerModal = document.getElementById('closeCustomerModal');
+        if (closeCustomerModal) {
+          closeCustomerModal.addEventListener('click', () => {
+            const modal = document.getElementById('customerDetailModal');
+            if (modal) {
+              modal.classList.remove('modal-open');
+            }
+          });
+        }
+
+        const btnAddCustomer = document.getElementById('btnAddCustomer');
+        if (btnAddCustomer) {
+          btnAddCustomer.addEventListener('click', () => {
+            openAddCustomerModal();
+          });
+        }
+
+        // Event listeners for add customer modal
+        const closeAddCustomerModal = document.getElementById('closeAddCustomerModal');
+        if (closeAddCustomerModal) {
+          closeAddCustomerModal.addEventListener('click', () => {
+            closeAddCustomerModal();
+          });
+        }
+
+        const addCustomerForm = document.getElementById('addCustomerForm');
+        if (addCustomerForm) {
+          addCustomerForm.addEventListener('submit', handleAddCustomer);
+        }
+
+        const btnExportExcel = document.getElementById('btnExportExcel');
+        if (btnExportExcel) {
+          btnExportExcel.addEventListener('click', exportToExcel);
+        }
+
+        // เพิ่ม event listener สำหรับการแสดงตัวอย่างรูปภาพ
+        const selfieInput = document.getElementById('selfieImage');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const removeImageBtn = document.getElementById('removeImage');
+
+        if (selfieInput) {
+          selfieInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              // ตรวจสอบขนาดไฟล์
+              if (file.size > 2 * 1024 * 1024) {
+                alert('ขนาดไฟล์รูปภาพต้องไม่เกิน 2MB');
+                e.target.value = '';
+                return;
+              }
+
+              // ตรวจสอบประเภทไฟล์
+              const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+              if (!allowedTypes.includes(file.type)) {
+                alert('รองรับเฉพาะไฟล์ JPG, PNG, GIF เท่านั้น');
+                e.target.value = '';
+                return;
+              }
+
+              // แสดงตัวอย่างรูปภาพ
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                imagePreview.classList.remove('hidden');
+              };
+              reader.readAsDataURL(file);
+            } else {
+              imagePreview.classList.add('hidden');
+            }
+          });
+        }
+
+        if (removeImageBtn) {
+          removeImageBtn.addEventListener('click', () => {
+            selfieInput.value = '';
+            imagePreview.classList.add('hidden');
+          });
+        }
+
+        // เพิ่ม event listener สำหรับปิดโมดัลเมื่อคลิกข้างนอก
+        document.getElementById('addCustomerModal').addEventListener('click', (e) => {
+          if (e.target.classList.contains('modal')) {
+            closeAddCustomerModal();
+          }
+        });
+
+        document.getElementById('customerDetailModal').addEventListener('click', (e) => {
+          if (e.target.classList.contains('modal')) {
+            document.getElementById('customerDetailModal').classList.remove('modal-open');
+          }
+        });
+
+        // เพิ่ม event listener สำหรับการจัดรูปแบบข้อมูล
+        const birthDateInput = document.getElementById('birthDate');
+        if (birthDateInput) {
+          birthDateInput.addEventListener('change', (e) => {
+            const age = calculateAge(e.target.value);
+            if (age !== null) {
+              console.log('อายุ:', age, 'ปี');
+            }
+          });
+        }
+
+        // เพิ่ม event listener สำหรับการจัดรูปแบบเลขบัตรประชาชน
+        const taxIdInput = document.getElementById('taxId');
+        if (taxIdInput) {
+          taxIdInput.addEventListener('input', (e) => {
+            // ลบทุกอย่างที่ไม่ใช่ตัวเลข
+            e.target.value = e.target.value.replace(/\D/g, '');
+
+            // จำกัดความยาวไม่เกิน 13 ตัว
+            if (e.target.value.length > 13) {
+              e.target.value = e.target.value.slice(0, 13);
+            }
+          });
+        }
+
+        // เพิ่ม event listener สำหรับการจัดรูปแบบเบอร์โทร
+        const phoneInput = document.getElementById('phoneNumber');
+        if (phoneInput) {
+          phoneInput.addEventListener('input', (e) => {
+            // ลบทุกอย่างที่ไม่ใช่ตัวเลข
+            e.target.value = e.target.value.replace(/\D/g, '');
+
+            // จำกัดความยาวไม่เกิน 10 ตัว
+            if (e.target.value.length > 10) {
+              e.target.value = e.target.value.slice(0, 10);
+            }
+          });
+        }
+
+        // เพิ่ม event listener สำหรับรหัสไปรษณีย์
+        const zipcodeInput = document.getElementById('zipcode');
+        if (zipcodeInput) {
+          zipcodeInput.addEventListener('input', (e) => {
+            // ลบทุกอย่างที่ไม่ใช่ตัวเลข
+            e.target.value = e.target.value.replace(/\D/g, '');
+
+            // จำกัดความยาวไม่เกิน 5 ตัว
+            if (e.target.value.length > 5) {
+              e.target.value = e.target.value.slice(0, 5);
+            }
+          });
+        }
+    } // End of setupEventListeners function
+
+    // ฟังก์ชัน Export Excel
+    async function exportToExcel() {
+      try {
+        const response = await fetch('/api/customers/export', { headers });
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `customers_${new Date().toISOString().slice(0, 10)}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        alert('ไม่สามารถ export ข้อมูลได้');
+      }
+    }
+
+    // ฟังก์ชันจัดการ URL รูปภาพ
+    function getImageUrl(imagePath) {
+      if (!imagePath || imagePath.trim() === '') {
+        // ใช้ SVG placeholder แทนการเรียกไฟล์ที่ไม่มีอยู่
+        return 'data:image/svg+xml;charset=UTF-8,%3Csvg width=\'48\' height=\'48\' viewBox=\'0 0 48 48\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'24\' cy=\'24\' r=\'24\' fill=\'%23E5E7EB\'/%3E%3Cpath d=\'M24 14c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4zm0 14c-4.42 0-8 1.79-8 4v2h16v-2c0-2.21-3.58-4-8-4z\' fill=\'%236B7280\'/%3E%3C/svg%3E';
+      }
+
+      // ถ้าเป็น full URL
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath;
+      }
+
+      // ถ้าเป็น data URL
+      if (imagePath.startsWith('data:')) {
+        return imagePath;
+      }
+
+      // ถ้าขึ้นต้นด้วย /uploads/ หรือ /static/ แล้ว
+      if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/static/')) {
+        return imagePath;
+      }
+
+      // ถ้าขึ้นต้นด้วย uploads/
+      if (imagePath.startsWith('uploads/')) {
+        return '/' + imagePath;
+      }
+
+      // แก้ไข path ที่ผิดรูปแบบ
+      let fixedPath = imagePath.replace(/^.*uploads[\\/]/, '');
+      fixedPath = fixedPath.replace(/\\/g, '/');
+
+      return `/uploads/${fixedPath}`;
+    }
+
+    // ฟังก์ชันเปิด/ปิดโมดัลเพิ่มลูกค้าใหม่
+    function openAddCustomerModal() {
+      // เติมข้อมูลสาขาในโมดัล
+      const customerBranchSelect = document.getElementById('customerBranch');
+      customerBranchSelect.innerHTML = '<option value="">เลือกสาขา</option>';
+
+      branches.forEach(branch => {
+        const option = document.createElement('option');
+        option.value = branch._id || branch.branch_code;
+        option.textContent = branch.name || branch.branch_code;
+        customerBranchSelect.appendChild(option);
+      });
+
+      // เคลียร์ฟอร์ม
+      document.getElementById('addCustomerForm').reset();
+
+      // เปิดโมดัล
+      document.getElementById('addCustomerModal').classList.add('modal-open');
+    }
+
+    function closeAddCustomerModal() {
+      document.getElementById('addCustomerModal').classList.remove('modal-open');
+      document.getElementById('addCustomerForm').reset();
+
+      // ซ่อนตัวอย่างรูปภาพ
+      const imagePreview = document.getElementById('imagePreview');
+      if (imagePreview) {
+        imagePreview.classList.add('hidden');
+      }
+    }
+
+    // ฟังก์ชันอัปโหลดรูปภาพ
+    async function uploadImage(file) {
+      if (!file) return null;
+
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'selfies'); // เพิ่ม folder parameter
+
+      try {
+        // ลองใช้ API หลายตัว
+        const uploadEndpoints = [
+          '/api/upload/selfie',
+          '/api/upload/image',
+          '/api/upload',
+          '/upload/image'
+        ];
+
+        for (const endpoint of uploadEndpoints) {
+          try {
+            console.log(`🔄 Trying upload endpoint: ${endpoint}`);
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + authToken
+              },
+              body: formData
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success && result.data) {
+                console.log(`✅ Upload successful via ${endpoint}`);
+                return result.data.url || result.data.path || result.data.filename;
+              }
+            }
+          } catch (endpointError) {
+            console.warn(`❌ Upload failed for ${endpoint}:`, endpointError.message);
+            continue;
+          }
+        }
+
+        // ถ้าอัปโหลดไม่สำเร็จ ให้แปลงเป็น base64 เก็บไว้ชั่วคราว
+        console.log('📝 Converting to base64 as fallback...');
+        return await convertToBase64(file);
+
+      } catch (error) {
+        console.error('Image upload error:', error);
+        // ส่งคืน null แทนที่จะ throw error
+        return null;
+      }
+    }
+
+    // ฟังก์ชันแปลงไฟล์เป็น base64
+    function convertToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ฟังก์ชันจัดการการบันทึกลูกค้าใหม่
+    async function handleAddCustomer(event) {
+      event.preventDefault();
+
+      const submitBtn = document.getElementById('submitAddCustomer');
+      const submitText = document.getElementById('submitText');
+      const submitLoading = document.getElementById('submitLoading');
+
+      // แสดงสถานะ loading
+      submitBtn.disabled = true;
+      submitText.textContent = 'กำลังบันทึก...';
+      submitLoading.classList.remove('hidden');
+
+      try {
+        // ตรวจสอบข้อมูลที่จำเป็น
+        const prefix = document.getElementById('prefix').value;
+        const firstName = document.getElementById('firstName').value;
+        const lastName = document.getElementById('lastName').value;
+        const taxId = document.getElementById('taxId').value;
+        const phoneNumber = document.getElementById('phoneNumber').value;
+        const customerBranch = document.getElementById('customerBranch').value;
+
+        if (!prefix || !firstName || !lastName || !taxId || !phoneNumber || !customerBranch) {
+          throw new Error('กรุณากรอกข้อมูลที่จำเป็น (ช่องที่มีเครื่องหมาย * สีแดง)');
+        }
+
+        // ตรวจสอบรูปแบบเลขบัตรประชาชน
+        if (!/^\d{13}$/.test(taxId)) {
+          throw new Error('เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก');
+        }
+
+        // ตรวจสอบรูปแบบเบอร์โทร
+        if (!/^[0-9]{9,10}$/.test(phoneNumber)) {
+          throw new Error('เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก');
+        }
+
+        // อัปโหลดรูปเซลฟี่ (ถ้ามี)
+        const selfieFile = document.getElementById('selfieImage').files[0];
+        let selfieUrl = null;
+
+        if (selfieFile) {
+          // ตรวจสอบขนาดไฟล์ (ไม่เกิน 2MB)
+          if (selfieFile.size > 2 * 1024 * 1024) {
+            throw new Error('ขนาดไฟล์รูปภาพต้องไม่เกิน 2MB');
+          }
+
+          // ตรวจสอบประเภทไฟล์
+          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+          if (!allowedTypes.includes(selfieFile.type)) {
+            throw new Error('รองรับเฉพาะไฟล์ JPG, PNG, GIF เท่านั้น');
+          }
+
+          console.log('🔄 Uploading selfie image...');
+          selfieUrl = await uploadImage(selfieFile);
+
+          if (!selfieUrl) {
+            // ถ้าอัปโหลดไม่สำเร็จ ให้เตือนแต่ยังบันทึกข้อมูลได้
+            console.warn('⚠️ Image upload failed, proceeding without image');
+            // ไม่ต้อง throw error ให้ดำเนินการต่อได้
+          } else {
+            console.log('✅ Image uploaded successfully:', selfieUrl);
+          }
+        }
+
+        // สร้างข้อมูลลูกค้า
+        const customerData = {
+          prefix: prefix,
+          first_name: firstName,
+          last_name: lastName,
+          tax_id: taxId,
+          phone_number: phoneNumber,
+          birth_date: document.getElementById('birthDate').value || null,
+          email: document.getElementById('email').value || null,
+          branch_code: customerBranch,
+          address: {
+            houseNo: document.getElementById('houseNo').value || null,
+            moo: document.getElementById('moo').value || null,
+            subDistrict: document.getElementById('subDistrict').value || null,
+            district: document.getElementById('district').value || null,
+            province: document.getElementById('province').value || null,
+            zipcode: document.getElementById('zipcode').value || null
+          },
+          facebook_url: document.getElementById('facebookUrl').value || null,
+          line_id: document.getElementById('lineId').value || null,
+          selfie_url: selfieUrl
+        };
+
+        // ส่งข้อมูลไปยัง API โดยใช้ Axios หรือ fetch
+        const apiEndpoints = [
+          '/api/v1/customers',         // Try v1 API first
+          '/api/customers/create',     // Then try explicit create endpoint
+          '/api/customer',            // Then try singular
+          '/api/loan/contracts' // Finally try loan contracts
+        ];
+
+        let success = false;
+        let lastError = null;
+        let savedCustomer = null;
+
+        for (const endpoint of apiEndpoints) {
+          try {
+            console.log(`🔄 Trying endpoint: ${endpoint}`);
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + authToken,
+                'Accept': 'application/json'  // Explicitly request JSON response
+              },
+              body: JSON.stringify(customerData)
+            });
+
+            if (response.ok) {
+              const contentType = response.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                const result = await response.json();
+                if (result.success || result.data) {
+                  success = true;
+                  savedCustomer = result.data;
+                  console.log(`✅ Customer created via ${endpoint}`, result);
+                  break;
+                }
+              }
+            } else {
+              // Try to get error message from response
+              try {
+                const errorData = await response.json();
+                lastError = errorData.message || errorData.error;
+              } catch (e) {
+                lastError = `API Error: ${response.status} ${response.statusText}`;
+              }
+              console.warn(`❌ Error from ${endpoint}:`, lastError);
+            }
+          } catch (err) {
+            console.warn(`❌ Error with ${endpoint}:`, err.message);
+            lastError = err.message;
+            continue;
+          }
+        }
+
+        if (!success) {
+          // If all APIs failed, try to save locally or show appropriate message
+          console.warn('❌ All API endpoints failed, trying local storage fallback');
+
+          try {
+            // Get existing customers from localStorage
+            const existingCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
+
+            // Add new customer with generated ID
+            const localCustomer = {
+              ...customerData,
+              _id: 'LOCAL_' + Date.now(),
+              created_at: new Date().toISOString()
+            };
+
+            existingCustomers.push(localCustomer);
+            localStorage.setItem('customers', JSON.stringify(existingCustomers));
+
+            savedCustomer = localCustomer;
+            success = true;
+
+            console.log('✅ Customer saved to local storage');
+
+          } catch (localError) {
+            console.error('Local storage fallback failed:', localError);
+            throw new Error(lastError || 'ไม่สามารถบันทึกข้อมูลลูกค้าได้ กรุณาลองใหม่อีกครั้ง');
+          }
+        }
+
+        // แสดงข้อความสำเร็จ
+        let successMessage = 'บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว';
+        if (savedCustomer?._id?.startsWith('LOCAL_')) {
+          successMessage += ' (บันทึกในเครื่องเท่านั้น จะซิงค์เมื่อมีการเชื่อมต่อ)';
+        }
+        if (selfieFile && !selfieUrl) {
+          successMessage += '\n(ไม่สามารถอัปโหลดรูปภาพได้)';
+        }
+
+        alert(successMessage);
+
+        // ปิดโมดัล
+        closeAddCustomerModal();
+
+        // โหลดข้อมูลลูกค้าใหม่
+        await loadInstallmentCustomers();
+      } catch (error) {
+        console.error('Add customer error:', error);
+        alert('เกิดข้อผิดพลาด: ' + error.message);
+      } finally {
+        // รีเซ็ตสถานะปุ่ม
+        submitBtn.disabled = false;
+        submitText.textContent = 'บันทึก';
+        submitLoading.classList.add('hidden');
+      }
+    }
+
+    // ฟังก์ชันคำนวณอายุจากวันเกิด
+    function calculateAge(birthDate) {
+      if (!birthDate) return null;
+
+      const today = new Date();
+      const birth = new Date(birthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+
+      return age;
+    }
+
+    // Global functions สำหรับปุ่มใน table
+    window.viewCustomerDetail = async function(customerId) {
+      try {
+        console.log('🔍 Loading comprehensive customer profile for ID:', customerId);
+
+        // Show loading state
+        const loadingHtml = `
+          <div class="text-center py-8">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div class="text-gray-600">กำลังโหลดข้อมูลลูกค้า...</div>
+          </div>
+        `;
+
+        document.getElementById('customerDetailContent').innerHTML = loadingHtml;
+        const modal = document.getElementById('customerDetailModal');
+        modal.classList.add('modal-open');
+
+        // Call the comprehensive customer profile API
+        const headers = {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        };
+
+        const response = await fetch(`/api/installment/customers/${customerId}/complete-profile`, {
+          method: 'GET',
+          headers: headers
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch customer profile: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          console.log('✅ Received comprehensive customer data:', result.data);
+          showEnhancedCustomerDetailModal(result.data);
+        } else {
+          throw new Error(result.message || 'Failed to load customer data');
+        }
+
+      } catch (error) {
+        console.error('Error loading customer profile:', error);
+
+        // Fallback to original method if API fails
+        console.log('🔄 Falling back to cached customer data...');
+        let customer = null;
+
+        if (window.allCustomers && Array.isArray(window.allCustomers)) {
+          customer = window.allCustomers.find(c => c._id === customerId || c.contractNo === customerId);
+        }
+
+        if (customer) {
+          console.log('✅ Using cached customer data:', customer);
+          showCustomerDetailModal(customer);
+        } else {
+          console.warn('❌ Customer not found in cache:', customerId);
+          document.getElementById('customerDetailContent').innerHTML = `
+            <div class="text-center py-8 text-red-600">
+              <div class="text-2xl mb-2">❌</div>
+              <div>ไม่พบข้อมูลลูกค้า</div>
+              <div class="text-sm text-gray-500 mt-2">${error.message}</div>
+            </div>
+          `;
+        }
+      }
+    };
+
+    window.editCustomer = function(customerId) {
+      // Redirect ไปหน้าแก้ไข หรือเปิด modal แก้ไข
+      window.location.href = `/views/loan/customer-edit.html?id=${customerId}`;
+    };
+
+    // Function to close customer detail modal
+    window.closeCustomerDetailModal = function() {
+      const modal = document.getElementById('customerDetailModal');
+      if (modal) {
+        modal.remove();
+      }
+    };
+
+    window.viewInstallmentHistory = function(customerId) {
+      try {
+        console.log('🔍 Looking for installment history for customer:', customerId);
+
+        // หาข้อมูลลูกค้าจากข้อมูลที่โหลดไว้แล้ว
+        let customer = null;
+
+        // ลองหาจาก allCustomers ก่อน
+        if (window.allCustomers && Array.isArray(window.allCustomers)) {
+          customer = window.allCustomers.find(c => c._id === customerId || c.contractNo === customerId);
+        }
+
+        // ถ้าไม่เจอข้อมูลลูกค้า
+        if (!customer) {
+          console.error('Customer not found:', customerId);
+        }
+
+        if (customer) {
+          console.log('✅ Found customer for history:', customer);
+
+          // สร้างข้อมูลประวัติการผ่อนจากข้อมูลลูกค้า
+          const installmentHistory = [{
+            contractNo: customer.contractNo,
+            productName: customer.product || 'สินค้า',
+            totalAmount: customer.totalAmount,
+            monthlyPayment: customer.installmentAmount,
+            remainingAmount: customer.remainingAmount,
+            status: customer.status,
+            startDate: customer.createdAt,
+            // ข้อมูลการชำระ
+            payments: []
+          }];
+
+          showInstallmentHistoryModal(installmentHistory);
+        } else {
+          console.warn('❌ Customer not found for history:', customerId);
+          showToast('ไม่พบข้อมูลประวัติการผ่อน', 'warning');
+        }
+      } catch (error) {
+        console.error('Error viewing installment history:', error);
+        showToast('เกิดข้อผิดพลาดในการแสดงประวัติการผ่อน', 'error');
+      }
+    };
+
+
+    // Duplicate showCustomerDetailModal function removed - using the more complete version above
+
+    // Close customer detail modal
+    window.closeCustomerDetailModal = function() {
+      const modal = document.getElementById('customerDetailModal');
+      if (modal) modal.remove();
+    };
+
+    // ฟังก์ชันแสดง modal ประวัติการผ่อน
+    function showInstallmentHistoryModal(history) {
+      console.log('📋 Showing installment history modal for:', history);
+
+      if (!history || history.length === 0) {
+        showToast('ไม่พบประวัติการผ่อนชำระ', 'info');
+        return;
+      }
+
+      const installment = history[0]; // ใช้ข้อมูลสัญญาแรก
+      const payments = installment.payments || [];
+
+      const modalHTML = `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="installmentHistoryModal">
+          <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-2xl font-bold text-gray-800 dark:text-white">ประวัติการผ่อนชำระ</h2>
+              <button onclick="closeInstallmentHistoryModal()" class="btn btn-ghost btn-sm">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+            
+            <!-- ข้อมูลสัญญา -->
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">เลขที่สัญญา</span>
+                  <p class="font-semibold">${installment.contractNo}</p>
+                </div>
+                <div>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">สินค้า</span>
+                  <p class="font-semibold">${installment.productName}</p>
+                </div>
+                <div>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">ยอดรวม</span>
+                  <p class="font-semibold text-blue-600">${formatCurrency(installment.totalAmount)}</p>
+                </div>
+                <div>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">ค่างวด/เดือน</span>
+                  <p class="font-semibold text-green-600">${formatCurrency(installment.monthlyPayment)}</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- ตารางการชำระ -->
+            <div class="overflow-x-auto">
+              <table class="table w-full">
+                <thead>
+                  <tr class="bg-gray-100 dark:bg-gray-700">
+                    <th class="text-center">งวดที่</th>
+                    <th class="text-center">กำหนดชำระ</th>
+                    <th class="text-center">จำนวนเงิน</th>
+                    <th class="text-center">วันที่ชำระ</th>
+                    <th class="text-center">เลขที่ใบเสร็จ</th>
+                    <th class="text-center">สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${payments.map(payment => `
+                    <tr class="${payment.status === 'paid' ? 'bg-green-50 dark:bg-green-900/20' :
+                                 payment.status === 'pending' ? 'bg-yellow-50 dark:bg-yellow-900/20' :
+                                 'bg-gray-50 dark:bg-gray-800'}">
+                      <td class="text-center font-medium">${payment.period}</td>
+                      <td class="text-center">${formatDate(payment.dueDate)}</td>
+                      <td class="text-center font-medium">${formatCurrency(payment.amount)}</td>
+                      <td class="text-center">${payment.paidDate ? formatDate(payment.paidDate) : '-'}</td>
+                      <td class="text-center">${payment.receiptNo || '-'}</td>
+                      <td class="text-center">
+                        <span class="badge ${
+                          payment.status === 'paid' ? 'badge-success' :
+                          payment.status === 'pending' ? 'badge-warning' :
+                          'badge-ghost'
+                        }">
+                          ${payment.status === 'paid' ? 'ชำระแล้ว' :
+                            payment.status === 'pending' ? 'รอชำระ' :
+                            'ยังไม่ถึงกำหนด'}
+                        </span>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- สรุปการชำระ -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="text-center p-4 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <div class="text-2xl font-bold text-green-600">${payments.filter(p => p.status === 'paid').length}</div>
+                <div class="text-sm text-green-700 dark:text-green-300">งวดที่ชำระแล้ว</div>
+              </div>
+              <div class="text-center p-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                <div class="text-2xl font-bold text-yellow-600">${payments.filter(p => p.status === 'pending').length}</div>
+                <div class="text-sm text-yellow-700 dark:text-yellow-300">งวดที่ค้างชำระ</div>
+              </div>
+              <div class="text-center p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <div class="text-2xl font-bold text-gray-600">${payments.filter(p => p.status === 'upcoming').length}</div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">งวดที่ยังไม่ถึงกำหนด</div>
+              </div>
+            </div>
+            
+            <div class="flex justify-end mt-6">
+              <button onclick="closeInstallmentHistoryModal()" class="btn btn-secondary">
+                ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+      console.log('✅ Installment history modal displayed');
+    }
+
+    window.closeInstallmentHistoryModal = function() {
+      const modal = document.getElementById('installmentHistoryModal');
+      if (modal) modal.remove();
+    };
+
+    } catch (error) {
+      console.error('Error in DOMContentLoaded:', error);
+    } finally {
+      setTimeout(() => { showLoading(false); }, 600);
+    }
+
+}); // End of DOMContentLoaded event listener
+
+// ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+window.addEventListener('beforeunload', () => {
+  if (lottieAnimation) {
+    lottieAnimation.destroy();
+    lottieAnimation = null;
+  }
+});
+
+// ======== Customer Data Population Functions ========
+
+// Function to populate table with real data from tax-summary API
+async function populateCustomerDataFromTaxSummary() {
+  try {
+    // Loading customer data from API
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.error('❌ No auth token found');
+      return [];
+    }
+
+    // เรียก tax-summary API เพื่อดึงข้อมูลลูกค้า
+    const response = await fetch('/api/installment/tax-summary', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('📊 Tax summary data:', data);
+
+    if (data.success && data.data.details && data.data.details.length > 0) {
+      // แปลงข้อมูลจาก tax-summary เป็นรูปแบบลูกค้า
+      const customers = data.data.details.map((detail, index) => ({
+        _id: detail.contractNumber || `customer-${index + 1}`,
+        contractNo: detail.contractNumber,
+        customerName: detail.customerName,
+        customerPhone: '08xxxxxxxx', // ไม่มีข้อมูลเบอร์โทรใน tax-summary
+        customer_info: {
+          firstName: detail.customerName.split(' ').slice(-1)[0] || '',
+          lastName: detail.customerName.split(' ').slice(0, -1).join(' ') || '',
+          phone: '08xxxxxxxx',
+          taxId: detail.taxId,
+          prefix: detail.customerName.split(' ')[0] || ''
+        },
+        status: detail.status || 'active',
+        totalAmount: detail.total || detail.amount,
+        remainingAmount: detail.total || detail.amount, // สมมติว่ายังคงเหลือเต็มจำนวน
+        installmentAmount: Math.round((detail.total || detail.amount) / 24), // สมมติ 24 งวด
+        product: detail.product,
+        gender: detail.customerName.includes('นาง') ? 'หญิง' :
+                detail.customerName.includes('นาย') ? 'ชาย' : 'ไม่ระบุ',
+        selfieUrl: null,
+        branchCode: '00000',
+        createdAt: detail.date
+      }));
+
+      console.log('👥 Processed customers from API:', customers);
+      return customers;
+    } else {
+      console.log('ℹ️ No customer data found in tax-summary');
+      return [];
+    }
+
+  } catch (error) {
+    console.error('❌ Error loading customer data from API:', error);
+    return [];
+  }
+}
+
+// Customer data population function
+
+// Initialize customer data when page loads - DISABLED to prevent conflict
+// setTimeout(async () => {
+//   // ลองโหลดข้อมูลจาก API ก่อน
+//   let customers = await populateCustomerDataFromTaxSummary();
+//
+//   // ตรวจสอบข้อมูลจาก API
+//   if (!customers || customers.length === 0) {
+//     return;
+//   }
+//
+//   // แสดงผลข้อมูล using consolidated render function
+//   renderCustomers(customers, false);
+//
+// }, 2000); // รอ 2 วินาทีให้หน้าโหลดเสร็จ
+
+// ===== CUSTOMER ANALYTICS FUNCTIONS =====
+
+    // Function to calculate and update customer analytics
+    async function updateCustomerAnalytics(customers) {
+      try {
+        if (!customers || !Array.isArray(customers)) {
+          console.log('⚠️ No customer data available for analytics');
+          return;
+        }
+
+        console.log('📈 Calculating customer analytics for', customers.length, 'customers');
+
+        // Basic metrics
+        const totalCustomers = customers.length;
+        let activeContracts = 0;
+        let overdueContracts = 0;
+        let totalDebt = 0;
+
+        // Risk assessment counters
+        let lowRiskCustomers = 0;
+        let mediumRiskCustomers = 0;
+        let highRiskCustomers = 0;
+
+        // Process each customer
+        customers.forEach(customer => {
+          // Count active contracts
+          if (customer.installmentSummary) {
+            activeContracts += customer.installmentSummary.activeOrders || 0;
+            overdueContracts += customer.installmentSummary.overdueOrders || 0;
+            totalDebt += customer.installmentSummary.totalDebt || 0;
+          } else {
+            // Fallback for customers without installmentSummary
+            if (customer.status === 'active') {
+              activeContracts += 1;
+              totalDebt += customer.remainingAmount || customer.totalAmount || 0;
+            } else if (customer.status === 'overdue') {
+              overdueContracts += 1;
+              totalDebt += customer.remainingAmount || customer.totalAmount || 0;
+            }
+          }
+
+          // Calculate basic risk assessment
+          const riskScore = calculateBasicRiskScore(customer);
+
+          if (riskScore >= 70) {
+            highRiskCustomers++;
+          } else if (riskScore >= 40) {
+            mediumRiskCustomers++;
+          } else {
+            lowRiskCustomers++;
+          }
+        });
+
+        // Update UI elements
+        updateElementText('totalCustomers', totalCustomers.toLocaleString());
+        updateElementText('activeContracts', activeContracts.toLocaleString());
+        updateElementText('overdueContracts', overdueContracts.toLocaleString());
+        updateElementText('totalDebt', formatCurrency(totalDebt));
+
+        updateElementText('lowRiskCustomers', lowRiskCustomers.toLocaleString());
+        updateElementText('mediumRiskCustomers', mediumRiskCustomers.toLocaleString());
+        updateElementText('highRiskCustomers', highRiskCustomers.toLocaleString());
+
+        console.log('✅ Customer analytics updated successfully', {
+          total: totalCustomers,
+          active: activeContracts,
+          overdue: overdueContracts,
+          debt: totalDebt,
+          risk: { low: lowRiskCustomers, medium: mediumRiskCustomers, high: highRiskCustomers }
+        });
+
+      } catch (error) {
+        console.error('❌ Error updating customer analytics:', error);
+      }
+    }
+
+    // Basic risk score calculation for customers
+    function calculateBasicRiskScore(customer) {
+      let score = 0;
+
+      // Check overdue status
+      if (customer.status === 'overdue' || (customer.installmentSummary && customer.installmentSummary.overdueOrders > 0)) {
+        score += 30;
+      }
+
+      // Check debt amount relative to typical amounts
+      const debtAmount = customer.installmentSummary?.totalDebt || customer.remainingAmount || 0;
+      if (debtAmount > 50000) {
+        score += 25;
+      } else if (debtAmount > 25000) {
+        score += 15;
+      }
+
+      // Check payment history (simplified)
+      if (customer.payments && Array.isArray(customer.payments)) {
+        const latePayments = customer.payments.filter(p => p.isLate).length;
+        const totalPayments = customer.payments.length;
+
+        if (totalPayments > 0) {
+          const lateRatio = latePayments / totalPayments;
+          if (lateRatio > 0.5) {
+            score += 20;
+          } else if (lateRatio > 0.25) {
+            score += 10;
+          }
+        }
+      }
+
+      // Random factor for customers without detailed data
+      if (!customer.installmentSummary && !customer.payments) {
+        score += Math.floor(Math.random() * 20); // 0-19 random points
+      }
+
+      return Math.min(100, Math.max(0, score));
+    }
+
+    // Utility function to safely update element text
+    function updateElementText(elementId, text) {
+      try {
+        const element = document.getElementById(elementId);
+        if (element) {
+          element.textContent = text;
+        } else {
+          console.warn(`⚠️ Element with ID '${elementId}' not found`);
+        }
+      } catch (error) {
+        console.error(`❌ Error updating element ${elementId}:`, error);
+      }
+    }
+
+    // Function to refresh customer analytics
+    window.refreshCustomerAnalytics = async function() {
+      try {
+        console.log('🔄 Refreshing customer analytics...');
+
+        // Show loading state
+        const refreshBtn = document.querySelector('button[onclick="refreshCustomerAnalytics()"]');
+        if (refreshBtn) {
+          refreshBtn.disabled = true;
+          refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise animate-spin"></i> กำลังอัพเดต...';
+        }
+
+        // Get fresh customer data
+        let customers = window.allCustomers;
+
+        if (!customers || customers.length === 0) {
+          console.log('🔄 No cached data, loading fresh data...');
+          customers = await loadInstallmentCustomers();
+        }
+
+        // Update analytics
+        await updateCustomerAnalytics(customers);
+
+        // Reset button state
+        if (refreshBtn) {
+          refreshBtn.disabled = false;
+          refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> อัพเดต';
+        }
+
+        showToast('อัพเดตข้อมูลสถิติเสร็จสิ้น', 'success');
+
+      } catch (error) {
+        console.error('❌ Error refreshing analytics:', error);
+        showToast('เกิดข้อผิดพลาดในการอัพเดตข้อมูล', 'error');
+
+        // Reset button state
+        const refreshBtn = document.querySelector('button[onclick="refreshCustomerAnalytics()"]');
+        if (refreshBtn) {
+          refreshBtn.disabled = false;
+          refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> อัพเดต';
+        }
+      }
+    };
+
+    // Auto-update analytics when customer data is loaded
+    const originalRenderCustomers = window.renderCustomers || renderCustomers;
+    window.renderCustomers = function(customers, usesPagination = false) {
+      // Call original render function
+      let result;
+      if (typeof originalRenderCustomers === 'function') {
+        result = originalRenderCustomers.call(this, customers, usesPagination);
+      }
+
+      // Update analytics after rendering
+      setTimeout(() => {
+        updateCustomerAnalytics(customers);
+      }, 100);
+
+      return result;
+    };
+
+    // Initialize analytics on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set initial loading state
+      updateElementText('totalCustomers', 'กำลังโหลด...');
+      updateElementText('activeContracts', 'กำลังโหลด...');
+      updateElementText('overdueContracts', 'กำลังโหลด...');
+      updateElementText('totalDebt', 'กำลังโหลด...');
+      updateElementText('lowRiskCustomers', 'กำลังโหลด...');
+      updateElementText('mediumRiskCustomers', 'กำลังโหลด...');
+      updateElementText('highRiskCustomers', 'กำลังโหลด...');
+
+      console.log('📈 Customer analytics initialized');
+    });
+
+  </script>
+  
+  <!-- Remove external script reference since we included it inline -->
+</body>
+</html>

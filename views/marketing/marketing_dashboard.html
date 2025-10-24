@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบการตลาด</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Animate.css for fade animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <!-- Lottie for animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <!-- User Profile Manager -->
+  <script src="/views/marketing/js/user-profile.js"></script>
+  <!-- Sidebar Manager -->
+  <script src="/views/marketing/js/sidebar.js"></script>
+  
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    /* เพิ่ม CSS สำหรับความสวยงาม */
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background-color: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+
+    .calendar-day-holiday {
+      background-color: #fee2e2;
+      color: #ef4444;
+    }
+
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    #notificationBtn span.badge-notification { 
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .status-active {
+      background-color: #10b981;
+    }
+
+    .status-away {
+      background-color: #f59e0b;
+    }
+
+    .status-offline {
+      background-color: #6b7280;
+    }
+    
+    /* Dashboard specific styles */
+    .main-content {
+      flex: 1;
+      padding: 20px 30px;
+      overflow-y: auto;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    
+    .page-title h1 {
+      font-size: 1.8rem;
+      color: var(--dark-color);
+      margin-bottom: 5px;
+    }
+    
+    .page-title p {
+      color: var(--gray-color);
+      font-size: 0.9rem;
+    }
+    
+    .date-filter select {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      background-color: white;
+      font-size: 0.9rem;
+      color: #212529;
+      cursor: pointer;
+    }
+    
+    .dark .date-filter select {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+    
+    /* Summary Cards Styles */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    @media (max-width: 1200px) {
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .summary-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+    }
+    
+    .dark .card {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .card-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 1.8rem;
+      color: white;
+    }
+    
+    .sales-icon {
+      background-color: #4361ee;
+    }
+    
+    .customers-icon {
+      background-color: #4cc9f0;
+    }
+    
+    .conversion-icon {
+      background-color: #4caf50;
+    }
+    
+    .avg-sale-icon {
+      background-color: #ff9800;
+    }
+    
+    .card-info h3 {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-bottom: 5px;
+    }
+    
+    .dark .card-info h3 {
+      color: #9ca3af;
+    }
+    
+    .card-info h2 {
+      font-size: 1.5rem;
+      color: #212529;
+      margin-bottom: 5px;
+    }
+    
+    .dark .card-info h2 {
+      color: #f3f4f6;
+    }
+    
+    .trend {
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .trend i {
+      margin-right: 5px;
+    }
+    
+    .positive {
+      color: #4caf50;
+    }
+    
+    .negative {
+      color: #f44336;
+    }
+    
+    /* Charts Container Styles */
+    .charts-container {
+      margin-bottom: 30px;
+    }
+    
+    .chart-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    @media (max-width: 1200px) {
+      .chart-row {
+        flex-direction: column;
+      }
+    }
+    
+    .chart-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      flex: 1;
+    }
+    
+    .dark .chart-card {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .chart-card.large {
+      flex: 2;
+    }
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark .chart-header {
+      border-bottom-color: #4b5563;
+    }
+    
+    .chart-header h3 {
+      font-size: 1.1rem;
+      color: #212529;
+    }
+    
+    .dark .chart-header h3 {
+      color: #f3f4f6;
+    }
+    
+    .chart-actions button {
+      background: none;
+      border: none;
+      color: #6c757d;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    .dark .chart-actions button {
+      color: #9ca3af;
+    }
+    
+    .chart-content {
+      padding: 20px;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .map-container {
+      background-color: #f0f4f9;
+    }
+    
+    .dark .map-container {
+      background-color: #374151;
+    }
+    
+    /* Data Table Styles */
+    .data-table-section {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+    
+    .dark .data-table-section {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .data-table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark .data-table-header {
+      border-bottom-color: #4b5563;
+    }
+    
+    .data-table-header h3 {
+      font-size: 1.1rem;
+      color: #212529;
+    }
+    
+    .dark .data-table-header h3 {
+      color: #f3f4f6;
+    }
+    
+    .table-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .table-actions input {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .dark .table-actions input {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+    
+    .export-btn {
+      padding: 8px 16px;
+      background-color: #4361ee;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .data-table-container {
+      overflow-x: auto;
+      padding: 10px 20px;
+    }
+    
+    #salesTable {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    #salesTable th, #salesTable td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .dark #salesTable th, .dark #salesTable td {
+      border-bottom-color: #4b5563;
+    }
+    
+    #salesTable th {
+      font-weight: 600;
+      color: #6c757d;
+    }
+    
+    .dark #salesTable th {
+      color: #9ca3af;
+    }
+    
+    #salesTable tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .status-pill {
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    
+    .status-complete {
+      background-color: rgba(76, 175, 80, 0.15);
+      color: #4caf50;
+    }
+    
+    .dark .status-complete {
+      background-color: rgba(76, 175, 80, 0.3);
+    }
+    
+    .status-pending {
+      background-color: rgba(255, 152, 0, 0.15);
+      color: #ff9800;
+    }
+    
+    .dark .status-pending {
+      background-color: rgba(255, 152, 0, 0.3);
+    }
+    
+    .status-cancelled {
+      background-color: rgba(244, 67, 54, 0.15);
+      color: #f44336;
+    }
+    
+    .dark .status-cancelled {
+      background-color: rgba(244, 67, 54, 0.3);
+    }
+    
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .dark .pagination {
+      border-top-color: #4b5563;
+    }
+    
+    .pagination button {
+      background: none;
+      border: none;
+      color: #4361ee;
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+    
+    .dark .pagination button {
+      color: #93c5fd;
+    }
+    
+    .pagination button:disabled {
+      color: #e9ecef;
+      cursor: not-allowed;
+    }
+    
+    .dark .pagination button:disabled {
+      color: #4b5563;
+    }
+    
+    .pagination span {
+      margin: 0 15px;
+      color: #6c757d;
+    }
+    
+    .dark .pagination span {
+      color: #9ca3af;
+    }
+    
+  </style>
+
+  <script>
+    let lottieAnimation = null;
+  </script>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu" class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container">
+      <!-- Sidebar content will be loaded here -->
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Header -->
+      <div class="header">
+        <div class="page-title">
+          <h1 class="text-2xl font-semibold">แดชบอร์ดการตลาด</h1>
+          <p class="text-gray-500 dark:text-gray-400">ข้อมูลการขายโทรศัพท์มือถือและแผนการผ่อนชำระ</p>
+        </div>
+        <div class="date-filter">
+          <select id="timeRange" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
+            <option value="today">วันนี้</option>
+            <option value="week">สัปดาห์นี้</option>
+            <option value="month" selected>เดือนนี้</option>
+            <option value="quarter">ไตรมาสนี้</option>
+            <option value="year">ปีนี้</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-cards">
+        <div class="card">
+          <div class="card-icon sales-icon">
+            <i class="bi bi-cart3"></i>
+          </div>
+          <div class="card-info">
+            <h3>ยอดขายทั้งหมด</h3>
+            <h2>฿5,832,450</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 12.3% จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon customers-icon">
+            <i class="bi bi-people-fill"></i>
+          </div>
+          <div class="card-info">
+            <h3>ลูกค้าใหม่</h3>
+            <h2>328</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 8.7% จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon conversion-icon">
+            <i class="bi bi-percent"></i>
+          </div>
+          <div class="card-info">
+            <h3>อัตราการซื้อแบบผ่อน</h3>
+            <h2>68.5%</h2>
+            <p class="trend positive"><i class="bi bi-arrow-up"></i> 5.2% จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon avg-sale-icon">
+            <i class="bi bi-tags"></i>
+          </div>
+          <div class="card-info">
+            <h3>ยอดขายเฉลี่ยต่อรายการ</h3>
+            <h2>฿15,420</h2>
+            <p class="trend negative"><i class="bi bi-arrow-down"></i> 2.1% จากเดือนที่แล้ว</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Charts Area -->
+      <div class="charts-container">
+        <!-- Demographics Charts -->
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>ยอดขายตามเพศ</h3>
+              <div class="chart-actions">
+                <button><i class="bi bi-download"></i></button>
+                <button><i class="bi bi-three-dots-vertical"></i></button>
+              </div>
+            </div>
+            <div class="chart-content">
+              <canvas id="genderChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>ยอดขายตามช่วงอายุ</h3>
+              <div class="chart-actions">
+                <button><i class="bi bi-download"></i></button>
+                <button><i class="bi bi-three-dots-vertical"></i></button>
+              </div>
+            </div>
+            <div class="chart-content">
+              <canvas id="ageChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales Charts -->
+        <div class="chart-row">
+          <div class="chart-card large">
+            <div class="chart-header">
+              <h3>ยอดขายรายเดือน</h3>
+              <div class="chart-actions">
+                <button><i class="bi bi-download"></i></button>
+                <button><i class="bi bi-three-dots-vertical"></i></button>
+              </div>
+            </div>
+            <div class="chart-content">
+              <canvas id="monthlySalesChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Method and Models -->
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>วิธีการชำระเงิน</h3>
+              <div class="chart-actions">
+                <button><i class="bi bi-download"></i></button>
+                <button><i class="bi bi-three-dots-vertical"></i></button>
+              </div>
+            </div>
+            <div class="chart-content">
+              <canvas id="paymentMethodChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>รุ่นโทรศัพท์ยอดนิยม</h3>
+              <div class="chart-actions">
+                <button><i class="bi bi-download"></i></button>
+                <button><i class="bi bi-three-dots-vertical"></i></button>
+              </div>
+            </div>
+            <div class="chart-content">
+              <canvas id="phoneModelChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Branch Performance -->
+        <div class="chart-row">
+          <div class="chart-card large">
+            <div class="chart-header">
+              <h3>ยอดขายตามสาขา</h3>
+              <div class="chart-actions">
+                <button><i class="bi bi-download"></i></button>
+                <button><i class="bi bi-three-dots-vertical"></i></button>
+              </div>
+            </div>
+            <div class="chart-content">
+              <canvas id="branchSalesChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Heat Map -->
+        <div class="chart-row">
+          <div class="chart-card large">
+            <div class="chart-header">
+              <h3>แผนที่การกระจายลูกค้า</h3>
+              <div class="chart-actions">
+                <button><i class="bi bi-download"></i></button>
+                <button><i class="bi bi-three-dots-vertical"></i></button>
+              </div>
+            </div>
+            <div class="chart-content map-container" id="customerMap">
+              <!-- Map will be rendered here by JavaScript -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Sales Table -->
+      <div class="data-table-section">
+        <div class="data-table-header">
+          <h3>ข้อมูลการขายล่าสุด</h3>
+          <div class="table-actions">
+            <input type="text" placeholder="ค้นหา..." id="tableSearch" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
+            <button class="export-btn"><i class="bi bi-file-earmark-arrow-down"></i> ส่งออก</button>
+          </div>
+        </div>
+        <div class="data-table-container">
+          <table id="salesTable">
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>รหัสลูกค้า</th>
+                <th>ชื่อ-นามสกุล</th>
+                <th>อายุ</th>
+                <th>เพศ</th>
+                <th>รุ่นโทรศัพท์</th>
+                <th>สาขา</th>
+                <th>วิธีชำระเงิน</th>
+                <th>ราคา</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- ข้อมูลจะถูกเพิ่มจาก JavaScript -->
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button id="prevPage" disabled><i class="bi bi-chevron-left"></i></button>
+          <span>หน้า <span id="currentPage">1</span> จาก <span id="totalPages">5</span></span>
+          <button id="nextPage"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize when DOM is loaded
+    // Show/Hide Loading Function
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // No fallback spinner - just show empty container
+              document.getElementById('lottieContainer').innerHTML = '';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    // Test loading function - you can call this from browser console
+    function testLoading() {
+      console.log('🧪 Testing loading state...');
+      showLoading(true);
+
+      // Auto hide after 3 seconds for testing
+      setTimeout(() => {
+        showLoading(false);
+        console.log('✅ Loading test completed');
+      }, 3000);
+    }
+
+    // Make test function available globally for console testing
+    window.testLoading = testLoading;
+    window.showLoading = showLoading;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add test button (optional - you can remove this later)
+      const testButton = document.createElement('button');
+      testButton.textContent = 'Test Loading';
+      testButton.className = 'btn btn-primary fixed top-4 right-4 z-50';
+      testButton.onclick = testLoading;
+      document.body.appendChild(testButton);
+
+      console.log('🔧 Debug: Loading state is ready. Try calling testLoading() or showLoading(true) in console.');
+      // Load sidebar first
+      if (typeof loadSidebar === 'function') {
+        loadSidebar().then(() => {
+          console.log('✅ Sidebar loaded successfully');
+          initToggleMenu();
+        });
+      }
+
+      // Initialize charts
+      initializeCharts();
+
+      // Populate sample data for the table
+      populateSalesTable();
+
+      // Set up event listeners
+      setupEventListeners();
+
+    });
+
+    // Initialize sidebar toggle for mobile
+    function initToggleMenu() {
+      const btnToggleMenu = document.getElementById('btnToggleMenu');
+      const sidebar = document.getElementById('sidebar');
+
+      if (btnToggleMenu && sidebar) {
+        btnToggleMenu.addEventListener('click', function() {
+          if (sidebar.classList.contains('w-64')) {
+            sidebar.classList.remove('w-64');
+            sidebar.classList.add('w-0');
+            this.innerHTML = '<i class="bi bi-chevron-right"></i>';
+          } else {
+            sidebar.classList.remove('w-0');
+            sidebar.classList.add('w-64');
+            this.innerHTML = '<i class="bi bi-chevron-left"></i>';
+          }
+        });
+      }
+    }
+    
+    // Initialize all charts
+    function initializeCharts() {
+      // Gender distribution chart
+      const genderCtx = document.getElementById('genderChart').getContext('2d');
+      const genderChart = new Chart(genderCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['ชาย', 'หญิง', 'ไม่ระบุ'],
+          datasets: [{
+            data: [42, 56, 2],
+            backgroundColor: ['#4361ee', '#ff6384', '#36a2eb'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const value = context.raw;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return `${context.label}: ${percentage}% (${value})`;
+                }
+              }
+            }
+          },
+          cutout: '70%'
+        }
+      });
+    
+      // Age distribution chart
+      const ageCtx = document.getElementById('ageChart').getContext('2d');
+      const ageChart = new Chart(ageCtx, {
+        type: 'bar',
+        data: {
+          labels: ['18-24', '25-34', '35-44', '45-54', '55+'],
+          datasets: [{
+            label: 'จำนวนลูกค้า',
+            data: [65, 125, 80, 45, 20],
+            backgroundColor: '#4cc9f0',
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    
+      // Monthly sales chart
+      const monthlySalesCtx = document.getElementById('monthlySalesChart').getContext('2d');
+      const monthlySalesChart = new Chart(monthlySalesCtx, {
+        type: 'line',
+        data: {
+          labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
+          datasets: [{
+            label: 'ยอดขายทั้งหมด',
+            data: [450000, 520000, 480000, 500000, 540000, 580000, 620000, 590000, 610000, 640000, 680000, 710000],
+            borderColor: '#4361ee',
+            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+            tension: 0.4,
+            fill: true
+          }, {
+            label: 'ยอดขายแบบผ่อนชำระ',
+            data: [320000, 350000, 330000, 360000, 370000, 390000, 420000, 410000, 430000, 450000, 470000, 490000],
+            borderColor: '#f72585',
+            backgroundColor: 'rgba(247, 37, 133, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '฿' + value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    
+      // Payment method chart
+      const paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
+      const paymentMethodChart = new Chart(paymentMethodCtx, {
+        type: 'pie',
+        data: {
+          labels: ['จ่ายสด', 'ผ่อนชำระ', 'ผ่อนหมดรับเครื่อง'],
+          datasets: [{
+            data: [32, 58, 10],
+            backgroundColor: ['#4cc9f0', '#4361ee', '#3a0ca3'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+            }
+          }
+        }
+      });
+    
+      // Popular phone models chart
+      const phoneModelCtx = document.getElementById('phoneModelChart').getContext('2d');
+      const phoneModelChart = new Chart(phoneModelCtx, {
+        type: 'bar',
+        data: {
+          labels: ['iPhone 15', 'Samsung S24', 'iPhone 14', 'Xiaomi 14', 'Oppo Find X', 'Vivo X90'],
+          datasets: [{
+            label: 'ยอดขาย (เครื่อง)',
+            data: [120, 95, 85, 65, 48, 42],
+            backgroundColor: '#4361ee',
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          },
+          indexAxis: 'y'
+        }
+      });
+    
+      // Branch sales chart
+      const branchSalesCtx = document.getElementById('branchSalesChart').getContext('2d');
+      const branchSalesChart = new Chart(branchSalesCtx, {
+        type: 'bar',
+        data: {
+          labels: ['สาขาปัตตานีสำนักงานใหญ่', 'สาขายะลา', 'สาขาสุไงโกลก', 'สาขาพัทลุง', 'สาขาสตูล', 'สาขาบิกซียะลา', 'สาขาหาดใหญ่'],
+          datasets: [{
+            label: 'ยอดขาย (บาท)',
+            data: [1250000, 980000, 870000, 950000, 780000, 680000, 560000],
+            backgroundColor: '#4cc9f0',
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '฿' + value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Populate sales table with sample data
+    function populateSalesTable() {
+      const tableBody = document.querySelector('#salesTable tbody');
+    
+      // Sample data
+      const salesData = [
+        { date: '2025-05-09', id: 'CS0025', name: 'สมชาย ใจดี', age: 32, gender: 'ชาย', model: 'iPhone 15 Pro', branch: 'สาขาปัตตานีสำนักงานใหญ่', payment: 'ผ่อนชำระ', price: 45900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-09', id: 'CS0024', name: 'วิภาพร กล้า', age: 27, gender: 'หญิง', model: 'Samsung S24 Ultra', branch: 'สาขาหาดใหญ่', payment: 'จ่ายสด', price: 42900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-08', id: 'CS0023', name: 'รัชดา วงศ์พัฒน์', age: 45, gender: 'หญิง', model: 'iPhone 14', branch: 'สาขาปัตตานีสำนักงานใหญ่', payment: 'ผ่อนชำระ', price: 32900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-08', id: 'CS0022', name: 'กิตติพงศ์ สุขสันต์', age: 22, gender: 'ชาย', model: 'Xiaomi 14', branch: 'สาขาหาดใหญ่', payment: 'จ่ายสด', price: 27900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-08', id: 'CS0021', name: 'ศิริวรรณ เจริญดี', age: 35, gender: 'หญิง', model: 'iPhone 15', branch: 'สาขาปัตตานีสำนักงานใหญ่', payment: 'ผ่อนหมดรับเครื่อง', price: 38900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-07', id: 'CS0020', name: 'ภานุวัฒน์ พงษ์ไพร', age: 29, gender: 'ชาย', model: 'Samsung S24', branch: 'สาขาปัตตานีสำนักงานใหญ่', payment: 'ผ่อนชำระ', price: 35900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-07', id: 'CS0019', name: 'นภัสสร แสนสุข', age: 31, gender: 'หญิง', model: 'iPhone 15 Pro Max', branch: 'สาขายะลา', payment: 'ผ่อนชำระ', price: 49900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-07', id: 'CS0018', name: 'วิทยา ศรีมงคล', age: 42, gender: 'ชาย', model: 'Oppo Find X', branch: 'สาขาสุไงโกลก', payment: 'จ่ายสด', price: 29900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-06', id: 'CS0017', name: 'ปิยะนุช สวัสดิมงคล', age: 25, gender: 'หญิง', model: 'iPhone 14 Pro', branch: 'สาขาพัทลุง', payment: 'ผ่อนชำระ', price: 39900, status: 'เสร็จสิ้น' },
+        { date: '2025-05-06', id: 'CS0016', name: 'สุรชัย นามสมบูรณ์', age: 38, gender: 'ชาย', model: 'Vivo X90', branch: 'สาขาสตูล', payment: 'จ่ายสด', price: 28900, status: 'เสร็จสิ้น' }
+      ];
+    
+      // Clear existing rows
+      tableBody.innerHTML = '';
+    
+      // Add data rows
+      salesData.forEach(sale => {
+        const row = document.createElement('tr');
+    
+        row.innerHTML = `
+          <td>${formatDate(sale.date)}</td>
+          <td>${sale.id}</td>
+          <td>${sale.name}</td>
+          <td>${sale.age}</td>
+          <td>${sale.gender}</td>
+          <td>${sale.model}</td>
+          <td>${sale.branch}</td>
+          <td>${sale.payment}</td>
+          <td>฿${sale.price.toLocaleString()}</td>
+          <td><span class="status-pill ${getStatusClass(sale.status)}">${sale.status}</span></td>
+        `;
+    
+        tableBody.appendChild(row);
+      });
+    }
+    
+    // Format date to Thai format
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    
+    // Get class for status pill
+    function getStatusClass(status) {
+      switch(status) {
+        case 'เสร็จสิ้น':
+          return 'status-complete';
+        case 'รอดำเนินการ':
+          return 'status-pending';
+        case 'ยกเลิก':
+          return 'status-cancelled';
+        default:
+          return '';
+      }
+    }
+    
+    // Set up event listeners
+    function setupEventListeners() {
+      // Time range selector
+      const timeRangeSelect = document.getElementById('timeRange');
+      if (timeRangeSelect) {
+        timeRangeSelect.addEventListener('change', function() {
+          // Simulate data update based on time range
+        });
+      }
+    
+      // Search functionality
+      const tableSearch = document.getElementById('tableSearch');
+      if (tableSearch) {
+        tableSearch.addEventListener('input', function() {
+          const searchText = this.value.toLowerCase();
+          const tableRows = document.querySelectorAll('#salesTable tbody tr');
+    
+          tableRows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchText) ? '' : 'none';
+          });
+        });
+      }
+    
+      // Pagination
+      const prevPageBtn = document.getElementById('prevPage');
+      const nextPageBtn = document.getElementById('nextPage');
+    
+      if (prevPageBtn && nextPageBtn) {
+        prevPageBtn.addEventListener('click', function() {
+          const currentPage = document.getElementById('currentPage');
+          let page = parseInt(currentPage.textContent);
+          if (page > 1) {
+            currentPage.textContent = (page - 1).toString();
+              nextPageBtn.disabled = false;
+            if (page - 1 === 1) {
+              prevPageBtn.disabled = true;
+            }
+          }
+        });
+    
+        nextPageBtn.addEventListener('click', function() {
+          const currentPage = document.getElementById('currentPage');
+          const totalPages = document.getElementById('totalPages');
+          let page = parseInt(currentPage.textContent);
+          let total = parseInt(totalPages.textContent);
+    
+          if (page < total) {
+            currentPage.textContent = (page + 1).toString();
+              prevPageBtn.disabled = false;
+            if (page + 1 === total) {
+              nextPageBtn.disabled = true;
+            }
+          }
+        });
+      }
+    
+      // Export button
+      const exportBtn = document.querySelector('.export-btn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+          alert('ระบบกำลังส่งออกข้อมูลเป็นไฟล์ Excel...');
+          // Implementation would typically involve server-side export logic
+        });
+      }
+
+    }
+    
+
+  </script>
+</body>
+</html>

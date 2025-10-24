@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบ HR — ประเมินผลงาน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+
+  <!-- Tailwind + DaisyUI -->
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt','sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Socket.IO client (ถ้าใช้งาน real-time) -->
+  <script src="https://cdn.socket.io/4.5.1/socket.io.min.js"></script>
+
+  <style>
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px; height: 60px; border-radius: 10px;
+      background-color: #f3f4f6; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+    .calendar-day-holiday {
+      background-color: #fee2e2; color: #ef4444;
+    }
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d; color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+                  0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0%   { transform: scale(1);   }
+      50%  { transform: scale(1.1); }
+      100% { transform: scale(1);   }
+    }
+    #notificationBtn span.badge-notification {
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #888; border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block; margin-right: 5px;
+    }
+    .status-active   { background-color: #10b981; }
+    .status-away     { background-color: #f59e0b; }
+    .status-offline  { background-color: #6b7280; }
+  </style>
+
+  <!-- เพิ่มฟังก์ชัน loadEmployeeProfile ก่อนสคริปต์หลัก -->
+  <script>
+    // โหลดข้อมูลโปรไฟล์พนักงานจาก API
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const res = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');
+        }
+        const user = result.data;
+        document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+        let photoUrl = user.photoUrl || '';
+        if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+          photoUrl = '/' + photoUrl;
+        }
+        document.getElementById('employeePhoto').src = photoUrl;
+      } catch (err) {
+        console.error('Load Employee Profile Error:', err);
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-900 dark:text-gray-200">
+
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu"
+          class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i id="toggleIcon" class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Sidebar (fixed) -->
+  <aside id="sidebar"
+         class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 flex flex-col
+                transform transition-transform duration-300 z-40">
+    <a href="hr_dashboard">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+      </div>
+    </a>
+
+    <div class="flex-1 p-4 overflow-y-auto">
+      <ul class="flex flex-col w-full space-y-1">
+        <li>
+          <a href="hr_dashboard"
+             class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+            <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+            <span class="ml-3">แดชบอร์ด</span>
+          </a>
+        </li>
+        <li>
+          <a href="employee_directory"
+             class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-people-fill text-xl text-blue-500 dark:text-blue-400"></i>
+            <span class="ml-3">พนักงาน</span>
+          </a>
+        </li>
+        <li>
+          <a href="attendance"
+             class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+            <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+          </a>
+        </li>
+        <li>
+          <a href="leave_requests"
+             class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+            <span class="ml-3">การลา</span>
+          </a>
+        </li>
+        <li>
+          <a href="payroll"
+             class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+            <span class="ml-3">เงินเดือน</span>
+          </a>
+        </li>
+        <li>
+          <a href="performance_reviews"
+             class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+            <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+            <span class="ml-3">ประเมินผลงาน</span>
+          </a>
+        </li>
+        <li>
+          <a href="bonus_list"
+             class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+            <span>รายการโบนัส</span>
+          </a>
+        </li>
+        <li class="mt-4">
+          <a href="role_management"
+             class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+            <span class="ml-3">การตั้งค่า</span>
+          </a>
+        </li>
+        <li class="mt-6">
+          <button id="btnToggleDark"
+                  class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+            <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+          </button>
+        </li>
+        <li>
+          <button id="btnLogoutSidebar"
+                  class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-box-arrow-right text-xl"></i>
+            <span class="ml-3">ออกจากระบบ</span>
+          </button>
+        </li>
+        <li>
+          <div id="profile"
+                 class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <img id="employeePhoto"
+                   src="/api/placeholder/36/36"
+                   alt="Employee Photo"
+                   class="w-10 h-10 rounded-full mr-3"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+  <!-- Main Content -->
+  <main id="mainContent"
+        class="p-6 bg-gray-50 dark:bg-gray-800 overflow-y-auto
+               transition-all duration-300 ml-0 md:ml-64 min-h-screen">
+    <!-- Header & Actions -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <h1 class="text-2xl font-bold text-gray-800 dark:text-white">ประเมินผลงาน</h1>
+      <!-- ในหน้านี้จะเอาปุ่ม "เพิ่มใบแจ้งเตือน" ออก เหลือเฉพาะ "เพิ่มการประเมิน" -->
+      <div class="flex flex-wrap gap-2">
+        <button id="btnAddReview" class="btn btn-primary" aria-label="เพิ่มการประเมินผลงานใหม่">
+          <i class="bi bi-plus-circle mr-2"></i> เพิ่มการประเมิน
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-wrap gap-4 mb-6 items-center bg-white dark:bg-gray-900 p-4 rounded-lg shadow">
+      <div class="dropdown">
+        <label tabindex="0" class="btn btn-outline">
+          <i class="bi bi-filter mr-2"></i> กรองรอบประเมิน
+        </label>
+        <ul tabindex="0" id="filterCycleDropdown" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-base-300 rounded-box w-52 border dark:border-gray-700 mt-2 z-10">
+          <li><a data-cycle="all" class="filter-cycle-item active">ทุกรอบ</a></li>
+          <li><a data-cycle="Q1-2025" class="filter-cycle-item">ไตรมาส 1/2025</a></li>
+          <li><a data-cycle="Q2-2025" class="filter-cycle-item">ไตรมาส 2/2025</a></li>
+          <li><a data-cycle="Q3-2025" class="filter-cycle-item">ไตรมาส 3/2025</a></li>
+          <li><a data-cycle="Q4-2025" class="filter-cycle-item">ไตรมาส 4/2025</a></li>
+          <li><a data-cycle="Annual-2025" class="filter-cycle-item">ประจำปี 2025</a></li>
+        </ul>
+      </div>
+      <div class="dropdown">
+        <label tabindex="0" class="btn btn-outline">
+          <i class="bi bi-sort-down mr-2"></i> เรียงคะแนน
+        </label>
+        <ul tabindex="0" id="sortReviewDropdown" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-base-300 rounded-box w-44 border dark:border-gray-700 mt-2 z-10">
+          <li><a data-sort-by="score" data-sort-dir="desc" class="sort-review-item active">มาก→น้อย</a></li>
+          <li><a data-sort-by="score" data-sort-dir="asc" class="sort-review-item">น้อย→มาก</a></li>
+          <li><a data-sort-by="employee_name" data-sort-dir="asc" class="sort-review-item">ชื่อ (ก→ฮ)</a></li>
+          <li><a data-sort-by="employee_name" data-sort-dir="desc" class="sort-review-item">ชื่อ (ฮ→ก)</a></li>
+        </ul>
+      </div>
+      <div class="relative flex-1 min-w-[200px]">
+        <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400"></i>
+        <input id="searchEmployeeInput" type="text"  placeholder="ค้นหาพนักงาน..." class="pl-10 pr-4 py-2 w-full input input-bordered focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+    </div>
+
+    <!-- Performance Reviews Table -->
+    <div class="bg-white dark:bg-gray-900 shadow rounded-lg mb-8 overflow-x-auto">
+       <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100">รายการประเมินผลงาน</h2>
+      </div>
+      <table class="table w-full">
+        <thead class="bg-gray-100 dark:bg-gray-800">
+          <tr>
+            <th class="px-4 py-3">รอบประเมิน</th>
+            <th class="px-4 py-3">พนักงาน</th>
+            <th class="px-4 py-3">ตำแหน่ง</th>
+            <th class="px-4 py-3 text-center">คะแนนเฉลี่ย</th>
+            <th class="px-4 py-3 text-center">สถานะ</th>
+            <th class="px-4 py-3 text-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="reviewTableBody">
+          <tr><td colspan="6" class="text-center p-4">กำลังโหลดข้อมูลการประเมิน...</td></tr>
+        </tbody>
+      </table>
+      <div id="reviewEmptyState" class="hidden p-8 text-center">
+        <i class="bi bi-clipboard-x text-5xl text-gray-400 mb-4"></i>
+        <h3 class="text-lg font-medium">ไม่พบข้อมูลการประเมิน</h3>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal for Adding/Editing Performance Review -->
+  <div id="reviewModal" class="modal modal-lg">
+    <div class="modal-box max-w-4xl bg-white dark:bg-gray-800">
+      <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-gray-100" id="reviewModalTitle">เพิ่มการประเมินผลงาน</h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" id="closeReviewModal" aria-label="ปิดหน้าต่างการประเมิน">✕</button>
+      
+      <form id="performanceReviewForm" class="review-form">
+        <input type="hidden" id="reviewId" value="">
+        
+        <!-- Employee & General Info Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100" for="employeeSelect">พนักงาน <span class="text-red-500">*</span></label>
+            <select id="employeeSelect" class="select select-bordered w-full" required>
+              <option value="">เลือกพนักงาน</option>
+              <!-- Options will be filled by JS -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100" for="reviewCycle">รอบการประเมิน <span class="text-red-500">*</span></label>
+            <select id="reviewCycle" class="select select-bordered w-full" required>
+              <option value="">เลือกรอบประเมิน</option>
+              <option value="Q1-2025">ไตรมาส 1/2025</option>
+              <option value="Q2-2025">ไตรมาส 2/2025</option>
+              <option value="Q3-2025">ไตรมาส 3/2025</option>
+              <option value="Q4-2025">ไตรมาส 4/2025</option>
+              <option value="Annual-2025">ประจำปี 2025</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100" for="reviewDate">วันที่ประเมิน <span class="text-red-500">*</span></label>
+            <input type="date" id="reviewDate" class="input input-bordered w-full" required>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100" for="reviewStatus">สถานะ <span class="text-red-500">*</span></label>
+            <select id="reviewStatus" class="select select-bordered w-full" required>
+              <option value="รอพิจารณา">รอพิจารณา</option>
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Evaluation Categories Section -->
+        <div class="border rounded-lg p-4 mb-6">
+          <h4 class="font-semibold text-lg mb-4 text-center text-gray-800 dark:text-gray-100">
+            แบบประเมินผลการปฏิบัติงาน (Job Performance)
+          </h4>
+          <div class="overflow-x-auto mb-4 max-w-full">
+            <table class="table w-full min-w-[800px]">
+              <thead class="bg-gray-100 dark:bg-gray-800">
+                <tr class="bg-gray-100 dark:bg-gray-800">
+                  <th class="w-8 text-center">ลำดับ</th>
+                  <th>หัวข้อการประเมิน</th>
+                  <th class="text-center w-12" title="ดีเยี่ยม (5 คะแนน)">5</th>
+                  <th class="text-center w-12" title="ดีมาก (4 คะแนน)">4</th>
+                  <th class="text-center w-12" title="ดี (3 คะแนน)">3</th>
+                  <th class="text-center w-12" title="พอใช้ (2 คะแนน)">2</th>
+                  <th class="text-center w-12" title="ปรับปรุง (1 คะแนน)">1</th>
+                  <th class="text-center">คะแนน</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-800 dark:text-gray-200">
+                <!-- Section 1: Performance Results -->
+                <tr class="font-semibold bg-blue-50 dark:bg-blue-900/20">
+                  <td class="text-center">1</td>
+                  <td colspan="7">ผลการปฏิบัติงาน (Performance Results)</td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>ปริมาณงาน คุณภาพงาน การทำงานสำเร็จตามที่ได้รับงาน</td>
+                  <td class="text-center p-1">
+                    <div data-category="1" data-item="1" data-value="5"
+                         class="rating-box border rounded h-8 w-8 flex items-center justify-center mx-auto">
+                    </div>
+                  </td>
+                  <td class="text-center p-1">
+                    <div data-category="1" data-item="1" data-value="4"
+                         class="rating-box border rounded h-8 w-8 flex items-center justify-center mx-auto">
+                    </div>
+                  </td>
+                  <td class="text-center p-1">
+                    <div data-category="1" data-item="1" data-value="3"
+                         class="rating-box border rounded h-8 w-8 flex items-center justify-center mx-auto">
+                    </div>
+                  </td>
+                  <td class="text-center p-1">
+                    <div data-category="1" data-item="1" data-value="2"
+                         class="rating-box border rounded h-8 w-8 flex items-center justify-center mx-auto">
+                    </div>
+                  </td>
+                  <td class="text-center p-1">
+                    <div data-category="1" data-item="1" data-value="1"
+                         class="rating-box border rounded h-8 w-8 flex items-center justify-center mx-auto">
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <input type="number" min="1" max="5"
+                           class="score-input" data-category="1" data-item="1" readonly>
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>ความครบถ้วนในการส่งงาน การทำงานให้เสร็จตามกำหนด</td>
+                  <td class="text-center p-1"><div data-category="1" data-item="2" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="1" data-item="2" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="1" data-item="2" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="1" data-item="2" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="1" data-item="2" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="1" data-item="2" readonly></td>
+                </tr>
+                <!-- Section 2: Customer Management -->
+                <tr class="font-semibold bg-blue-50 dark:bg-blue-900/20">
+                  <td class="text-center">2</td>
+                  <td colspan="7">ทักษะการบริหารลูกค้า</td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>ความเข้าใจในความต้องการ ความพึงพอใจของลูกค้า</td>
+                  <td class="text-center p-1"><div data-category="2" data-item="1" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="1" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="1" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="1" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="1" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="2" data-item="1" readonly></td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>การรักษาความสัมพันธ์กับลูกค้า ความสามารถในการสื่อสารอย่างมืออาชีพ</td>
+                  <td class="text-center p-1"><div data-category="2" data-item="2" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="2" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="2" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="2" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="2" data-item="2" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="2" data-item="2" readonly></td>
+                </tr>
+                <!-- Section 3: Work Behavior -->
+                <tr class="font-semibold bg-blue-50 dark:bg-blue-900/20">
+                  <td class="text-center">3</td>
+                  <td colspan="7">พฤติกรรมในการทำงาน (Work Behavior)</td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>การบริหารความรับผิดชอบ ความตั้งใจแสดงออกถึงความซื่อสัตย์สุจริต ความตรงต่อเวลา</td>
+                  <td class="text-center p-1"><div data-category="3" data-item="1" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="1" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="1" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="1" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="1" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="3" data-item="1" readonly></td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>ความสามารถในการทำงานร่วมกับคน การปฏิบัติตามกฎระเบียบองค์กร</td>
+                  <td class="text-center p-1"><div data-category="3" data-item="2" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="2" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="2" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="2" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="3" data-item="2" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="3" data-item="2" readonly></td>
+                </tr>
+                <!-- Section 4: Teamwork -->
+                <tr class="font-semibold bg-blue-50 dark:bg-blue-900/20">
+                  <td class="text-center">4</td>
+                  <td colspan="7">การทำงานร่วมกับทีม (Teamwork & Collaboration)</td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>ความร่วมมือกับทีมงาน การช่วยเหลือซึ่งกัน การรับฟังและรับใจ</td>
+                  <td class="text-center p-1"><div data-category="4" data-item="1" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="1" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="1" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="1" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="1" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="4" data-item="1" readonly></td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>ความเต็มใจในทำงาน แบ่งปันข้อมูลร่วมกันได้ดี ไม่ทำให้เพื่อนในองค์กรลำบากใจ</td>
+                  <td class="text-center p-1"><div data-category="4" data-item="2" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="2" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="2" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="2" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="2" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="4" data-item="2" readonly></td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>หลีกเลี่ยงปัญหาในทีมการเสียดสีกับคนอื่น</td>
+                  <td class="text-center p-1"><div data-category="4" data-item="3" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="3" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="3" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="3" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="4" data-item="3" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="4" data-item="3" readonly></td>
+                </tr>
+                <!-- Section 5: Attitude -->
+                <tr class="font-semibold bg-blue-50 dark:bg-blue-900/20">
+                  <td class="text-center">5</td>
+                  <td colspan="7">ทัศนคติและแรงจูงใจ (Attitude & Motivation)</td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>มีทัศนคติดีงามและตั้งใจ ความกระตือรือร้นในการทำงาน ความสามารถเป็นผู้นำ</td>
+                  <td class="text-center p-1"><div data-category="5" data-item="1" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="5" data-item="1" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="5" data-item="1" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="5" data-item="1" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="5" data-item="1" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="5" data-item="1" readonly></td>
+                </tr>
+                <!-- Section 6: Learning -->
+                <tr class="font-semibold bg-blue-50 dark:bg-blue-900/20">
+                  <td class="text-center">6</td>
+                  <td colspan="7">การเรียนรู้และพัฒนา (Learning & Growth)</td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>ความสามารถในการเรียนรู้สิ่งใหม่ ความพยายามที่จะนำความรู้มาพัฒนางานอย่างสม่ำเสมอ</td>
+                  <td class="text-center p-1"><div data-category="6" data-item="1" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="1" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="1" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="1" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="1" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="6" data-item="1" readonly></td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>การคิดค้นไอเดีย ความคิดสร้างสรรค์ใหม่</td>
+                  <td class="text-center p-1"><div data-category="6" data-item="2" data-value="5" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="2" data-value="4" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="2" data-value="3" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="2" data-value="2" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center p-1"><div data-category="6" data-item="2" data-value="1" class="rating-box text-center border rounded h-8 w-8 flex items-center justify-center mx-auto"></div></td>
+                  <td class="text-center"><input type="number" min="1" max="5" class="score-input" data-category="6" data-item="2" readonly></td>
+                </tr>
+                <!-- Total Score Row -->
+                <tr class="font-semibold bg-gray-100 dark:bg-gray-800">
+                  <td colspan="6" class="text-right pr-4">รวมคะแนนทั้งหมด:</td>
+                  <td id="totalScoreBox" class="text-center font-bold text-lg">0</td>
+                  <td class="text-center"><input type="number" id="avgScore" min="0" max="5" step="0.1" class="font-bold text-center" readonly></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Comments Section -->
+        <div class="mb-6">
+          <label for="reviewComments" class="block text-sm font-medium mb-2">ความคิดเห็นเพิ่มเติม:</label>
+          <textarea id="reviewComments" rows="3" class="textarea textarea-bordered w-full" placeholder="ข้อเสนอแนะหรือความคิดเห็นเพิ่มเติมสำหรับการประเมินนี้..."></textarea>
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button type="button" class="btn btn-outline" id="btnCancelReview">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึกการประเมิน</button>
+        </div>
+      </form>
+    </div>
+  </div>
+<script>
+// 1) ค่าคงที่และ state
+const API_BASE = '/api';
+const token    = localStorage.getItem('authToken');
+let allEmployees = [], allReviews = [];
+let currentFilter = { cycle: 'all', search: '' };
+let currentSort   = { by: 'score', dir: 'desc' };
+
+// 2) helper แปลง URL รูป
+function resolvePhotoUrl(raw) {
+  if (!raw) return '/api/placeholder/36/36';
+  if (/^https?:\/\//.test(raw)) return raw;
+  return raw.startsWith('/') ? raw : `/uploads/employees/${raw}`;
+}
+
+// 3) โหลดโปรไฟล์ผู้ใช้ → เติม sidebar + localStorage
+async function fetchUserProfile() {
+  try {
+    const res  = await fetch(`${API_BASE}/users/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.error || json.message);
+
+    const u = json.data;
+    const nameEl = document.getElementById('employeeName');
+    if (nameEl) nameEl.textContent = u.name || '(ไม่พบชื่อ)';
+
+    const initEl = document.getElementById('userInitial');
+    if (initEl && u.name) {
+      initEl.textContent = u.name.charAt(0).toUpperCase();
+      initEl.classList.remove('hidden');
+    }
+
+    const imgEl = document.getElementById('employeePhoto');
+    if (imgEl && u.photoUrl) {
+      imgEl.src = resolvePhotoUrl(u.photoUrl);
+    }
+
+    localStorage.setItem('userInfo', JSON.stringify({ name: u.name, photoUrl: u.photoUrl }));
+  } catch (err) {
+    console.error('fetchUserProfile error:', err);
+  }
+}
+
+// 4) โหลดพนักงาน → สร้าง dropdown
+async function fetchEmployees() {
+  const res  = await fetch(`${API_BASE}/users`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.message);
+  allEmployees = json.data;
+
+  const sel = document.getElementById('employeeSelect');
+  while (sel.options.length > 1) sel.remove(1);
+  allEmployees.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value       = u._id;
+    opt.textContent = u.employee?.name || u.name;
+    sel.appendChild(opt);
+  });
+}
+
+// 5) โหลดข้อมูลการประเมิน + render
+async function fetchPerformanceReviews() {
+  try {
+    const res  = await fetch(`${API_BASE}/performance_reviews`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json = await res.json();
+    if (res.ok && json.success) {
+      allReviews = json.data || [];
+      applyFiltersAndRender();
+    } else {
+      console.error('error loading reviews:', json.error);
+      allReviews = [];
+      applyFiltersAndRender();
+    }
+  } catch (error) {
+    console.error('Failed to fetch performance reviews:', error);
+    allReviews = [];
+    applyFiltersAndRender();
+  }
+}
+
+// 6) กรอง–เรียง + render
+function applyFiltersAndRender() {
+  let data = allReviews.slice();
+  if (currentFilter.cycle !== 'all') {
+    data = data.filter(r => r.cycle === currentFilter.cycle);
+  }
+  const term = currentFilter.search.toLowerCase();
+  if (term) {
+    data = data.filter(r => {
+      const name = (r.employee?.name || r.employeeName || '').toLowerCase();
+      return name.includes(term);
+    });
+  }
+  data.sort((a,b) => {
+    let A,B;
+    if (currentSort.by === 'score') {
+      A = parseFloat(a.score)||0; B = parseFloat(b.score)||0;
+    } else {
+      A = (a.employee?.name||'').toLowerCase();
+      B = (b.employee?.name||'').toLowerCase();
+    }
+    return (A < B ? -1 : A > B ? 1 : 0) * (currentSort.dir==='asc'?1:-1);
+  });
+  renderTable(data);
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('reviewTableBody');
+  const empty = document.getElementById('reviewEmptyState');
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 animate-fade-in';
+    const id   = r._id||r.id;
+    const name = r.employee?.name || r.employeeName;
+    const pos  = r.employee?.position || r.position;
+    const sc   = parseFloat(r.score||0).toFixed(1);
+    const statCls = r.status==='ผ่าน' ? 'badge-success'
+                  : r.status==='รอพิจารณา' ? 'badge-warning'
+                  : 'badge-error';
+    tr.innerHTML = `
+      <td class="px-4 py-3">${r.cycle||'-'}</td>
+      <td class="px-4 py-3">${name}</td>
+      <td class="px-4 py-3">${pos}</td>
+      <td class="px-4 py-3 text-center">${sc}/5</td>
+      <td class="px-4 py-3 text-center"><span class="badge badge-sm ${statCls}">${r.status||'-'}</span></td>
+      <td class="px-4 py-3 text-center">
+        <button data-action="view-review" data-id="${id}" class="btn btn-ghost btn-xs text-info"><i class="bi bi-eye"></i></button>
+        <button data-action="edit-review" data-id="${id}" class="btn btn-ghost btn-xs text-warning"><i class="bi bi-pencil"></i></button>
+        <button data-action="delete-review" data-id="${id}" class="btn btn-ghost btn-xs text-error"><i class="bi bi-trash"></i></button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// 7) ผูก event ต่างๆ
+function setupFilterSort() {
+  document.querySelectorAll('.filter-cycle-item').forEach(i => {
+    i.addEventListener('click', function(){
+      document.querySelectorAll('.filter-cycle-item').forEach(x=>x.classList.remove('active'));
+      this.classList.add('active');
+      currentFilter.cycle = this.dataset.cycle;
+      applyFiltersAndRender();
+    });
+  });
+  document.querySelectorAll('.sort-review-item').forEach(i => {
+    i.addEventListener('click', function(){
+      document.querySelectorAll('.sort-review-item').forEach(x=>x.classList.remove('active'));
+      this.classList.add('active');
+      currentSort.by  = this.dataset.sortBy;
+      currentSort.dir = this.dataset.sortDir;
+      applyFiltersAndRender();
+    });
+  });
+  document.getElementById('searchEmployeeInput')
+    .addEventListener('input', e => {
+      currentFilter.search = e.target.value;
+      applyFiltersAndRender();
+    });
+}
+
+function setupTableActions() {
+  document.getElementById('reviewTableBody')
+    .addEventListener('click', e => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const act = btn.dataset.action, id = btn.dataset.id;
+      if (act==='view-review') openEditReviewModal(id, true);
+      if (act==='edit-review') openEditReviewModal(id, false);
+      if (act==='delete-review' && confirm('ลบข้อมูลการประเมิน?')) deleteReview(id);
+    });
+}
+
+// 8) modal handlers + CRUD (openAdd, openEdit, close, submit, delete)
+function openAddReviewModal() {
+  document.getElementById('reviewModalTitle').textContent = 'เพิ่มการประเมินผลงาน';
+  document.getElementById('reviewId').value = '';
+  document.getElementById('employeeSelect').value = '';
+  document.getElementById('reviewCycle').value = '';
+  document.getElementById('reviewDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('reviewStatus').value = 'รอพิจารณา';
+  document.getElementById('reviewComments').value = '';
+  document.querySelectorAll('.rating-box').forEach(box => box.classList.remove('rating-selected'));
+  document.querySelectorAll('.score-input').forEach(input => input.value = '');
+  document.getElementById('totalScoreBox').textContent = '0';
+  document.getElementById('avgScore').value = '0.0';
+  document.getElementById('reviewModal').classList.add('modal-open');
+}
+
+function openEditReviewModal(reviewId, readOnly = false) {
+  const review = allReviews.find(r => (r.id || r._id) == reviewId);
+  if (!review) return;
+  document.getElementById('reviewModalTitle').textContent = readOnly
+    ? 'ดูรายละเอียดการประเมิน'
+    : 'แก้ไขการประเมินผลงาน';
+  document.getElementById('reviewId').value = reviewId;
+  document.getElementById('employeeSelect').value = review.employee?._id || review.employeeId || '';
+  document.getElementById('reviewCycle').value = review.cycle || '';
+  document.getElementById('reviewDate').value = (review.date || '').split('T')[0];
+  document.getElementById('reviewStatus').value = review.status || 'รอพิจารณา';
+  document.getElementById('reviewComments').value = review.comments || '';
+  document.querySelectorAll('.rating-box').forEach(box => box.classList.remove('rating-selected'));
+  document.querySelectorAll('.score-input').forEach(input => input.value = '');
+  if (review.evaluations) {
+    for (const cat in review.evaluations) {
+      for (const itm in review.evaluations[cat]) {
+        const value = review.evaluations[cat][itm];
+        const ratingBox = document.querySelector(`.rating-box[data-category="${cat}"][data-item="${itm}"][data-value="${value}"]`);
+        if (ratingBox) ratingBox.classList.add('rating-selected');
+        const scoreInput = document.querySelector(`.score-input[data-category="${cat}"][data-item="${itm}"]`);
+        if (scoreInput) scoreInput.value = value;
+      }
+    }
+  }
+  ['employeeSelect','reviewCycle','reviewDate','reviewStatus','reviewComments'].forEach(id => {
+    document.getElementById(id).disabled = readOnly;
+  });
+  document.querySelectorAll('.rating-box').forEach(box => {
+    box.style.pointerEvents = readOnly ? 'none' : 'auto';
+  });
+  document.querySelector('#performanceReviewForm button[type="submit"]').style.display = readOnly ? 'none' : 'block';
+  document.getElementById('reviewModal').classList.add('modal-open');
+  calculateTotalScore();
+}
+
+function closeReviewModal() {
+  ['employeeSelect','reviewCycle','reviewDate','reviewStatus','reviewComments'].forEach(id => {
+    document.getElementById(id).disabled = false;
+  });
+  document.querySelectorAll('.rating-box').forEach(box => {
+    box.style.pointerEvents = 'auto';
+  });
+  document.querySelector('#performanceReviewForm button[type="submit"]').style.display = 'block';
+  document.getElementById('reviewModal').classList.remove('modal-open');
+}
+
+function calculateTotalScore() {
+  const scoreInputs = document.querySelectorAll('.score-input');
+  let totalScore = 0;
+  let count = 0;
+  scoreInputs.forEach(inp => {
+    if (inp.value) {
+      totalScore += parseFloat(inp.value);
+      count++;
+    }
+  });
+  document.getElementById('totalScoreBox').textContent = totalScore;
+  const avg = (count > 0) ? (totalScore / count).toFixed(1) : '0.0';
+  document.getElementById('avgScore').value = avg;
+}
+
+async function handleReviewFormSubmit(event) {
+  event.preventDefault();
+
+  // รวบรวมข้อมูลการประเมินทุกหมวด
+  const evaluations = {};
+  document.querySelectorAll('.score-input').forEach(input => {
+    const category = input.dataset.category;
+    const item = input.dataset.item;
+    const value = input.value;
+
+    if (value) {
+      if (!evaluations[category]) evaluations[category] = {};
+      evaluations[category][item] = parseInt(value);
+    }
+  });
+
+  const payload = {
+    employee: document.getElementById('employeeSelect').value,
+    cycle: document.getElementById('reviewCycle').value,
+    date: document.getElementById('reviewDate').value,
+    status: document.getElementById('reviewStatus').value,
+    score: document.getElementById('avgScore').value,
+    comments: document.getElementById('reviewComments').value,
+    evaluations: evaluations
+  };
+
+  // ตรวจสอบข้อมูลที่จำเป็น
+  if (!payload.employee || !payload.cycle || !payload.date) {
+    alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+    return;
+  }
+
+  const id = document.getElementById('reviewId').value;
+  const url = id ? `${API_BASE}/performance_reviews/${id}` : `${API_BASE}/performance_reviews`;
+  const method = id ? 'PATCH' : 'POST';
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'API error');
+    alert(id ? 'อัปเดตการประเมินเรียบร้อยแล้ว' : 'บันทึกการประเมินเรียบร้อยแล้ว');
+    closeReviewModal();
+    await fetchPerformanceReviews();
+  } catch (err) {
+    console.error('review submit error:', err);
+    alert('เกิดข้อผิดพลาด: ' + err.message);
+  }
+}
+
+async function deleteReview(reviewId) {
+  try {
+    const res = await fetch(`${API_BASE}/performance_reviews/${reviewId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    alert('ลบการประเมินเรียบร้อยแล้ว');
+    await fetchPerformanceReviews();
+    applyFiltersAndRender();
+  } catch (err) {
+    console.error('deleteReview error:', err);
+    alert('เกิดข้อผิดพลาด: ' + err.message);
+  }
+}
+
+// เพิ่มฟังก์ชันจัดการ Rating Boxes
+function setupRatingBoxes() {
+  document.addEventListener('click', function(e) {
+    const ratingBox = e.target.closest('.rating-box');
+    if (!ratingBox) return;
+
+    const category = ratingBox.dataset.category;
+    const item = ratingBox.dataset.item;
+    const value = ratingBox.dataset.value;
+
+    // เคลียร์การเลือกในแถวเดียวกัน
+    document.querySelectorAll(`.rating-box[data-category="${category}"][data-item="${item}"]`)
+      .forEach(box => box.classList.remove('rating-selected', 'bg-blue-500', 'text-white'));
+
+    // เลือกตัวใหม่
+    ratingBox.classList.add('rating-selected', 'bg-blue-500', 'text-white');
+    ratingBox.textContent = '✓';
+
+    // อัปเดตค่าใน input
+    const scoreInput = document.querySelector(`.score-input[data-category="${category}"][data-item="${item}"]`);
+    if (scoreInput) {
+      scoreInput.value = value;
+    }
+
+    // คำนวณคะแนนรวม
+    calculateTotalScore();
+  });
+}
+
+// เพิ่ม CSS สำหรับ rating boxes
+function addRatingStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .rating-box {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid #e5e7eb;
+    }
+    .rating-box:hover {
+      border-color: #3b82f6;
+      background-color: #eff6ff;
+    }
+    .rating-box.rating-selected {
+      background-color: #3b82f6 !important;
+      color: white !important;
+      border-color: #1d4ed8;
+    }
+    .score-input {
+      width: 60px;
+      text-align: center;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 4px;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// 9) layout functions
+function toggleSidebar() {
+  const sb   = document.getElementById('sidebar');
+  const mc   = document.getElementById('mainContent');
+  const icon = document.getElementById('toggleIcon');
+  // slide sidebar out/in
+  sb.classList.toggle('-translate-x-full');
+  // adjust main margin
+  mc.classList.toggle('ml-0');
+  mc.classList.toggle('md:ml-64');
+  // toggle arrow icon
+  icon.classList.toggle('bi-chevron-left');
+  icon.classList.toggle('bi-chevron-right');
+}
+
+function toggleDarkMode() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('darkMode', isDark);
+  document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+}
+
+function checkDarkMode() {
+  const isDark = localStorage.getItem('darkMode') === 'true';
+  // แน่ใจว่าจะลบ dark class ก่อนถ้าไม่ใช่ dark mode
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+  const label = document.getElementById('darkModeLabel');
+  if (label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+}
+
+function logoutUser() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userId');
+  alert('ออกจากระบบแล้ว');
+  window.location.href = '/login';
+}
+
+// 10) เริ่มต้นเมื่อโหลดหน้า
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!token) return window.location.href='login.html';
+  checkDarkMode();
+  addRatingStyles(); // เพิ่ม CSS สำหรับ rating system
+  await fetchUserProfile();
+  await fetchEmployees();
+  await fetchPerformanceReviews();
+  setupFilterSort();
+  setupTableActions();
+  setupRatingBoxes(); // เพิ่มการตั้งค่า rating system
+  document.getElementById('btnToggleMenu')?.addEventListener('click', toggleSidebar);
+  document.getElementById('btnAddReview')?.addEventListener('click', openAddReviewModal);
+  document.getElementById('closeReviewModal')?.addEventListener('click', closeReviewModal);
+  document.getElementById('btnCancelReview')?.addEventListener('click', closeReviewModal);
+  document.getElementById('performanceReviewForm')?.addEventListener('submit', handleReviewFormSubmit);
+  document.getElementById('btnToggleDark')?.addEventListener('click', toggleDarkMode);
+  document.getElementById('btnLogoutSidebar')?.addEventListener('click', logoutUser);
+});
+</script>
+</body>
+</html>

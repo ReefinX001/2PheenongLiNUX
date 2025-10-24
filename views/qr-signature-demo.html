@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Signature Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Sarabun', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 32px;
+        }
+
+        .demo-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .demo-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .qr-display {
+            display: none;
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .qr-display.active {
+            display: block;
+        }
+
+        #qr-canvas {
+            max-width: 300px;
+            width: 100%;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .qr-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .qr-info p {
+            margin-bottom: 8px;
+            color: #6c757d;
+        }
+
+        .qr-info p:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-box {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status-box.waiting {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+            display: block;
+        }
+
+        .status-box.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            display: block;
+        }
+
+        .status-box.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            display: block;
+        }
+
+        .status-box h3 {
+            margin-bottom: 10px;
+        }
+
+        .signature-preview {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .signature-preview img {
+            max-width: 100%;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            background: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 QR Code Signature System Demo</h1>
+
+        <div class="demo-section">
+            <h2>🚀 สร้าง QR Code สำหรับลงนาม</h2>
+
+            <div class="form-group">
+                <label for="receipt-id">เลขที่เอกสาร:</label>
+                <input type="text" id="receipt-id" placeholder="เช่น RC-2025-0001" value="RC-2025-TEST-001">
+            </div>
+
+            <div class="form-group">
+                <label for="signature-type">ประเภทลายเซ็น:</label>
+                <select id="signature-type">
+                    <option value="employee">พนักงาน (Employee)</option>
+                    <option value="customer">ลูกค้า (Customer)</option>
+                    <option value="witness">พยาน (Witness)</option>
+                </select>
+            </div>
+
+            <button class="btn" id="btn-generate" onclick="generateQRCode()">
+                📱 สร้าง QR Code
+            </button>
+
+            <div class="qr-display" id="qr-display">
+                <canvas id="qr-canvas"></canvas>
+
+                <div class="qr-info">
+                    <p><strong>📋 เอกสาร:</strong> <span id="display-receipt"></span></p>
+                    <p><strong>✍️ ประเภท:</strong> <span id="display-type"></span></p>
+                    <p><strong>🔗 Session ID:</strong> <code id="display-session"></code></p>
+                </div>
+
+                <div class="status-box waiting" id="status-waiting">
+                    <h3>⏳ รอการลงนาม...</h3>
+                    <p>กรุณาสแกน QR Code ด้วย iPad หรือมือถือเพื่อลงนาม</p>
+                    <p style="margin-top: 10px; font-size: 12px; opacity: 0.7;">
+                        ระบบจะอัปเดตอัตโนมัติเมื่อมีการลงนามเรียบร้อยแล้ว
+                    </p>
+                </div>
+
+                <div class="status-box success" id="status-success">
+                    <h3>✅ รับลายเซ็นสำเร็จ!</h3>
+                    <p>ระบบได้รับลายเซ็นเรียบร้อยแล้ว</p>
+                    <div class="signature-preview">
+                        <img id="signature-image" alt="ลายเซ็น">
+                    </div>
+                </div>
+
+                <div class="status-box error" id="status-error">
+                    <h3>❌ เกิดข้อผิดพลาด</h3>
+                    <p id="error-message"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>📖 วิธีใช้งาน</h2>
+            <ol style="color: #495057; line-height: 2;">
+                <li>กรอกเลขที่เอกสารและเลือกประเภทลายเซ็น</li>
+                <li>กดปุ่ม "สร้าง QR Code"</li>
+                <li>ใช้ iPad หรือมือถือสแกน QR Code</li>
+                <li>ลงนามบนหน้าจอที่เปิดขึ้นมา</li>
+                <li>กดปุ่ม "บันทึกลายเซ็น"</li>
+                <li>คอมพิวเตอร์จะรับลายเซ็นอัตโนมัติผ่าน Socket.IO หรือ Polling</li>
+            </ol>
+        </div>
+
+        <div class="demo-section">
+            <h2>⚙️ ความต้องการระบบ</h2>
+            <ul style="color: #495057; line-height: 2;">
+                <li>✅ อุปกรณ์ทั้งสองต้องอยู่ใน Network เดียวกัน</li>
+                <li>✅ รองรับ iPad, iPhone, Android</li>
+                <li>✅ ใช้งานผ่าน Browser ไม่ต้องติดตั้ง App</li>
+                <li>✅ Session หมดอายุใน 5 นาที (เพื่อความปลอดภัย)</li>
+                <li>✅ Real-time update ผ่าน Socket.IO</li>
+                <li>✅ Fallback เป็น Polling หากไม่มี Socket.IO</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let currentSession = null;
+        let pollingInterval = null;
+        let socket = null;
+
+        // Initialize Socket.IO
+        function initSocket() {
+            try {
+                socket = io();
+
+                socket.on('connect', () => {
+                    console.log('✅ Socket.IO connected');
+                });
+
+                socket.on('signature-saved', (data) => {
+                    console.log('📨 Received signature via Socket.IO:', data);
+                    if (currentSession && data.sessionId === currentSession.sessionId) {
+                        stopPolling();
+                        fetchSignature();
+                    }
+                });
+
+                socket.on('disconnect', () => {
+                    console.log('❌ Socket.IO disconnected');
+                });
+            } catch (error) {
+                console.warn('⚠️ Socket.IO not available, will use polling instead');
+            }
+        }
+
+        // Generate QR Code
+        async function generateQRCode() {
+            const receiptId = document.getElementById('receipt-id').value;
+            const signatureType = document.getElementById('signature-type').value;
+
+            if (!receiptId) {
+                alert('กรุณากรอกเลขที่เอกสาร');
+                return;
+            }
+
+            try {
+                document.getElementById('btn-generate').disabled = true;
+                document.getElementById('btn-generate').innerHTML = '<span class="spinner"></span> กำลังสร้าง...';
+
+                // Call API to create session
+                const response = await fetch('/api/qr-signature/create-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                    },
+                    body: JSON.stringify({ receiptId, signatureType })
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('เกิดข้อผิดพลาด: ' + result.message);
+                    return;
+                }
+
+                currentSession = result.data;
+
+                // Display QR Code
+                const qrCanvas = document.getElementById('qr-canvas');
+                await QRCode.toCanvas(qrCanvas, result.data.signatureUrl, {
+                    width: 300,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                });
+
+                // Update UI
+                document.getElementById('display-receipt').textContent = receiptId;
+                const typeLabels = {
+                    'employee': 'พนักงาน',
+                    'customer': 'ลูกค้า',
+                    'witness': 'พยาน'
+                };
+                document.getElementById('display-type').textContent = typeLabels[signatureType];
+                document.getElementById('display-session').textContent = result.data.sessionId;
+
+                document.getElementById('qr-display').classList.add('active');
+                document.getElementById('status-waiting').style.display = 'block';
+                document.getElementById('status-success').style.display = 'none';
+                document.getElementById('status-error').style.display = 'none';
+
+                // Start polling for signature
+                startPolling();
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง QR Code');
+            } finally {
+                document.getElementById('btn-generate').disabled = false;
+                document.getElementById('btn-generate').innerHTML = '📱 สร้าง QR Code';
+            }
+        }
+
+        // Start polling for signature
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+
+            pollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/qr-signature/poll/${currentSession.sessionId}`);
+                    const result = await response.json();
+
+                    if (result.status === 'signed' && result.data.signatureData) {
+                        stopPolling();
+                        displaySignature(result.data.signatureData);
+                    } else if (response.status === 404 || response.status === 410) {
+                        stopPolling();
+                        showError('Session หมดอายุหรือไม่พบ กรุณาสร้าง QR Code ใหม่');
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+
+        // Stop polling
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+
+        // Fetch signature (called by Socket.IO)
+        async function fetchSignature() {
+            try {
+                const response = await fetch(`/api/qr-signature/poll/${currentSession.sessionId}`);
+                const result = await response.json();
+
+                if (result.status === 'signed' && result.data.signatureData) {
+                    displaySignature(result.data.signatureData);
+                }
+            } catch (error) {
+                console.error('Fetch signature error:', error);
+            }
+        }
+
+        // Display signature
+        function displaySignature(signatureData) {
+            document.getElementById('status-waiting').style.display = 'none';
+            document.getElementById('status-success').style.display = 'block';
+            document.getElementById('signature-image').src = signatureData;
+        }
+
+        // Show error
+        function showError(message) {
+            document.getElementById('status-waiting').style.display = 'none';
+            document.getElementById('status-error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        // Initialize
+        initSocket();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopPolling();
+            if (socket) socket.disconnect();
+        });
+    </script>
+</body>
+</html>

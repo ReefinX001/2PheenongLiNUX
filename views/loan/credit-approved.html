@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>เครดิตผ่าน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- (1) โหลด Tailwind CSS CDN ก่อน -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],'
+      },
+    }
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Day.js with Thai locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/th.js"></script>
+  <script>dayjs.locale('th');</script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Utility Functions -->
+  <script>
+    // Utility functions to prevent console errors
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      if (typeof Swal !== 'undefined') {
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
+        });
+        Toast.fire({
+          icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+          title: message
+        });
+      }
+    }
+
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }).format(amount || 0);
+    }
+
+    function formatDate(date) {
+      if (!date) return '-';
+      return dayjs(date).format('DD/MM/YYYY');
+    }
+
+    function formatDateTime(date) {
+      if (!date) return '-';
+      return dayjs(date).format('DD/MM/YYYY HH:mm');
+    }
+
+    // Make functions globally available
+    window.showToast = showToast;
+    window.showLoading = showLoading;
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+    window.formatDateTime = formatDateTime;
+  </script>
+
+  <!-- Socket.io (ไฟล์โลคัล หรือ CDN ก็ได้) -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);'
+      document.documentElement.setAttribute('data-theme', savedTheme);'
+    }
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;'
+    }
+
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    /* Animation for pulse effect */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .animate-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    /* Animation for slide in from left */
+    @keyframes slideInLeft {
+      from {
+        transform: translateX(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    .slide-in-left {
+      animation: slideInLeft 0.3s ease-out;
+    }
+    
+    /* Animation for hover scale */
+    .hover-scale {
+      transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem; /* ลดความกว้างเมื่อยุบ */
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+        /* Custom modern scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(241, 241, 241, 0.2);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(136, 136, 136, 0.5);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(85, 85, 85, 0.7);
+    }
+
+    .Logo {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    /* Glass effect */
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
+    }
+    
+    /* Dark mode glass effect */
+    .dark .glass-effect {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    /* Card hover effect */
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Status indicator */
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    
+    /* Customer card selected state */
+    .customer-card.selected {
+      border-left: 4px solid #3b82f6;
+    }
+    .dark .customer-card.selected {
+      border-left: 4px solid #60a5fa;
+    }
+
+    /* Toast notification styles */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .toast {
+      background-color: white;
+      color: #333;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      transform: translateX(120%);
+      transition: transform 0.3s ease;
+      max-width: 300px;
+    }
+    
+    .toast.show {
+      transform: translateX(0);
+    }
+    
+    .toast.success {
+      border-left: 4px solid #10B981;
+    }
+    
+    .toast.error {
+      border-left: 4px solid #EF4444;
+    }
+    
+    .toast.info {
+      border-left: 4px solid #3B82F6;
+    }
+    
+    .dark .toast {
+      background-color: #1F2937;
+      color: #F9FAFB;
+    }
+    
+    /* Theme transition effect */
+    .theme-transition {
+      transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+    }
+    
+    /* Keyboard shortcuts info */
+    .key-shortcut {
+      display: inline-block;
+      background-color: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: monospace;
+      font-size: 0.85em;
+      color: #374151;
+    }
+    
+    .dark .key-shortcut {
+      background-color: #374151;
+      border-color: #4B5563;
+      color: #E5E7EB;
+    }
+
+    /* เพิ่มเอฟเฟกต์โมเดิร์นเวลากดปุ่ม */
+    .btn {
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-primary {
+      background-image: linear-gradient(to right, #3b82f6, #2563eb);
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2), 0 2px 4px -1px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-primary:hover {
+      background-image: linear-gradient(to right, #2563eb, #1d4ed8);
+      box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25), 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+    }
+
+    /* ทำให้กรอบอินพุตสวยขึ้น */
+    .input, .select, .textarea {
+      transition: all 0.2s ease;
+      border-width: 1.5px;
+    }
+
+    .input:focus, .select:focus, .textarea:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      border-color: #3b82f6;
+    }
+
+    /* เพิ่มความสวยงามให้กับตาราง */
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table th {
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ปรับแต่ง Card ให้มีความโมเดิร์น */
+    .card-hover {
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    }
+    
+    .card-hover:hover {
+      box-shadow: 0 14px 28px rgba(0,0,0,0.15), 0 10px 10px rgba(0,0,0,0.12);
+    }
+
+    /* ปรับแต่ง Tabs ให้ดูดีขึ้น */
+    .tab-btn {
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn:after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background-color: transparent;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn.active:after {
+      background-color: #3b82f6;
+    }
+
+    /* เพิ่มเอฟเฟกต์รูปภาพโปรไฟล์ */
+    .profile-image-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+
+    .profile-image-container img {
+      transition: transform 0.3s ease;
+    }
+
+    .profile-image-container:hover img {
+      transform: scale(1.05);
+    }
+
+    /* ใบเสร็จที่สวยงาม */
+    #receiptContainer {
+      background-color: white;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .dark #receiptContainer {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+
+        [data-theme="dark"]       </style>
+
+
+</head>
+
+<body
+  class="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+         bg-white text-gray-700 theme-transition
+"
+         dark:bg-gray-700 dark:text-gray-200"
+>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button
+    id="btnToggleMenu"
+    title="Toggle Menu"
+    aria-label="Toggle Menu"
+    class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition"
+  >
+    <i class="bi bi-chevron-left"></i>
+  </button>
+  <div id="menuOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
+
+  <!-- Layout หลัก: Sidebar - Main Content -->
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="transform translate-x-0 w-64 bg-white dark:bg-gray-800 flex flex-col transition-all duration-300">
+      <a href="loan_dashboard" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png" alt="Logo" class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <nav class="flex-1 p-4 overflow-y-auto">
+        <ul class="space-y-1">
+          <li><a href="loan_dashboard" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-house-door text-xl text-blue-500"></i><span class="ml-3">หน้าแรก</span>
+          </a></li>
+          <li><a href="repayment" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-wallet2 text-xl text-green-500"></i><span class="ml-3">ผ่อนชำระ</span>
+          </a></li>
+          <li><a href="installment_history" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-clock-history text-xl text-amber-500"></i><span class="ml-3">ประวัติการผ่อน</span>
+          </a></li>
+          <li><a href="customer" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-people text-xl text-purple-500"></i><span class="ml-3">จัดการลูกค้า</span>
+          </a></li>
+          <!-- เมนู: ลูกหนี้ -->
+          <li class="my-px">
+            <a href="debtors"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-receipt text-xl"></i>
+              </span>
+              <span class="ml-3">ลูกหนี้</span>
+              <span class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                <i class="bi bi-chevron-right text-sm"></i>
+              </span>
+            </a>
+          </li>
+
+            <!-- เมนู: เงินมัดจำ (ใหม่) -->
+      <li class="my-px">
+        <a href="deposits"
+           class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300">
+          <span class="flex items-center justify-center text-lg text-amber-500 dark:text-amber-400">
+            <i class="bi bi-piggy-bank text-xl"></i>
+          </span>
+          <span class="ml-3">เงินมัดจำ</span>
+          <span class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <i class="bi bi-chevron-right text-sm"></i>
+          </span>
+        </a>
+      </li>
+         
+          <!-- เมนู: เกณฑ์หนี้สูญ -->
+          <li class="my-px">
+            <a href="bad_debt_criteria"
+              class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-cyan-500 dark:text-cyan-400">
+                <i class="bi bi-clipboard2-check text-xl"></i>
+              </span>
+              <span class="ml-3">เกณฑ์หนี้สูญ</span>
+            </a>
+          </li>
+          <!-- เมนู: ต้นทุนและค่าใช้จ่าย -->
+          <li class="my-px">
+            <a href="costs_expenses"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-teal-500 dark:text-teal-400">
+                <i class="bi bi-calculator text-xl"></i>
+              </span>
+              <span class="ml-3">ต้นทุนและค่าใช้จ่าย</span>
+            </a>
+          </li>
+          <li class="mt-6"><button id="btnToggleDark" class="flex items-center w-full px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-moon text-xl text-indigo-500"></i><span class="ml-3" id="darkModeLabel">Dark Mode</span>
+          </button></li>
+          <li><button id="btnLogout" class="flex items-center w-full px-4 h-12 rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-box-arrow-right text-xl"></i><span class="ml-3">ออกจากระบบ</span>
+          </button></li>
+          <li class="mt-auto"><div id="profile" class="flex items-center px-4 h-12 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <!-- Fix the image source to use our placeholder image function instead of hardcoded path -->
+            <img id="employeePhoto" class="w-10 h-10 rounded-full mr-3" src="" alt="Emp"/><span id="employeeName">Loading...</span>
+          </div></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-4 overflow-x-hidden bg-gray-50 dark:bg-gray-900">
+      <div class="container mx-auto">
+        <!-- Page Header -->
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 animate-fadeIn">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-white">
+              <i class="bi bi-credit-card-2-front text-blue-500 mr-2"></i>เครดิตผ่าน
+            </h1>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              จัดการรายการเครดิตและดาวน์ของลูกค้า
+            </p>
+          </div>
+          <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <button class="btn btn-primary btn-sm gap-1" id="btnNewCredit">
+              <i class="bi bi-plus-circle"></i> เพิ่มรายการใหม่
+            </button>
+            <button class="btn btn-outline btn-sm gap-1" id="btnExport">
+              <i class="bi bi-download"></i> ส่งออกข้อมูล
+            </button>
+          </div>
+        </div>
+
+        <!-- Credit Process Steps Visualization -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 animate-fadeIn">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">ขั้นตอนการทำเครดิต</h2>
+          <div class="flex flex-col md:flex-row md:items-center justify-between px-2 py-3">
+            <div class="steps-container flex flex-nowrap overflow-x-auto pb-4">
+              <div class="step-item flex flex-col items-center mx-4 min-w-[100px]">
+                <div class="rounded-full bg-blue-100 dark:bg-blue-900 p-3 mb-2">
+                  <i class="bi bi-receipt-cutoff text-xl text-blue-500 dark:text-blue-300"></i>
+                </div>
+                <span class="text-sm text-gray-700 dark:text-gray-300">1. เปิดบิล<br>อย่างน้อย 100 บาท</span>
+              </div>
+              <div class="h-0.5 w-8 bg-gray-200 dark:bg-gray-700 self-center mx-1"></div>
+              <div class="step-item flex flex-col items-center mx-4 min-w-[100px]">
+                <div class="rounded-full bg-amber-100 dark:bg-amber-900 p-3 mb-2">
+                  <i class="bi bi-cash-coin text-xl text-amber-500 dark:text-amber-300"></i>
+                </div>
+                <span class="text-sm text-gray-700 dark:text-gray-300">2. วางเงินดาวน์</span>
+              </div>
+              <div class="h-0.5 w-8 bg-gray-200 dark:bg-gray-700 self-center mx-1"></div>
+              <div class="step-item flex flex-col items-center mx-4 min-w-[100px]">
+                <div class="rounded-full bg-indigo-100 dark:bg-indigo-900 p-3 mb-2">
+                  <i class="bi bi-hourglass-split text-xl text-indigo-500 dark:text-indigo-300"></i>
+                </div>
+                <span class="text-sm text-gray-700 dark:text-gray-300">3. ผ่อนชำระ<br>จนกว่าจะผ่าน</span>
+              </div>
+              <div class="h-0.5 w-8 bg-gray-200 dark:bg-gray-700 self-center mx-1"></div>
+              <div class="step-item flex flex-col items-center mx-4 min-w-[100px]">
+                <div class="rounded-full bg-green-100 dark:bg-green-900 p-3 mb-2">
+                  <i class="bi bi-check-circle text-xl text-green-500 dark:text-green-300"></i>
+                </div>
+                <span class="text-sm text-gray-700 dark:text-gray-300">4. เครดิตผ่าน<br>รับเครื่อง</span>
+              </div>
+              <div class="h-0.5 w-8 bg-gray-200 dark:bg-gray-700 self-center mx-1"></div>
+              <div class="step-item flex flex-col items-center mx-4 min-w-[100px]">
+                <div class="rounded-full bg-purple-100 dark:bg-purple-900 p-3 mb-2">
+                  <i class="bi bi-calendar-check text-xl text-purple-500 dark:text-purple-300"></i>
+                </div>
+                <span class="text-sm text-gray-700 dark:text-gray-300">5. ผ่อนชำระ<br>รายเดือน</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="card bg-white dark:bg-gray-800 shadow-md hover-scale">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">รอเครดิตผ่าน</h3>
+                  <p class="text-2xl font-bold text-amber-500" id="pendingCount">0</p>
+                </div>
+                <div class="rounded-full bg-amber-100 p-3 dark:bg-amber-900">
+                  <i class="bi bi-hourglass text-xl text-amber-500 dark:text-amber-300"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card bg-white dark:bg-gray-800 shadow-md hover-scale">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">เครดิตผ่านแล้ว</h3>
+                  <p class="text-2xl font-bold text-green-500" id="approvedCount">0</p>
+                </div>
+                <div class="rounded-full bg-green-100 p-3 dark:bg-green-900">
+                  <i class="bi bi-check-circle text-xl text-green-500 dark:text-green-300"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card bg-white dark:bg-gray-800 shadow-md hover-scale">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">ยอดดาวน์ทั้งหมด</h3>
+                  <p class="text-2xl font-bold text-blue-500" id="totalDownpayment">0</p>
+                </div>
+                <div class="rounded-full bg-blue-100 p-3 dark:bg-blue-900">
+                  <i class="bi bi-cash text-xl text-blue-500 dark:text-blue-300"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card bg-white dark:bg-gray-800 shadow-md hover-scale">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">ยอดผ่อนทั้งหมด</h3>
+                  <p class="text-2xl font-bold text-purple-500" id="totalInstallments">0</p>
+                </div>
+                <div class="rounded-full bg-purple-100 p-3 dark:bg-purple-900">
+                  <i class="bi bi-credit-card text-xl text-purple-500 dark:text-purple-300"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 animate-fadeIn">
+          <div class="flex flex-col md:flex-row md:items-end space-y-3 md:space-y-0 md:space-x-3">
+            <div class="form-control flex-1">
+              <label class="label">
+                <span class="label-text text-gray-700 dark:text-gray-300">ค้นหา</span>
+              </label>
+              <input type="text" id="searchInput" class="input input-bordered w-full" placeholder="ค้นหาชื่อลูกค้า, เลขบัตรประชาชน, เบอร์โทร..." />
+            </div>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-700 dark:text-gray-300">สถานะ</span>
+              </label>
+              <select id="statusFilter" class="select select-bordered">
+                <option value="all">ทั้งหมด</option>
+                <option value="pending">รอเครดิตผ่าน</option>
+                <option value="approved">เครดิตผ่านแล้ว</option>
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-700 dark:text-gray-300">เรียงตาม</span>
+              </label>
+              <select id="sortBy" class="select select-bordered">
+                <option value="newest">ล่าสุด</option>
+                <option value="oldest">เก่าสุด</option>
+                <option value="name">ชื่อ (A-Z)</option>
+                <option value="amount">ยอดเงิน (สูง-ต่ำ)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btnFilter">
+              <i class="bi bi-funnel mr-1"></i> กรอง
+            </button>
+          </div>
+        </div>
+
+        <!-- Credit List -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="table w-full">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-700">
+                  <th class="px-4 py-3 text-left">#</th>
+                  <th class="px-4 py-3 text-left">ชื่อลูกค้า</th>
+                  <th class="px-4 py-3 text-left">เบอร์โทร</th>
+                  <th class="px-4 py-3 text-right">ยอดทั้งหมด</th>
+                  <th class="px-4 py-3 text-right">ยอดดาวน์</th>
+                  <th class="px-4 py-3 text-right">ยอดที่ผ่อนแล้ว</th>
+                  <th class="px-4 py-3 text-left">สถานะ</th>
+                  <th class="px-4 py-3 text-center">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="creditTable">
+                <!-- Data will be loaded here via JavaScript -->
+                <tr class="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <div class="flex flex-col items-center">
+                      <i class="bi bi-database text-4xl mb-2 text-gray-300 dark:text-gray-600"></i>
+                      <p>ไม่พบข้อมูลเครดิต</p>
+                      <button class="btn btn-sm btn-outline mt-2" id="btnAddFirst">
+                        <i class="bi bi-plus mr-1"></i> เพิ่มรายการแรก
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modal: Add/Edit Credit -->
+    <div id="creditModal" class="modal">
+      <div class="modal-box max-w-3xl">
+        <h3 class="font-bold text-lg mb-4" id="modalTitle">เพิ่มรายการเครดิต</h3>
+        <button class="btn btn-sm btn-circle absolute right-2 top-2" id="btnCloseModal">✕</button>
+        
+        <form id="creditForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">ชื่อลูกค้า <span class="text-red-500">*</span></span>
+              </label>
+              <div class="input-group">
+                <input type="text" id="customerName" class="input input-bordered w-full" required />
+                <button type="button" class="btn btn-square" id="btnSearchCustomer">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
+            </div>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">เบอร์โทร <span class="text-red-500">*</span></span>
+              </label>
+              <input type="tel" id="customerPhone" class="input input-bordered" required pattern="[0-9]{10}" />
+            </div>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">เลขบัตรประชาชน</span>
+              </label>
+              <input type="text" id="customerID" class="input input-bordered" pattern="[0-9]{13}" />
+            </div>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">ที่อยู่</span>
+              </label>
+              <textarea id="customerAddress" class="textarea textarea-bordered" rows="2"></textarea>
+            </div>
+          </div>
+
+          <hr class="my-4 border-gray-200 dark:border-gray-700" />
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 class="font-semibold mb-2">รายละเอียดสินค้า</h4>
+              <div class="form-control mb-3">
+                <label class="label">
+                  <span class="label-text">ชื่อสินค้า <span class="text-red-500">*</span></span>
+                </label>
+                <input type="text" id="productName" class="input input-bordered" required />
+              </div>
+              <div class="form-control mb-3">
+                <label class="label">
+                  <span class="label-text">รุ่น/รายละเอียด</span>
+                </label>
+                <input type="text" id="productModel" class="input input-bordered" />
+              </div>
+              <div class="form-control mb-3">
+                <label class="label">
+                  <span class="label-text">Serial Number</span>
+                </label>
+                <input type="text" id="serialNumber" class="input input-bordered" />
+              </div>
+            </div>
+            
+            <div>
+              <h4 class="font-semibold mb-2">รายละเอียดเครดิต</h4>
+              <div class="form-control mb-3">
+                <label class="label">
+                  <span class="label-text">ราคาเต็ม <span class="text-red-500">*</span></span>
+                </label>
+                <input type="number" id="totalAmount" class="input input-bordered" required min="0" step="0.01" />
+              </div>
+              <div class="form-control mb-3">
+                <label class="label">
+                  <span class="label-text">เงินดาวน์ <span class="text-red-500">*</span></span>
+                </label>
+                <input type="number" id="downpayment" class="input input-bordered" required min="0" step="0.01" />
+              </div>
+              <div class="form-control mb-3">
+                <label class="label">
+                  <span class="label-text">จำนวนงวด <span class="text-red-500">*</span></span>
+                </label>
+                <input type="number" id="installmentMonths" class="input input-bordered" required min="1" max="36" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-control mt-4">
+            <label class="label">
+              <span class="label-text">หมายเหตุ</span>
+            </label>
+            <textarea id="notes" class="textarea textarea-bordered" rows="2"></textarea>
+          </div>
+
+          <div class="form-control mt-4">
+            <label class="label cursor-pointer justify-start">
+              <input type="checkbox" id="confirmBill" class="checkbox checkbox-primary mr-2" required />
+              <span class="label-text">ลูกค้าได้เปิดบิลแล้ว (ขั้นต่ำ 100 บาท)</span>
+            </label>
+          </div>
+
+          <div class="modal-action mt-6">
+            <button type="button" class="btn btn-outline" id="btnCancelCredit">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: View Credit Details -->
+    <div id="viewCreditModal" class="modal">
+      <div class="modal-box max-w-3xl">
+        <h3 class="font-bold text-lg mb-4">รายละเอียดเครดิต</h3>
+        <button class="btn btn-sm btn-circle absolute right-2 top-2" id="btnCloseViewModal">✕</button>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+          <div>
+            <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">ข้อมูลลูกค้า</h4>
+            <p class="font-bold text-lg" id="viewCustomerName">-</p>
+            <div class="flex flex-col space-y-1 text-sm mt-2">
+              <p><i class="bi bi-telephone mr-1"></i> <span id="viewCustomerPhone">-</span></p>
+              <p><i class="bi bi-person-badge mr-1"></i> <span id="viewCustomerID">-</span></p>
+              <p><i class="bi bi-geo-alt mr-1"></i> <span id="viewCustomerAddress">-</span></p>
+            </div>
+          </div>
+          
+          <div>
+            <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">รายละเอียดสินค้า</h4>
+            <p class="font-bold text-lg" id="viewProductName">-</p>
+            <div class="flex flex-col space-y-1 text-sm mt-2">
+              <p><i class="bi bi-laptop mr-1"></i> รุ่น: <span id="viewProductModel">-</span></p>
+              <p><i class="bi bi-upc-scan mr-1"></i> SN: <span id="viewSerialNumber">-</span></p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+          <h4 class="font-semibold mb-3">ข้อมูลเครดิต</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">ราคาเต็ม</p>
+              <p class="text-xl font-bold" id="viewTotalAmount">฿0</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">เครติดผ่าน</p>
+              <p class="text-xl font-bold text-blue-500" id="viewDownpayment">฿0</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">ผ่อนแล้ว</p>
+              <p class="text-xl font-bold text-green-500" id="viewPaidAmount">฿0</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">คงเหลือ</p>
+              <p class="text-xl font-bold text-red-500" id="viewRemainingAmount">฿0</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+          <h4 class="font-semibold mb-2">สถานะเครดิต</h4>
+          <div class="flex items-center mb-3">
+            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-4">
+              <div id="creditProgressBar" class="bg-blue-500 h-4 rounded-full text-xs text-white text-center leading-4" style="width: 25%">25%</div>
+            </div>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span><i class="bi bi-calendar mr-1"></i> วันที่เริ่ม: <span id="viewStartDate">-</span></span>
+            <span><i class="bi bi-calendar-check mr-1"></i> วันที่ผ่าน: <span id="viewApprovedDate">-</span></span>
+            <span id="viewStatus" class="badge badge-warning">รอเครดิตผ่าน</span>
+          </div>
+        </div>
+        
+        <h4 class="font-semibold mb-2">ประวัติการชำระ</h4>
+        <div class="overflow-x-auto mb-4">
+          <table class="table w-full table-compact">
+            <thead>
+              <tr>
+                <th class="text-left">วันที่</th>
+                <th class="text-right">จำนวนเงิน</th>
+                <th class="text-left">ประเภท</th>
+                <th class="text-left">หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="paymentHistoryTable">
+              <tr>
+                <td colspan="4" class="text-center py-4 text-gray-500">ไม่มีประวัติการชำระ</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="form-control mb-4">
+          <label class="label">
+            <span class="label-text">หมายเหตุ</span>
+          </label>
+          <textarea id="viewNotes" class="textarea textarea-bordered" rows="2" readonly>-</textarea>
+        </div>
+        
+        <div class="modal-action">
+          <button type="button" class="btn btn-outline btn-sm" id="btnPrintDetails">
+            <i class="bi bi-printer mr-1"></i> พิมพ์
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnAddPayment">
+            <i class="bi bi-plus-circle mr-1"></i> เพิ่มการชำระ
+          </button>
+          <button type="button" class="btn btn-success btn-sm" id="btnMarkAsApproved">
+            <i class="bi bi-check-circle mr-1"></i> อนุมัติเครดิต
+          </button>
+          <button type="button" class="btn btn-warning btn-sm" id="btnEdit">
+            <i class="bi bi-pencil mr-1"></i> แก้ไข
+          </button>
+          <button type="button" class="btn btn-error btn-sm" id="btnDelete">
+            <i class="bi bi-trash mr-1"></i> ลบ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add Payment -->
+    <div id="addPaymentModal" class="modal">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">เพิ่มการชำระ</h3>
+        <button class="btn btn-sm btn-circle absolute right-2 top-2" id="btnClosePaymentModal">✕</button>
+        
+        <form id="paymentForm">
+          <div class="form-control mb-3">
+            <label class="label">
+              <span class="label-text">จำนวนเงิน <span class="text-red-500">*</span></span>
+            </label>
+            <input type="number" id="paymentAmount" class="input input-bordered" required min="0" step="0.01" />
+          </div>
+          
+          <div class="form-control mb-3">
+            <label class="label">
+              <span class="label-text">วันที่ชำระ <span class="text-red-500">*</span></span>
+            </label>
+            <input type="date" id="paymentDate" class="input input-bordered" required />
+          </div>
+          
+          <div class="form-control mb-3">
+            <label class="label">
+              <span class="label-text">ประเภทการชำระ <span class="text-red-500">*</span></span>
+            </label>
+            <select id="paymentType" class="select select-bordered w-full" required>
+              <option value="installment">งวดปกติ</option>
+              <option value="extra">ชำระพิเศษ</option>
+            </select>
+          </div>
+          
+          <div class="form-control mb-3">
+            <label class="label">
+              <span class="label-text">หมายเหตุ</span>
+            </label>
+            <textarea id="paymentNotes" class="textarea textarea-bordered" rows="2"></textarea>
+          </div>
+          
+          <div class="modal-action">
+            <button type="button" class="btn btn-outline" id="btnCancelPayment">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary">บันทึกการชำระ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+</div>
+</body>
+
+<script>
+  // Authentication check
+  const authToken = localStorage.getItem('authToken');
+  if (!authToken) {
+    window.location.href = '/login';
+  }
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${authToken}`'
+  };
+  
+  // Global variables
+  let creditsData = [];
+  let currentCreditId = null;
+  
+  document.addEventListener('DOMContentLoaded', function() {
+      showLoading(true);
+
+      try {
+        }
+      } catch (error) {
+        console.error('Page loading error:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดหน้า', 'error');
+      } finally {
+        setTimeout(() => { showLoading(false); }, 600);
+      }
+  });
+        message: 'กำลังโหลด...',
+        showProgress: true,
+        autoProgress: true
+      });
+    
+    try {
+      // Loading state management
+            }
+      
+      // Initialize the page
+      initPage();
+      
+      // Event listeners
+    const btnToggleMenu = document.getElementById('btnToggleMenu');
+    if (btnToggleMenu) {
+      btnToggleMenu.addEventListener('click', toggleSidebar);
+    }
+    document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);'
+    document.getElementById('btnNewCredit').addEventListener('click', showAddCreditModal);'
+    document.getElementById('btnAddFirst').addEventListener('click', showAddCreditModal);'
+    document.getElementById('btnCloseModal').addEventListener('click', hideModal);'
+    document.getElementById('btnCancelCredit').addEventListener('click', hideModal);'
+    document.getElementById('btnCloseViewModal').addEventListener('click', () => hideModal('viewCreditModal'));'
+    document.getElementById('btnClosePaymentModal').addEventListener('click', () => hideModal('addPaymentModal'));'
+    document.getElementById('btnCancelPayment').addEventListener('click', () => hideModal('addPaymentModal'));'
+    document.getElementById('btnFilter').addEventListener('click', filterCredits);'
+    document.getElementById('btnSearchCustomer').addEventListener('click', searchCustomer);'
+    document.getElementById('btnAddPayment').addEventListener('click', showAddPaymentModal);'
+    document.getElementById('btnMarkAsApproved').addEventListener('click', markAsApproved);'
+    document.getElementById('btnEdit').addEventListener('click', editCredit);'
+    document.getElementById('btnDelete').addEventListener('click', deleteCredit);'
+    
+    // Form submissions
+    document.getElementById('creditForm').addEventListener('submit', saveCredit);'
+    document.getElementById('paymentForm').addEventListener('submit', savePayment);'
+    
+    // Input handlers for calculations
+    document.getElementById('totalAmount').addEventListener('input', updateRemaining);'
+    document.getElementById('downpayment').addEventListener('input', updateRemaining);'
+    
+    // Set default date to today
+    document.getElementById('paymentDate').valueAsDate = new Date();'
+    
+    // Load credits data from API
+    loadCreditsData();
+    } catch (error) {
+      console.error('Error loading data:', error);'
+      showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+    } finally {
+      showLoading(false);
+    }
+  });
+  
+  // Initialize the page
+  async function initPage() {
+    try {
+      showLoading(true);
+      const response = await fetch('/api/users/me', { headers });'
+      const data = await response.json();
+      
+      if (data.success && data.user) {
+        document.getElementById('employeeName').textContent = data.user.name || 'Guest User';
+        document.getElementById('employeePhoto').src = data.user.photo || '/uploads/avatar-placeholder.png';
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);'
+      document.getElementById('employeeName').textContent = 'Guest User';
+      document.getElementById('employeePhoto').src = '/uploads/avatar-placeholder.png';
+    } finally {
+      showLoading(false);
+    }
+  }
+  
+  // Load credits data from API
+  async function loadCreditsData() {
+    try {
+      showLoading(true);
+      
+        const response = await fetch('/api/loan/credit-approval/pending', { headers });'
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        creditsData = data.data;
+        updateStatistics(creditsData);
+        renderCreditsTable(creditsData);
+      } else {
+        throw new Error(data.error || 'ไม่สามารถดึงข้อมูลได้');
+      }
+    } catch (error) {
+      console.error('Error loading credits:', error);'
+      showErrorState();
+    } finally {
+      showLoading(false);
+    }
+  }
+  
+  // Show loading state
+  function showLoadingState() {
+    document.getElementById('pendingCount').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+    document.getElementById('approvedCount').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+    document.getElementById('totalDownpayment').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+    document.getElementById('totalInstallments').innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i>';
+    
+    const tbody = document.getElementById('creditTable');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+          <i class="bi bi-hourglass-split text-4xl mb-2 animate-spin"></i>
+          <p>กำลังโหลดข้อมูล...</p>
+        </td>
+      </tr>
+    `;
+  }
+  
+  // Show error state
+  function showErrorState() {
+    const tbody = document.getElementById('creditTable');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+          <div class="flex flex-col items-center">
+            <i class="bi bi-exclamation-circle text-4xl mb-2 text-red-500"></i>
+            <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+            <button class="btn btn-sm btn-outline mt-2" onclick="loadCreditsData()">
+              <i class="bi bi-arrow-clockwise mr-1"></i> ลองใหม่
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+  
+  // Update statistics
+  function updateStatistics(data) {
+    const pending = data.filter(c => c.status === 'pending').length;'
+    const approved = data.filter(c => c.status === 'approved').length;'
+    
+    const totalDownpayment = data.reduce((sum, c) => sum + (c.downpayment || 0), 0);
+    const totalInstallments = data.reduce((sum, c) => sum + (c.paidAmount || 0), 0);
+    
+    document.getElementById('pendingCount').textContent = pending;'
+    document.getElementById('approvedCount').textContent = approved;'
+    document.getElementById('totalDownpayment').textContent = `฿${totalDownpayment.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;'
+    document.getElementById('totalInstallments').textContent = `฿${totalInstallments.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;'
+  }
+  
+  // Render credits table
+  function renderCreditsTable(data) {
+    const tbody = document.getElementById('creditTable');
+    tbody.innerHTML = '';
+    
+    if (data.length === 0) {
+      tbody.innerHTML = `
+        <tr class="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
+          <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+            <div class="flex flex-col items-center">
+              <i class="bi bi-database text-4xl mb-2 text-gray-300 dark:text-gray-600"></i>
+              <p>ไม่พบข้อมูลเครดิต</p>
+              <button class="btn btn-sm btn-outline mt-2" id="btnAddFirst">
+                <i class="bi bi-plus mr-1"></i> เพิ่มรายการแรก
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+      
+      // Re-attach event listener
+      const btnAddFirst = document.getElementById('btnAddFirst');
+      if (btnAddFirst) {
+        btnAddFirst.addEventListener('click', showAddCreditModal);'
+      }
+      return;
+    }
+    
+    data.forEach((credit, index) => {
+      const row = document.createElement('tr');
+      row.className = 'border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700';
+      
+      const status = credit.status === 'approved' '
+        ? '<span class="badge badge-success">เครดิตผ่านแล้ว</span>''
+        : '<span class="badge badge-warning">รอเครดิตผ่าน</span>';
+      
+      row.innerHTML = `
+        <td class="px-4 py-3">${index + 1}</td>
+        <td class="px-4 py-3">${credit.customerName || '-'}</td>'
+        <td class="px-4 py-3">${credit.customerPhone || '-'}</td>'
+        <td class="px-4 py-3 text-right">฿${Math.max(0, credit.totalAmount || 0).toLocaleString('th-TH')}</td>'
+        <td class="px-4 py-3 text-right">฿${Math.max(0, credit.downpayment || 0).toLocaleString('th-TH')}</td>'
+        <td class="px-4 py-3 text-right">฿${Math.max(0, credit.paidAmount || 0).toLocaleString('th-TH')}</td>'
+        <td class="px-4 py-3">${status}</td>
+        <td class="px-4 py-3 text-center">
+          <button class="btn btn-xs btn-outline btn-info view-credit" data-id="${credit._id}">
+            <i class="bi bi-eye"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+      
+      // Add event listener to the view button
+      const viewBtn = row.querySelector('.view-credit');
+      viewBtn.addEventListener('click', () => viewCreditDetails(credit._id));'
+    });
+  }
+  
+  // View credit details - ใช้ข้อมูลจาก main API แทน
+  async function viewCreditDetails(id) {
+    try {
+      // ค้นหาข้อมูลจาก creditsData ที่โหลดไว้แล้ว
+      const credit = creditsData.find(c => c._id === id);
+      
+      if (credit) {
+        currentCreditId = id;
+        
+        // Populate the view modal
+        document.getElementById('viewCustomerName').textContent = credit.customerName || '-';
+        document.getElementById('viewCustomerPhone').textContent = credit.customerPhone || '-';
+        document.getElementById('viewCustomerID').textContent = credit.customerID || '-';
+        document.getElementById('viewCustomerAddress').textContent = credit.customerAddress || '-';
+        
+                 document.getElementById('viewProductName').textContent = credit.productName || '-';
+         document.getElementById('viewProductModel').textContent = credit.productModel || '-';
+         document.getElementById('viewSerialNumber').textContent = credit.serialNumber || '-';
+         
+         document.getElementById('viewTotalAmount').textContent = `฿${Math.max(0, credit.totalAmount || 0).toLocaleString('th-TH')}`;'
+         document.getElementById('viewDownpayment').textContent = `฿${Math.max(0, credit.downpayment || 0).toLocaleString('th-TH')}`;'
+         document.getElementById('viewPaidAmount').textContent = `฿${Math.max(0, credit.paidAmount || 0).toLocaleString('th-TH')}`;'
+         
+         const remaining = Math.max(0, (credit.totalAmount || 0) - (credit.downpayment || 0) - (credit.paidAmount || 0));
+         document.getElementById('viewRemainingAmount').textContent = `฿${remaining.toLocaleString('th-TH')}`;'
+         
+         // Update progress bar
+         const progress = Math.min(100, Math.round((((credit.downpayment || 0) + (credit.paidAmount || 0)) / (credit.totalAmount || 1)) * 100));
+         document.getElementById('creditProgressBar').style.width = `${progress}%`;'
+         document.getElementById('creditProgressBar').textContent = `${progress}%`;'
+         
+         // Update status
+         if (credit.status === 'approved') {'
+           document.getElementById('viewStatus').className = 'badge badge-success';
+           document.getElementById('viewStatus').textContent = 'เครดิตผ่านแล้ว';
+           document.getElementById('btnMarkAsApproved').style.display = 'none';
+         } else {
+           document.getElementById('viewStatus').className = 'badge badge-warning';
+           document.getElementById('viewStatus').textContent = 'รอเครดิตผ่าน';
+           document.getElementById('btnMarkAsApproved').style.display = 'inline-block';
+         }
+         
+         // Update dates
+         document.getElementById('viewStartDate').textContent = credit.createdAt ? new Date(credit.createdAt).toLocaleDateString('th-TH') : '-';
+         document.getElementById('viewApprovedDate').textContent = credit.approvedDate ? new Date(credit.approvedDate).toLocaleDateString('th-TH') : '-';
+         
+         // Update payment history
+         renderPaymentHistory(credit.paymentHistory || []);
+         
+         document.getElementById('viewNotes').value = credit.notes || '-';
+         
+         // Show the modal
+         document.getElementById('viewCreditModal').classList.add('modal-open');
+       } else {
+         showNotification('ไม่สามารถดึงข้อมูลเครดิตได้', 'error');
+       }
+     } catch (error) {
+       console.error('Error viewing credit details:', error);'
+       showNotification('เกิดข้อผิดพลาดในการดึงข้อมูล', 'error');
+     }
+   }
+   
+   // Render payment history
+   function renderPaymentHistory(payments) {
+     const tbody = document.getElementById('paymentHistoryTable');
+     tbody.innerHTML = '';
+     
+     if (payments.length === 0) {
+       tbody.innerHTML = `
+         <tr>
+           <td colspan="4" class="text-center py-4 text-gray-500">ไม่มีประวัติการชำระ</td>
+         </tr>
+       `;
+       return;
+     }
+     
+     payments.forEach(payment => {
+       const row = document.createElement('tr');
+       row.innerHTML = `
+         <td>${new Date(payment.date).toLocaleDateString('th-TH')}</td>'
+         <td class="text-right">฿${payment.amount.toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>'
+         <td>${payment.type === 'installment' ? 'งวดปกติ' : 'ชำระพิเศษ'}</td>'
+         <td>${payment.notes || '-'}</td>'
+       `;
+       tbody.appendChild(row);
+     });
+   }
+   
+   // Save credit - ฟังก์ชันนี้ไม่ใช้งานในระบบปัจจุบัน
+   async function saveCredit(event) {
+     event.preventDefault();
+     showNotification('ฟังก์ชันนี้ยังไม่พร้อมใช้งาน กรุณาใช้ระบบการสร้างสัญญาใหม่แทน', 'info');
+   }
+   
+   // Mark as approved - ฟังก์ชันนี้ไม่ใช้งานในระบบปัจจุบัน
+   async function markAsApproved() {
+     showNotification('ฟังก์ชันนี้ยังไม่พร้อมใช้งาน', 'info');
+       }
+   
+   // Delete credit - ฟังก์ชันนี้ไม่ใช้งานในระบบปัจจุบัน
+   async function deleteCredit() {
+     showNotification('ฟังก์ชันนี้ยังไม่พร้อมใช้งาน', 'info');
+   }
+   
+   // Search customer - ฟังก์ชันนี้ไม่ใช้งานในระบบปัจจุบัน
+   async function searchCustomer() {
+     showNotification('ฟังก์ชันค้นหาลูกค้าอัตโนมัติยังไม่พร้อมใช้งาน กรุณากรอกข้อมูลลูกค้าด้วยตัวเอง', 'info');
+   }
+   
+   // Save payment - ฟังก์ชันนี้ไม่ใช้งานในระบบปัจจุบัน
+   async function savePayment(event) {
+     event.preventDefault();
+     showNotification('ฟังก์ชันนี้ยังไม่พร้อมใช้งาน กรุณาใช้ระบบการชำระเงินในหน้าอื่นแทน', 'info');
+   }
+   
+   // Filter credits
+   async function filterCredits() {
+     const searchText = document.getElementById('searchInput').value.toLowerCase();'
+     const statusFilter = document.getElementById('statusFilter').value;'
+     const sortBy = document.getElementById('sortBy').value;'
+     
+     let filteredData = [...creditsData];
+     
+     // Apply search filter
+     if (searchText) {
+       filteredData = filteredData.filter(credit => 
+         credit.customerName?.toLowerCase().includes(searchText) ||
+         credit.customerPhone?.includes(searchText) ||
+         credit.customerID?.includes(searchText)
+       );
+     }
+     
+     // Apply status filter
+     if (statusFilter !== 'all') {'
+       filteredData = filteredData.filter(credit => credit.status === statusFilter);
+     }
+     
+     // Apply sorting
+     switch (sortBy) {
+       case 'newest':'
+         filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+         break;
+       case 'oldest':'
+         filteredData.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+         break;
+       case 'name':'
+         filteredData.sort((a, b) => (a.customerName || '').localeCompare(b.customerName || ''));'
+         break;
+       case 'amount':'
+         filteredData.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
+         break;
+     }
+     
+     renderCreditsTable(filteredData);
+   }
+   
+      // Toggle sidebar visibility
+   function toggleSidebar() {
+     const sidebar = document.getElementById('sidebar');
+     const overlay = document.getElementById('menuOverlay');
+     
+     if (sidebar.classList.contains('transform-none') || sidebar.classList.contains('translate-x-0')) {'
+       sidebar.classList.remove('transform-none', 'translate-x-0');
+       sidebar.classList.add('-translate-x-full');
+       overlay.classList.add('hidden');
+     } else {
+       sidebar.classList.remove('-translate-x-full');
+       sidebar.classList.add('transform-none');
+       overlay.classList.remove('hidden');
+     }
+   }
+   
+   // Toggle dark mode
+   function toggleDarkMode() {
+     const html = document.documentElement;
+     const isDark = html.getAttribute('data-theme') === 'dark';
+     const newTheme = isDark ? 'light' : 'dark';
+     
+     html.setAttribute('data-theme', newTheme);'
+     html.classList.toggle('dark', !isDark);'
+     localStorage.setItem('theme', newTheme);'
+     
+     const darkModeLabel = document.getElementById('darkModeLabel');
+     darkModeLabel.textContent = isDark ? 'Dark Mode' : 'Light Mode';
+   }
+   
+   // Show the add/edit credit modal
+   function showAddCreditModal() {
+     const modal = document.getElementById('creditModal');
+     modal.classList.add('modal-open');
+     document.getElementById('modalTitle').textContent = 'เพิ่มรายการเครดิต';
+     document.getElementById('creditForm').reset();'
+   }
+   
+   // Hide a modal by ID or default to creditModal
+   function hideModal(modalId = 'creditModal') {'
+     const modal = document.getElementById(modalId);
+     modal.classList.remove('modal-open');
+   }
+   
+   // Show the add payment modal
+   function showAddPaymentModal() {
+     const modal = document.getElementById('addPaymentModal');
+     modal.classList.add('modal-open');
+     document.getElementById('paymentForm').reset();'
+     document.getElementById('paymentDate').valueAsDate = new Date();'
+   }
+   
+   // Edit an existing credit
+   function editCredit() {
+     // Populate form with current credit details
+     showAddCreditModal();
+     document.getElementById('modalTitle').textContent = 'แก้ไขรายการเครดิต';
+     
+     // Fill the form with the current credit details
+     document.getElementById('customerName').value = document.getElementById('viewCustomerName').textContent;'
+     document.getElementById('customerPhone').value = document.getElementById('viewCustomerPhone').textContent;'
+     document.getElementById('customerID').value = document.getElementById('viewCustomerID').textContent;'
+     document.getElementById('customerAddress').value = document.getElementById('viewCustomerAddress').textContent;'
+     document.getElementById('productName').value = document.getElementById('viewProductName').textContent;'
+     document.getElementById('productModel').value = document.getElementById('viewProductModel').textContent;'
+     document.getElementById('serialNumber').value = document.getElementById('viewSerialNumber').textContent;'
+     
+     // Remove ฿ symbol and parse as number
+     const totalAmount = document.getElementById('viewTotalAmount').textContent.replace(/[฿,]/g, '');
+     const downpayment = document.getElementById('viewDownpayment').textContent.replace(/[฿,]/g, '');
+     
+     document.getElementById('totalAmount').value = totalAmount;'
+     document.getElementById('downpayment').value = downpayment;'
+     document.getElementById('installmentMonths').value = "12"; // Default to 12 months'
+     document.getElementById('notes').value = document.getElementById('viewNotes').textContent;'
+     document.getElementById('confirmBill').checked = true;'
+     
+     hideModal('viewCreditModal');
+   }
+   
+   // Update the remaining amount when total or downpayment changes
+   function updateRemaining() {
+     const total = parseFloat(document.getElementById('totalAmount').value) || 0;'
+     const downpayment = parseFloat(document.getElementById('downpayment').value) || 0;'
+     
+     if (downpayment > total) {
+       document.getElementById('downpayment').classList.add('input-error');
+     } else {
+       document.getElementById('downpayment').classList.remove('input-error');
+     }
+   }
+   
+   // Show a notification message
+   function showNotification(message, type = 'info') {'
+     // Check if we have an existing notification container
+     let container = document.getElementById('notificationContainer');
+     if (!container) {
+       container = document.createElement('div');
+       container.id = 'notificationContainer';
+       container.className = 'toast toast-top toast-end z-50';
+       document.body.appendChild(container);
+     }
+     
+     // Create the notification
+     const notification = document.createElement('div');
+     notification.className = `alert ${getAlertClass(type)} mb-2 animate-fadeIn shadow-lg`;
+     
+     const icon = getIconForType(type);
+     
+     notification.innerHTML = `
+       <div>
+         <i class="${icon}"></i>
+         <span>${message}</span>
+       </div>
+     `;
+     
+     container.appendChild(notification);
+     
+     // Auto remove after a delay
+     setTimeout(() => {
+       notification.classList.add('animate-fadeOut');
+       setTimeout(() => notification.remove(), 300);
+     }, 3000);
+   }
+   
+   // Get the appropriate alert class for the notification type
+   function getAlertClass(type) {
+     switch (type) {
+       case 'success': return 'alert-success';
+       case 'error': return 'alert-error';
+       case 'warning': return 'alert-warning';
+       default: return 'alert-info';
+     }
+   }
+   
+   // Get the appropriate icon for the notification type
+   function getIconForType(type) {
+     switch (type) {
+       case 'success': return 'bi bi-check-circle';
+       case 'error': return 'bi bi-exclamation-circle';
+       case 'warning': return 'bi bi-exclamation-triangle';
+               default: return 'bi bi-info-circle';
+      }
+    }
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

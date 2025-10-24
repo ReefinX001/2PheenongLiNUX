@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ลงทะเบียนสาขา</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" crossorigin />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin defer></script>
+  
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js" defer crossorigin></script>
+  <script>
+// Wait for dayjs to load before loading locale
+if (typeof dayjs !== 'undefined') {
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js';
+  document.head.appendChild(script);
+}
+</script>
+
+  <script>const API_BASE = '/api'; const token = (function(){try{return localStorage.getItem('authToken');}catch(e){return null;}})(); function resolvePhotoUrl(raw) { if (!raw) return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4='; if (/^https?:\/\//.test(raw)) return raw; if (raw.startsWith('data:')) return raw; if (raw.startsWith('/uploads/employees/')) return raw; if (raw.startsWith('/uploads/')) return raw.replace(/^\/uploads\//, '/uploads/employees/'); return '/uploads/employees/' + raw; } async function fetchUserProfile() { try { const res = await fetch(`${API_BASE}/users/me`, { headers: { 'Authorization': 'Bearer ' + token } }); const json = await res.json(); if (!res.ok || !json.success) throw new Error(json.message || 'Failed to load profile'); const userName = json.data.name || json.data.username || 'ผู้ใช้'; const photoUrl = json.data.photoUrl || json.data.employee?.imageUrl || null; const nameEl = document.getElementById('employeeName'); const photoEl = document.getElementById('employeePhoto'); if (nameEl) nameEl.textContent = userName; if (photoEl) photoEl.src = resolvePhotoUrl(photoUrl); localStorage.setItem('userName', userName); if (photoUrl) localStorage.setItem('userPhoto', photoUrl); } catch (err) { console.error('fetchUserProfile:', err); const fallbackName = (function(){try{return localStorage.getItem('userName');}catch(e){return null;}})() || 'ผู้ใช้'; const fallbackPhoto = (function(){try{return localStorage.getItem('userPhoto');}catch(e){return null;}})(); const nameEl = document.getElementById('employeeName'); const photoEl = document.getElementById('employeePhoto'); if (nameEl) nameEl.textContent = fallbackName; if (photoEl) photoEl.src = resolvePhotoUrl(fallbackPhoto); if (err.message && (err.message.includes('401') || err.message.includes('unauthorized'))) { alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); if (typeof logout === 'function') logout(); } } } tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Prompt', 'sans-serif'], }, colors: { primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', } } }, } };</script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent {
+      flex: 1;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+    
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+    
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+    
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+    
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+    }
+    
+    .btn-rounded {
+      border-radius: 30px;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+    
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+    
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+    
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .page-link {
+      min-width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      text-decoration: none;
+      margin: 0 2px;
+    }
+    
+    .dark .page-link {
+      border-color: #4a5568;
+      color: #d1d5db;
+    }
+    
+    .page-link:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .page-link:hover {
+      background-color: #374151;
+    }
+    
+    .page-link.active {
+      background-color: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+
+    .dark 
+    
+    .account-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .account-list li {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    
+    .dark .account-list li {
+      border-bottom-color: #4a5568;
+    }
+    
+    .account-list li:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .account-list li:hover {
+      background-color: #374151;
+    }
+    
+    .account-list li.active {
+      background-color: #f0f9ff;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .dark .account-list li.active {
+      background-color: #1a4971;
+      color: #38bdf8;
+    }
+    
+    .date-range {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dark .date-range {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .date-range:focus {
+      border-color: #0ea5e9;
+      outline: none;
+    }
+    
+    .negative-value {
+      color: #ef4444;
+    }
+    
+    .dark .negative-value {
+      color: #f87171;
+    }
+    
+    .navbar {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
+    }
+    
+    .dark .navbar {
+      background-color: #1e293b;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .flex-none {
+      flex: none;
+    }
+    
+    .btn-fancy {
+      position: relative;
+      overflow: hidden;
+      transform: translate3d(0, 0, 0);
+    }
+    
+    .btn-fancy:after {
+      content: "";
+      display: block;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .btn-fancy:active:after {
+      transform: scale(0, 0);
+      opacity: 0.3;
+      transition: 0s;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background-color: rgba(14, 165, 233, 0.1);
+      border-radius: 30px;
+    }
+    
+    .user-avatar {
+      background-color: #0ea5e9;
+      color: white;
+      height: 30px;
+      width: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+    }
+    
+    .dark .user-avatar {
+      background-color: #38bdf8;
+      color: #1a202c;
+    }
+    
+    
+    .expense-voucher {
+      margin-left: 20px;
+      position: relative;
+    }
+    
+    .expense-voucher::before {
+      content: '';
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background-color: #cbd5e0;
+    }
+    
+    .dark .expense-voucher::before {
+      background-color: #4a5568;
+    }
+    
+    /* Income Statement specific styles */
+    .fin-statement-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .fin-statement-table td {
+      padding: 10px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .fin-statement-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .fin-statement-table .item-title {
+      font-weight: 500;
+    }
+    
+    .fin-statement-table .bold {
+      font-weight: 600;
+    }
+    
+    .fin-statement-table .section-header {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    
+    .dark .fin-statement-table .section-header {
+      color: #f9fafb;
+    }
+    
+    .fin-statement-table .section-total {
+      font-weight: 600;
+      color: #1e40af;
+      background-color: #f0f9ff;
+    }
+    
+    .dark .fin-statement-table .section-total {
+      color: #93c5fd;
+      background-color: #1e3a8a;
+    }
+    
+    .fin-statement-table .grand-total {
+      font-weight: 700;
+      color: #0284c7;
+      background-color: #e0f2fe;
+      font-size: 1.05rem;
+    }
+    
+    .dark .fin-statement-table .grand-total {
+      color: #38bdf8;
+      background-color: #075985;
+    }
+    
+    .fin-statement-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .fin-statement-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .overview-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      background-color: white;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .dark .overview-card {
+      background-color: #1e293b;
+    }
+    
+    .overview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .metric-label {
+      color: #9ca3af;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    
+    .dark .metric-value {
+      color: #f9fafb;
+    }
+    
+    .trend-up {
+      color: #10b981;
+    }
+    
+    .trend-down {
+      color: #ef4444;
+    }
+    
+    .dark .trend-up {
+      color: #34d399;
+    }
+    
+    .dark .trend-down {
+      color: #f87171;
+    }
+    
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+    
+    .view-switcher {
+      display: flex;
+      padding: 0.25rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-switcher {
+      background-color: #374151;
+    }
+    
+    .view-option {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .view-option.active {
+      background-color: white;
+      color: #0ea5e9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .view-option.active {
+      background-color: #1f2937;
+      color: #38bdf8;
+    }
+    
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      background-color: white;
+      color: #374151;
+      transition: all 0.2s;
+    }
+    
+    .dark .action-button {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .action-button:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+    
+    .dark .action-button:hover {
+      background-color: #374151;
+      border-color: #6b7280;
+    }
+    
+    .period-selector {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      background-color: white;
+      font-size: 0.875rem;
+      color: #374151;
+      outline: none;
+    }
+    
+    .dark .period-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Dashboard Card Styles */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .dark .dashboard-card {
+      background-color: #1e293b;
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-title {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-title {
+      color: #9ca3af;
+    }
+    
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-value {
+      color: #f9fafb;
+    }
+    
+    .comparison-value {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .comparison-up {
+      color: #10b981;
+    }
+    
+    .comparison-down {
+      color: #ef4444;
+    }
+    
+    .dark .comparison-up {
+      color: #34d399;
+    }
+    
+    .dark .comparison-down {
+      color: #f87171;
+    }
+    
+    /* Menu bar styles */
+    .menu-bar {
+      display: flex;
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .dark .menu-bar {
+      background-color: #1e293b;
+    }
+    
+    .menu-item {
+      padding: 0.75rem 1.25rem;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .menu-item:hover {
+      background-color: #f3f4f6;
+      color: #0ea5e9;
+    }
+    
+    .dark .menu-item:hover {
+      background-color: #334155;
+    }
+    
+    .menu-item.active {
+      border-bottom-color: #0ea5e9;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+      .menu-spacer {
+      flex: 1;
+    }
+    
+    .month-selector {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: white;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    
+    .dark .month-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Modal styling */
+    .modal {
+      visibility: hidden;
+      opacity: 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 50;
+      transition: all 0.3s;
+    }
+    
+    .modal-open {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .modal-box {
+      transform: scale(0.9);
+      transition: transform 0.3s;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    .modal-open .modal-box {
+      transform: scale(1);
+    }
+    
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    
+    /* Display toggle */
+    .display-toggle {
+      display: flex;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.25rem;
+    }
+    
+    .dark .display-toggle {
+      background-color: #334155;
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .toggle-btn.active {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      color: #0ea5e9;
+    }
+    
+    .dark .toggle-btn.active {
+      background-color: #1f2937;
+    }
+    
+    /* Financial table */
+    .view-container {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-container {
+      background-color: #1e293b;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .financial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .financial-table th {
+      background-color: #f8f9fa;
+      color: #6b7280;
+      font-weight: 500;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table th {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table td {
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table .section-header {
+      font-weight: 600;
+      background-color: #f3f4f6;
+      color: #111827;
+      padding: 0.75rem 1rem;
+    }
+    
+    .dark .financial-table .section-header {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+    
+    .financial-table .subsection-header {
+      font-weight: 500;
+      color: #4b5563;
+      padding: 0.75rem 1rem;
+      background-color: #f9fafb;
+    }
+    
+    .dark .financial-table .subsection-header {
+      background-color: #1f2937;
+      color: #e5e7eb;
+    }
+    
+    .financial-table .amount {
+      text-align: right;
+      position: relative;
+    }
+    
+    .financial-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .financial-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .financial-table .total-row {
+      background-color: #e0f2fe;
+      font-weight: 600;
+    }
+    
+    .dark .financial-table .total-row {
+      background-color: #0c4a6e;
+    }
+    
+    .comparison-value {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .financial-table {
+        font-size: 0.875rem;
+      }
+      
+      .menu-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      
+      .card-value {
+        font-size: 1.25rem;
+      }
+      
+      .view-container {
+        padding: 1rem;
+      }
+    }
+    
+    @media print {
+      .navbar, .menu-bar, .display-toggle, .dashboard-cards {
+        display: none;
+      }
+      
+      .view-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      body {
+        font-size: 12pt;
+      }
+    }
+    
+    /* Thai Calendar Styles */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+    }
+    
+    .dark .date-picker-input {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .thai-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      width: 280px;
+      display: none;
+    }
+    
+    .dark .thai-calendar {
+      background-color: #1e293b;
+      border-color: #4b5563;
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .month-year {
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #6b7280;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .dark .nav-btn {
+      color: #9ca3af;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+    }
+    
+    .day-name {
+      text-align: center;
+      font-weight: 500;
+      color: #6b7280;
+      font-size: 0.85rem;
+      padding: 4px 0;
+    }
+    
+    .dark .day-name {
+      color: #9ca3af;
+    }
+    
+    .calendar-dates {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .date-cell {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin: 1px;
+    }
+    
+    .date-cell:hover:not(.disabled) {
+      background-color: #f3f4f6;
+      border-radius: 50%;
+    }
+    
+    .dark .date-cell:hover:not(.disabled) {
+      background-color: #374151;
+    }
+    
+    .date-cell.disabled {
+      color: #d1d5db;
+      cursor: default;
+      opacity: 0.4;
+    }
+    
+    .dark .date-cell.disabled {
+      color: #6b7280;
+    }
+    
+    .date-cell.selected {
+      background-color: #0ea5e9;
+      color: white;
+      border-radius: 50%;
+    }
+    
+    .date-cell.today {
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      font-weight: 500;
+    }
+    
+    .dark .date-cell.today {
+      border-color: #38bdf8;
+    }
+  </style>
+  
+   <!-- Template สำหรับเมนู -->
+  
+  <link rel="stylesheet" href="/account/css/account-menu.css">
+
+<script>
+// Enhanced Input Validation and Sanitization
+(function() {
+  'use strict';
+
+  // DOMPurify alternative - basic HTML sanitizer
+  window.sanitizeHTML = function(dirty) {
+    const config = {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+      ALLOWED_ATTR: ['href', 'title'],
+      KEEP_CONTENT: true
+    };
+
+    // Create a temporary element
+    const temp = document.createElement('div');
+    temp.textContent = dirty;
+    return temp.innerHTML;
+  };
+
+  // SQL injection prevention
+  window.escapeSQLString = function(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/['"\\]/g, '\\$&');
+  };
+
+  // The old broken function has been replaced above
+  /*
+    if (typeof str !== 'string') return '';
+    return str.replace(/[\0\x08\x09\x1a\n\r"'\\%]/g, 	
+
+"'\%]/g, function(char) {
+      switch (char) {
+        case " ": return "\0";
+        case "": return "\b";
+        case "	": return "\t";
+        case "": return "\z";
+        case "
+": return "\n";
+        case "
+": return "\r";
+        case """:
+        case "'":
+        case "\":
+        case "%": return "\" + char;
+        default: return char;
+      }
+    });
+  }; */
+
+  // Path traversal prevention
+  window.sanitizePath = function(filepath) {
+    if (typeof filepath !== 'string') return '';
+    // Remove any path traversal attempts
+    return filepath.replace(/\.\./g, '').replace(/[^\w\s\-\.\/]/gi, '');
+  };
+
+  // Email validation
+  window.validateEmail = function(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email).toLowerCase());
+  };
+
+  // Phone number validation (Thai format)
+  window.validateThaiPhone = function(phone) {
+    const re = /^(0[689]{1})+([0-9]{8})$/;
+    return re.test(String(phone).replace(/\D/g, ''));
+  };
+
+  // Amount/currency validation
+  window.validateAmount = function(amount) {
+    const num = parseFloat(amount);
+    return !isNaN(num) && num >= 0 && num <= 999999999.99;
+  };
+
+  // Date validation
+  window.validateDate = function(dateStr) {
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date);
+  };
+
+  // Auto-sanitize all inputs on blur
+  document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('input[type="text"], input[type="email"], textarea');
+    inputs.forEach(input => {
+      input.addEventListener('blur', function() {
+        this.value = sanitizeHTML(this.value);
+      });
+    });
+
+    // Prevent form submission with invalid data
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      form.addEventListener('submit', function(e) {
+        let isValid = true;
+
+        // Validate email fields
+        const emailInputs = form.querySelectorAll('input[type="email"]');
+        emailInputs.forEach(input => {
+          if (input.value && !validateEmail(input.value)) {
+            isValid = false;
+            input.classList.add('border-red-500');
+            console.error('Invalid email:', input.value);
+          }
+        });
+
+        // Validate amount fields
+        const amountInputs = form.querySelectorAll('input[data-type="amount"], input[data-type="currency"]');
+        amountInputs.forEach(input => {
+          if (input.value && !validateAmount(input.value)) {
+            isValid = false;
+            input.classList.add('border-red-500');
+            console.error('Invalid amount:', input.value);
+          }
+        });
+
+        if (!isValid) {
+          e.preventDefault();
+          alert('กรุณาตรวจสอบข้อมูลที่กรอก');
+        }
+      });
+    });
+  });
+
+  // CSRF Token Management
+  window.getCSRFToken = function() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+  };
+
+  // Secure fetch wrapper with CSRF token
+  window.secureFetch = function(url, options = {}) {
+    const csrfToken = getCSRFToken();
+    if (csrfToken) {
+      options.headers = {
+        ...options.headers,
+        'X-CSRF-Token': csrfToken
+      };
+    }
+
+    // Add timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    return fetch(url, {
+      ...options,
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeout));
+  };
+
+  // Rate limiting for API calls
+  const rateLimiter = {
+    calls: {},
+    limit: 10, // max calls
+    window: 60000, // per minute
+
+    check: function(endpoint) {
+      const now = Date.now();
+      if (!this.calls[endpoint]) {
+        this.calls[endpoint] = [];
+      }
+
+      // Remove old calls outside window
+      this.calls[endpoint] = this.calls[endpoint].filter(time => now - time < this.window);
+
+      if (this.calls[endpoint].length >= this.limit) {
+        console.warn('Rate limit exceeded for:', endpoint);
+        return false;
+      }
+
+      this.calls[endpoint].push(now);
+      return true;
+    }
+  };
+
+  // Override fetch to add rate limiting
+  const originalFetch = window.fetch;
+  window.fetch = function(url, ...args) {
+    const endpoint = new URL(url, window.location.origin).pathname;
+
+    if (!rateLimiter.check(endpoint)) {
+      return Promise.reject(new Error('Rate limit exceeded. Please wait before making another request.'));
+    }
+
+    return originalFetch.apply(this, [url, ...args]);
+  };
+
+  // Session timeout warning
+  let sessionTimeout;
+  let warningTimeout;
+  const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
+  const WARNING_BEFORE = 5 * 60 * 1000; // 5 minutes before expiry
+
+  function resetSessionTimer() {
+    clearTimeout(sessionTimeout);
+    clearTimeout(warningTimeout);
+
+    warningTimeout = setTimeout(() => {
+      if (confirm('เซสชันของคุณจะหมดอายุใน 5 นาที ต้องการต่ออายุหรือไม่?')) {
+        // Refresh session
+        secureFetch('/api/auth/refresh', { method: 'POST' });
+        resetSessionTimer();
+      }
+    }, SESSION_DURATION - WARNING_BEFORE);
+
+    sessionTimeout = setTimeout(() => {
+      alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+      window.location.href = '/login.html';
+    }, SESSION_DURATION);
+  }
+
+  // Track user activity
+  ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
+    document.addEventListener(event, resetSessionTimer, { passive: true });
+  });
+
+  resetSessionTimer();
+
+  // Prevent clickjacking
+  if (window.top !== window.self) {
+    window.top.location = window.self.location;
+  }
+
+  // Disable right-click on sensitive elements
+  document.addEventListener('contextmenu', function(e) {
+    if (e.target.matches('input[type="password"], input[data-sensitive="true"]')) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // Clear sensitive data on page unload
+  window.addEventListener('beforeunload', function() {
+    // Clear any sensitive form data
+    const sensitiveInputs = document.querySelectorAll('input[type="password"], input[data-sensitive="true"]');
+    sensitiveInputs.forEach(input => {
+      input.value = '';
+    });
+
+    // Clear session storage of sensitive data
+    const sensitiveKeys = ['tempPassword', 'tempToken', 'tempApiKey'];
+    sensitiveKeys.forEach(key => {
+      sessionStorage.removeItem(key);
+    });
+  });
+
+  console.log('🔒 Security enhancements loaded successfully');
+})();
+</script>
+</head>
+
+<body class="bg-white dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <div id="mainContent" class="w-full px-4 py-6 min-h-screen">
+    <!-- Navbar -->
+    <div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0 z-30 mb-4"> <!-- Added z-30 back to navbar -->
+      <div class="flex-1 flex items-center space-x-6">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="rounded-full shadow-lg"
+             style="width: 40px; height: 40px;" / loading="lazy">
+        <span class="text-lg font-semibold">บัญชี - ลงทะเบียนสาขา</span>
+        <!-- จุดปล่อยเมนู -->
+        <div id="mainMenuContainer" class="flex-grow flex justify-center"></div> <!-- Center the menu -->
+      </div>
+      <div class="flex-none flex items-center space-x-2">
+  <!-- เพิ่มส่วนแสดงข้อมูลผู้ใช้ -->
+  <div class="flex items-center space-x-3 mr-4">
+    <img id="employeePhoto" 
+     alt="Profile" 
+     class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4=" loading="lazy">
+    <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+  </div>
+  
+  <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+    <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+    <span id="darkModeLabel">Dark Mode</span>
+  </button>
+        <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+          <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  <!-- End Navbar -->
+  <!-- Section: Branch Management -->
+  <div class="w-full px-4 py-2 mx-auto">
+    <h2 class="text-xl font-semibold mb-3 flex items-center">
+      <i class="bi bi-building text-purple-600 mr-2"></i>
+      เพิ่มสาขา (Add Branch)
+    </h2>
+      <!-- Add Branch Form -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+      <!-- Branch Form -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+        <h3 class="text-lg font-medium mb-4 flex items-center">
+          <i class="bi bi-plus-circle-fill text-purple-500 mr-2"></i> เพิ่มสาขาใหม่
+        </h3>
+        <form id="addBranchForm" class="space-y-4">
+          <div>
+            <label for="branchName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <i class="bi bi-tag-fill text-purple-500 mr-1"></i> Branch Name
+            </label>
+            <input
+              type="text"
+              id="branchName"
+              placeholder="เช่น ปัตตานี (สำนักงานใหญ่)"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
+                     focus:outline-none focus:ring-2 focus:ring-purple-500
+                     dark:bg-gray-700 dark:text-white text-sm transition duration-200"
+              required
+            >
+          </div>
+          <div>
+            <label for="branchCode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <i class="bi bi-hash text-purple-500 mr-1"></i> Branch Code
+            </label>
+            <input
+              type="text"
+              id="branchCode"
+              placeholder="เช่น PTN001"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
+                     focus:outline-none focus:ring-2 focus:ring-purple-500
+                     dark:bg-gray-700 dark:text-white text-sm transition duration-200"
+              required
+            >
+          </div>
+          <div>
+            <label for="branchAddress" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <i class="bi bi-geo-alt-fill text-purple-500 mr-1"></i> ที่อยู่สาขา
+            </label>
+            <textarea
+              id="branchAddress"
+              rows="3"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
+                     focus:outline-none focus:ring-2 focus:ring-purple-500
+                     dark:bg-gray-700 dark:text-white text-sm transition duration-200"
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            class="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-md
+                   focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200
+                   flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          >
+            <i class="bi bi-plus-circle mr-1"></i> บันทึกสาขา
+          </button>
+        </form>
+      </div>
+      
+      <!-- Branch Stats and Info -->
+      <div class="xl:col-span-2">
+        <div class="bg-gradient-to-r from-purple-500 to-purple-700 rounded-lg shadow-md p-6 text-white mb-6">
+          <h3 class="text-lg font-medium mb-2 flex items-center">
+            <i class="bi bi-info-circle mr-2"></i> ข้อมูลสาขา
+          </h3>
+          <p class="text-sm mb-4">
+            คุณสามารถเพิ่ม แก้ไข หรือลบสาขาได้ โดยแต่ละสาขาจะมีรหัสและข้อมูลที่ไม่ซ้ำกัน สาขาที่สร้างจะถูกใช้ในเอกสารและรายงานต่างๆ
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div class="bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+              <div class="text-sm opacity-80">จำนวนสาขาทั้งหมด</div>
+              <div class="text-2xl font-semibold flex items-center mt-1">
+                <i class="bi bi-buildings mr-2"></i>
+                <span id="totalBranchCount">...</span>
+              </div>
+            </div>
+            <div class="bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+              <div class="text-sm opacity-80">สาขาที่เปิดใช้งาน</div>
+              <div class="text-2xl font-semibold flex items-center mt-1 text-green-200">
+                <i class="bi bi-check-circle mr-2"></i>
+                <span id="activeBranchCount">...</span>
+              </div>
+            </div>
+            <div class="bg-white bg-opacity-20 rounded-lg p-4 backdrop-blur-sm">
+              <div class="text-sm opacity-80">สาขาที่ปิดใช้งาน</div>
+              <div class="text-2xl font-semibold flex items-center mt-1 text-red-200">
+                <i class="bi bi-dash-circle mr-2"></i>
+                <span id="inactiveBranchCount">...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Branch List -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+      <h4 class="text-lg font-semibold mb-3 flex items-center border-b pb-2">
+        <i class="bi bi-list-ul text-purple-600 mr-2"></i>
+        รายการสาขาทั้งหมด
+      </h4>
+      <div class="overflow-x-auto mt-4 rounded-lg shadow">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600 text-sm w-full min-w-full w-full min-w-full" id="branchTable">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Branch Code</th>
+              <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Branch Name</th>
+              <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Address</th>
+              <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Status</th>
+              <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-gray-300" style="width: 200px;">การกระทำ</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- JS จะ populate -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal แก้ไขสาขา -->
+  <div id="editModal" class="modal">
+    <div class="modal-box relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full mx-auto">
+      <button class="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" onclick="closeEditModal()">
+        <i class="bi bi-x-lg text-lg"></i>
+      </button>
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 border-b pb-2 flex items-center">
+        <i class="bi bi-pencil-square text-purple-600 mr-2"></i> แก้ไขสาขา
+      </h3>
+      <form id="editBranchForm" class="space-y-4">
+        <input type="hidden" id="editBranchId" />
+        <div>
+          <label for="editBranchCode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <i class="bi bi-hash text-purple-500 mr-1"></i> Branch Code
+          </label>
+          <input
+            type="text"
+            id="editBranchCode"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
+                   focus:outline-none focus:ring-2 focus:ring-purple-500
+                   dark:bg-gray-700 dark:text-white text-sm"
+            required
+          >
+        </div>
+        <div>
+          <label for="editBranchName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <i class="bi bi-tag-fill text-purple-500 mr-1"></i> Branch Name
+          </label>
+          <input
+            type="text"
+            id="editBranchName"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
+                   focus:outline-none focus:ring-2 focus:ring-purple-500
+                   dark:bg-gray-700 dark:text-white text-sm"
+            required
+          >
+        </div>
+        <div>
+          <label for="editBranchAddress" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <i class="bi bi-geo-alt-fill text-purple-500 mr-1"></i> ที่อยู่
+          </label>
+          <textarea
+            id="editBranchAddress"
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
+                   focus:outline-none focus:ring-2 focus:ring-purple-500
+                   dark:bg-gray-700 dark:text-white text-sm"
+          ></textarea>
+        </div>
+        <div class="flex justify-end space-x-3 pt-3 border-t">
+          <button type="button" 
+                  onclick="closeEditModal()"
+                  class="px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md
+                         hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400">
+            <i class="bi bi-x-circle mr-1"></i> ยกเลิก
+          </button>
+          <button type="submit" 
+                  class="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-md
+                         focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <i class="bi bi-save mr-1"></i> บันทึก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Script: Branch Management, Dark Mode, Language Toggle, Logout -->
+  <script>
+  // Loading System with Lottie Animation
+  let lottieAnimation = null;
+
+  function showLoading(show) {
+    const loader = document.getElementById('loadingOverlay');
+    if (show) {
+      loader.style.display = 'flex';
+      loader.classList.remove('animate__fadeOut');
+      loader.classList.add('animate__fadeIn');
+
+      // โหลดและเล่น Lottie animation
+      if (!lottieAnimation) {
+        console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+        fetch('/Loading/Loading.json')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(animationData => {
+            lottieAnimation = lottie.loadAnimation({
+              container: document.getElementById('lottieContainer'),
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+
+            console.log('✅ Lottie animation loaded successfully');
+          })
+          .catch(error => {
+            console.error('❌ Error loading Lottie animation:', error);
+            // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+            document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+          });
+      } else {
+        lottieAnimation.play();
+      }
+    } else {
+      if (lottieAnimation) {
+        lottieAnimation.pause();
+      }
+      loader.classList.remove('animate__fadeIn');
+      loader.classList.add('animate__fadeOut');
+      setTimeout(() => { loader.style.display = 'none'; }, 600);
+    }
+  }
+
+  // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+  window.addEventListener('beforeunload', () => {
+    if (lottieAnimation) {
+      lottieAnimation.destroy();
+      lottieAnimation = null;
+    }
+  });
+
+  function toggleDarkMode() {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    localStorage.setItem('darkMode', isDark);
+    document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+  }
+  
+  function loadDarkMode() {
+    const isDark = (function(){try{return localStorage.getItem('darkMode');}catch(e){return null;}})() === 'true';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+  }
+  
+  function initMainMenu() {
+    const menuContainer = document.getElementById('mainMenuContainer');
+    const menuTemplate = document.getElementById('mainMenuTemplate');
+    if (menuContainer && menuTemplate) {
+      menuContainer.innerHTML = menuTemplate.innerHTML;
+    }
+  }
+  
+  async function loadUserInfo() {
+    try {
+      const token = (function(){try{return localStorage.getItem('authToken');}catch(e){return null;}})() || '';
+      const res = await fetch('/api/users/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('Failed to load profile');
+      const data = await res.json();
+      if (data.success && data.data) {
+        const user = data.data;
+        document.getElementById('employeeName').textContent = user.name || 'User';
+        if (user.photo) {
+          document.getElementById('employeePhoto').src = user.photo;
+        } else {
+          document.getElementById('employeePhoto').src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4=';
+        }
+      }
+    } catch (err) {
+      console.error('Error loading profile:', err);
+    }
+  }
+  
+  function updateBranchStats(branches) {
+    if (!branches) branches = [];
+    const totalCount = branches.length;
+    const activeCount = branches.filter(b => b.status === 'active').length;
+    const inactiveCount = totalCount - activeCount;
+    document.getElementById('totalBranchCount').textContent = totalCount;
+    document.getElementById('activeBranchCount').textContent = activeCount;
+    document.getElementById('inactiveBranchCount').textContent = inactiveCount;
+  }
+  
+  async function loadBranches() {
+    try {
+      const token = (function(){try{return localStorage.getItem('authToken');}catch(e){return null;}})() || '';
+      const res = await fetch('/api/branch', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลสาขา');
+      }
+      renderBranchTable(data.data);
+      updateBranchStats(data.data);
+    } catch (err) {
+      console.error('Error loading branches:', err);
+      const tbody = document.querySelector('#branchTable tbody');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-4 text-red-500 dark:text-red-400">
+            <i class="bi bi-exclamation-triangle text-xl mb-2"></i>
+            <p>เกิดข้อผิดพลาดในการโหลดข้อมูล: ${err.message}</p>
+          </td>
+        </tr>`;
+      updateBranchStats([]);
+    }
+  }
+  
+  function renderBranchTable(branches) {
+    const tbody = document.querySelector('#branchTable tbody');
+    tbody.innerHTML = '';
+    if (!branches || branches.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-4 text-gray-500 dark:text-gray-400">
+            <i class="bi bi-exclamation-circle text-xl mb-2"></i>
+            <p>ยังไม่มีสาขาในระบบ กรุณาเพิ่มสาขาใหม่</p>
+          </td>
+        </tr>`;
+      return;
+    }
+    branches.forEach(b => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150';
+      let statusBadge = '';
+      if (b.status === 'active') {
+        statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+          <i class="bi bi-check-circle mr-1"></i> Active
+        </span>`;
+      } else {
+        statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+          <i class="bi bi-dash-circle mr-1"></i> Inactive
+        </span>`;
+      }
+      tr.innerHTML = `
+        <td class="px-4 py-3">${b.branch_code}</td>
+        <td class="px-4 py-3 font-medium">${b.name}</td>
+        <td class="px-4 py-3">${b.address || '-'}</td>
+        <td class="px-4 py-3">${statusBadge}</td>
+        <td class="px-4 py-3 text-right space-x-1">
+          <button class="inline-flex items-center px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded hover:bg-amber-100 transition-colors dark:bg-amber-900 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-800" onclick="openEditModal('${b._id}', '${b.branch_code}', '${b.name}', '${b.address || ''}')">
+            <i class="bi bi-pencil-square mr-1"></i> แก้ไข
+          </button>
+          <button class="inline-flex items-center px-2 py-1 bg-red-50 border border-red-200 text-red-700 rounded hover:bg-red-100 transition-colors dark:bg-red-900 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-800" onclick="deleteBranch('${b._id}')">
+            <i class="bi bi-trash mr-1"></i> ลบ
+          </button>
+          <button class="inline-flex items-center px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded hover:bg-blue-100 transition-colors dark:bg-blue-900 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-800" onclick="toggleStatus('${b._id}', '${b.status}')">
+            <i class="bi bi-toggle-${b.status === 'active' ? 'on' : 'off'} mr-1"></i> ${b.status === 'active' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  
+  // Initialize event listeners when DOM is loaded
+  document.addEventListener('DOMContentLoaded', () => {
+    showLoading(true);
+    loadDarkMode();
+    initMainMenu();
+    loadUserInfo();
+    loadBranches();
+  
+    // Add Branch Form Event Listener
+    document.getElementById('addBranchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      if (submitButton.disabled) return;
+      submitButton.disabled = true;
+      const originalText = submitButton.innerHTML;
+      submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังบันทึก...';
+  
+      try {
+        const token = (function(){try{return localStorage.getItem('authToken');}catch(e){return null;}})() || '';
+        const name = document.getElementById('branchName').value.trim();
+        const code = document.getElementById('branchCode').value.trim();
+        const address = document.getElementById('branchAddress').value.trim();
+  
+        if (!name || !code) {
+          alert('กรุณากรอกชื่อสาขา และรหัสสาขา');
+          return;
+        }
+  
+        const res = await fetch('/api/branch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ name: name, branch_code: code, address: address })
+        });
+        const data = await res.json();
+  
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถเพิ่มสาขาได้');
+        }
+  
+        alert('เพิ่มสาขาใหม่สำเร็จ!');
+        document.getElementById('addBranchForm').reset();
+        loadBranches();
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+      }
+    });
+  
+    // Edit Branch Form Event Listener
+    document.getElementById('editBranchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      if (submitButton.disabled) return;
+      submitButton.disabled = true;
+      const originalText = submitButton.innerHTML;
+      submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังบันทึก...';
+  
+      try {
+        const token = (function(){try{return localStorage.getItem('authToken');}catch(e){return null;}})() || '';
+        const branchId = document.getElementById('editBranchId').value;
+        const code = document.getElementById('editBranchCode').value.trim();
+        const name = document.getElementById('editBranchName').value.trim();
+        const address = document.getElementById('editBranchAddress').value.trim();
+  
+        const res = await fetch(`/api/branch/${branchId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ branch_code: code, name: name, address: address })
+        });
+        const data = await res.json();
+  
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ไม่สามารถแก้ไขสาขา');
+        }
+  
+        alert('แก้ไขสาขาเรียบร้อย');
+        closeEditModal();
+        loadBranches();
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+      }
+    });
+  
+    // Button Event Listeners
+    document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login.html';
+    });
+
+    // Hide loading after initialization complete
+    setTimeout(() => { showLoading(false); }, 600);
+  });
+  
+  // Modal Functions
+  function openEditModal(id, code, name, address) {
+    document.getElementById('editBranchId').value = id;
+    document.getElementById('editBranchCode').value = code;
+    document.getElementById('editBranchName').value = name;
+    document.getElementById('editBranchAddress').value = address;
+    document.getElementById('editModal').classList.add('modal-open');
+  }
+  
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('modal-open');
+  }
+  
+  // Branch Management Functions
+  async function deleteBranch(branchId) {
+    if (!confirm('คุณต้องการลบสาขานี้หรือไม่?')) return;
+    showLoading(true);
+  
+    try {
+      const token = (function(){try{return localStorage.getItem('authToken');}catch(e){return null;}})() || '';
+      const res = await fetch(`/api/branch/${branchId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+  
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถลบสาขา');
+      }
+  
+      alert('ลบสาขาสำเร็จ');
+      loadBranches();
+    } catch (err) {
+      console.error('Error deleting branch:', err);
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      showLoading(false);
+    }
+  }
+  
+  async function toggleStatus(branchId, currentStatus) {
+    const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+    const statusText = newStatus === 'active' ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+    if (!confirm(`คุณต้องการ${statusText}สาขานี้หรือไม่?`)) return;
+    showLoading(true);
+  
+    try {
+      const token = (function(){try{return localStorage.getItem('authToken');}catch(e){return null;}})() || '';
+      const res = await fetch(`/api/branch/${branchId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await res.json();
+  
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถอัปเดตสถานะสาขา');
+      }
+  
+      alert(`${statusText}สาขาเรียบร้อย`);
+      loadBranches();
+    } catch (err) {
+      console.error('Error toggling status:', err);
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      showLoading(false);
+    }
+  }</script>
+  <script src="/js/account-menu.js"></script>
+
+<script>
+// Security Monitoring and Logging
+(function() {
+  'use strict';
+
+  const securityLog = [];
+  const MAX_LOG_SIZE = 100;
+
+  // Log security events
+  function logSecurityEvent(type, details) {
+    const event = {
+      timestamp: new Date().toISOString(),
+      type: type,
+      details: details,
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    };
+
+    securityLog.push(event);
+
+    // Keep log size manageable
+    if (securityLog.length > MAX_LOG_SIZE) {
+      securityLog.shift();
+    }
+
+    // Send critical events to server
+    if (type === 'CRITICAL' || type === 'XSS_ATTEMPT' || type === 'SQL_INJECTION_ATTEMPT') {
+      fetch('/api/security/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event)
+      }).catch(err => console.error('Failed to log security event:', err));
+    }
+  }
+
+  // Monitor for XSS attempts
+  const originalWrite = document.write;
+  document.write = function() {
+    logSecurityEvent('XSS_ATTEMPT', { method: 'document.write', content: arguments[0] });
+    console.error('document.write blocked for security reasons');
+  };
+
+  // Monitor for suspicious eval usage
+  window.eval = new Proxy(window.eval, {
+    apply: function(target, thisArg, argumentsList) {
+      logSecurityEvent('EVAL_USAGE', { code: argumentsList[0] });
+      console.warn('eval usage detected - this is a security risk');
+      return target.apply(thisArg, argumentsList);
+    }
+  });
+
+  // Monitor console errors for security issues
+  const originalError = console.error;
+  console.error = function() {
+    const message = Array.from(arguments).join(' ');
+    if (message.includes('CSP') || message.includes('Security') || message.includes('CORS')) {
+      logSecurityEvent('SECURITY_ERROR', { message: message });
+    }
+    originalError.apply(console, arguments);
+  };
+
+  // Detect and prevent common attacks
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check for suspicious URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.forEach((value, key) => {
+      // Check for potential XSS in URL parameters
+      if (/<script|javascript:|on\w+=/i.test(value)) {
+        logSecurityEvent('XSS_ATTEMPT', { source: 'URL_PARAM', key: key, value: value });
+        // Clean the URL
+        urlParams.delete(key);
+        window.history.replaceState({}, '', window.location.pathname + '?' + urlParams.toString());
+      }
+
+      // Check for SQL injection patterns
+      if (/(--|'|"|;|\/\*|\*\/|xp_|sp_|exec|execute|union|select|insert|update|delete|drop)/i.test(value)) {
+        logSecurityEvent('SQL_INJECTION_ATTEMPT', { source: 'URL_PARAM', key: key, value: value });
+      }
+    });
+  });
+
+  // Export security log for debugging (only in development)
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    window.getSecurityLog = function() {
+      return securityLog;
+    };
+  }
+})();
+
+
+</script>
+</body>
+</html>

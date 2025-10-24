@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS - เลือกสาขา (Modular Notifications)</title>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Modular Notification System -->
+  <link rel="stylesheet" href="/css/notification-modules.css">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background: linear-gradient(125deg, #eef2f7 0%, #e0e7ef 60%, #f2f8fc 100%);
+      font-family: 'Prompt', sans-serif;
+    }
+    .card-hover {
+      transition: transform 0.3s cubic-bezier(.4,2.3,.3,1), box-shadow 0.35s;
+      border-radius: 16px;
+    }
+    .card-hover:hover {
+      transform: scale(1.03) translateY(-4px);
+      box-shadow: 0 16px 32px rgba(31,38,135,0.17);
+      border: 1.5px solid #06b6d4;
+    }
+    .glass-card {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+
+<body class="dark:bg-gray-900 dark:text-white min-h-screen">
+
+  <!-- Navbar -->
+  <nav class="glass-card shadow-lg p-4 sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <!-- Logo -->
+      <div class="flex items-center space-x-3">
+        <div class="h-12 w-12 rounded-xl bg-cyan-500 flex items-center justify-center text-white shadow-lg">
+          <i class="bi bi-shop text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-xl">POS System</h1>
+          <p class="text-sm text-cyan-600">เลือกสาขาสำหรับขายหน้าร้าน</p>
+        </div>
+      </div>
+
+      <!-- Right Section -->
+      <div class="flex items-center space-x-4">
+        <!-- Dark Mode Toggle -->
+        <button id="btnToggleDarkMode" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 transition-colors">
+          <i class="bi bi-moon-fill dark:hidden"></i>
+          <i class="bi bi-sun-fill hidden dark:block"></i>
+        </button>
+
+        <!-- Modular Notifications -->
+        <div class="relative" id="notificationWrapper">
+          <button id="notificationButton" class="notification-button">
+            <i class="bi bi-bell-fill text-lg"></i>
+          </button>
+          <span id="notificationDot" class="notification-dot hidden"></span>
+          <span id="notificationBadge" class="notification-badge hidden">0</span>
+          
+          <!-- Notification Dropdown -->
+          <div id="notificationDropdown" class="notification-dropdown hidden">
+            <div class="notification-dropdown-header">
+              <h3 class="notification-dropdown-title">การแจ้งเตือน POS</h3>
+              <button class="mark-all-read text-sm text-cyan-600 hover:underline">อ่านทั้งหมดแล้ว</button>
+            </div>
+            <div class="notification-dropdown-content">
+              <div class="notification-loading">
+                <div class="notification-loading-spinner"></div>
+                กำลังโหลดการแจ้งเตือน...
+              </div>
+            </div>
+            <div class="notification-dropdown-footer">
+              <a href="#" class="text-sm">ดูการแจ้งเตือนทั้งหมด</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Info -->
+        <div class="flex items-center space-x-2 glass-card px-3 py-2 rounded-lg">
+          <i class="bi bi-person-circle text-cyan-500"></i>
+          <span id="currentUser" class="text-sm font-medium">ผู้ใช้งาน</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    
+    <!-- Welcome Section -->
+    <div class="glass-card rounded-xl p-6 mb-6 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold mb-2">ยินดีต้อนรับสู่ระบบ POS</h2>
+          <p class="text-gray-600 dark:text-gray-300">เลือกสาขาที่ต้องการเข้าใช้งานระบบขายหน้าร้าน</p>
+        </div>
+        <div class="hidden md:block">
+          <div class="text-right">
+            <div class="text-sm text-gray-500">วันที่</div>
+            <div id="currentDate" class="font-semibold"></div>
+            <div id="currentTime" class="text-sm text-cyan-600"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Quick Actions -->
+      <div class="mt-4 flex gap-3">
+        <button onclick="simulatePOSActivity()" class="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors text-sm">
+          <i class="bi bi-play-circle mr-1"></i> จำลองกิจกรรม POS
+        </button>
+        <button onclick="showSystemStatus()" class="px-4 py-2 border border-cyan-300 text-cyan-600 rounded-lg hover:bg-cyan-50 transition-colors text-sm">
+          <i class="bi bi-info-circle mr-1"></i> สถานะระบบ
+        </button>
+      </div>
+    </div>
+
+    <!-- Branch Selection -->
+    <div class="glass-card rounded-xl p-6 shadow-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold flex items-center">
+          <i class="bi bi-shop mr-2 text-cyan-500"></i>
+          เลือกสาขาสำหรับขายหน้าร้าน
+        </h3>
+        <span id="branchCount" class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium">
+          สาขาที่ใช้งานได้: 4 สาขา
+        </span>
+      </div>
+      
+      <!-- Branch Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        
+        <!-- Branch 1: สำนักงานใหญ่ -->
+        <div class="card-hover glass-card p-6 cursor-pointer relative" onclick="selectBranch('00000', 'สำนักงานใหญ่')">
+          <div class="absolute top-2 right-2">
+            <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">
+              สำนักงานใหญ่
+            </span>
+          </div>
+          <div class="text-center">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i class="bi bi-building text-2xl text-blue-500"></i>
+            </div>
+            <h4 class="font-semibold mb-1">สำนักงานใหญ่</h4>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">123 ถนนหลัก เมืองใหญ่</p>
+            <div class="flex items-center justify-center text-xs text-green-600">
+              <span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+              ออนไลน์
+            </div>
+          </div>
+          <span id="status-main" class="absolute bottom-2 left-2 w-3 h-3 bg-gray-300 rounded-full"></span>
+        </div>
+
+        <!-- Branch 2: ปัตตานี -->
+        <div class="card-hover glass-card p-6 cursor-pointer relative" onclick="selectBranch('PT001', 'สาขาปัตตานี')">
+          <div class="text-center">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i class="bi bi-shop text-2xl text-green-500"></i>
+            </div>
+            <h4 class="font-semibold mb-1">สาขาปัตตานี</h4>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">456 ถนนปัตตานี</p>
+            <div class="flex items-center justify-center text-xs text-green-600">
+              <span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+              ออนไลน์
+            </div>
+          </div>
+          <span id="status-pattani" class="absolute bottom-2 left-2 w-3 h-3 bg-gray-300 rounded-full"></span>
+        </div>
+
+        <!-- Branch 3: หาดใหญ่ -->
+        <div class="card-hover glass-card p-6 cursor-pointer relative" onclick="selectBranch('HY001', 'สาขาหาดใหญ่')">
+          <div class="text-center">
+            <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i class="bi bi-shop text-2xl text-yellow-500"></i>
+            </div>
+            <h4 class="font-semibold mb-1">สาขาหาดใหญ่</h4>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">789 ถนนหาดใหญ่</p>
+            <div class="flex items-center justify-center text-xs text-green-600">
+              <span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+              ออนไลน์
+            </div>
+          </div>
+          <span id="status-hatyai" class="absolute bottom-2 left-2 w-3 h-3 bg-gray-300 rounded-full"></span>
+        </div>
+
+        <!-- Branch 4: สงขลา -->
+        <div class="card-hover glass-card p-6 cursor-pointer relative" onclick="selectBranch('SK001', 'สาขาสงขลา')">
+          <div class="text-center">
+            <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i class="bi bi-shop text-2xl text-purple-500"></i>
+            </div>
+            <h4 class="font-semibold mb-1">สาขาสงขลา</h4>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">321 ถนนสงขลา</p>
+            <div class="flex items-center justify-center text-xs text-orange-600">
+              <span class="w-2 h-2 bg-orange-500 rounded-full mr-1"></span>
+              ปิดปรับปรุง
+            </div>
+          </div>
+          <span id="status-songkhla" class="absolute bottom-2 left-2 w-3 h-3 bg-gray-300 rounded-full"></span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      
+      <!-- POS Status -->
+      <div class="glass-card rounded-xl p-6 shadow-lg">
+        <h4 class="font-semibold mb-3 flex items-center">
+          <i class="bi bi-graph-up text-cyan-500 mr-2"></i>
+          สถานะ POS
+        </h4>
+        <div class="space-y-2">
+          <div class="flex justify-between">
+            <span class="text-sm">สาขาออนไลน์</span>
+            <span class="text-sm font-medium text-green-600">3/4</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-sm">การขายวันนี้</span>
+            <span class="text-sm font-medium">฿25,680</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-sm">ธุรกรรมสุดท้าย</span>
+            <span class="text-sm font-medium">10:35 น.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="glass-card rounded-xl p-6 shadow-lg">
+        <h4 class="font-semibold mb-3 flex items-center">
+          <i class="bi bi-clock-history text-green-500 mr-2"></i>
+          กิจกรรมล่าสุด
+        </h4>
+        <div class="space-y-2 text-sm">
+          <div class="flex items-center">
+            <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+            <span>ขายสำเร็จ ฿1,500</span>
+          </div>
+          <div class="flex items-center">
+            <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+            <span>เปิดใช้งานสาขาปัตตานี</span>
+          </div>
+          <div class="flex items-center">
+            <span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
+            <span>อัปเดตสต๊อกสินค้า</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="glass-card rounded-xl p-6 shadow-lg">
+        <h4 class="font-semibold mb-3 flex items-center">
+          <i class="bi bi-speedometer2 text-purple-500 mr-2"></i>
+          สถิติรวดเร็ว
+        </h4>
+        <div class="space-y-2">
+          <div class="flex justify-between">
+            <span class="text-sm">ใบเสร็จวันนี้</span>
+            <span class="text-sm font-medium">47</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-sm">ลูกค้าใหม่</span>
+            <span class="text-sm font-medium">8</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-sm">เฉลี่ยต่อบิล</span>
+            <span class="text-sm font-medium">฿546</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modular Notification System -->
+  <script src="/js/notification-modules.js"></script>
+
+  <!-- Main JavaScript -->
+  <script>
+    // Initialize POS module
+    document.addEventListener('DOMContentLoaded', () => {
+      // Set current module to POS
+      if (window.moduleNotificationSystem) {
+        window.moduleNotificationSystem.setCurrentModule('pos');
+      }
+    
+      // Initialize UI
+      updateDateTime();
+      setInterval(updateDateTime, 1000);
+    
+      // Welcome notification
+      setTimeout(() => {
+        showModuleToast('🏪 ยินดีต้อนรับสู่ระบบ POS', 'success');
+    
+        addModuleNotification({
+          title: '🏪 ระบบ POS',
+          message: 'เข้าสู่ระบบขายหน้าร้านเรียบร้อยแล้ว',
+          type: 'success',
+          module: 'pos'
+        });
+      }, 1000);
+    
+      console.log('🏪 POS Frontstore with Modular Notifications initialized');
+    });
+
+    // Branch Selection
+    function selectBranch(branchCode, branchName) {
+      // Show loading notification
+      showModuleToast(`กำลังเข้าสู่${branchName}...`, 'info');
+    
+      // Activate status indicator
+      const statusMap = {
+        '00000': 'main',
+        'PT001': 'pattani',
+        'HY001': 'hatyai',
+        'SK001': 'songkhla'
+      };
+    
+      const statusId = statusMap[branchCode];
+      if (statusId) {
+        activateStatus(statusId);
+      }
+    
+      // Simulate navigation delay
+      setTimeout(() => {
+        showModuleToast(`✅ เข้าสู่${branchName}สำเร็จ`, 'success');
+    
+        addModuleNotification({
+          title: `🏪 เข้าสู่${branchName}`,
+          message: `รหัสสาขา: ${branchCode} - พร้อมใช้งานระบบ POS`,
+          type: 'success',
+          module: 'pos'
+        });
+    
+        // In real app, redirect to branch POS system
+        console.log(`Navigating to branch: ${branchCode} - ${branchName}`);
+      }, 1500);
+    }
+
+    // Simulate POS Activity
+    function simulatePOSActivity() {
+      const activities = [
+        { message: '🛒 ขายสำเร็จ ฿850', type: 'success', delay: 500 },
+        { message: '📋 พิมพ์ใบเสร็จ #12345', type: 'info', delay: 1000 },
+        { message: '💰 รับชำระเงินสด ฿1,000', type: 'success', delay: 1500 },
+        { message: '📱 สแกน QR Code สำเร็จ', type: 'info', delay: 2000 },
+        { message: '⚠️ สินค้า iPhone 15 เหลือ 2 ชิ้น', type: 'warning', delay: 2500 },
+        { message: '✅ บันทึกการขายเสร็จสิ้น', type: 'success', delay: 3000 }
+      ];
+
+      showModuleToast('🎬 เริ่มจำลองกิจกรรม POS...', 'info');
+
+      activities.forEach(activity => {
+        setTimeout(() => {
+          showModuleToast(activity.message, activity.type, { module: 'pos' });
+    
+          addModuleNotification({
+            title: '🏪 กิจกรรม POS',
+            message: activity.message,
+            type: activity.type,
+            module: 'pos'
+          });
+        }, activity.delay);
+      });
+
+      // Activate all branch status indicators
+      setTimeout(() => {
+        ['main', 'pattani', 'hatyai'].forEach((branch, index) => {
+          setTimeout(() => activateStatus(branch), index * 200);
+        });
+      }, 3500);
+    }
+
+    // Show System Status
+    function showSystemStatus() {
+      if (window.moduleNotificationSystem) {
+        const notifications = window.moduleNotificationSystem.notifications || [];
+        const activeToasts = window.moduleNotificationSystem.activeToasts || [];
+    
+        showModuleToast(`📊 ระบบ: ${notifications.length} การแจ้งเตือน, ${activeToasts.length} Toast`, 'info');
+    
+        addModuleNotification({
+          title: '📊 สถานะระบบ',
+          message: `การแจ้งเตือนทั้งหมด: ${notifications.length}, Toast ที่ใช้งาน: ${activeToasts.length}`,
+          type: 'info',
+          module: 'pos'
+        });
+    
+        console.log('System Status:', {
+          currentModule: window.moduleNotificationSystem.currentModule,
+          totalNotifications: notifications.length,
+          activeToasts: activeToasts.length
+        });
+      }
+    }
+
+    // Helper Functions
+    function updateDateTime() {
+      const now = new Date();
+      const dateEl = document.getElementById('currentDate');
+      const timeEl = document.getElementById('currentTime');
+    
+      if (dateEl) {
+        dateEl.textContent = now.toLocaleDateString('th-TH', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        });
+      }
+    
+      if (timeEl) {
+        timeEl.textContent = now.toLocaleTimeString('th-TH', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+    }
+
+    function activateStatus(statusId) {
+      const status = document.getElementById(`status-${statusId}`);
+      if (status) {
+        status.classList.remove('bg-gray-300');
+        status.classList.add('bg-cyan-500', 'animate-pulse');
+        setTimeout(() => {
+          status.classList.remove('bg-cyan-500', 'animate-pulse');
+          status.classList.add('bg-gray-300');
+        }, 3000);
+      }
+    }
+
+    // Dark Mode Toggle
+    document.getElementById('btnToggleDarkMode')?.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', isDark);
+    
+      showModuleToast(`🌙 เปลี่ยนเป็น${isDark ? 'โหมดมืด' : 'โหมดสว่าง'}`, 'info');
+    });
+
+    // Load saved dark mode
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.documentElement.classList.add('dark');
+    }
+
+    // Auto-generate notifications every 10 seconds
+    setInterval(() => {
+      const randomNotifications = [
+        { message: '🔔 มีลูกค้าใหม่เข้าร้าน', type: 'info' },
+        { message: '💳 รับชำระผ่าน QR Code', type: 'success' },
+        { message: '📦 สินค้าใหม่เข้าร้าน', type: 'info' },
+        { message: '⚡ ระบบอัปเดตราคาอัตโนมัติ', type: 'info' },
+        { message: '🎯 ยอดขายผ่านเป้า 80%', type: 'success' }
+      ];
+    
+      const randomNotif = randomNotifications[Math.floor(Math.random() * randomNotifications.length)];
+    
+      addModuleNotification({
+        title: '🏪 POS อัตโนมัติ',
+        message: randomNotif.message,
+        type: randomNotif.type,
+        module: 'pos'
+      });
+    }, 15000);
+  </script>
+
+</body>
+</html> 

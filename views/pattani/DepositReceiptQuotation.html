@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ใบเสนอราคา (ใบรับเงินมัดจำ)</title>
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+
+    <script src="../js/activity-tracker.js"></script>
+    <script src="/js/branch-navigation.js"></script>
+    <!-- Notification System JavaScript -->
+    <script src="/js/notification-system.js"></script>
+    <script src="/views/pattani/sidebar/sidebar.js"></script>
+    <!-- โหลด Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Prompt', 'sans-serif'],
+            },
+          },
+        },
+        daisyui: {
+          themes: ['light', 'dark', 'corporate'],
+        },
+      };
+    </script>
+    <!-- โหลด DaisyUI -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+      rel="stylesheet"
+    />
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    />
+  <!-- Google Fonts: Prompt -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+    <!-- Lottie Animation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Branch Configuration -->
+  <script>
+    // Global Branch Configuration - ดึงจาก URL parameters
+    function getBranchFromURL() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchFromURL = urlParams.get('branch');
+      const branchNameFromURL = urlParams.get('name');
+
+      if (branchFromURL) {
+        console.log('🏢 Branch Code from URL:', branchFromURL);
+        console.log('🏢 Branch Name from URL:', branchNameFromURL);
+
+        // เก็บข้อมูลสาขาไว้ใน localStorage สำหรับใช้ในหน้าอื่น
+        localStorage.setItem('activeBranch', branchFromURL);
+        localStorage.setItem('activeBranchName', branchNameFromURL || '');
+
+        return branchFromURL;
+      } else {
+        // fallback ไปใช้ข้อมูลจาก localStorage หรือค่าเริ่มต้น
+        const storedBranch = localStorage.getItem('activeBranch');
+        if (storedBranch) {
+          console.log('🏢 Branch Code from localStorage:', storedBranch);
+          return storedBranch;
+        } else {
+          console.log('🏢 Using default branch code: 00001');
+          return '00001'; // default สำหรับการทดสอบ
+        }
+      }
+    }
+
+    window.BRANCH_CODE = getBranchFromURL();
+    console.log('🏢 Final Branch Code initialized:', window.BRANCH_CODE);
+  </script>
+
+  <!-- Notification System CSS -->
+  <link rel="stylesheet" href="/css/notification-system.css" />
+    <style>
+      .loading-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(12px);
+      }
+      body {
+        font-family: "Prompt", sans-serif;
+        background-color: #f3f4f6; /* Tailwind's bg-gray-100 */
+      }
+      .page-link {
+        cursor: pointer;
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+      .bubble h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 0;
+      }
+      .page-link.active {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+      }
+      .page-link:hover {
+        background-color: #e2e2e2;
+        transform: translateY(-1px);
+      }
+      .loading {
+        position: relative;
+      }
+      .loading::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        margin: auto;
+        border: 2px solid transparent;
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 1s ease infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Loading overlay */
+      [data-theme="dark"] #loadingOverlay .loading-spinner {
+        width: 3rem;
+        height: 3rem;
+        border: 0.25rem solid #e5e7eb;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      /* Quotation Specific Styles */
+      .quotation-card {
+        border-left: 4px solid #f59e0b;
+        transition: all 0.3s ease;
+      }
+
+      .quotation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+
+      .quotation-badge {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .amount-highlight {
+        background: linear-gradient(135deg, #10b981, #059669);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
+      }
+
+      .quote-status {
+        border-radius: 1rem;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+    </style>
+
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 10001;
+      pointer-events: auto;
+    }
+
+    .loading-overlay.loading-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-overlay.loading-hiding {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loading-content {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      min-width: 250px;
+      max-width: 90vw;
+    }
+
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 0.25rem solid #e0e0e0;
+      border-top-color: #f59e0b;
+      border-radius: 50%;
+      animation: loading-spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-message {
+      color: #333333;
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+
+    .loading-progress {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .loading-progress-fill {
+      height: 100%;
+      background: #f59e0b;
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    /* Theme Variants */
+    .loading-success .loading-spinner { border-top-color: #10b981; }
+    .loading-success .loading-progress-fill { background: #10b981; }
+
+    .loading-warning .loading-spinner { border-top-color: #f59e0b; }
+    .loading-warning .loading-progress-fill { background: #f59e0b; }
+
+    .loading-error .loading-spinner { border-top-color: #ef4444; }
+    .loading-error .loading-progress-fill { background: #ef4444; }
+
+    @keyframes loading-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Dark mode support */
+    [data-theme="dark"] .loading-content {
+      background: #2a2a2a;
+      color: #ffffff;
+    }
+
+    [data-theme="dark"] .loading-message {
+      color: #ffffff;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .loading-content {
+        padding: 1.5rem;
+        margin: 1rem;
+      }
+    }
+  </style>
+
+  </head>
+
+  <body class="bg-gray-100 dark:bg-gray-900">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+      <div class="text-center">
+        <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+      </div>
+    </div>
+    <!-- LoadingSystem Container -->
+    <div id="loading-system-container" class="loading-system-container"></div>
+
+    <!-- Sidebar Component -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="flex-1 transition-all duration-300 p-4">
+      <!-- Header -->
+      <header class="mb-6 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-lg">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <h1 class="text-xl font-semibold text-gray-800 dark:text-gray-200" id="pageTitle">
+              <i class="bi bi-file-earmark-text text-amber-600 mr-2"></i>
+              ใบเสนอราคา (ใบรับเงินมัดจำ)
+            </h1>
+            <p class="text-sm text-gray-600 dark:text-gray-300" id="branchInfo">
+              กำลังโหลดสาขา...
+            </p>
+          </div>
+
+          <!-- Quick Actions Menu สำหรับใบเสนอราคา -->
+          <div class="relative">
+            <button id="quickActionsBtn" class="btn btn-outline btn-sm flex items-center gap-2 px-4 py-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-300">
+              <i class="bi bi-list text-lg"></i>
+              <span class="hidden md:inline">เมนูด่วน</span>
+              <i class="bi bi-chevron-down text-sm ml-1"></i>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div id="quickActionsDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+              <div class="px-4 py-2 text-sm font-semibold text-gray-600 border-b border-gray-100 flex items-center justify-between">
+                <span>เลือกหน้าที่ต้องการ</span>
+                <span id="dropdownBranchInfo" class="text-xs text-gray-400">สาขา: สำนักงานใหญ่</span>
+              </div>
+
+              <!-- กลับไปหน้าใบรับเงินมัดจำ -->
+              <a href="/DepositReceipt" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-receipt-cutoff text-green-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ระบบมัดจำ</div>
+                  <div class="text-xs text-gray-500">กลับไปหน้าจัดการใบรับเงินมัดจำ</div>
+                </div>
+              </a>
+
+              <!-- ใบเสร็จรับเงิน/ใบกำกับภาษี -->
+              <a href="/DepositReceiptInvoice" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-receipt text-blue-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ใบเสร็จรับเงิน/ใบกำกับภาษี</div>
+                  <div class="text-xs text-gray-500">สำหรับใบรับเงินมัดจำ</div>
+                </div>
+              </a>
+
+              <!-- ประวัติใบเสร็จทั่วไป -->
+              <a href="/History_installment" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-clock-history text-purple-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ใบเสร็จทั่วไป</div>
+                  <div class="text-xs text-gray-500">ใบเสร็จระบบผ่อนและขายสด</div>
+                </div>
+              </a>
+
+              <!-- กลับไปหน้าหลัก -->
+              <a href="/installment/step1" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors duration-200">
+                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <i class="bi bi-arrow-left text-orange-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium">ระบบผ่อน</div>
+                  <div class="text-xs text-gray-500">กลับไปหน้าระบบผ่อนหลัก</div>
+                </div>
+              </a>
+
+              <!-- Footer with shortcuts -->
+              <div class="px-4 py-2 border-t border-gray-100 mt-2">
+                <div class="flex items-center justify-between text-xs text-gray-400">
+                  <span>กด Alt+M เพื่อเปิดเมนูด่วน</span>
+                  <span>v1.0.0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Search and Filter Section -->
+      <div class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Search Input -->
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              ค้นหาใบเสนอราคา
+            </label>
+            <div class="relative">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="ค้นหาด้วยเลขที่ใบเสนอราคา, ชื่อลูกค้า, หรือชื่อสินค้า..."
+                class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              />
+              <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+          </div>
+
+          <!-- Date Range -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              ช่วงวันที่
+            </label>
+            <select id="dateRange" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+              <option value="today">วันนี้</option>
+              <option value="week">สัปดาห์นี้</option>
+              <option value="month" selected>เดือนนี้</option>
+              <option value="all">ทั้งหมด</option>
+            </select>
+          </div>
+
+          <!-- Status Filter -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              สถานะ
+            </label>
+            <select id="statusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+              <option value="all">ทั้งหมด</option>
+              <option value="draft">ร่าง</option>
+              <option value="sent">ส่งแล้ว</option>
+              <option value="accepted">ยอมรับ</option>
+              <option value="rejected">ปฏิเสธ</option>
+              <option value="expired">หมดอายุ</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div class="mb-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            รายการใบเสนอราคา
+          </h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400" id="resultsCount">
+            กำลังโหลด...
+          </p>
+        </div>
+
+        <!-- Export Options -->
+        <div class="flex gap-2">
+          <button id="createQuotation" class="btn btn-primary gap-2">
+            <i class="bi bi-plus-lg"></i>
+            สร้างใบเสนอราคาใหม่
+          </button>
+          <button id="exportExcel" class="btn btn-outline btn-sm gap-2">
+            <i class="bi bi-file-earmark-excel"></i>
+            Excel
+          </button>
+          <button id="exportPDF" class="btn btn-outline btn-sm gap-2">
+            <i class="bi bi-file-earmark-pdf"></i>
+            PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Quotations List -->
+      <div id="quotationsList" class="space-y-4">
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center py-8">
+          <div class="loading-spinner mx-auto mb-4"></div>
+          <p class="text-gray-600">กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-12">
+          <i class="bi bi-file-earmark-text text-6xl text-gray-300 mb-4"></i>
+          <h3 class="text-lg font-medium text-gray-700 mb-2">ไม่พบข้อมูลใบเสนอราคา</h3>
+          <p class="text-gray-500 mb-4">ลองเปลี่ยนเงื่อนไขการค้นหาหรือสร้างใบเสนอราคาใหม่</p>
+          <button id="createQuotationEmpty" class="btn btn-primary gap-2">
+            <i class="bi bi-plus-lg"></i>
+            สร้างใบเสนอราคา
+          </button>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" class="mt-6 flex justify-center">
+        <!-- Pagination will be inserted here -->
+      </div>
+
+      <!-- Quotation Detail Modal -->
+      <div id="quotationDetailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
+          <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                <i class="bi bi-file-earmark-text text-amber-600 mr-2"></i>
+                รายละเอียดใบเสนอราคา
+              </h3>
+              <button id="closeQuotationModal" class="text-gray-400 hover:text-gray-600">
+                <i class="bi bi-x-lg text-xl"></i>
+              </button>
+            </div>
+
+            <!-- Quotation Content -->
+            <div id="quotationContent">
+              <!-- Content will be inserted here -->
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3 mt-6 border-t pt-4">
+              <button id="editQuotation" class="btn btn-primary gap-2">
+                <i class="bi bi-pencil"></i>
+                แก้ไข
+              </button>
+              <button id="sendQuotation" class="btn btn-outline gap-2">
+                <i class="bi bi-send"></i>
+                ส่งใบเสนอราคา
+              </button>
+              <button id="printQuotation" class="btn btn-outline gap-2">
+                <i class="bi bi-printer"></i>
+                พิมพ์
+              </button>
+              <button id="downloadQuotationPDF" class="btn btn-outline gap-2">
+                <i class="bi bi-download"></i>
+                ดาวน์โหลด PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Global Variables
+      let currentPage = 1;
+      let totalPages = 1;
+      let quotations = [];
+      let filteredQuotations = [];
+      const itemsPerPage = 20;
+
+      // Initialize on DOM load
+      // Show/Hide Loading with Lottie animation
+      let lottieAnimation = null;
+      function showLoading(show) {
+        const loader = document.getElementById('loadingOverlay');
+        if (show) {
+          loader.style.display = 'flex';
+          loader.classList.remove('animate__fadeOut');
+          loader.classList.add('animate__fadeIn');
+
+          // โหลดและเล่น Lottie animation
+          if (!lottieAnimation) {
+            console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+            fetch('/Loading/Loading.json')
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(animationData => {
+                lottieAnimation = lottie.loadAnimation({
+                  container: document.getElementById('lottieContainer'),
+                  renderer: 'svg',
+                  loop: true,
+                  autoplay: true,
+                  animationData: animationData
+                });
+
+                console.log('✅ Lottie animation loaded successfully');
+              })
+              .catch(error => {
+                console.error('❌ Error loading Lottie animation:', error);
+                // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+                document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+              });
+          } else {
+            lottieAnimation.play();
+          }
+        } else {
+          if (lottieAnimation) {
+            lottieAnimation.pause();
+          }
+          loader.classList.remove('animate__fadeIn');
+          loader.classList.add('animate__fadeOut');
+          setTimeout(() => { loader.style.display = 'none'; }, 600);
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', async function() {
+        // Setup authentication data for consistent session management
+        setupAuthenticationData();
+
+        showLoading(true);
+        initializeQuickActionsMenu();
+        initializeSearchAndFilters();
+        await loadBranchInfo();
+        loadQuotations();
+        setTimeout(() => showLoading(false), 800);
+      });
+
+      // Setup authentication data function (check existing session)
+      function setupAuthenticationData() {
+        // Log authentication status (matching other pages pattern)
+        const currentSession = {
+          staffId: localStorage.getItem('userId') || 'anonymous',
+          staffName: localStorage.getItem('userName') || 'Unknown',
+          staffRole: localStorage.getItem('userRole') || 'Unknown',
+          branchCode: localStorage.getItem('branchCode') || window.BRANCH_CODE || '00000'
+        };
+
+        if (!currentSession.staffId || currentSession.staffId === 'anonymous') {
+          console.warn('⚠️ ไม่พบข้อมูลการล็อกอิน - กรุณาล็อกอินใหม่');
+          if (!localStorage.getItem('authToken')) {
+            console.warn('⚠️ ไม่พบ auth token - อาจต้องล็อกอินใหม่');
+          }
+        } else {
+          console.log(`✅ ล็อกอินเป็น: ${currentSession.staffName} (ID: ${currentSession.staffId})`);
+          console.log(`👥 User Role: ${currentSession.staffRole}`);
+          console.log(`🏢 Branch Code: ${currentSession.branchCode}`);
+        }
+      }
+
+      // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+      window.addEventListener('beforeunload', () => {
+        if (lottieAnimation) {
+          lottieAnimation.destroy();
+          lottieAnimation = null;
+        }
+      });
+
+      // Quick Actions Menu
+      function initializeQuickActionsMenu() {
+        const quickActionsBtn = document.getElementById('quickActionsBtn');
+        const quickActionsDropdown = document.getElementById('quickActionsDropdown');
+
+        if (quickActionsBtn && quickActionsDropdown) {
+          quickActionsBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            quickActionsDropdown.classList.toggle('hidden');
+          });
+
+          document.addEventListener('click', function(e) {
+            if (!quickActionsBtn.contains(e.target) && !quickActionsDropdown.contains(e.target)) {
+              quickActionsDropdown.classList.add('hidden');
+            }
+          });
+
+          document.addEventListener('keydown', function(e) {
+            if (e.altKey && e.key.toLowerCase() === 'm') {
+              e.preventDefault();
+              quickActionsDropdown.classList.toggle('hidden');
+            }
+          });
+
+          const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+          if (dropdownBranchInfo) {
+            const branchName = localStorage.getItem('activeBranchName') || 'สำนักงานใหญ่';
+            dropdownBranchInfo.textContent = `สาขา: ${branchName}`;
+          }
+        }
+      }
+
+      // Search and Filter Initialization
+      function initializeSearchAndFilters() {
+        const searchInput = document.getElementById('searchInput');
+        const dateRange = document.getElementById('dateRange');
+        const statusFilter = document.getElementById('statusFilter');
+
+        if (searchInput) {
+          searchInput.addEventListener('input', debounce(filterQuotations, 300));
+        }
+
+        if (dateRange) {
+          dateRange.addEventListener('change', filterQuotations);
+        }
+
+        if (statusFilter) {
+          statusFilter.addEventListener('change', filterQuotations);
+        }
+
+        // Action buttons
+        const createQuotation = document.getElementById('createQuotation');
+        const createQuotationEmpty = document.getElementById('createQuotationEmpty');
+        const exportExcel = document.getElementById('exportExcel');
+        const exportPDF = document.getElementById('exportPDF');
+
+        if (createQuotation) {
+          createQuotation.addEventListener('click', () => createNewQuotation());
+        }
+
+        if (createQuotationEmpty) {
+          createQuotationEmpty.addEventListener('click', () => createNewQuotation());
+        }
+
+        if (exportExcel) {
+          exportExcel.addEventListener('click', () => exportToExcel());
+        }
+
+        if (exportPDF) {
+          exportPDF.addEventListener('click', () => exportToPDF());
+        }
+      }
+
+      // Load Branch Information
+      async function loadBranchInfo() {
+        try {
+          const BRANCH_CODE = window.BRANCH_CODE || '00001';
+          const token = localStorage.getItem('authToken') || '';
+
+          // ตรวจสอบว่ามีชื่อสาขาจาก URL หรือ localStorage หรือไม่
+          const branchNameFromStorage = localStorage.getItem('activeBranchName');
+          const urlParams = new URLSearchParams(window.location.search);
+          const branchNameFromURL = urlParams.get('name');
+
+          console.log('🏢 Loading branch info for code:', BRANCH_CODE);
+          console.log('🏢 Branch name from URL:', branchNameFromURL);
+          console.log('🏢 Branch name from storage:', branchNameFromStorage);
+
+          // ถ้ามีชื่อสาขาจาก URL หรือ localStorage ให้ใช้เลย
+          const branchName = branchNameFromURL || branchNameFromStorage;
+
+          if (branchName && BRANCH_CODE) {
+            // แสดงข้อมูลสาขาทันที
+            document.getElementById('branchInfo').textContent = `${branchName} (${BRANCH_CODE})`;
+            document.title = `ใบเสนอราคา - ${branchName}`;
+            document.getElementById('pageTitle').innerHTML = `<i class="bi bi-file-earmark-text text-amber-600 mr-2"></i>ใบเสนอราคา - ${branchName}`;
+
+            // อัปเดตข้อมูลใน dropdown ด้วย
+            const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+            if (dropdownBranchInfo) {
+              dropdownBranchInfo.textContent = `สาขา: ${branchName}`;
+            }
+
+            console.log('✅ Branch info loaded from cache:', branchName);
+          }
+
+          // เรียก API เพื่อตรวจสอบและอัปเดตข้อมูลให้แน่ใจ
+          const res = await fetch(`/api/branch`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          const js = await res.json();
+          if (res.ok && js.success) {
+            // หา record ที่ตรงกับ BRANCH_CODE
+            const branch = js.data.find(b => b.branch_code === BRANCH_CODE);
+            if (branch) {
+              const fullBranchInfo = `${branch.name} — ${branch.address}`;
+
+              // อัปเดตข้อมูลหากต่างจากที่แสดงอยู่
+              document.getElementById('branchInfo').textContent = fullBranchInfo;
+              document.title = `ใบเสนอราคา - ${branch.name}`;
+              document.getElementById('pageTitle').innerHTML = `<i class="bi bi-file-earmark-text text-amber-600 mr-2"></i>ใบเสนอราคา - ${branch.name}`;
+
+              // อัปเดต localStorage ด้วยข้อมูลที่ถูกต้อง (รวมทั้ง address และ phone)
+              localStorage.setItem('activeBranchName', branch.name);
+              localStorage.setItem('activeBranch', branch.branch_code);
+              localStorage.setItem('activeBranchAddress', branch.address || '');
+              localStorage.setItem('activeBranchPhone', branch.phone || '');
+
+              // อัปเดตข้อมูลใน dropdown ด้วย
+              const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+              if (dropdownBranchInfo) {
+                dropdownBranchInfo.textContent = `สาขา: ${branch.name}`;
+              }
+
+              console.log('✅ Branch info updated from API:', branch.name);
+              return;
+            }
+          }
+
+          throw new Error('ไม่พบข้อมูลสาขา');
+        } catch (err) {
+          console.warn('loadBranchInfo error:', err);
+          // ถ้า API ล้มเหลว แต่ยังมีข้อมูลจาก URL/localStorage ก็ใช้ได้
+          if (!document.getElementById('branchInfo').textContent || document.getElementById('branchInfo').textContent === 'กำลังโหลดสาขา...') {
+            document.getElementById('branchInfo').textContent = 'ไม่สามารถโหลดข้อมูลสาขาได้';
+          }
+        }
+      }
+
+      // Load Quotations from API
+      async function loadQuotations() {
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+        const quotationsList = document.getElementById('quotationsList');
+
+        try {
+          if (loadingState) loadingState.classList.remove('hidden');
+          if (emptyState) emptyState.classList.add('hidden');
+
+          const branchCode = localStorage.getItem('activeBranch') || window.BRANCH_CODE || '00000';
+          const token = localStorage.getItem('authToken');
+          console.log('🔍 Loading deposit receipts (quotations) from API for branch:', branchCode);
+
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(`/api/quotation?branchCode=${branchCode}&limit=1000`, {
+            method: 'GET',
+            headers: headers
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log('📊 API Response:', result);
+
+          if (result.success && result.data) {
+            // Use quotation data - convert to display format
+            quotations = result.data.map(quot => ({
+              // Preserve all original data first
+              ...quot,
+              // Then override with our mapped fields
+              id: quot._id || quot.id,
+              quotationNumber: quot.quotationNumber || quot.number,
+              customer: quot.customer || {
+                name: 'ไม่ระบุลูกค้า',
+                phone: '',
+                address: '',
+                taxId: ''
+              },
+              // Get product from first item - this will override any existing product field
+              product: {
+                name: quot.items?.[0]?.description || quot.items?.[0]?.productName || quot.productName || 'สินค้าทั่วไป',
+                brand: quot.items?.[0]?.brand || '',
+                model: quot.items?.[0]?.model || ''
+              },
+              // แสดงยอดรวมทั้งหมด (grandTotal) ไม่ใช่แค่เงินมัดจำ
+              amounts: {
+                totalAmount: quot.summary?.subtotal || 0,  // ยอดรวมก่อนหัก
+                depositAmount: quot.downTotal || 0,        // เงินดาวน์/มัดจำ
+                remainingAmount: quot.financedTotal || 0   // ยอดผ่อน
+              },
+              // ข้อมูลภาษี
+              tax: {
+                taxType: quot.tax?.taxType || quot.taxType || 'exclusive',  // ค่าเริ่มต้น: แยกภาษี
+                taxRate: quot.tax?.taxRate || quot.taxRate || 7,            // ค่าเริ่มต้น: 7%
+                taxAmount: quot.tax?.taxAmount || quot.summary?.vatAmount || 0,
+                includeTaxInvoice: quot.tax?.includeTaxInvoice !== false    // ค่าเริ่มต้น: สร้างใบกำกับภาษี
+              },
+              quotationDate: quot.date || quot.createdAt,
+              validUntil: new Date(new Date(quot.date || quot.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              salesperson: {
+                name: quot.salespersonName || 'พนักงานขาย'
+              },
+              branchCode: quot.branchCode || branchCode,
+              branchName: localStorage.getItem('activeBranchName') || '',
+              branchAddress: localStorage.getItem('activeBranchAddress') || '',
+              branchPhone: localStorage.getItem('activeBranchPhone') || '',
+              status: quot.status || 'draft',
+              statusText: getStatusText(quot.status || 'draft')
+            }));
+
+            // Debug: ตรวจสอบข้อมูลที่โหลดมา
+            if (quotations.length > 0) {
+              console.log('🔍 First quotation detailed structure:', {
+                quotationNumber: quotations[0].quotationNumber,
+                customer: quotations[0].customer,
+                product: quotations[0].product,
+                amounts: quotations[0].amounts,
+                salesperson: quotations[0].salesperson,
+                hasValidData: !!(quotations[0].customer?.name && quotations[0].product?.name)
+              });
+            }
+
+            filteredQuotations = [...quotations];
+
+            // บันทึกข้อมูลใน localStorage เพื่อให้ PDF ใช้งาน
+            localStorage.setItem('depositReceipts', JSON.stringify(quotations));
+            console.log('✅ Loaded', quotations.length, 'quotations from API');
+            console.log('💾 Saved', quotations.length, 'quotations to localStorage');
+          } else {
+            quotations = [];
+            filteredQuotations = [];
+            console.warn('⚠️ No quotation data returned from API');
+          }
+
+          if (loadingState) loadingState.classList.add('hidden');
+
+          if (quotations.length === 0) {
+            if (emptyState) emptyState.classList.remove('hidden');
+          } else {
+            renderQuotations();
+            renderPagination();
+          }
+
+          updateResultsCount();
+
+        } catch (error) {
+          console.error('❌ Error loading quotations:', error);
+          if (loadingState) loadingState.classList.add('hidden');
+          if (emptyState) emptyState.classList.remove('hidden');
+
+          const emptyTitle = emptyState?.querySelector('h3');
+          const emptyDesc = emptyState?.querySelector('p');
+          if (emptyTitle) emptyTitle.textContent = 'เกิดข้อผิดพลาด';
+          if (emptyDesc) emptyDesc.textContent = `ไม่สามารถโหลดข้อมูลได้: ${error.message}`;
+
+          // Show error notification
+          if (window.posNotificationSystem) {
+            window.posNotificationSystem.addNotification('pos', {
+              title: 'เกิดข้อผิดพลาด',
+              message: `ไม่สามารถโหลดข้อมูลใบเสนอราคาได้: ${error.message}`,
+              type: 'error'
+            });
+          }
+        }
+      }
+
+      // Get status text in Thai
+      function getStatusText(status) {
+        const statusMap = {
+          'draft': 'ร่าง',
+          'sent': 'ส่งแล้ว',
+          'confirmed': 'ยืนยันแล้ว',
+          'accepted': 'ได้รับการยอมรับ',
+          'rejected': 'ถูกปฏิเสธ',
+          'expired': 'หมดอายุ',
+          'cancelled': 'ยกเลิก'
+        };
+        return statusMap[status] || 'ร่าง';
+      }
+
+
+      // Filter Quotations
+      function filterQuotations() {
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const dateRange = document.getElementById('dateRange')?.value || 'all';
+        const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+
+        filteredQuotations = quotations.filter(quotation => {
+          // Search filter
+          const matchesSearch = !searchTerm ||
+            quotation.quotationNumber.toLowerCase().includes(searchTerm) ||
+            quotation.customer?.name.toLowerCase().includes(searchTerm) ||
+            quotation.product?.name.toLowerCase().includes(searchTerm);
+
+          // Date filter
+          let matchesDate = true;
+          if (dateRange !== 'all') {
+            const quotationDate = new Date(quotation.quotationDate);
+            const now = new Date();
+
+            switch (dateRange) {
+              case 'today':
+                matchesDate = quotationDate.toDateString() === now.toDateString();
+                break;
+              case 'week':
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                matchesDate = quotationDate >= weekAgo;
+                break;
+              case 'month':
+                matchesDate = quotationDate.getMonth() === now.getMonth() &&
+                             quotationDate.getFullYear() === now.getFullYear();
+                break;
+            }
+          }
+
+          // Status filter
+          const matchesStatus = statusFilter === 'all' || quotation.status === statusFilter;
+
+          return matchesSearch && matchesDate && matchesStatus;
+        });
+
+        currentPage = 1;
+        renderQuotations();
+        renderPagination();
+        updateResultsCount();
+      }
+
+      // Render Quotations
+      function renderQuotations() {
+        const quotationsList = document.getElementById('quotationsList');
+        if (!quotationsList) return;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageQuotations = filteredQuotations.slice(startIndex, endIndex);
+
+        quotationsList.innerHTML = '';
+
+        pageQuotations.forEach(quotation => {
+          const quotationCard = createQuotationCard(quotation);
+          quotationsList.appendChild(quotationCard);
+        });
+
+        // Hide loading and empty states
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+
+        if (loadingState) loadingState.classList.add('hidden');
+
+        if (filteredQuotations.length === 0) {
+          if (emptyState) emptyState.classList.remove('hidden');
+        } else {
+          if (emptyState) emptyState.classList.add('hidden');
+          renderPagination();
+        }
+      }
+
+      // Create Quotation Card
+      function createQuotationCard(quotation) {
+        const card = document.createElement('div');
+        card.className = 'quotation-card bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-300';
+
+        const statusColor = getStatusColor(quotation.status);
+        const validDays = Math.ceil((new Date(quotation.validUntil) - new Date()) / (1000 * 60 * 60 * 24));
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-3">
+                <h3 class="font-semibold text-lg text-gray-800 dark:text-gray-200">
+                  ${quotation.quotationNumber}
+                </h3>
+                <span class="quotation-badge">ใบเสนอราคา</span>
+                <span class="quote-status ${statusColor}">
+                  ${quotation.statusText}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">ลูกค้า</p>
+                  <p class="font-medium text-gray-800 dark:text-gray-200">${quotation.customer?.name || 'ไม่ระบุ'}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">สินค้า</p>
+                  <p class="font-medium text-gray-800 dark:text-gray-200">${quotation.product?.name || 'ไม่ระบุ'}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">วันที่เสนอราคา</p>
+                  <p class="font-medium text-gray-800 dark:text-gray-200">
+                    ${new Date(quotation.quotationDate).toLocaleDateString('th-TH')}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-6">
+                  <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">ราคารวม</p>
+                    <p class="font-semibold text-2xl text-blue-600">
+                      ฿${(quotation.amounts?.totalAmount || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">ใช้ได้อีก</p>
+                    <p class="font-medium ${validDays > 3 ? 'text-green-600' : validDays > 0 ? 'text-amber-600' : 'text-red-600'}">
+                      ${validDays > 0 ? `${validDays} วัน` : 'หมดอายุ'}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex gap-2">
+                  <button
+                    onclick="viewQuotationDetail('${quotation.id}')"
+                    class="btn btn-outline btn-sm gap-2 hover:bg-amber-50 hover:border-amber-300"
+                    title="ดูรายละเอียด"
+                  >
+                    <i class="bi bi-eye"></i>
+                    ดูรายละเอียด
+                  </button>
+                  <button
+                    onclick="editQuotation('${quotation.id}')"
+                    class="btn btn-primary btn-sm gap-2"
+                    title="แก้ไข"
+                  >
+                    <i class="bi bi-pencil"></i>
+                    แก้ไข
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        return card;
+      }
+
+      // Get Status Color
+      function getStatusColor(status) {
+        const colors = {
+          'draft': 'bg-gray-100 text-gray-800',
+          'sent': 'bg-blue-100 text-blue-800',
+          'accepted': 'bg-green-100 text-green-800',
+          'rejected': 'bg-red-100 text-red-800',
+          'expired': 'bg-orange-100 text-orange-800'
+        };
+        return colors[status] || 'bg-gray-100 text-gray-800';
+      }
+
+      // Pagination
+      function renderPagination() {
+        const pagination = document.getElementById('pagination');
+        if (!pagination) return;
+
+        totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
+
+        if (totalPages <= 1) {
+          pagination.innerHTML = '';
+          return;
+        }
+
+        let paginationHTML = '<nav class="flex items-center gap-2">';
+
+        // Previous button
+        if (currentPage > 1) {
+          paginationHTML += `<button onclick="changePage(${currentPage - 1})" class="page-link">ก่อนหน้า</button>`;
+        }
+
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+          if (i === currentPage) {
+            paginationHTML += `<button class="page-link active">${i}</button>`;
+          } else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) {
+            paginationHTML += `<button onclick="changePage(${i})" class="page-link">${i}</button>`;
+          } else if (i === currentPage - 3 || i === currentPage + 3) {
+            paginationHTML += '<span class="page-link">...</span>';
+          }
+        }
+
+        // Next button
+        if (currentPage < totalPages) {
+          paginationHTML += `<button onclick="changePage(${currentPage + 1})" class="page-link">ถัดไป</button>`;
+        }
+
+        paginationHTML += '</nav>';
+        pagination.innerHTML = paginationHTML;
+      }
+
+      // Change Page
+      function changePage(page) {
+        currentPage = page;
+        renderQuotations();
+        renderPagination();
+      }
+
+      // Update Results Count
+      function updateResultsCount() {
+        const resultsCount = document.getElementById('resultsCount');
+        if (resultsCount) {
+          resultsCount.textContent = `แสดง ${filteredQuotations.length} รายการ จากทั้งหมด ${quotations.length} รายการ`;
+        }
+      }
+
+      // View Quotation Detail
+      function viewQuotationDetail(quotationId) {
+        const quotation = quotations.find(q => q.id === quotationId);
+        if (!quotation) return;
+
+        const modal = document.getElementById('quotationDetailModal');
+        const content = document.getElementById('quotationContent');
+
+        if (modal && content) {
+          content.innerHTML = generateQuotationHTML(quotation);
+          modal.classList.remove('hidden');
+
+          // Setup modal close
+          const closeBtn = document.getElementById('closeQuotationModal');
+          if (closeBtn) {
+            closeBtn.onclick = () => modal.classList.add('hidden');
+          }
+
+          // Setup download PDF button
+          const downloadBtn = document.getElementById('downloadQuotationPDF');
+          if (downloadBtn) {
+            downloadBtn.onclick = () => downloadQuotationPDF(quotation);
+          }
+
+          // Setup print button
+          const printBtn = document.getElementById('printQuotation');
+          if (printBtn) {
+            printBtn.onclick = () => printQuotation(quotation);
+          }
+        }
+      }
+
+      // Generate Quotation HTML
+      function generateQuotationHTML(quotation) {
+        // Generate items rows
+        let itemsHTML = '';
+        if (quotation.items && quotation.items.length > 0) {
+          itemsHTML = quotation.items.map(item => `
+            <tr>
+              <td class="border border-gray-300 px-4 py-2">
+                ${item.description || 'สินค้า'}
+              </td>
+              <td class="border border-gray-300 px-4 py-2 text-center">${item.quantity || 1}</td>
+              <td class="border border-gray-300 px-4 py-2 text-right">฿${(item.unitPrice || 0).toLocaleString()}</td>
+              <td class="border border-gray-300 px-4 py-2 text-right">฿${(item.totalPrice || 0).toLocaleString()}</td>
+            </tr>
+          `).join('');
+        } else {
+          itemsHTML = `
+            <tr>
+              <td class="border border-gray-300 px-4 py-2">${quotation.product?.name || 'สินค้า'}</td>
+              <td class="border border-gray-300 px-4 py-2 text-center">1</td>
+              <td class="border border-gray-300 px-4 py-2 text-right">฿${(quotation.amounts?.totalAmount || 0).toLocaleString()}</td>
+              <td class="border border-gray-300 px-4 py-2 text-right">฿${(quotation.amounts?.totalAmount || 0).toLocaleString()}</td>
+            </tr>
+          `;
+        }
+
+        return `
+          <div class="quotation-content p-6 bg-white">
+            <!-- Header -->
+            <div class="text-center mb-8">
+              <h2 class="text-2xl font-bold mb-2">ใบเสนอราคา</h2>
+              <p class="text-sm text-gray-500 mt-2">เลขที่: ${quotation.quotationNumber}</p>
+            </div>
+
+            <!-- Company & Customer Info -->
+            <div class="mb-6 pb-4 border-b">
+              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 class="font-bold mb-2">ข้อมูลร้าน</h4>
+                  <p><strong>${localStorage.getItem('activeBranchName') || 'สำนักงานใหญ่'}</strong></p>
+                  <p>สาขา: ${quotation.branchCode || '00000'} (${localStorage.getItem('activeBranchName') || 'สำนักงานใหญ่'})</p>
+                  ${(quotation.branchAddress || localStorage.getItem('activeBranchAddress')) ?
+                    `<p>${quotation.branchAddress || localStorage.getItem('activeBranchAddress')}</p>` : ''}
+                  ${(quotation.branchPhone || localStorage.getItem('activeBranchPhone')) ?
+                    `<p>โทร: ${quotation.branchPhone || localStorage.getItem('activeBranchPhone')}</p>` : ''}
+                </div>
+                <div>
+                  <h4 class="font-bold mb-2">ข้อมูลลูกค้า</h4>
+                  <p><strong>ชื่อ:</strong> ${quotation.customer?.name || 'ไม่ระบุ'}</p>
+                  <p><strong>ที่อยู่:</strong> ${quotation.customer?.address && quotation.customer.address !== 'ไม่ระบุ' ?
+                    (typeof quotation.customer.address === 'object' ?
+                      [quotation.customer.address.street, quotation.customer.address.district, quotation.customer.address.province, quotation.customer.address.postalCode].filter(Boolean).join(', ') :
+                      quotation.customer.address) : 'ไม่ระบุ'}</p>
+                  <p><strong>เบอร์โทร:</strong> ${quotation.customer?.phone || 'ไม่ระบุ'}</p>
+                  ${quotation.customer?.taxId ? `<p><strong>เลขประจำตัวผู้เสียภาษี:</strong> ${quotation.customer.taxId}</p>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Quotation Details -->
+            <div class="mb-6">
+              <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr class="bg-gray-50">
+                    <th class="border border-gray-300 px-4 py-2 text-left">รายการ</th>
+                    <th class="border border-gray-300 px-4 py-2 text-center">จำนวน</th>
+                    <th class="border border-gray-300 px-4 py-2 text-right">ราคา/หน่วย</th>
+                    <th class="border border-gray-300 px-4 py-2 text-right">ราคารวม</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHTML}
+                </tbody>
+                <tfoot>
+                  <tr class="bg-gray-50 font-bold">
+                    <td class="border border-gray-300 px-4 py-2 text-right" colspan="3">ราคารวม</td>
+                    <td class="border border-gray-300 px-4 py-2 text-right">฿${(quotation.summary?.subtotal || quotation.amounts?.totalAmount || 0).toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <!-- Additional Info -->
+            <div class="text-sm text-gray-600 space-y-2">
+              <p><strong>วันที่เสนอราคา:</strong> ${new Date(quotation.quotationDate).toLocaleDateString('th-TH')}</p>
+              <p><strong>ใช้ได้ถึงวันที่:</strong> ${new Date(quotation.validUntil).toLocaleDateString('th-TH')}</p>
+              <p><strong>พนักงานขาย:</strong> ${quotation.salespersonName || quotation.salesperson?.name || 'ไม่ระบุ'}</p>
+              <p><strong>สถานะ:</strong> <span class="font-medium">${quotation.statusText}</span></p>
+              <p><strong>เครดิต:</strong> ${quotation.creditTerm || '30 วัน'}</p>
+              ${quotation.docFee && quotation.docFee > 0 ? `<p><strong>ค่าเอกสาร:</strong> ฿${quotation.docFee.toLocaleString()}</p>` : ''}
+              ${quotation.shippingFee && quotation.shippingFee > 0 ? `<p><strong>ค่าจัดส่ง:</strong> ฿${quotation.shippingFee.toLocaleString()}</p>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // Create New Quotation
+      function createNewQuotation() {
+        console.log('Create new quotation - ฟีเจอร์นี้อยู่ระหว่างการพัฒนา');
+        // Redirect to deposit receipt creation page
+        window.location.href = '/DepositReceipt';
+      }
+
+
+      // Download Quotation PDF
+      function downloadQuotationPDF(quotation) {
+        try {
+          console.log('📄 Downloading Quotation PDF for:', quotation.quotationNumber);
+
+          // บันทึกข้อมูลใน localStorage สำหรับหน้า PDF อ่าน
+          localStorage.setItem('currentQuotation', JSON.stringify(quotation));
+
+          // Debug: ตรวจสอบข้อมูลที่บันทึก
+          console.log('🔍 Quotation data saved to localStorage:', {
+            quotationNumber: quotation.quotationNumber,
+            customer: quotation.customer,
+            items: quotation.items,
+            product: quotation.product
+          });
+
+          // เปิดหน้า PDF ในหน้าต่างใหม่
+          const pdfUrl = `/QuotationnPDF?id=${encodeURIComponent(quotation.id || quotation._id)}&_t=${Date.now()}`;
+          console.log('🔗 Opening PDF URL:', pdfUrl);
+
+          const pdfWindow = window.open(pdfUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes,menubar=yes,toolbar=yes');
+
+          if (!pdfWindow) {
+            console.error('❌ Could not open PDF window - popup may be blocked');
+            alert('ไม่สามารถเปิดหน้าต่าง PDF ได้ กรุณาอนุญาต popup สำหรับเว็บไซต์นี้');
+          } else {
+            console.log('✅ PDF window opened successfully');
+          }
+        } catch (error) {
+          console.error('❌ Error downloading PDF:', error);
+          alert('เกิดข้อผิดพลาดในการเปิด PDF กรุณาลองใหม่อีกครั้ง');
+        }
+      }
+
+      // Print Quotation
+      function printQuotation(quotation) {
+        try {
+          console.log('🖨️ Printing quotation:', quotation.quotationNumber);
+
+          // บันทึกข้อมูลใน localStorage
+          localStorage.setItem('currentQuotation', JSON.stringify(quotation));
+
+          // เปิดหน้า PDF และพิมพ์
+          const pdfUrl = `/QuotationnPDF?id=${encodeURIComponent(quotation.id || quotation._id)}&print=true&_t=${Date.now()}`;
+          const pdfWindow = window.open(pdfUrl, '_blank', 'width=1200,height=800');
+
+          if (!pdfWindow) {
+            alert('ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต popup');
+          }
+        } catch (error) {
+          console.error('❌ Error printing:', error);
+          alert('เกิดข้อผิดพลาดในการพิมพ์');
+        }
+      }
+
+      // Edit Quotation
+      function editQuotation(quotationId) {
+        console.log('Edit quotation:', quotationId);
+        // ฟีเจอร์นี้อยู่ระหว่างการพัฒนา
+      }
+
+      // Export Functions
+      function exportToExcel() {
+        console.log('Export to Excel - ฟีเจอร์นี้อยู่ระหว่างการพัฒนา');
+      }
+
+      function exportToPDF() {
+        console.log('Export to PDF - ฟีเจอร์นี้อยู่ระหว่างการพัฒนา');
+      }
+
+      // Utility Functions
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+
+      // Click outside modal to close
+      document.addEventListener('click', function(e) {
+        const modal = document.getElementById('quotationDetailModal');
+        if (modal && e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+
+      // Escape key to close modal
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          const modal = document.getElementById('quotationDetailModal');
+          if (modal && !modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+          }
+        }
+      });
+
+      // Branch info update functionality
+      const updateBranchInfo = () => {
+        const dropdownBranchInfo = document.getElementById('dropdownBranchInfo');
+        const branchName = localStorage.getItem('activeBranchName') || 'สำนักงานใหญ่';
+
+        if (dropdownBranchInfo) {
+          dropdownBranchInfo.textContent = `สาขา: ${branchName}`;
+        }
+      };
+
+      // Listen for branch changes
+      window.addEventListener('storage', function(e) {
+        if (e.key === 'activeBranchName') {
+          updateBranchInfo();
+        }
+      });
+    </script>
+  </body>
+</html>

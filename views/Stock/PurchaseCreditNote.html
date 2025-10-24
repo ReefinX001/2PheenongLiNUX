@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการใบลดหนี้การซื้อ - 2 พี่น้อง</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  
+  <!-- Tailwind CSS - Development Only -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Suppress Tailwind production warning only in development
+    if (typeof console !== 'undefined' && console.warn) {
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+      if (isLocalhost) {
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+          if (args[0] && args[0].includes && args[0].includes('cdn.tailwindcss.com should not be used in production')) {
+            console.log('ℹ️ Tailwind CDN warning suppressed in development mode');
+            return; // Suppress this specific warning in development
+          }
+          originalWarn.apply(console, args);
+        };
+      }
+    }
+  </script>
+  
+  <!-- Excel Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+  
+  <style>
+    body { font-family: 'Prompt', sans-serif; }
+    
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem;
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- ปุ่ม Toggle Menu แบบลอย (Floating) -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+          class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="flex w-full">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+       class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+              transform transition-transform duration-300 translate-x-0 z-20">
+      <!-- ส่วนหัว (Logo/Title) -->
+      <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="h-10 w-auto mx-auto" />
+      </a>
+
+      <!-- เมนูหลัก (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-hidden">
+        <ul class="flex flex-col w-full space-y-1">
+          <li class="my-px">
+            <a href="StockManagehome"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                <i class="bi bi-house text-xl"></i>
+              </span>
+              <span class="ml-3">หน้าหลัก</span>
+            </a>
+          </li>
+
+          <li class="my-px">
+            <a href="branch_stock_overview"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                <i class="bi bi-grid text-xl"></i>
+              </span>
+              <span class="ml-3">สต๊อกคงเหลือ</span>
+            </a>
+          </li>
+
+          <li class="my-px">
+            <a href="inventory_dashboard"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+                <i class="bi bi-clipboard-check text-xl"></i>
+              </span>
+              <span class="ml-3">ตรวจสินค้า/อนุมัติ</span>
+            </a>
+          </li>
+
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+                <i class="bi bi-file-earmark-text text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+
+          <!-- เมนู: Quotation -->
+          <li class="my-px">
+            <a href="quotation_Stock"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+                <i class="bi bi-file-earmark-richtext text-xl"></i>
+              </span>
+              <span class="ml-3">สร้างใบเสนอราคา</span>
+            </a>
+          </li>
+
+          <li class="my-px">
+            <a href="Transfer"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-primary-500 dark:text-primary-400">
+                <i class="bi bi-truck text-xl"></i>
+              </span>
+              <span class="ml-3">ย้ายสินค้า</span>
+            </a>
+          </li>
+
+          <li class="my-px">
+            <a href="product_Image"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-yellow-500 dark:text-yellow-400">
+                <i class="bi bi-upc-scan text-xl"></i>
+              </span>
+              <span class="ml-3">ลงทะเบียนสินค้า</span>
+            </a>
+          </li>
+
+          <!-- เมนู: เพิ่มเติม (Active for Credit Note) -->
+          <li class="my-px">
+            <a href="StockAdditional"
+               class="flex flex-row items-center h-12 px-4 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 border-l-4 border-blue-500 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-three-dots text-xl"></i>
+              </span>
+              <span class="ml-3">เพิ่มเติม</span>
+            </a>
+          </li>
+
+          
+          <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <!-- Dark Mode Toggle -->
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+                <i class="bi bi-moon-stars text-xl"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+                <i class="bi bi-box-arrow-right text-xl"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile (แสดงชื่อและรูปพนักงานจาก API) -->
+          <li class="my-px mt-2">
+            <div id="profile"
+                 class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+              <div class="avatar mr-3">
+                <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+                  <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium" id="employeeName">Loading...</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col ml-56">
+      <!-- Header -->
+      <header class="bg-white dark:bg-gray-800 shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between items-center py-6">
+            <div class="flex items-center space-x-4">
+              <button onclick="goBack()" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">
+                <i class="bi bi-arrow-left text-xl"></i>
+              </button>
+              <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
+                  <i class="bi bi-dash-circle-fill text-red-500 mr-3"></i>
+                  ระบบจัดการใบลดหนี้การซื้อ
+                </h1>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">สร้างและจัดการใบลดหนี้สำหรับผู้จำหน่าย</p>
+              </div>
+            </div>
+            <div class="flex space-x-3">
+              <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                <i class="bi bi-file-earmark-excel"></i>
+                <span>Export Excel</span>
+              </button>
+              <button onclick="openCreditNoteManager()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                <i class="bi bi-plus-lg"></i>
+                <span>สร้างใบลดหนี้</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
+                  <i class="bi bi-clock text-yellow-600"></i>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">รอการอนุมัติ</dt>
+                  <dd id="pendingCount" class="text-lg font-medium text-gray-900 dark:text-white">0</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
+                  <i class="bi bi-check-circle text-green-600"></i>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">อนุมัติแล้ว</dt>
+                  <dd id="approvedCount" class="text-lg font-medium text-gray-900 dark:text-white">0</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-red-100 rounded-md flex items-center justify-center">
+                  <i class="bi bi-x-circle text-red-600"></i>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">ปฏิเสธ</dt>
+                  <dd id="rejectedCount" class="text-lg font-medium text-gray-900 dark:text-white">0</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
+                  <i class="bi bi-currency-dollar text-blue-600"></i>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">ยอดรวม</dt>
+                  <dd id="totalAmount" class="text-lg font-medium text-gray-900 dark:text-white">฿0</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg mb-8">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">ตัวกรองและค้นหา</h3>
+          </div>
+          <div class="px-6 py-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">สถานะ</label>
+                <select id="statusFilter" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white">
+                  <option value="">ทั้งหมด</option>
+                  <option value="pending">รอการอนุมัติ</option>
+                  <option value="approved">อนุมัติแล้ว</option>
+                  <option value="rejected">ปฏิเสธ</option>
+                  <option value="cancelled">ยกเลิก</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">วันที่เริ่มต้น</label>
+                <input type="date" id="dateFrom" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">วันที่สิ้นสุด</label>
+                <input type="date" id="dateTo" class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ค้นหา</label>
+                <input type="text" id="searchInput" placeholder="เลขที่ใบลดหนี้, ผู้จำหน่าย..." class="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white">
+              </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+              <button onclick="applyFilters()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md flex items-center space-x-2">
+                <i class="bi bi-search"></i>
+                <span>ค้นหา</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">รายการใบลดหนี้การซื้อ</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">เลขที่ใบลดหนี้</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">วันที่</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ผู้จำหน่าย</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">จำนวนเงิน</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">สถานะ</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody id="creditNoteTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tr>
+                  <td colspan="6" class="py-6 text-center text-gray-400 dark:text-gray-500">
+                    กำลังโหลดข้อมูล...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Create Credit Note Modal -->
+  <div id="creditNoteModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-11/12 max-w-4xl max-h-[90vh] overflow-hidden">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-red-500 to-pink-600 text-white p-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-2xl font-bold flex items-center">
+              <i class="bi bi-dash-circle-fill mr-3"></i>
+              สร้างใบลดหนี้การซื้อ
+            </h2>
+            <p class="text-red-100 mt-1">สร้างใบลดหนี้สำหรับผู้จำหน่าย</p>
+          </div>
+          <button id="closeCreditNoteModal" class="text-white hover:text-red-200 p-2 rounded-full hover:bg-red-600/30 transition-colors">
+            <i class="bi bi-x-lg text-xl"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-6 max-h-[60vh] overflow-y-auto">
+        <form id="creditNoteForm" class="space-y-6">
+          <!-- เลือกผู้จำหน่าย -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-building mr-1"></i>
+              เลือกผู้จำหน่าย
+            </label>
+            <select id="supplierSelect" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white" required>
+              <option value="">กำลังโหลด...</option>
+            </select>
+          </div>
+          
+          <!-- เลือกใบสั่งซื้อ -->
+          <div id="poSelectContainer" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-file-earmark-text mr-1"></i>
+              เลือกใบสั่งซื้อ (PO)
+            </label>
+            <select id="poSelect" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white" required>
+              <option value="">-- เลือกใบสั่งซื้อ --</option>
+            </select>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">เลือกใบสั่งซื้อที่ต้องการออกใบลดหนี้</p>
+          </div>
+          
+          <!-- ข้อมูลการลดหนี้ -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <i class="bi bi-cash mr-1"></i>
+                จำนวนเงินลดหนี้ (บาท)
+              </label>
+              <input type="number" id="creditAmount" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white" placeholder="0.00" required>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <i class="bi bi-tag mr-1"></i>
+                เหตุผลการลดหนี้
+              </label>
+              <select id="creditReason" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white" required>
+                <option value="">-- เลือกเหตุผล --</option>
+                <option value="PRODUCT_RETURN">คืนสินค้า</option>
+                <option value="DEFECTIVE_PRODUCT">สินค้าชำรุด/บกพร่อง</option>
+                <option value="PRICE_REDUCTION">ลดราคา</option>
+                <option value="QUANTITY_SHORTAGE">สินค้าขาดจำนวน</option>
+                <option value="QUALITY_ISSUE">ปัญหาคุณภาพ</option>
+                <option value="DELIVERY_DELAY">ส่งของล่าช้า</option>
+                <option value="WRONG_SPECIFICATION">สเปคไม่ตรงตามสั่ง</option>
+                <option value="DISCOUNT_ADJUSTMENT">ปรับส่วนลด</option>
+                <option value="PROMOTION_CREDIT">เครดิตจากโปรโมชั่น</option>
+                <option value="ADJUSTMENT">ปรับปรุงยอด</option>
+                <option value="ERROR_CORRECTION">แก้ไขข้อผิดพลาด</option>
+                <option value="OTHER">อื่นๆ</option>
+              </select>
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-chat-left-text mr-1"></i>
+              รายละเอียดเหตุผล
+            </label>
+            <textarea id="creditReasonText" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white" placeholder="อธิบายเหตุผลในการลดหนี้..." required></textarea>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <i class="bi bi-sticky mr-1"></i>
+              หมายเหตุเพิ่มเติม
+            </label>
+            <textarea id="creditNotes" rows="2" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+          </div>
+          
+          <!-- ปุ่มดำเนินการ -->
+          <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-600">
+            <button type="button" id="cancelCreditNote" class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              ยกเลิก
+            </button>
+            <button type="submit" id="submitCreditNote" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+              <i class="bi bi-dash-circle mr-2"></i>
+              สร้างใบลดหนี้
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Smart API base URL configuration
+    const getCorrectApiBase = () => {
+      const origin = window.location.origin;
+      const hostname = window.location.hostname;
+    
+      console.log('🔧 Current window.location.origin:', origin);
+      console.log('🔧 Current window.location.hostname:', hostname);
+      console.log('🔧 Current window.location.port:', window.location.port);
+    
+      // For localhost development
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        const apiBase = origin + '/api';
+        console.log('✅ Using local development API base:', apiBase);
+        return apiBase;
+      }
+    
+      // For production - use current origin (this is correct for production)
+      const apiBase = origin + '/api';
+      console.log('✅ Using production API base:', apiBase);
+      return apiBase;
+    };
+    
+    // Show/Hide Loading with Lottie animation
+    let lottieAnimation = null;
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // โหลดและเล่น Lottie animation
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              // Fallback เฉพาะเมื่อ Lottie โหลดไม่สำเร็จ
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+    // Make showLoading function globally accessible
+    window.showLoading = showLoading;
+
+    const API_BASE = getCorrectApiBase();
+    const token = localStorage.getItem('authToken');
+    const BRANCH_CODE = '00000';
+    let creditNotes = [];
+    
+    // Smart URL validation - only block truly external domains in development
+    function validateAndFixUrl(url) {
+      if (typeof url !== 'string') return url;
+    
+      console.log('🔍 Validating URL:', url);
+    
+      const currentHostname = window.location.hostname;
+    
+      // In development (localhost), block external domains
+      if (currentHostname === 'localhost' || currentHostname === '127.0.0.1') {
+        const suspiciousDomains = ['2pheenong.com', 'external.domain', 'malicious.site'];
+        for (const domain of suspiciousDomains) {
+          if (url.includes(domain) && !url.includes(currentHostname)) {
+            const apiPath = url.replace(/https?:\/\/[^\/]+/, '');
+            const fixedUrl = window.location.origin + apiPath;
+            console.warn('🚫 BLOCKED external domain in development:', url, '→', fixedUrl);
+            return fixedUrl;
+          }
+        }
+      }
+    
+      // Fix relative API URLs
+      if (url.startsWith('/api/')) {
+        const fixedUrl = window.location.origin + url;
+        console.log('🔧 Fixed relative API URL:', url, '→', fixedUrl);
+        return fixedUrl;
+      }
+    
+      // Ensure localhost URLs use correct port
+      if (url.includes('localhost') && !url.includes(window.location.port) && window.location.port) {
+        const fixedUrl = url.replace(/localhost:\d+/, `localhost:${window.location.port}`);
+        console.log('🔧 Fixed localhost port:', url, '→', fixedUrl);
+        return fixedUrl;
+      }
+    
+      console.log('✅ URL validated:', url);
+      return url;
+    }
+    
+    // Only override fetch in development environment
+    const currentHostname = window.location.hostname;
+    if (currentHostname === 'localhost' || currentHostname === '127.0.0.1') {
+      console.log('🔧 Development mode: Enabling fetch override for security');
+    
+      const originalFetch = window.fetch;
+      window.fetch = function(url, options = {}) {
+        const validatedUrl = validateAndFixUrl(url);
+        console.log('🌐 Development fetch with validated URL:', validatedUrl);
+    
+        // Add additional headers to prevent caching issues in development
+        const enhancedOptions = {
+          ...options,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            ...options.headers
+          }
+        };
+    
+        return originalFetch.call(this, validatedUrl, enhancedOptions);
+      };
+    
+      // Also override XMLHttpRequest in development
+      const originalXHROpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url, ...args) {
+        const validatedUrl = validateAndFixUrl(url);
+        console.log('🌐 Development XHR with validated URL:', validatedUrl);
+        return originalXHROpen.call(this, method, validatedUrl, ...args);
+      };
+    } else {
+      console.log('✅ Production mode: Using native fetch without override');
+    }
+
+    // Clear any cached API configurations
+    if (typeof window.API_BASE_CACHE !== 'undefined') {
+      delete window.API_BASE_CACHE;
+    }
+    
+    // Force clear localStorage API cache if exists
+    localStorage.removeItem('API_BASE');
+    localStorage.removeItem('api_base');
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      showLoading(true);
+      // Log final API configuration
+      console.log('🚀 Application starting with API_BASE:', API_BASE);
+      console.log('🚀 Current location:', window.location.href);
+      console.log('🚀 Current hostname:', window.location.hostname);
+      console.log('🚀 Current port:', window.location.port);
+    
+      // Test API base URL
+      console.log('🧪 Testing API base URL construction:');
+      console.log('  - window.location.origin:', window.location.origin);
+      console.log('  - API_BASE result:', API_BASE);
+      console.log('  - Sample API URL:', `${API_BASE}/suppliers`);
+    
+      // Warn if we detect suspicious configurations (only in development)
+      const currentHostname = window.location.hostname;
+      if (currentHostname === 'localhost' || currentHostname === '127.0.0.1') {
+        const suspiciousDomains = ['2pheenong.com', 'external.domain', 'malicious.site'];
+        const hasSuspiciousDomain = suspiciousDomains.some(domain =>
+          API_BASE.includes(domain) && !API_BASE.includes(currentHostname)
+        );
+    
+        if (hasSuspiciousDomain) {
+          console.error('❌ CRITICAL: API_BASE contains external domain in development!', API_BASE);
+          alert('Security Warning: External API domain detected in development. Please check configuration.');
+        }
+      } else {
+        console.log('✅ Production environment detected, API_BASE:', API_BASE);
+      }
+    
+      // Initialize sidebar functionality
+      loadDarkMode();
+      document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userId');
+        window.location.href = '/login';
+      });
+      document.getElementById('btnToggleMenu').addEventListener('click', toggleMenu);
+    
+      // Load employee profile
+      loadEmployeeProfile();
+    
+      // Load credit note data
+      loadCreditNoteList();
+      loadStats();
+      loadSuppliers();
+      setupEventListeners();
+      setTimeout(() => showLoading(false), 800);
+    });
+
+    function setupEventListeners() {
+      // Modal close
+      document.getElementById('closeCreditNoteModal').addEventListener('click', () => {
+        document.getElementById('creditNoteModal').classList.add('hidden');
+      });
+
+      // Form submission
+      document.getElementById('creditNoteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleCreditNoteSubmit();
+      });
+
+      // Cancel button
+      document.getElementById('cancelCreditNote').addEventListener('click', () => {
+        document.getElementById('creditNoteModal').classList.add('hidden');
+      });
+
+      // Search input
+      document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          applyFilters();
+        }
+      });
+    }
+
+    // Go back function
+    function goBack() {
+      window.location.href = '/StockManagehome';
+    }
+
+    // Open credit note manager
+    function openCreditNoteManager() {
+      document.getElementById('creditNoteModal').classList.remove('hidden');
+    }
+
+    // Load suppliers
+    async function loadSuppliers() {
+      try {
+        const select = document.getElementById('supplierSelect');
+        select.innerHTML = '<option value="">กำลังโหลด...</option>';
+    
+        const response = await fetch(`${API_BASE}/supplier`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+    
+        const result = await response.json();
+        select.innerHTML = '<option value="">-- เลือกผู้จำหน่าย --</option>';
+    
+        if (result.success && result.data) {
+          result.data.forEach(supplier => {
+            const option = document.createElement('option');
+            option.value = supplier._id;
+            option.textContent = `${supplier.name} - ${supplier.contact || 'ไม่ระบุ'}`;
+            select.appendChild(option);
+          });
+        }
+    
+        // Add event listener for supplier selection
+        select.addEventListener('change', function() {
+          if (this.value) {
+            loadPurchaseOrders(this.value);
+            document.getElementById('poSelectContainer').classList.remove('hidden');
+          } else {
+            document.getElementById('poSelectContainer').classList.add('hidden');
+            document.getElementById('poSelect').innerHTML = '<option value="">-- เลือกใบสั่งซื้อ --</option>';
+          }
+        });
+    
+      } catch (error) {
+        console.error('Error loading suppliers:', error);
+      }
+    }
+
+    // Load purchase orders for selected supplier
+    async function loadPurchaseOrders(supplierId) {
+      try {
+        const select = document.getElementById('poSelect');
+        select.innerHTML = '<option value="">กำลังโหลด...</option>';
+    
+        const response = await fetch(`${API_BASE}/purchase-order?supplier=${supplierId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+    
+        const result = await response.json();
+        select.innerHTML = '<option value="">-- เลือกใบสั่งซื้อ --</option>';
+    
+        if (result.success && result.data) {
+          // Filter only approved POs
+          const approvedPOs = result.data.filter(po => po.status === 'Approved');
+    
+          if (approvedPOs.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'ไม่มีใบสั่งซื้อที่อนุมัติแล้ว';
+            option.disabled = true;
+            select.appendChild(option);
+            return;
+          }
+    
+          approvedPOs.forEach(po => {
+            const option = document.createElement('option');
+            option.value = po._id;
+            option.dataset.poNumber = po.poNumber;
+            option.dataset.totalAmount = po.totalAmount || 0;
+    
+            // Calculate total amount from items if not available
+            let totalAmount = po.totalAmount || 0;
+            if ((!totalAmount || totalAmount === 0) && po.items && po.items.length > 0) {
+              totalAmount = po.items.reduce((sum, item) => {
+                const baseAmount = item.qty * (item.cost - (item.discount || 0));
+                let itemTotal = baseAmount;
+                if (item.taxType === 'แยกภาษี' && item.taxRate) {
+                  itemTotal = baseAmount + (baseAmount * (item.taxRate / 100));
+                }
+                return sum + itemTotal;
+              }, 0);
+            }
+    
+            const formattedDate = new Date(po.docDate || po.createdAt).toLocaleDateString('th-TH');
+            const formattedAmount = new Intl.NumberFormat('th-TH', {
+              style: 'currency',
+              currency: 'THB'
+            }).format(totalAmount);
+    
+            option.textContent = `${po.poNumber} - ${formattedDate} (${formattedAmount})`;
+            select.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error('Error loading purchase orders:', error);
+        const select = document.getElementById('poSelect');
+        select.innerHTML = '<option value="">เกิดข้อผิดพลาดในการโหลดข้อมูล</option>';
+      }
+    }
+
+    // Handle form submission
+    async function handleCreditNoteSubmit() {
+      try {
+        const formData = {
+          supplier: document.getElementById('supplierSelect').value,
+          purchaseOrder: document.getElementById('poSelect').value,
+          totalAmount: parseFloat(document.getElementById('creditAmount').value),
+          reason: document.getElementById('creditReason').value,
+          reasonText: document.getElementById('creditReasonText').value,
+          notes: document.getElementById('creditNotes').value
+        };
+
+        if (!formData.supplier) {
+          throw new Error('กรุณาเลือกผู้จำหน่าย');
+        }
+
+        if (!formData.purchaseOrder) {
+          throw new Error('กรุณาเลือกใบสั่งซื้อ');
+        }
+
+        if (!formData.totalAmount || formData.totalAmount <= 0) {
+          throw new Error('กรุณาระบุจำนวนเงินลดหนี้');
+        }
+
+        if (!formData.reason) {
+          throw new Error('กรุณาเลือกเหตุผลการลดหนี้');
+        }
+
+        if (!formData.reasonText) {
+          throw new Error('กรุณาระบุรายละเอียดเหตุผล');
+        }
+
+        await createCreditNote(formData);
+    
+        // Reset form and close modal
+        document.getElementById('creditNoteForm').reset();
+        document.getElementById('creditNoteModal').classList.add('hidden');
+    
+        showAlert('สร้างใบลดหนี้สำเร็จ', 'success');
+        loadCreditNoteList();
+        loadStats();
+    
+      } catch (error) {
+        console.error('Error submitting credit note:', error);
+        showAlert(error.message || 'เกิดข้อผิดพลาดในการสร้างใบลดหนี้', 'error');
+      }
+    }
+
+    // Create credit note
+    async function createCreditNote(formData) {
+      const response = await fetch(`${API_BASE}/purchase-notes/credit-notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+    
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    
+      const result = await response.json();
+    
+      if (!result.success) {
+        throw new Error(result.error || 'ไม่สามารถสร้างใบลดหนี้ได้');
+      }
+    
+      return result.data;
+    }
+
+    // Load credit note list
+    async function loadCreditNoteList() {
+      try {
+        const tbody = document.getElementById('creditNoteTableBody');
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center">กำลังโหลด...</td></tr>`;
+    
+        const params = new URLSearchParams({
+          page: 1,
+          limit: 100
+        });
+
+        // Add filters
+        const statusFilter = document.getElementById('statusFilter').value;
+        const searchInput = document.getElementById('searchInput').value;
+        const dateFrom = document.getElementById('dateFrom').value;
+        const dateTo = document.getElementById('dateTo').value;
+
+        if (statusFilter) params.append('status', statusFilter);
+        if (searchInput) params.append('search', searchInput);
+        if (dateFrom) params.append('dateFrom', dateFrom);
+        if (dateTo) params.append('dateTo', dateTo);
+    
+        const response = await fetch(`${API_BASE}/purchase-notes/credit-notes?${params}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+    
+        const result = await response.json();
+    
+        if (result.success && result.data) {
+          creditNotes = result.data;
+          renderCreditNoteTable(result.data);
+        } else {
+          tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-red-500">เกิดข้อผิดพลาด: ${result.error || 'ไม่สามารถโหลดข้อมูลได้'}</td></tr>`;
+        }
+      } catch (error) {
+        console.error('Error loading credit note list:', error);
+        const tbody = document.getElementById('creditNoteTableBody');
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+      }
+    }
+
+    // Render table
+    function renderCreditNoteTable(data) {
+      const tbody = document.getElementById('creditNoteTableBody');
+    
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">ไม่พบใบลดหนี้</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(creditNote => {
+        const statusClass = {
+          'pending': 'bg-yellow-100 text-yellow-800',
+          'approved': 'bg-green-100 text-green-800',
+          'rejected': 'bg-red-100 text-red-800',
+          'cancelled': 'bg-gray-100 text-gray-800'
+        }[creditNote.status] || 'bg-gray-100 text-gray-800';
+    
+        const statusText = {
+          'pending': 'รอการอนุมัติ',
+          'approved': 'อนุมัติแล้ว',
+          'rejected': 'ปฏิเสธ',
+          'cancelled': 'ยกเลิก'
+        }[creditNote.status] || creditNote.status;
+    
+        const formattedDate = new Date(creditNote.issueDate || creditNote.createdAt).toLocaleDateString('th-TH');
+        const formattedAmount = new Intl.NumberFormat('th-TH', {
+          style: 'currency',
+          currency: 'THB'
+        }).format(creditNote.totalAmount || 0);
+    
+        return `
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">${creditNote.creditNoteNumber || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">${formattedDate}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">${creditNote.supplier?.name || 'ไม่ระบุ'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right font-medium text-sm">${formattedAmount}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center">
+              <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <div class="flex justify-end gap-2">
+                <button onclick="viewCreditNote('${creditNote._id}')" class="text-blue-600 hover:text-blue-900" title="ดูรายละเอียด">
+                  <i class="bi bi-eye"></i>
+                </button>
+                ${creditNote.status === 'pending' ? `
+                  <button onclick="approveCreditNote('${creditNote._id}')" class="text-green-600 hover:text-green-900" title="อนุมัติ">
+                    <i class="bi bi-check-circle"></i>
+                  </button>
+                  <button onclick="rejectCreditNote('${creditNote._id}')" class="text-red-600 hover:text-red-900" title="ปฏิเสธ">
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                ` : ''}
+                ${creditNote.status !== 'cancelled' ? `
+                  <button onclick="deleteCreditNote('${creditNote._id}')" class="text-red-600 hover:text-red-900" title="ลบ">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Load stats
+    async function loadStats() {
+      try {
+        const response = await fetch(`${API_BASE}/purchase-notes/credit-notes/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+    
+        if (data.success) {
+          updateStats(data.data);
+        }
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    }
+
+    // Update stats
+    function updateStats(stats) {
+      document.getElementById('pendingCount').textContent = stats.pendingCount || 0;
+      document.getElementById('approvedCount').textContent = stats.approvedCount || 0;
+      document.getElementById('rejectedCount').textContent = stats.rejectedCount || 0;
+      document.getElementById('totalAmount').textContent = `฿${(stats.totalAmount || 0).toLocaleString('th-TH')}`;
+    }
+
+    // Apply filters
+    function applyFilters() {
+      loadCreditNoteList();
+    }
+
+    // Placeholder functions
+    function viewCreditNote(id) {
+      alert('ฟีเจอร์ดูรายละเอียดจะพัฒนาในเวอร์ชันถัดไป');
+    }
+
+    async function approveCreditNote(id) {
+      if (!confirm('คุณต้องการอนุมัติใบลดหนี้นี้หรือไม่?')) return;
+    
+      try {
+        const response = await fetch(`${API_BASE}/purchase-notes/credit-notes/${id}/approve`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+    
+        if (data.success) {
+          showAlert('อนุมัติใบลดหนี้สำเร็จ', 'success');
+          loadCreditNoteList();
+          loadStats();
+        } else {
+          showAlert(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Error approving credit note:', error);
+        showAlert('เกิดข้อผิดพลาดในการอนุมัติ', 'error');
+      }
+    }
+
+    async function rejectCreditNote(id) {
+      const reason = prompt('กรุณาระบุเหตุผลในการปฏิเสธ:');
+      if (!reason) return;
+    
+      try {
+        const response = await fetch(`${API_BASE}/purchase-notes/credit-notes/${id}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ reason })
+        });
+        const data = await response.json();
+    
+        if (data.success) {
+          showAlert('ปฏิเสธใบลดหนี้สำเร็จ', 'success');
+          loadCreditNoteList();
+          loadStats();
+        } else {
+          showAlert(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Error rejecting credit note:', error);
+        showAlert('เกิดข้อผิดพลาดในการปฏิเสธ', 'error');
+      }
+    }
+
+    async function deleteCreditNote(id) {
+      if (!confirm('คุณต้องการลบใบลดหนี้นี้หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้')) return;
+    
+      try {
+        const response = await fetch(`${API_BASE}/purchase-notes/credit-notes/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+    
+        if (data.success) {
+          showAlert('ลบใบลดหนี้สำเร็จ', 'success');
+          loadCreditNoteList();
+          loadStats();
+        } else {
+          showAlert(data.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+      } catch (error) {
+        console.error('Error deleting credit note:', error);
+        showAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+      }
+    }
+
+    // Export to Excel
+    function exportToExcel() {
+      if (creditNotes.length === 0) {
+        showAlert('ไม่มีข้อมูลสำหรับ Export', 'warning');
+        return;
+      }
+    
+      const data = creditNotes.map(creditNote => ({
+        'เลขที่ใบลดหนี้': creditNote.creditNoteNumber,
+        'วันที่': new Date(creditNote.issueDate || creditNote.createdAt).toLocaleDateString('th-TH'),
+        'ผู้จำหน่าย': creditNote.supplier?.name,
+        'จำนวนเงิน': creditNote.totalAmount,
+        'สถานะ': {
+          'pending': 'รอการอนุมัติ',
+          'approved': 'อนุมัติแล้ว',
+          'rejected': 'ปฏิเสธ',
+          'cancelled': 'ยกเลิก'
+        }[creditNote.status] || creditNote.status,
+        'เหตุผล': creditNote.reason,
+        'หมายเหตุ': creditNote.notes || '-'
+      }));
+    
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'ใบลดหนี้การซื้อ');
+    
+      const filename = `purchase-credit-notes-${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    }
+
+    // 1) Dark Mode Toggle
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const darkModeEnabled = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', darkModeEnabled);
+      document.getElementById('darkModeLabel').textContent = darkModeEnabled ? 'Light Mode' : 'Dark Mode';
+    }
+    function loadDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+
+    // 2) โหลดข้อมูลโปรไฟล์พนักงาน
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const res = await fetch(`${API_BASE}/users/me`, {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');
+        }
+
+        const user = result.data;
+        // ชื่อ
+        document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+
+        // รูป
+        let photoUrl = user.photoUrl || '';
+        // ถ้าไม่มี slash หน้า ให้เติม
+        if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+          photoUrl = '/' + photoUrl;
+        }
+        document.getElementById('employeePhoto').src = photoUrl;
+      } catch (err) {
+        console.error('Load Employee Profile Error:', err);
+      }
+    }
+
+    // 3) Toggle Sidebar
+    function toggleMenu() {
+      const sidebar = document.querySelector('aside');
+      sidebar.classList.toggle('collapsed');
+      const icon = document.querySelector('#btnToggleMenu i');
+      if (sidebar.classList.contains('collapsed')) {
+        icon.classList.remove('bi-chevron-left');
+        icon.classList.add('bi-chevron-right');
+      } else {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-left');
+      }
+    }
+
+    // Show alert
+    function showAlert(message, type = 'info') {
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+        type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+        type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+        type === 'warning' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+        'bg-blue-100 text-blue-800 border border-blue-200'
+      }`;
+    
+      alertDiv.innerHTML = `
+        <div class="flex items-center">
+          <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i>
+          <span>${message}</span>
+          <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-lg">×</button>
+        </div>
+      `;
+    
+      document.body.appendChild(alertDiv);
+    
+      setTimeout(() => {
+        if (alertDiv.parentElement) {
+          alertDiv.remove();
+        }
+      }, 5000);
+    }
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

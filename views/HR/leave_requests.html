@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบ HR — การลา</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon ต่างๆ -->
+  <link rel="icon" href="/favicon/favicon.ico" type="image/x-icon" />
+
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt','sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light','dark','corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Google Fonts - Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Socket.IO client (ถ้าใช้งาน real-time) -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    /* Calendar Day Styling */
+    .calendar-day {
+      width: 60px; height: 60px; border-radius: 10px;
+      background-color: #f3f4f6; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .dark .calendar-day {
+      background-color: #374151;
+    }
+    .calendar-day-holiday {
+      background-color: #fee2e2; color: #ef4444;
+    }
+    .dark .calendar-day-holiday {
+      background-color: #7f1d1d; color: #fca5a5;
+    }
+
+    /* Card hover effects */
+    .card {
+      transition: all 0.2s ease-in-out;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+                  0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Notification badge animation */
+    @keyframes pulse {
+      0%   { transform: scale(1);   }
+      50%  { transform: scale(1.1); }
+      100% { transform: scale(1);   }
+    }
+    #notificationBtn span.badge-notification {
+      animation: pulse 2s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .dark ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #888; border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block; margin-right: 5px;
+    }
+    .status-active   { background-color: #10b981; }
+    .status-away     { background-color: #f59e0b; }
+    .status-offline  { background-color: #6b7280; }
+  </style>
+
+  <!-- เพิ่มฟังก์ชัน loadEmployeeProfile ก่อนสคริปต์หลัก -->
+  <script>
+    // โหลดข้อมูลโปรไฟล์พนักงานจาก API
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const res = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');
+        }
+        const user = result.data;
+        document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+        let photoUrl = user.photoUrl || '';
+        if (!photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+          photoUrl = '/' + photoUrl;
+        }
+        document.getElementById('employeePhoto').src = photoUrl;
+      } catch (err) {
+        console.error('Load Employee Profile Error:', err);
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-900 dark:text-gray-200">
+
+  <!-- Toggle Sidebar Button -->
+  <button id="btnToggleMenu"
+          class="fixed left-0 top-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700">
+    <i id="toggleIcon" class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 w-64 h-full bg-white dark:bg-gray-800 flex flex-col transition-all duration-300 z-40">
+      <a href="hr_dashboard">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <img src="/uploads/Logo2.png" alt="Logo" class="w-full h-auto"/>
+        </div>
+      </a>
+
+      <div class="flex-1 p-4 overflow-y-auto">
+        <ul class="flex flex-col w-full space-y-1">
+          <li>
+            <a href="hr_dashboard"
+               class="flex items-center h-12 px-4 rounded-lg bg-gray-100 dark:bg-gray-700">
+              <i class="bi bi-speedometer2 text-xl text-indigo-600 dark:text-indigo-400"></i>
+              <span class="ml-3">แดชบอร์ด</span>
+            </a>
+          </li>
+          <li>
+            <a href="employee_directory"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-people-fill text-xl text-blue-500 dark:text-blue-400"></i>
+              <span class="ml-3">พนักงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="attendance"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-clock text-xl text-green-500 dark:text-green-400"></i>
+              <span class="ml-3">บันทึกเวลาเข้า-ออก</span>
+            </a>
+          </li>
+          <li>
+            <a href="leave_requests"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-file-earmark-text text-xl text-yellow-500 dark:text-yellow-300"></i>
+              <span class="ml-3">การลา</span>
+            </a>
+          </li>
+          <li>
+            <a href="payroll"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-cash-stack text-xl text-emerald-500 dark:text-emerald-400"></i>
+              <span class="ml-3">เงินเดือน</span>
+            </a>
+          </li>
+          <li>
+            <a href="performance_reviews"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-award text-xl text-purple-500 dark:text-purple-400"></i>
+              <span class="ml-3">ประเมินผลงาน</span>
+            </a>
+          </li>
+          <li>
+            <a href="bonus_list"
+               class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gift text-xl text-pink-500 dark:text-pink-400 mr-3"></i>
+              <span>รายการโบนัส</span>
+            </a>
+          </li>
+          <li class="mt-4">
+            <a href="role_management"
+               class="flex items-center h-12 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-gear text-xl text-gray-600 dark:text-gray-300"></i>
+              <span class="ml-3">การตั้งค่า</span>
+            </a>
+          </li>
+          <li class="mt-6">
+            <button id="btnToggleDark"
+                    class="flex items-center h-12 px-4 rounded-lg w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-moon text-xl text-slate-600 dark:text-slate-300"></i>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <li>
+            <button id="btnLogoutSidebar"
+                    class="flex items-center h-12 px-4 rounded-lg w-full text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <i class="bi bi-box-arrow-right text-xl"></i>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <li>
+            <div id="profile"
+                 class="flex items-center h-12 px-4 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <img id="employeePhoto"
+                   src="/img/default-avatar.png"
+                   alt="Employee Photo"
+                   class="w-10 h-10 rounded-full mr-3"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="mainContent"
+          class="ml-64 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900
+                 transition-all duration-300">
+      <!-- Top Bar -->
+      <div class="mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div class="flex items-center">
+            <button id="menuToggle" class="mr-4 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 md:hidden">
+              <i class="bi bi-list text-2xl"></i>
+            </button>
+            <div>
+              <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">การลา</h1>
+              <p class="text-sm text-gray-500 dark:text-gray-400">จัดการคำขอการลาของพนักงาน</p>
+            </div>
+          </div>
+          
+          <div class="flex flex-wrap gap-3">
+            <!-- Leave Policy Management Card -->
+            <div class="card bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-lg">
+              <div class="card-body p-4">
+                <h3 class="card-title text-sm font-medium flex items-center justify-between">
+                  <span>นโยบายการลา</span>
+                  <button id="openPolicyModal" class="btn btn-sm btn-outline btn-white">
+                    <i class="bi bi-sliders"></i> ตั้งค่า
+                  </button>
+                </h3>
+                <div class="text-xs space-y-1">
+                  <div class="flex justify-between">
+                    <span>นโยบายปัจจุบัน:</span>
+                    <span id="currentPolicyYear">ปี -</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>ลาพักร้อน:</span>
+                    <span id="policyAnnual">- วัน</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>ลาป่วย:</span>
+                    <span id="policySick">- วัน</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>ลากิจ:</span>
+                    <span id="policyPersonal">- วัน</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats stats-vertical lg:stats-horizontal shadow bg-white dark:bg-dark-card">
+              <div class="stat">
+                <div class="stat-title">รอพิจารณา</div>
+                <div id="leaveStatsPending" class="stat-value text-warning">0</div>
+              </div>
+              <div class="stat">
+                <div class="stat-title">อนุมัติแล้ว</div>
+                <div id="leaveStatsApproved" class="stat-value text-success">0</div>
+              </div>
+              <div class="stat">
+                <div class="stat-title">ไม่อนุมัติ</div>
+                <div id="leaveStatsRejected" class="stat-value text-error">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Search and Filters -->
+      <div class="bg-white dark:bg-dark-card rounded-lg shadow-md p-4 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div class="relative w-full md:flex-grow">
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <i class="bi bi-search text-gray-400"></i>
+            </div>
+            <input type="text" id="searchInput" class="input input-bordered w-full pl-10" placeholder="ค้นหาชื่อพนักงาน...">
+          </div>
+          
+          <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto md:flex-shrink-0">
+            <div class="dropdown dropdown-end w-full sm:w-auto">
+              <label tabindex="0" id="btnFilterStatus" class="btn btn-outline w-full sm:w-auto">
+                <i class="bi bi-filter mr-2"></i>กรองสถานะ
+              </label>
+              <ul tabindex="0" id="filterStatusDropdown" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-base-content/10 rounded-box w-44 border dark:border-gray-700 mt-2 z-[55]">
+                <li><a data-status="all" class="filter-status-item active">ทั้งหมด</a></li>
+                <li><a data-status="pending" class="filter-status-item">รอยืนยัน</a></li>
+                <li><a data-status="approved" class="filter-status-item">อนุมัติแล้ว</a></li>
+                <li><a data-status="rejected" class="filter-status-item">ไม่อนุมัติ</a></li>
+              </ul>
+            </div>
+            
+            <div class="dropdown dropdown-end w-full sm:w-auto">
+              <label tabindex="0" id="btnFilterDateRange" class="btn btn-outline w-full sm:w-auto">
+                <i class="bi bi-calendar-event mr-2"></i>ช่วงวันที่
+              </label>
+              <div tabindex="0" id="filterDateRangeDropdown" class="dropdown-content p-4 shadow bg-base-100 dark:bg-base-content/10 rounded-box w-64 border dark:border-gray-700 mt-2 z-[55]">
+                  <label class="block text-sm mb-1">จากวันที่:</label>
+                  <input type="date" id="dateFrom" class="input input-bordered input-sm w-full mb-2">
+                  <label class="block text-sm mb-1">ถึงวันที่:</label>
+                  <input type="date" id="dateTo" class="input input-bordered input-sm w-full mb-2">
+                  <button id="btnApplyDateFilter" class="btn btn-sm btn-primary w-full">ตกลง</button>
+              </div>
+            </div>
+            
+            <div class="dropdown dropdown-end w-full sm:w-auto">
+              <label tabindex="0" id="btnSortLeave" class="btn btn-outline w-full sm:w-auto">
+                <i class="bi bi-sort-down mr-2"></i>เรียง
+              </label>
+              <ul tabindex="0" id="sortLeaveDropdown" class="dropdown-content menu p-2 shadow bg-base-100 dark:bg-base-content/10 rounded-box w-52 border dark:border-gray-700 mt-2 z-[55]">
+                <li><a data-sort-by="createdAt" data-sort-dir="desc" class="sort-leave-item active">วันที่ขอ (ใหม่→เก่า)</a></li>
+                <li><a data-sort-by="createdAt" data-sort-dir="asc" class="sort-leave-item">วันที่ขอ (เก่า→ใหม่)</a></li>
+                <li><a data-sort-by="user.name" data-sort-dir="asc" class="sort-leave-item">ชื่อพนักงาน (ก→ฮ)</a></li>
+                <li><a data-sort-by="user.name" data-sort-dir="desc" class="sort-leave-item">ชื่อพนักงาน (ฮ→ก)</a></li>
+              </ul>
+            </div>
+            
+            <button id="btnAddLeave" class="btn btn-primary w-full sm:w-auto">
+              <i class="bi bi-plus-circle mr-2"></i>เพิ่มการลา
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leave Requests Table -->
+      <div class="bg-white dark:bg-dark-card rounded-lg shadow-md overflow-x-auto">
+          <table class="table w-full table-hover">
+            <thead>
+              <tr class="border-b dark:border-gray-700">
+                <th class="px-4 py-3">วันที่ขอ</th>
+                <th class="px-4 py-3">พนักงาน</th>
+                <th class="px-4 py-3">ประเภทลา</th>
+                <th class="px-4 py-3">จากวันที่</th>
+                <th class="px-4 py-3">ถึงวันที่</th>
+                <th class="px-4 py-3">สถานะ</th>
+                <th class="px-4 py-3 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="leaveTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+              <tr><td colspan="7" class="text-center p-4">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden p-8 text-center">
+          <div class="mx-auto w-24 h-24 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+            <i class="bi bi-calendar-x text-4xl text-gray-400"></i>
+          </div>
+          <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">ไม่พบรายการลา</h3>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">ยังไม่มีรายการลาตามเงื่อนไขที่คุณเลือก หรือยังไม่มีการลาใดๆ ในระบบ</p>
+          <div class="mt-6">
+            <button id="btnResetFilters" class="btn btn-sm btn-outline">รีเซ็ตฟิลเตอร์</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="paginationControls" class="mt-6 flex flex-col sm:flex-row justify-between items-center hidden">
+        <div id="paginationInfo" class="text-sm text-gray-500 dark:text-gray-400 mb-3 sm:mb-0">
+          แสดง 0-0 จาก 0 รายการ
+        </div>
+        <div id="paginationLinks" class="btn-group">
+          <!-- Pagination links will be populated here -->
+        </div>
+      </div>
+    </main>
+  </div> <!-- End of min-h-screen flex -->
+
+  <!-- Modal for Add/Edit Leave -->
+  <div id="leaveModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden items-center justify-center z-[100] p-4">
+    <div class="modal-box w-full max-w-lg dark:bg-gray-800">
+        <div class="flex justify-between items-center pb-3 border-b dark:border-gray-700">
+            <h3 id="leaveModalTitle" class="text-xl font-semibold">เพิ่ม/แก้ไข การลา</h3>
+            <button id="btnCloseLeaveModal" class="btn btn-sm btn-circle btn-ghost">✕</button>
+        </div>
+        <form id="leaveForm" class="pt-4 space-y-4">
+            <input type="hidden" id="leaveRequestId">
+            <div>
+                <label for="employeeSelectModal" class="block text-sm font-medium mb-1">พนักงาน</label>
+                <select id="employeeSelectModal" name="employeeSelectModal" class="select select-bordered w-full">
+                  <option value="" disabled selected>กำลังโหลดรายชื่อ...</option>
+                </select>
+            </div>
+            <div>
+                <label for="leaveTypeModal" class="block text-sm font-medium mb-1">ประเภทการลา</label>
+                <select id="leaveTypeModal" name="leaveTypeModal" class="select select-bordered w-full">
+                    <option value="sick">ลาป่วย</option>
+                    <option value="personal">ลากิจ</option>
+                    <option value="vacation">ลาพักร้อน</option>
+                    <option value="other">ลาอื่นๆ</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="startDateModal" class="block text-sm font-medium mb-1">จากวันที่</label>
+                    <input type="date" id="startDateModal" name="startDateModal" class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label for="endDateModal" class="block text-sm font-medium mb-1">ถึงวันที่</label>
+                    <input type="date" id="endDateModal" name="endDateModal" class="input input-bordered w-full">
+                </div>
+            </div>
+            <div>
+                <label for="reasonModal" class="block text-sm font-medium mb-1">เหตุผล</label>
+                <textarea id="reasonModal" name="reasonModal" rows="3" class="textarea textarea-bordered w-full"></textarea>
+            </div>
+            <div class="modal-action">
+                <button type="button" id="btnCancelLeaveForm" class="btn btn-ghost">ยกเลิก</button>
+                <button type="submit" id="btnSaveLeaveForm" class="btn btn-primary">
+                    <span class="loading loading-spinner loading-sm hidden"></span>
+                    บันทึก
+                </button>
+            </div>
+        </form>
+    </div>
+  </div>
+
+  <!-- Modal for Manage Actions -->
+  <div id="manageActionsModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden items-center justify-center z-[101] p-4">
+    <div class="modal-box w-full max-w-xs dark:bg-gray-800">
+      <div class="flex justify-between items-center pb-3">
+        <h3 id="manageActionsModalTitle" class="text-lg font-semibold">จัดการคำขอ</h3>
+        <button id="btnCloseManageActionsModal" class="btn btn-sm btn-circle btn-ghost">✕</button>
+      </div>
+      <div id="manageActionsModalBody" class="space-y-2 pt-2">
+        <!-- Action buttons will be populated here by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Leave Allocation Management Modal -->
+  <div id="allocationModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden items-center justify-center z-[100] p-4">
+    <div class="modal-box w-full max-w-6xl h-5/6 dark:bg-gray-800">
+      <div class="flex justify-between items-center pb-3 border-b dark:border-gray-700">
+        <h3 class="text-xl font-semibold">จัดการวันลาพนักงาน</h3>
+        <button id="btnCloseAllocationModal" class="btn btn-sm btn-circle btn-ghost">✕</button>
+      </div>
+
+      <div class="pt-4 h-full overflow-hidden flex flex-col">
+        <!-- Search and Filter Section -->
+        <div class="flex flex-wrap gap-3 mb-4">
+          <div class="flex-1 min-w-64">
+            <input type="text" id="employeeSearchInput" placeholder="ค้นหาพนักงาน..."
+                   class="input input-bordered w-full" />
+          </div>
+          <button id="addNewAllocationBtn" class="btn btn-primary">
+            <i class="bi bi-plus"></i> เพิ่มการกำหนดใหม่
+          </button>
+        </div>
+
+        <!-- Employee Leave Allocation Table -->
+        <div class="flex-1 overflow-auto">
+          <table class="table table-compact w-full">
+            <thead class="sticky top-0 bg-base-200">
+              <tr>
+                <th>พนักงาน</th>
+                <th>แผนก</th>
+                <th>ลาป่วย</th>
+                <th>ลาพักร้อน</th>
+                <th>ลากิจ</th>
+                <th>ลาพิเศษ</th>
+                <th>ปี</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="allocationTableBody">
+              <tr>
+                <td colspan="8" class="text-center">กำลังโหลดข้อมูล...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Allocation Modal -->
+  <div id="editAllocationModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden items-center justify-center z-[110] p-4">
+    <div class="modal-box w-full max-w-md dark:bg-gray-800">
+      <div class="flex justify-between items-center pb-3 border-b dark:border-gray-700">
+        <h3 id="editAllocationTitle" class="text-lg font-semibold">กำหนดวันลา</h3>
+        <button id="btnCloseEditAllocationModal" class="btn btn-sm btn-circle btn-ghost">✕</button>
+      </div>
+
+      <form id="allocationForm" class="pt-4 space-y-4">
+        <input type="hidden" id="allocationUserId">
+        <input type="hidden" id="allocationId">
+
+        <div>
+          <label class="block text-sm font-medium mb-1">พนักงาน</label>
+          <select id="allocationEmployeeSelect" class="select select-bordered w-full">
+            <option value="" disabled selected>เลือกพนักงาน</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">ปี</label>
+          <select id="allocationYear" class="select select-bordered w-full">
+            <option value="2024">2024</option>
+            <option value="2025" selected>2025</option>
+            <option value="2026">2026</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">ลาป่วย (วัน)</label>
+            <input type="number" id="allocationSick" min="0" max="365" value="30" class="input input-bordered w-full">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">ลาพักร้อน (วัน)</label>
+            <input type="number" id="allocationAnnual" min="0" max="365" value="10" class="input input-bordered w-full">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">ลากิจ (วัน)</label>
+            <input type="number" id="allocationPersonal" min="0" max="365" value="3" class="input input-bordered w-full">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">ลาพิเศษ (วัน)</label>
+            <input type="number" id="allocationSpecial" min="0" max="365" value="5" class="input input-bordered w-full">
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button type="button" class="btn btn-outline" onclick="closeEditAllocationModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+<script>
+  // API Configuration for GMJ API
+  const USE_LOCAL_STORAGE = false; // Set to false to use GMJ API
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const API_HOST = window.location.origin; // Use current host for all API calls
+  const API_BASE = `${API_HOST}/api/hr/leaves`; // Local leave endpoint
+  const USERS_API_BASE = `${API_HOST}/api/users`;
+  const token          = localStorage.getItem('authToken');
+
+  // —————————————————————————
+  // 1) ประกาศตัวแปร global state สำหรับการกรอง/เรียง/หน้า
+  let allLeaveRequests      = [];
+  let currentFilter         = { status: 'all', dateFrom: '', dateTo: '', searchTerm: '' };
+  let currentSort           = { by: 'createdAt', dir: 'desc' };
+  let currentPage           = 1;
+  const itemsPerPage        = 10;
+  let currentLeaveIdForModal = null;
+  // —————————————————————————
+
+  // ช่วยแปลง URL รูปพนักงาน
+  function resolvePhotoUrl(raw) {
+    if (!raw) {
+      // Return a data URI SVG as placeholder instead of external URL
+      return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='16' fill='%236b7280'%3E👤%3C/text%3E%3C/svg%3E";
+    }
+    if (/^https?:\/\//.test(raw)) return raw;
+    if (raw.startsWith('data:')) return raw; // Already a data URI
+    if (raw.startsWith('/uploads/employees/')) return raw;
+    if (raw.startsWith('/uploads/')) return raw.replace(/^\/uploads\//, '/uploads/employees/');
+    return `/uploads/employees/${raw}`;
+  }
+
+  // ดึงข้อมูลโปรไฟล์ผู้ใช้
+  async function fetchUserProfile() {
+    // Use localStorage directly if configured
+    if (USE_LOCAL_STORAGE) {
+      console.log('Using user profile from localStorage');
+      const mockUser = {
+        _id: localStorage.getItem('userId') || `user_${Date.now()}`,
+        name: localStorage.getItem('userName') || 'ผู้ใช้งาน',
+        email: localStorage.getItem('userEmail') || `user${Date.now()}@company.com`,
+        role: localStorage.getItem('userRole') || 'hr',
+        department: localStorage.getItem('userDepartment') || 'HR',
+        photoUrl: localStorage.getItem('userPhoto') || null
+      };
+      document.getElementById('employeeName').textContent = mockUser.name;
+      document.getElementById('employeePhoto').src = resolvePhotoUrl(mockUser.photoUrl);
+      window.currentUserId = mockUser._id;
+      return;
+    }
+
+    // API fetch for GMJ API
+    try {
+      console.log('Fetching user profile from GMJ API');
+      const res = await fetch(`${USERS_API_BASE}/me`, {
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+  
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API endpoint not available');
+      }
+  
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || json.message || res.status);
+
+      const u = json.data;
+      document.getElementById('employeeName').textContent = u.name;
+      document.getElementById('employeePhoto').src = resolvePhotoUrl(u.photoUrl);
+      window.currentUserId = u._id || u.id;
+    } catch (err) {
+      console.error('Failed to fetch user profile:', err);
+      showNotification('ไม่สามารถโหลดข้อมูลผู้ใช้ได้ กรุณาเข้าสู่ระบบใหม่', 'error');
+
+      // Redirect to login if authentication fails
+      if (err.message.includes('Unauthorized') || err.message.includes('403')) {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      // Show error state instead of mock data
+      document.getElementById('employeeName').textContent = 'ไม่สามารถโหลดข้อมูลได้';
+      document.getElementById('employeePhoto').src = '/img/default-avatar.png';
+    }
+  }
+
+  // ตัวแปรสำหรับ Leave Policy Management
+  let currentPolicy = null;
+
+  // ฟังก์ชันแสดงการแจ้งเตือน
+  function showNotification(message, type = 'info') {
+    // ใช้ alert ง่ายๆ สำหรับการแจ้งเตือน
+    const prefix = type === 'error' ? '❌ ' : type === 'success' ? '✅ ' : 'ℹ️ ';
+    alert(prefix + message);
+  }
+
+  // ฟังก์ชันดึงข้อมูล Leave Policy
+  async function fetchLeavePolicy() {
+    try {
+      console.log('📊 Fetching leave policy from API');
+      const res = await fetch(`${API_HOST}/api/hr/leave-policy`, {
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      const json = await res.json();
+      console.log('✅ Leave policy loaded:', json);
+      console.log('✅ Leave policy data:', json.data);
+
+      if (json.success && json.data) {
+        currentPolicy = json.data;
+
+        // อัปเดต policy display ทั้งในซายด์บาร์และโมดัล
+        updatePolicyDisplay(json.data);
+        updatePolicyModal(json.data);
+        updatePolicyStats(json.data);
+      } else {
+        console.warn('⚠️ No policy data received or success=false');
+        // แสดงข้อมูลเริ่มต้นถ้าไม่มีนโยบาย
+        displayDefaultPolicy();
+      }
+    } catch (err) {
+      console.error('Failed to fetch leave policy:', err);
+
+      // แสดงข้อมูลเริ่มต้นแทนข้อผิดพลาด
+      displayDefaultPolicy();
+
+      // แสดงข้อความ error
+      showNotification('ไม่สามารถโหลดนโยบายการลาได้ กำลังแสดงข้อมูลเริ่มต้น', 'warning');
+    }
+  }
+
+  // ฟังก์ชันแสดงนโยบายเริ่มต้น
+  function displayDefaultPolicy() {
+    const currentYear = new Date().getFullYear();
+    const defaultPolicy = {
+      name: `นโยบายการลาประจำปี ${currentYear}`,
+      year: currentYear,
+      version: '1.0',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      policy: {
+        annual: { days: 6, description: 'ลาพักร้อน' },
+        sick: { days: 30, description: 'ลาป่วย' },
+        personal: { days: 3, description: 'ลากิจ' },
+        special: { days: 5, description: 'ลาพิเศษ' },
+        maternity: { days: 98, description: 'ลาคลอด' },
+        paternity: { days: 15, description: 'ลาบิดา' }
+      }
+    };
+
+    currentPolicy = defaultPolicy;
+    updatePolicyDisplay(defaultPolicy);
+    updatePolicyModal(defaultPolicy);
+    console.log('📋 Displaying default policy:', defaultPolicy);
+  }
+
+  // ฟังก์ชันอัปเดตการแสดงผล Policy
+  function updatePolicyDisplay(policy) {
+    if (!policy) {
+      console.warn('⚠️ No policy data to display');
+      return;
+    }
+
+    console.log('📊 Updating policy display with:', policy);
+
+    // อัปเดตปีใน sidebar
+    const currentPolicyYearEl = document.getElementById('currentPolicyYear');
+    if (currentPolicyYearEl) {
+      currentPolicyYearEl.textContent = policy.year ? `ปี ${policy.year}` : 'ปี -';
+      console.log('✅ Updated year display:', currentPolicyYearEl.textContent);
+    } else {
+      console.warn('⚠️ Element currentPolicyYear not found');
+    }
+
+    // อัปเดตข้อมูลวันลาแต่ละประเภทใน sidebar
+    if (policy.policy) {
+      const policyAnnualEl = document.getElementById('policyAnnual');
+      if (policyAnnualEl && policy.policy.annual) {
+        policyAnnualEl.textContent = `${policy.policy.annual.days} วัน`;
+        console.log('✅ Updated annual leave display:', policyAnnualEl.textContent);
+      } else {
+        console.warn('⚠️ Element policyAnnual not found or no annual data');
+      }
+
+      const policySickEl = document.getElementById('policySick');
+      if (policySickEl && policy.policy.sick) {
+        policySickEl.textContent = `${policy.policy.sick.days} วัน`;
+        console.log('✅ Updated sick leave display:', policySickEl.textContent);
+      } else {
+        console.warn('⚠️ Element policySick not found or no sick data');
+      }
+
+      const policyPersonalEl = document.getElementById('policyPersonal');
+      if (policyPersonalEl && policy.policy.personal) {
+        policyPersonalEl.textContent = `${policy.policy.personal.days} วัน`;
+        console.log('✅ Updated personal leave display:', policyPersonalEl.textContent);
+      } else {
+        console.warn('⚠️ Element policyPersonal not found or no personal data');
+      }
+    } else {
+      console.warn('⚠️ No policy.policy data found in:', policy);
+    }
+
+    // อัปเดตชื่อนโยบายใน modal (ถ้ามี)
+    const policyNameEl = document.getElementById('policyName');
+    if (policyNameEl) {
+      policyNameEl.textContent = policy.name || 'นโยบายการลา';
+    }
+
+    // อัปเดตปีใน modal (ถ้ามี)
+    const policyYearEl = document.getElementById('policyYear');
+    if (policyYearEl) {
+      policyYearEl.textContent = policy.year ? `ปี ${policy.year}` : 'ปี -';
+    }
+  }
+
+  // ฟังก์ชันอัปเดต Policy Stats
+  function updatePolicyStats(policy) {
+    if (!policy) return;
+
+    // คำนวณวันลารวม
+    const totalDays = Object.values(policy.policy).reduce((sum, type) => sum + (type.days || 0), 0);
+
+    // อัปเดต stats display
+    const totalEl = document.getElementById('totalLeavePolicy');
+    if (totalEl) {
+      totalEl.textContent = `${totalDays} วัน`;
+    }
+
+    const statusEl = document.getElementById('policyStatus');
+    if (statusEl) {
+      statusEl.textContent = policy.isActive ? 'ใช้งานอยู่' : 'ไม่ใช้งาน';
+      statusEl.className = policy.isActive ? 'text-success' : 'text-error';
+    }
+  }
+
+  // ฟังก์ชันอัปเดตตาราง Allocation
+  function updateAllocationTable() {
+    const tableBody = document.getElementById('allocationTableBody');
+
+    if (filteredAllocations.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="8" class="text-center">ไม่มีข้อมูล</td></tr>';
+      return;
+    }
+
+    let html = '';
+    filteredAllocations.forEach(allocation => {
+      const user = allocation.user;
+      const emp = user?.employee;
+      const isAllocated = allocation.isAllocated !== false;
+
+      html += `
+        <tr class="${!isAllocated ? 'bg-yellow-50' : ''}">
+          <td>
+            <div class="flex items-center">
+              <img src="${emp?.photoUrl || '/img/default-avatar.png'}"
+                   alt="Avatar" class="w-8 h-8 rounded-full mr-2">
+              <div>
+                <div class="font-medium">${emp?.name || user?.username || 'ไม่ระบุ'}</div>
+                <div class="text-xs text-gray-500">${user?.email || ''}</div>
+              </div>
+            </div>
+          </td>
+          <td>${emp?.department || 'ไม่ระบุ'}</td>
+          <td class="text-center">
+            <span class="badge ${isAllocated ? 'badge-primary' : 'badge-ghost'}">${allocation.allocation?.sick || 0}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge ${isAllocated ? 'badge-success' : 'badge-ghost'}">${allocation.allocation?.annual || 0}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge ${isAllocated ? 'badge-warning' : 'badge-ghost'}">${allocation.allocation?.personal || 0}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge ${isAllocated ? 'badge-info' : 'badge-ghost'}">${allocation.allocation?.special || 0}</span>
+          </td>
+          <td class="text-center">${allocation.year}</td>
+          <td>
+            <div class="flex gap-1">
+              <button onclick="editAllocation('${allocation._id || ''}', '${user?._id || user?.id}')"
+                      class="btn btn-xs btn-primary">
+                <i class="bi bi-pencil"></i>
+              </button>
+              ${isAllocated ? `
+                <button onclick="deleteAllocation('${allocation._id}')"
+                        class="btn btn-xs btn-error">
+                  <i class="bi bi-trash"></i>
+                </button>
+              ` : ''}
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    tableBody.innerHTML = html;
+  }
+
+  // ฟังก์ชันเปิด Policy Modal
+  function openPolicyModal() {
+    document.getElementById('policyModal').classList.remove('hidden');
+    document.getElementById('policyModal').classList.add('flex');
+    fetchLeavePolicy();
+    // อัปเดตการแสดงผลในโมดัลด้วย
+    if (currentPolicy) {
+      updatePolicyModal(currentPolicy);
+    }
+  }
+
+  // ฟังก์ชันปิด Policy Modal
+  function closePolicyModal() {
+    document.getElementById('policyModal').classList.add('hidden');
+    document.getElementById('policyModal').classList.remove('flex');
+  }
+
+  // ฟังก์ชันเปิดฟอร์มสร้างนโยบายใหม่
+  function openCreatePolicyForm() {
+    const currentPolicyDiv = document.getElementById('currentPolicy');
+    if (!currentPolicyDiv) return;
+
+    currentPolicyDiv.innerHTML = `
+      <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+        <h5 class="text-lg font-medium mb-4 text-blue-800 dark:text-blue-200">สร้างนโยบายการลาใหม่</h5>
+        <form id="createPolicyForm" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">ชื่อนโยบาย</label>
+              <input type="text" id="policyName" class="input input-bordered w-full"
+                     placeholder="เช่น นโยบายการลาประจำปี 2568" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">ปี</label>
+              <input type="number" id="policyYear" class="input input-bordered w-full"
+                     value="${currentPolicy ? currentPolicy.year + 1 : new Date().getFullYear()}"
+                     min="2024" max="2030" required>
+              ${currentPolicy ? `<div class="text-xs text-gray-500 mt-1">แนะนำ: ปี ${currentPolicy.year + 1} (ปี ${currentPolicy.year} มีนโยบายแล้ว)</div>` : ''}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">ลาพักร้อน (วัน/ปี)</label>
+              <input type="number" id="annualDays" class="input input-bordered w-full"
+                     value="6" min="0" max="30" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">ลาป่วย (วัน/ปี)</label>
+              <input type="number" id="sickDays" class="input input-bordered w-full"
+                     value="30" min="0" max="365" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">ลากิจ (วัน/ปี)</label>
+              <input type="number" id="personalDays" class="input input-bordered w-full"
+                     value="3" min="0" max="30" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">ลาพิเศษ (วัน/ปี)</label>
+              <input type="number" id="specialDays" class="input input-bordered w-full"
+                     value="5" min="0" max="30" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">ลาคลอด (วัน/ปี)</label>
+              <input type="number" id="maternityDays" class="input input-bordered w-full"
+                     value="98" min="0" max="365" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">ลาบิดา (วัน/ปี)</label>
+              <input type="number" id="paternityDays" class="input input-bordered w-full"
+                     value="15" min="0" max="30" required>
+            </div>
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-4">
+            <button type="button" onclick="fetchLeavePolicy()" class="btn btn-ghost">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-plus"></i> สร้างนโยบาย
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    // Add form submit handler
+    document.getElementById('createPolicyForm').addEventListener('submit', handleCreatePolicy);
+  }
+
+  // ฟังก์ชันอัปเดตการแสดงผลนโยบายในโมดัล
+  function updatePolicyModal(policy) {
+    const currentPolicyDiv = document.getElementById('currentPolicy');
+    if (!currentPolicyDiv) return;
+
+    if (!policy) {
+      currentPolicyDiv.innerHTML = `
+        <div class="text-center text-gray-500 py-8">
+          <i class="bi bi-exclamation-triangle text-3xl mb-2"></i>
+          <p>ไม่พบนโยบายการลาที่ใช้งานอยู่</p>
+        </div>
+      `;
+      return;
+    }
+
+    currentPolicyDiv.innerHTML = `
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h5 class="text-lg font-medium text-gray-900 dark:text-white">${policy.name}</h5>
+            <p class="text-sm text-gray-500">ปี ${policy.year} | เวอร์ชัน ${policy.version || '1.0'}</p>
+          </div>
+          <span class="badge ${policy.isActive ? 'badge-success' : 'badge-warning'}">
+            ${policy.isActive ? 'ใช้งานอยู่' : 'ไม่ใช้งาน'}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-blue-600">${policy.policy?.annual?.days || 0}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">ลาพักร้อน</div>
+          </div>
+          <div class="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-red-600">${policy.policy?.sick?.days || 0}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">ลาป่วย</div>
+          </div>
+          <div class="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-yellow-600">${policy.policy?.personal?.days || 0}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">ลากิจ</div>
+          </div>
+          <div class="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-purple-600">${policy.policy?.special?.days || 0}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">ลาพิเศษ</div>
+          </div>
+          <div class="text-center p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-pink-600">${policy.policy?.maternity?.days || 98}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">ลาคลอด</div>
+          </div>
+          <div class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-green-600">${policy.policy?.paternity?.days || 15}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">ลาบิดา</div>
+          </div>
+        </div>
+
+        <div class="mt-4 text-xs text-gray-500">
+          สร้างเมื่อ: ${new Date(policy.createdAt).toLocaleDateString('th-TH')} |
+          อัปเดตล่าสุด: ${new Date(policy.updatedAt).toLocaleDateString('th-TH')}
+        </div>
+      </div>
+    `;
+  }
+
+  // ฟังก์ชันอัปเดตสถิตินโยบาย
+  function updatePolicyStats(policy) {
+    // This can be expanded to show policy usage statistics
+    console.log('Policy stats updated for:', policy.name);
+  }
+
+  // ฟังก์ชันจัดการการสร้างนโยบายใหม่
+  async function handleCreatePolicy(event) {
+    event.preventDefault();
+
+    const year = parseInt(document.getElementById('policyYear').value);
+
+    // ตรวจสอบว่ามีนโยบายสำหรับปีนี้อยู่แล้วหรือไม่
+    if (currentPolicy && currentPolicy.year === year) {
+      const confirmReplace = confirm(
+        `มีนโยบายการลาสำหรับปี ${year} อยู่แล้ว\n` +
+        `คุณต้องการแทนที่นโยบายเดิมหรือไม่?\n\n` +
+        `นโยบายเดิม: ${currentPolicy.name}\n` +
+        `จะถูกปิดการใช้งานและแทนที่ด้วยนโยบายใหม่`
+      );
+
+      if (!confirmReplace) {
+        return;
+      }
+    }
+
+    const formData = {
+      name: document.getElementById('policyName').value,
+      year: parseInt(document.getElementById('policyYear').value),
+      policy: {
+        annual: {
+          days: parseInt(document.getElementById('annualDays').value),
+          description: 'ลาพักร้อนประจำปี'
+        },
+        sick: {
+          days: parseInt(document.getElementById('sickDays').value),
+          description: 'ลาป่วยตามใบรับรองแพทย์'
+        },
+        personal: {
+          days: parseInt(document.getElementById('personalDays').value),
+          description: 'ลากิจส่วนตัว'
+        },
+        special: {
+          days: parseInt(document.getElementById('specialDays').value),
+          description: 'ลาพิเศษ เช่น งานแต่ง อุปสมบท'
+        },
+        maternity: {
+          days: parseInt(document.getElementById('maternityDays').value),
+          description: 'ลาคลอดบุตร'
+        },
+        paternity: {
+          days: parseInt(document.getElementById('paternityDays').value),
+          description: 'ลาคลอดบุตรสำหรับบิดา'
+        }
+      }
+    };
+
+    try {
+      console.log('📝 Creating new leave policy:', formData);
+
+      const res = await fetch(`${API_HOST}/api/hr/leave-policy`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'ไม่สามารถสร้างนโยบายได้');
+      }
+
+      const result = await res.json();
+      console.log('✅ Policy created successfully:', result);
+
+      // แสดงข้อความที่ชัดเจนขึ้น
+      const message = result.data.replacedExisting ?
+        'สร้างนโยบายการลาใหม่เรียบร้อย (แทนที่นโยบายเดิม)' :
+        'สร้างนโยบายการลาสำเร็จ!';
+
+      showNotification(message, 'success');
+
+      // Refresh the policy display
+      await fetchLeavePolicy();
+
+    } catch (error) {
+      console.error('❌ Create policy error:', error);
+      showNotification('เกิดข้อผิดพลาด: ' + error.message, 'error');
+    }
+  }
+
+  // ฟังก์ชันโหลดรายชื่อพนักงานใน dropdown
+  function populateEmployeeSelect() {
+    const select = document.getElementById('allocationEmployeeSelect');
+
+    // ใช้ข้อมูล allUsers ที่โหลดไว้แล้ว
+    if (allUsers && allUsers.length > 0) {
+      select.innerHTML = '<option value="" disabled selected>เลือกพนักงาน</option>';
+      allUsers.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user._id || user.id;
+        option.textContent = user.employee?.name || user.username || `User ID: ${user._id || user.id}`;
+        select.appendChild(option);
+      });
+    }
+  }
+
+  // ฟังก์ชันเปิด Edit Allocation Modal
+  function editAllocation(allocationId, userId) {
+    // โหลดรายชื่อพนักงานใน dropdown
+    populateEmployeeSelect();
+
+    const allocation = allAllocations.find(a => a._id === allocationId || a.user?._id === userId);
+
+    if (allocation && allocation._id) {
+      // แก้ไขข้อมูลที่มีอยู่
+      document.getElementById('editAllocationTitle').textContent = 'แก้ไขการกำหนดวันลา';
+      document.getElementById('allocationId').value = allocation._id;
+      document.getElementById('allocationUserId').value = allocation.user._id;
+      document.getElementById('allocationEmployeeSelect').value = allocation.user._id;
+      document.getElementById('allocationYear').value = allocation.year;
+      document.getElementById('allocationSick').value = allocation.allocation.sick;
+      document.getElementById('allocationAnnual').value = allocation.allocation.annual;
+      document.getElementById('allocationPersonal').value = allocation.allocation.personal;
+      document.getElementById('allocationSpecial').value = allocation.allocation.special;
+
+      // ปิดการเลือกพนักงาน
+      document.getElementById('allocationEmployeeSelect').disabled = true;
+    } else {
+      // สร้างใหม่
+      document.getElementById('editAllocationTitle').textContent = 'กำหนดวันลาใหม่';
+      document.getElementById('allocationId').value = '';
+      document.getElementById('allocationUserId').value = userId || '';
+      document.getElementById('allocationEmployeeSelect').value = userId || '';
+      document.getElementById('allocationYear').value = new Date().getFullYear();
+      document.getElementById('allocationSick').value = 30;
+      document.getElementById('allocationAnnual').value = 10;
+      document.getElementById('allocationPersonal').value = 3;
+      document.getElementById('allocationSpecial').value = 5;
+
+      // เปิดการเลือกพนักงาน
+      document.getElementById('allocationEmployeeSelect').disabled = false;
+    }
+
+    document.getElementById('editAllocationModal').classList.remove('hidden');
+    document.getElementById('editAllocationModal').classList.add('flex');
+  }
+
+  // ฟังก์ชันปิด Edit Allocation Modal
+  function closeEditAllocationModal() {
+    document.getElementById('editAllocationModal').classList.add('hidden');
+    document.getElementById('editAllocationModal').classList.remove('flex');
+    document.getElementById('allocationForm').reset();
+  }
+
+  // ฟังก์ชันลบ Allocation
+  async function deleteAllocation(allocationId) {
+    if (!confirm('คุณต้องการลบการกำหนดวันลานี้หรือไม่?')) return;
+
+    try {
+      const res = await fetch(`${API_HOST}/api/hr/leave-allocations/${allocationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) throw new Error('Failed to delete allocation');
+
+      alert('ลบการกำหนดวันลาเรียบร้อยแล้ว');
+      await fetchLeavePolicy(); // รีเฟรชข้อมูล
+    } catch (err) {
+      console.error('Delete allocation error:', err);
+      alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+    }
+  }
+
+  // เรียกใช้งานเมื่อโหลดหน้า
+  document.addEventListener('DOMContentLoaded', async () => {
+    if (!token) return window.location.href = '/login';
+
+    checkDarkMode();
+    checkSidebarState();
+    await fetchUserProfile();      // ← เรียกดึงโปรไฟล์ก่อน
+    await fetchUsersList();        // ← หลังจากมี currentUserId
+    await fetchLeaveRequests();
+
+    // ลองโหลดนโยบายการลา และแสดงค่าเริ่มต้นหากล้มเหลว
+    try {
+      await fetchLeavePolicy();       // ← โหลดข้อมูล leave policy
+    } catch (error) {
+      console.error('Failed to load leave policy, showing default:', error);
+      displayDefaultPolicy();
+    }
+
+    // ตรวจสอบหลังจาก 3 วินาทีว่ายังคงแสดงค่าเริ่มต้นอยู่หรือไม่
+    setTimeout(() => {
+      const currentPolicyYearEl = document.getElementById('currentPolicyYear');
+      if (currentPolicyYearEl && currentPolicyYearEl.textContent.includes('ปี -')) {
+        console.log('🔄 Policy data still not loaded after 3 seconds, showing default policy');
+        displayDefaultPolicy();
+      }
+    }, 3000);
+
+    setupEventListeners();
+
+    document.querySelector(`.filter-status-item[data-status="all"]`)?.classList.add('active','font-semibold');
+    document.querySelector(`.sort-leave-item[data-sort-by="createdAt"][data-sort-dir="desc"]`)?.classList.add('active','font-semibold');
+  });
+
+  async function fetchUsersList() {
+    const sel = document.getElementById('employeeSelectModal');
+  
+    // Use localStorage directly if configured
+    if (USE_LOCAL_STORAGE) {
+      console.log('Using employee list from localStorage');
+      allUsers = getLocalUsers();
+      sel.innerHTML = '<option value="" disabled>เลือกพนักงาน</option>';
+      allUsers.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u._id || u.id;
+        opt.textContent = u.employee?.name || u.name || `User ID: ${u._id || u.id}`;
+        sel.appendChild(opt);
+      });
+      return;
+    }
+
+    // API fetch for GMJ API
+    try {
+      console.log('Fetching users list from GMJ API');
+      const res = await fetch(USERS_API_BASE, {
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+  
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API endpoint not available');
+      }
+  
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || json.message || `Status: ${res.status}`);
+  
+      allUsers = json.data || [];
+      sel.innerHTML = '<option value="" disabled>เลือกพนักงาน</option>';
+      allUsers.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u._id || u.id;
+        opt.textContent = u.employee?.name || u.name || `User ID: ${u._id || u.id}`;
+        sel.appendChild(opt);
+      });
+    } catch (err) {
+      console.error('Failed to fetch users list:', err);
+      sel.innerHTML = '<option value="" disabled>ไม่สามารถโหลดรายชื่อพนักงานได้</option>';
+      showNotification('ไม่สามารถโหลดรายชื่อพนักงานได้', 'error');
+    }
+  }
+  
+  // Get real users from localStorage or employee data
+  function getLocalUsers() {
+    // First, try to get employees from payroll system
+    let employees = localStorage.getItem('employees');
+    if (employees) {
+      try {
+        const employeeList = JSON.parse(employees);
+        return employeeList.map(emp => ({
+          _id: emp.id || emp._id || `emp_${Date.now()}_${Math.random()}`,
+          name: emp.name,
+          employee: { name: emp.name },
+          department: emp.department,
+          position: emp.position
+        }));
+      } catch (e) {
+        console.error('Error parsing employees from localStorage:', e);
+      }
+    }
+  
+    // Try to get users from sales system
+    let salesUsers = [];
+    const posTransactions = localStorage.getItem('pos_transactions');
+    if (posTransactions) {
+      try {
+        const transactions = JSON.parse(posTransactions);
+        const uniqueUsers = new Map();
+  
+        transactions.forEach(t => {
+          if (t.employeeId && t.employeeName) {
+            uniqueUsers.set(t.employeeId, {
+              _id: t.employeeId,
+              name: t.employeeName,
+              employee: { name: t.employeeName },
+              department: 'ขาย',
+              branch: t.branchCode
+            });
+          }
+        });
+  
+        salesUsers = Array.from(uniqueUsers.values());
+      } catch (e) {
+        console.error('Error parsing POS transactions:', e);
+      }
+    }
+  
+    // Get current user from localStorage
+    const currentUserName = localStorage.getItem('userName');
+    const currentUserId = localStorage.getItem('userId');
+  
+    if (currentUserName && !salesUsers.find(u => u._id === currentUserId)) {
+      salesUsers.push({
+        _id: currentUserId || 'current_user',
+        name: currentUserName,
+        employee: { name: currentUserName },
+        department: 'HR'
+      });
+    }
+  
+    return salesUsers.length > 0 ? salesUsers : [];
+  }
+
+  async function fetchLeaveRequests() {
+    const tableBody = document.getElementById('leaveTableBody');
+    if(tableBody) tableBody.innerHTML =
+      '<tr><td colspan="7" class="text-center p-6"><span class="loading loading-dots loading-lg"></span></td></tr>';
+  
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('paginationControls').classList.add('hidden');
+
+    // Use localStorage directly if configured
+    if (USE_LOCAL_STORAGE) {
+      console.log('Using localStorage for leave requests');
+      allLeaveRequests = getLocalLeaveRequests();
+      currentPage = 1;
+      applyFiltersAndRender();
+      updateLeaveStats();
+  
+      if(tableBody && allLeaveRequests.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500 p-6 text-base">ยังไม่มีข้อมูลการลา</td></tr>`;
+      }
+      return;
+    }
+
+    // API fetch for GMJ API
+    try {
+      console.log('Fetching leave requests from GMJ API:', API_BASE);
+      const res = await fetch(API_BASE, {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        }
+      });
+  
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Invalid response type from API');
+        throw new Error('API endpoint not available');
+      }
+  
+      const json = await res.json();
+      console.log('GMJ API Response:', json);
+  
+      if (!res.ok) {
+        throw new Error(json.error || json.message || `Status: ${res.status}`);
+      }
+  
+      // Handle GMJ API response format
+      allLeaveRequests = json.data || json || [];
+      console.log('Leave requests loaded:', allLeaveRequests.length);
+  
+      currentPage = 1;
+      applyFiltersAndRender();
+      updateLeaveStats();
+    } catch (err) {
+      console.error('Failed to fetch leave requests from API:', err);
+      showNotification('ไม่สามารถโหลดข้อมูลการลาได้ กรุณาลองใหม่อีกครั้ง', 'error');
+
+      // Show empty state instead of mock data
+      allLeaveRequests = [];
+      currentPage = 1;
+      applyFiltersAndRender();
+      updateLeaveStats();
+
+      const tableBody = document.getElementById('leaveTableBody');
+      if(tableBody) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500 p-6 text-base">ไม่สามารถโหลดข้อมูลการลาได้: ${err.message}</td></tr>`;
+      }
+    }
+  }
+  
+  // Get real leave requests from localStorage
+  function getLocalLeaveRequests() {
+    // Try to get real data from localStorage first
+    let leaveRequests = localStorage.getItem('leave_requests');
+  
+    if (leaveRequests) {
+      try {
+        return JSON.parse(leaveRequests);
+      } catch (e) {
+        console.error('Error parsing leave requests from localStorage:', e);
+      }
+    }
+  
+    // If no real data exists, return empty array to start fresh
+    return [];
+  }
+  
+  // Save leave requests to localStorage
+  function saveLeaveRequestsToStorage(requests) {
+    try {
+      localStorage.setItem('leave_requests', JSON.stringify(requests));
+      localStorage.setItem('leave_requests_updated', new Date().toISOString());
+    } catch (e) {
+      console.error('Error saving leave requests to localStorage:', e);
+    }
+  }
+
+  async function saveLeaveRequest() {
+    const leaveId = document.getElementById('leaveRequestId').value;
+    const selectedUserId = document.getElementById('employeeSelectModal').value;
+  
+    const saveButton = document.getElementById('btnSaveLeaveForm');
+    const loadingSpinner = saveButton.querySelector('.loading-spinner');
+
+    if (!selectedUserId) {
+        alert('กรุณาเลือกพนักงาน');
+        return;
+    }
+
+    const payload = {
+      userId: selectedUserId,
+      leaveType: document.getElementById('leaveTypeModal').value,
+      startDate: document.getElementById('startDateModal').value,
+      endDate: document.getElementById('endDateModal').value,
+      reason: document.getElementById('reasonModal').value.trim(),
+    };
+
+    if (!payload.leaveType || !payload.startDate || !payload.endDate || !payload.reason) {
+      alert('กรุณากรอกข้อมูลให้ครบถ้วน (ประเภทการลา, วันที่เริ่ม, วันที่สิ้นสุด, เหตุผล)');
+      return;
+    }
+    if (new Date(payload.endDate) < new Date(payload.startDate)) {
+      alert('วันที่สิ้นสุดต้องไม่มาก่อนวันที่เริ่มต้น');
+      return;
+    }
+
+    if(loadingSpinner) loadingSpinner.classList.remove('hidden');
+    saveButton.disabled = true;
+
+    // For GMJ API
+    const method = leaveId ? 'PUT' : 'POST';
+    const url = leaveId ? `${API_BASE}/${leaveId}` : API_BASE;
+  
+    console.log('Sending leave request to GMJ API:', url, payload);
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(payload)
+      });
+  
+      // Check if API is available
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API endpoint not available');
+      }
+  
+      const json = await res.json();
+      console.log('GMJ API save response:', json);
+  
+      if (!res.ok) throw new Error(json.error || json.message || `Status: ${res.status}`);
+      alert(json.message || 'บันทึกสำเร็จ!');
+      closeLeaveModal();
+      await fetchLeaveRequests();
+      await fetchLeaveBalance(); // อัปเดต leave balance หลังสร้าง/แก้ไขคำขอลา
+    } catch (err) {
+      console.error('Error saving leave request:', err);
+  
+      // Fallback to localStorage when API is not available
+      if (err.message.includes('API endpoint not available') || err.message.includes('Failed to fetch')) {
+        try {
+          // Get existing leave requests from localStorage
+          let leaveRequests = localStorage.getItem('leave_requests');
+          leaveRequests = leaveRequests ? JSON.parse(leaveRequests) : [];
+  
+          // Find user info for this request
+          const selectedUser = allUsers.find(emp => (emp._id || emp.id) === selectedUserId);
+  
+          if (leaveId) {
+            // Update existing request
+            const index = leaveRequests.findIndex(r => (r._id || r.id) === leaveId);
+            if (index !== -1) {
+              leaveRequests[index] = {
+                ...leaveRequests[index],
+                ...payload,
+                user: selectedUser || leaveRequests[index].user,
+                updatedAt: new Date().toISOString()
+              };
+            }
+          } else {
+            // Create new request
+            const newRequest = {
+              _id: `leave_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              id: `leave_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              ...payload,
+              user: selectedUser || { _id: selectedUserId, name: 'Unknown User' },
+              status: 'pending',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            leaveRequests.push(newRequest);
+          }
+  
+          // Save back to localStorage
+          localStorage.setItem('leave_requests', JSON.stringify(leaveRequests));
+  
+          alert('บันทึกสำเร็จ! (บันทึกในเครื่อง)');
+          closeLeaveModal();
+          await fetchLeaveRequests();
+        } catch (localErr) {
+          console.error('Error saving to localStorage:', localErr);
+          alert('เกิดข้อผิดพลาดในการบันทึก: ' + localErr.message);
+        }
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      }
+    } finally {
+      if(loadingSpinner) loadingSpinner.classList.add('hidden');
+      saveButton.disabled = false;
+    }
+  }
+
+  async function updateLeaveStatus(id, statusAction) { // 'approve' or 'reject'
+    const actionText = statusAction === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ';
+    const newStatus = statusAction === 'approve' ? 'approved' : 'rejected';
+  
+    console.log(`Updating leave status via GMJ API: ${id} -> ${statusAction}`);
+  
+    try {
+      const res = await fetch(`${API_BASE}/${id}/${statusAction}`, {
+        method: 'PUT', // GMJ API uses PUT for updates
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+  
+      // Check if API is available
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API endpoint not available - using localStorage');
+      }
+  
+      if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: `Status ${res.status}`}));
+          throw new Error(errorData.message || `Status ${res.status}`);
+      }
+      // const responseData = await res.json(); // If API returns data
+      alert(`${actionText}สำเร็จ`);
+      await fetchLeaveRequests();
+      await fetchLeaveBalance(); // อัปเดต leave balance หลังการอนุมัติ/ปฏิเสธ
+    } catch (err) {
+      // Fallback to localStorage when API is not available
+      if (err.message.includes('API endpoint not available') || err.message.includes('Failed to fetch')) {
+        try {
+          // Get existing leave requests from localStorage
+          let leaveRequests = localStorage.getItem('leave_requests');
+          leaveRequests = leaveRequests ? JSON.parse(leaveRequests) : [];
+  
+          // Find and update the request
+          const index = leaveRequests.findIndex(r => (r._id || r.id) === id);
+          if (index !== -1) {
+            leaveRequests[index] = {
+              ...leaveRequests[index],
+              status: newStatus,
+              updatedAt: new Date().toISOString(),
+              approvedBy: newStatus === 'approved' ? localStorage.getItem('userName') : null,
+              approvedAt: newStatus === 'approved' ? new Date().toISOString() : null,
+              rejectedBy: newStatus === 'rejected' ? localStorage.getItem('userName') : null,
+              rejectedAt: newStatus === 'rejected' ? new Date().toISOString() : null
+            };
+  
+            // Save back to localStorage
+            localStorage.setItem('leave_requests', JSON.stringify(leaveRequests));
+  
+            alert(`${actionText}สำเร็จ (บันทึกในเครื่อง)`);
+            await fetchLeaveRequests();
+          } else {
+            throw new Error('ไม่พบคำขอการลาที่ต้องการอัปเดต');
+          }
+        } catch (localErr) {
+          console.error('Error updating in localStorage:', localErr);
+          alert(`${actionText}ไม่สำเร็จ: ${localErr.message}`);
+        }
+      } else {
+        alert(`${actionText}ไม่สำเร็จ: ${err.message}`);
+      }
+    }
+  }
+
+
+  async function handleLeaveAction(action, id) {
+    closeManageActionsModal(); // Close modal first
+    const requestToHandle = allLeaveRequests.find(r => (r.id || r._id) === id);
+    if (!requestToHandle) {
+        alert('ไม่พบข้อมูลคำขอ');
+        return;
+    }
+    const employeeName = requestToHandle.user?.employee?.name || requestToHandle.user?.name || 'N/A';
+
+    switch (action) {
+      case 'view':
+        alert(`ดูรายละเอียด ID: ${id}\nพนักงาน: ${employeeName}\nประเภท: ${requestToHandle.leaveType}\nช่วงวันที่: ${formatDate(requestToHandle.startDate)} - ${formatDate(requestToHandle.endDate)}\nเหตุผล: ${requestToHandle.reason}`);
+        break;
+      case 'approve':
+        if (confirm(`คุณต้องการอนุมัติคำขอของ ${employeeName} หรือไม่?`)) {
+          await updateLeaveStatus(id, 'approve');
+        }
+        break;
+      case 'reject':
+        if (confirm(`คุณต้องการปฏิเสธคำขอของ ${employeeName} หรือไม่?`)) {
+          await updateLeaveStatus(id, 'reject');
+        }
+        break;
+      case 'edit':
+        openEditLeaveModal(id);
+        break;
+      case 'delete':
+        if (confirm(`คุณต้องการลบคำขอของ ${employeeName} (ID: ${id}) หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`)) {
+          try {
+            console.log('Deleting leave request via GMJ API:', id);
+            const res = await fetch(`${API_BASE}/${id}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+              }
+            });
+  
+            // Check response
+            if (!res.ok && res.status !== 204) {
+              const contentType = res.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || `Failed to delete (${res.status})`);
+              } else {
+                throw new Error(`Failed to delete (${res.status})`);
+              }
+            }
+  
+            alert('ลบคำขอสำเร็จ!');
+            await fetchLeaveRequests();
+          } catch (err) {
+            // Fallback to localStorage when API is not available
+            if (err.message.includes('API endpoint not available') || err.message.includes('Failed to fetch')) {
+              try {
+                // Get existing leave requests from localStorage
+                let leaveRequests = localStorage.getItem('leave_requests');
+                leaveRequests = leaveRequests ? JSON.parse(leaveRequests) : [];
+  
+                // Remove the request
+                const filteredRequests = leaveRequests.filter(r => (r._id || r.id) !== id);
+  
+                if (filteredRequests.length < leaveRequests.length) {
+                  // Save back to localStorage
+                  localStorage.setItem('leave_requests', JSON.stringify(filteredRequests));
+                  alert('ลบคำขอสำเร็จ! (ลบจากเครื่อง)');
+                  await fetchLeaveRequests();
+                } else {
+                  throw new Error('ไม่พบคำขอการลาที่ต้องการลบ');
+                }
+              } catch (localErr) {
+                console.error('Error deleting from localStorage:', localErr);
+                alert('เกิดข้อผิดพลาดในการลบ: ' + localErr.message);
+              }
+            } else {
+              console.error('Error deleting leave request:', err);
+              alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+            }
+          }
+        }
+        break;
+      case 'print':
+        // Implement print functionality or a placeholder
+        window.open(`/print/leave_form?id=${id}`, '_blank'); // Example
+        // alert(`พิมพ์ใบลา ID: ${id} (ฟังก์ชันพิมพ์ยังไม่ได้ implement)`);
+        break;
+      default:
+        console.warn('Unknown action:', action);
+    }
+  }
+
+  function applyFiltersAndRender() {
+    let filtered = [...allLeaveRequests];
+
+    // Status Filter
+    if (currentFilter.status && currentFilter.status !== 'all') {
+      filtered = filtered.filter(req => req.status === currentFilter.status);
+    }
+
+    // Search Term Filter (Employee Name)
+    if (currentFilter.searchTerm) {
+      const term = currentFilter.searchTerm.toLowerCase();
+      filtered = filtered.filter(req =>
+        (req.user?.employee?.name || req.user?.name || '').toLowerCase().includes(term)
+      );
+    }
+
+    // Date Range Filter
+    if (currentFilter.dateFrom) {
+      const fromDate = new Date(currentFilter.dateFrom);
+      fromDate.setHours(0,0,0,0); // Start of the day
+      filtered = filtered.filter(req => new Date(req.startDate) >= fromDate);
+    }
+    if (currentFilter.dateTo) {
+      const toDate = new Date(currentFilter.dateTo);
+      toDate.setHours(23, 59, 59, 999); // End of the day
+      filtered = filtered.filter(req => new Date(req.startDate) <= toDate); // Usually filter by startDate within range
+    }
+  
+    // Sorting
+    filtered.sort((a, b) => {
+      let valA, valB;
+      // Handle nested properties for sorting, e.g., user.name
+      if (currentSort.by.includes('.')) {
+          const keys = currentSort.by.split('.');
+          valA = keys.reduce((obj, key) => (obj && obj[key] !== 'undefined') ? obj[key] : '', a);
+          valB = keys.reduce((obj, key) => (obj && obj[key] !== 'undefined') ? obj[key] : '', b);
+      } else {
+          valA = a[currentSort.by];
+          valB = b[currentSort.by];
+      }
+
+      // Default to empty string if undefined, and convert to lowercase for string comparison
+      valA = valA === undefined ? '' : String(valA).toLowerCase();
+      valB = valB === undefined ? '' : String(valB).toLowerCase();
+  
+      // Specific handling for dates
+      if (currentSort.by === 'createdAt' || currentSort.by === 'startDate' || currentSort.by === 'endDate') {
+          valA = new Date(a[currentSort.by]);
+          valB = new Date(b[currentSort.by]);
+      }
+
+      if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+      if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    renderLeaveRequests(filtered);
+  }
+
+  function renderLeaveRequests(requests) {
+    const tbody = document.getElementById('leaveTableBody');
+    const emptyState = document.getElementById('emptyState');
+    if(!tbody || !emptyState) return;
+
+    tbody.innerHTML = '';
+
+    if (!requests || requests.length === 0) {
+      emptyState.classList.remove('hidden');
+      document.getElementById('paginationControls').classList.add('hidden');
+      return;
+    }
+    emptyState.classList.add('hidden');
+    document.getElementById('paginationControls').classList.remove('hidden');
+
+
+    const paginatedRequests = paginate(requests, currentPage, itemsPerPage);
+
+    paginatedRequests.forEach((req, index) => {
+      const tr = document.createElement('tr');
+      // tr.className = 'animate-fadeIn hover:bg-gray-50 dark:hover:bg-gray-700/50';
+      // tr.style.animationDelay = `${index * 50}ms`; // Animation can be performance intensive
+
+      const statusBadge = getStatusBadge(req.status);
+      const employeeName = req.user?.employee?.name || req.user?.name || 'N/A';
+      const employeeDepartment = req.user?.employee?.department || req.user?.department || 'N/A';
+      const employeePhoto = resolvePhotoUrl(req.user?.employee?.photoUrl || req.user?.photoUrl); // Use resolvePhotoUrl
+
+      tr.innerHTML = `
+        <td class="px-4 py-3 whitespace-nowrap text-sm">${formatDate(req.createdAt)}</td>
+        <td class="px-4 py-3">
+          <div class="flex items-center">
+            <div class="flex-shrink-0 h-8 w-8">
+              <img class="h-8 w-8 rounded-full object-cover" src="${employeePhoto}" alt="${employeeName}">
+            </div>
+            <div class="ml-3">
+              <div class="text-sm font-medium">${employeeName}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">${employeeDepartment}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full ${getLeaveTypeBadge(req.leaveType)}">${req.leaveType || 'N/A'}</span></td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm">${formatDate(req.startDate)}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm">${formatDate(req.endDate)}</td>
+        <td class="px-4 py-3 text-sm">${statusBadge}</td>
+        <td class="px-4 py-3 text-center">
+          <button data-action="open-manage-modal" data-id="${req._id || req.id}" class="btn btn-ghost btn-sm btn-circle text-gray-500 hover:text-blue-600 dark:hover:text-blue-400">
+            <i class="bi bi-three-dots-vertical"></i>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    renderPagination(requests.length, currentPage, itemsPerPage);
+  }
+
+  function paginate(items, page, perPage) {
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+    return items.slice(start, end);
+  }
+
+  function renderPagination(totalItems, page, perPage) {
+    const paginationControls = document.getElementById('paginationControls');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const paginationLinks = document.getElementById('paginationLinks');
+    if(!paginationControls || !paginationInfo || !paginationLinks) return;
+
+    paginationLinks.innerHTML = '';
+    if (totalItems === 0) {
+      paginationControls.classList.add('hidden');
+      return;
+    }
+    paginationControls.classList.remove('hidden');
+
+    const totalPages = Math.ceil(totalItems / perPage);
+    const startItem = (page - 1) * perPage + 1;
+    const endItem = Math.min(startItem + perPage - 1, totalItems);
+    paginationInfo.textContent = `แสดง ${startItem}-${endItem} จาก ${totalItems} รายการ`;
+
+    const createPageButton = (content, pageNum, isDisabled = false, isActive = false) => {
+        const button = document.createElement('button');
+        button.innerHTML = content;
+        button.className = `btn btn-sm ${isActive ? 'btn-active btn-primary' : 'btn-outline'}`;
+        if (isDisabled) {
+            button.classList.add('btn-disabled');
+        } else {
+            button.addEventListener('click', () => {
+                currentPage = pageNum;
+                applyFiltersAndRender();
+            });
+        }
+        return button;
+    };
+  
+    paginationLinks.appendChild(createPageButton('<i class="bi bi-chevron-left"></i>', page > 1 ? page - 1 : 1, page === 1));
+
+    let pagesToShow = [];
+    if (totalPages <= 7) { // Show all pages if 7 or less
+        for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
+    } else {
+        pagesToShow.push(1);
+        if (page > 3) pagesToShow.push('...');
+  
+        let startPage = Math.max(2, page - 1);
+        let endPage = Math.min(totalPages - 1, page + 1);
+
+        if (page <= 3) { // Near the beginning
+            startPage = 2;
+            endPage = Math.min(4, totalPages -1);
+        } else if (page >= totalPages - 2) { // Near the end
+            startPage = Math.max(2, totalPages - 3);
+            endPage = totalPages - 1;
+        }
+        // For middle pages, page-1, page, page+1 is fine
+
+        for (let i = startPage; i <= endPage; i++) pagesToShow.push(i);
+  
+        if (page < totalPages - 2 && endPage < totalPages -1) pagesToShow.push('...');
+        if (totalPages > 1) pagesToShow.push(totalPages); // Always show last page if more than 1 page
+    }
+  
+    // Remove duplicate '...' and ensure '...' are not adjacent to actual page numbers they'd replace
+    pagesToShow = pagesToShow.filter((item, index, self) => {
+        if (item === '...') {
+            return (index === 0 || self[index-1] !== '...') && // Not first and prev is not '...'
+                   (index === self.length -1 || self[index+1] !== '...') && // Not last and next is not '...'
+                   (typeof self[index-1] === 'number' && typeof self[index+1] === 'number' && self[index+1] - self[index-1] > 1); // Gap exists
+        }
+        return true;
+    });
+
+
+    pagesToShow.forEach(p => {
+        if (p === '...') {
+             const disabledBtn = document.createElement('button');
+             disabledBtn.className = 'btn btn-sm btn-disabled';
+             disabledBtn.textContent = '...';
+             paginationLinks.appendChild(disabledBtn);
+        } else {
+            paginationLinks.appendChild(createPageButton(p, p, false, p === page));
+        }
+    });
+
+    paginationLinks.appendChild(createPageButton('<i class="bi bi-chevron-right"></i>', page < totalPages ? page + 1 : totalPages, page === totalPages));
+  }
+
+
+  function updateLeaveStats() {
+    const pending = allLeaveRequests.filter(r => r.status === 'pending').length;
+    const approved = allLeaveRequests.filter(r => r.status === 'approved').length;
+    const rejected = allLeaveRequests.filter(r => r.status === 'rejected').length;
+    document.getElementById('leaveStatsPending').textContent = pending;
+    document.getElementById('leaveStatsApproved').textContent = approved;
+    document.getElementById('leaveStatsRejected').textContent = rejected;
+  }
+
+  function getStatusBadge(status) {
+    status = (status || '').toLowerCase();
+    switch (status) {
+      case 'pending':
+        return `<span class="badge badge-warning gap-1 text-xs"><i class="bi bi-hourglass-split"></i>รอยืนยัน</span>`;
+      case 'approved':
+        return `<span class="badge badge-success gap-1 text-xs"><i class="bi bi-check-circle"></i>อนุมัติแล้ว</span>`;
+      case 'rejected':
+        return `<span class="badge badge-error gap-1 text-xs"><i class="bi bi-x-circle"></i>ไม่อนุมัติ</span>`;
+      default:
+        return `<span class="badge badge-ghost gap-1 text-xs">${status || 'ไม่ทราบ'}</span>`;
+    }
+  }
+
+  function getLeaveTypeBadge(leaveType) {
+    leaveType = (leaveType || '').toLowerCase();
+    if (leaveType.includes('ป่วย') || leaveType === 'sick') return 'badge-secondary';
+    if (leaveType.includes('กิจ') || leaveType === 'personal') return 'badge-info';
+    if (leaveType.includes('พักร้อน') || leaveType === 'vacation') return 'badge-accent';
+    return 'badge-ghost';
+  }
+
+  function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+      // Format to DD/MM/YYYY (Thai Buddhist Era)
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear() + 543;
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      console.warn('Invalid date for formatting:', dateString);
+      return 'Invalid Date';
+    }
+  }
+
+  function setupEventListeners() {
+    document.getElementById('btnToggleMenu')?.addEventListener('click', () => {
+      const sb   = document.getElementById('sidebar');
+      const mc   = document.getElementById('mainContent');
+      const icon = document.querySelector('#btnToggleMenu i');
+
+      sb.classList.toggle('-translate-x-64');            // ซ่อน/โชว์ sidebar
+      if (mc) {
+        mc.classList.toggle('ml-64');
+        mc.classList.toggle('ml-0');
+      }
+      icon.classList.toggle('bi-chevron-left');
+      icon.classList.toggle('bi-chevron-right');
+    });
+    document.getElementById('menuToggle')?.addEventListener('click', () => {
+      const sb   = document.getElementById('sidebar');
+      const mc   = document.getElementById('mainContent');
+      const icon = document.querySelector('#btnToggleMenu i');
+
+      sb.classList.toggle('-translate-x-64');
+      if (mc) {
+        mc.classList.toggle('ml-64');
+        mc.classList.toggle('ml-0');
+      }
+      icon.classList.toggle('bi-chevron-left');
+      icon.classList.toggle('bi-chevron-right');
+    });
+    document.getElementById('btnToggleDark')?.addEventListener('click', toggleDarkMode);
+    document.getElementById('btnLogoutSidebar')?.addEventListener('click', () => logoutUser());
+
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+      currentFilter.searchTerm = e.target.value;
+      currentPage = 1;
+      applyFiltersAndRender();
+    });
+    document.getElementById('btnAddLeave')?.addEventListener('click', openAddLeaveModal);
+    document.getElementById('btnResetFilters')?.addEventListener('click', resetAllFilters);
+
+    document.querySelectorAll('.filter-status-item').forEach(item => {
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelectorAll('.filter-status-item').forEach(i => i.classList.remove('active', 'font-semibold'));
+        this.classList.add('active', 'font-semibold');
+        currentFilter.status = this.dataset.status;
+        currentPage = 1;
+        applyFiltersAndRender();
+        this.closest('.dropdown')?.removeAttribute('open'); // DaisyUI v3+ way to close
+        if (document.activeElement) document.activeElement.blur(); // General way
+      });
+    });
+
+    document.querySelectorAll('.sort-leave-item').forEach(item => {
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelectorAll('.sort-leave-item').forEach(i => i.classList.remove('active', 'font-semibold'));
+        this.classList.add('active', 'font-semibold');
+        currentSort.by = this.dataset.sortBy;
+        currentSort.dir = this.dataset.sortDir;
+        currentPage = 1;
+        applyFiltersAndRender();
+        this.closest('.dropdown')?.removeAttribute('open');
+        if (document.activeElement) document.activeElement.blur();
+      });
+    });
+
+    document.getElementById('btnApplyDateFilter')?.addEventListener('click', () => {
+      currentFilter.dateFrom = document.getElementById('dateFrom').value;
+      currentFilter.dateTo = document.getElementById('dateTo').value;
+      currentPage = 1;
+      applyFiltersAndRender();
+      document.getElementById('btnFilterDateRange').closest('.dropdown')?.removeAttribute('open');
+      if (document.activeElement) document.activeElement.blur();
+    });
+
+    document.getElementById('leaveTableBody').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-action="open-manage-modal"]');
+      if (button) {
+        const id = button.dataset.id;
+        openManageActionsModal(id);
+      }
+    });
+
+    document.getElementById('btnCloseLeaveModal')?.addEventListener('click', closeLeaveModal);
+    document.getElementById('btnCancelLeaveForm')?.addEventListener('click', closeLeaveModal);
+    document.getElementById('leaveForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await saveLeaveRequest();
+    });
+
+    document.getElementById('btnCloseManageActionsModal')?.addEventListener('click', closeManageActionsModal);
+    document.getElementById('manageActionsModalBody').addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (button) {
+            const action = button.dataset.action;
+            if (currentLeaveIdForModal) {
+                handleLeaveAction(action, currentLeaveIdForModal);
+            }
+            // closeManageActionsModal(); // Moved inside handleLeaveAction or handled by specific actions
+        }
+    });
+
+    // Leave Policy Management Event Listeners
+    document.getElementById('openPolicyModal')?.addEventListener('click', openPolicyModal);
+    document.getElementById('btnClosePolicyModal')?.addEventListener('click', closePolicyModal);
+    document.getElementById('btnCreatePolicy')?.addEventListener('click', openCreatePolicyForm);
+    document.getElementById('btnCloseEditAllocationModal')?.addEventListener('click', closeEditAllocationModal);
+    document.getElementById('addNewAllocationBtn')?.addEventListener('click', () => {
+      editAllocation('', ''); // เปิด modal สำหรับสร้างใหม่
+    });
+
+    // Employee Search in Allocation Modal
+    document.getElementById('employeeSearchInput')?.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      filteredAllocations = allAllocations.filter(allocation => {
+        const user = allocation.user;
+        const emp = user?.employee;
+        return (emp?.name || '').toLowerCase().includes(searchTerm) ||
+               (user?.email || '').toLowerCase().includes(searchTerm) ||
+               (emp?.department || '').toLowerCase().includes(searchTerm);
+      });
+      updateAllocationTable();
+    });
+
+    // Allocation Form Submission
+    document.getElementById('allocationForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const allocationId = document.getElementById('allocationId').value;
+      const userId = document.getElementById('allocationUserId').value ||
+                     document.getElementById('allocationEmployeeSelect').value;
+      const year = document.getElementById('allocationYear').value;
+      const allocation = {
+        annual: parseInt(document.getElementById('allocationAnnual').value),
+        sick: parseInt(document.getElementById('allocationSick').value),
+        personal: parseInt(document.getElementById('allocationPersonal').value),
+        special: parseInt(document.getElementById('allocationSpecial').value)
+      };
+
+      if (!userId) {
+        alert('กรุณาเลือกพนักงาน');
+        return;
+      }
+
+      try {
+        const method = allocationId ? 'PUT' : 'POST';
+        const url = allocationId ?
+          `${API_HOST}/api/hr/leave-allocations/${allocationId}` :
+          `${API_HOST}/api/hr/leave-allocations`;
+
+        const payload = allocationId ? { allocation } : { userId, year, allocation };
+
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Failed to save allocation');
+        }
+
+        const result = await res.json();
+        alert(result.message || 'บันทึกการกำหนดวันลาเรียบร้อยแล้ว');
+
+        closeEditAllocationModal();
+        await fetchLeavePolicy(); // รีเฟรชข้อมูล
+      } catch (err) {
+        console.error('Save allocation error:', err);
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      }
+    });
+  }
+
+  function resetAllFilters() {
+    currentFilter = { status: 'all', dateFrom: '', dateTo: '', searchTerm: '' };
+    currentSort = { by: 'createdAt', dir: 'desc' };
+    currentPage = 1;
+  
+    const searchInput = document.getElementById('searchInput');
+    if(searchInput) searchInput.value = '';
+    const dateFromInput = document.getElementById('dateFrom');
+    if(dateFromInput) dateFromInput.value = '';
+    const dateToInput = document.getElementById('dateTo');
+    if(dateToInput) dateToInput.value = '';
+  
+    document.querySelectorAll('.filter-status-item.active').forEach(i => i.classList.remove('active', 'font-semibold'));
+    document.querySelector('.filter-status-item[data-status="all"]')?.classList.add('active', 'font-semibold');
+  
+    document.querySelectorAll('.sort-leave-item.active').forEach(i => i.classList.remove('active', 'font-semibold'));
+    document.querySelector('.sort-leave-item[data-sort-by="createdAt"][data-sort-dir="desc"]')?.classList.add('active', 'font-semibold');
+
+    applyFiltersAndRender();
+  }
+
+  function toggleMenu() {
+    const sb   = document.getElementById('sidebar');
+    const mc   = document.getElementById('mainContent');
+    const icon = document.querySelector('#btnToggleMenu i');
+
+    // ซ่อน/โชว์ sidebar ด้วย translate-x
+    sb.classList.toggle('-translate-x-64');
+    // ปรับ margin-left ของ main content
+    if (mc) {
+      mc.classList.toggle('ml-64');
+      mc.classList.toggle('ml-0');
+    }
+    // เปลี่ยนลูกศร
+    icon.classList.toggle('bi-chevron-left');
+    icon.classList.toggle('bi-chevron-right');
+  }
+
+  function checkSidebarState() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    if (sidebar) {
+        const isSidebarStoredCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        const icon = document.querySelector('#btnToggleMenu i');
+        if (isSidebarStoredCollapsed) {
+            sidebar.classList.add('-translate-x-64');
+            if (mainContent) {
+              mainContent.classList.remove('ml-64');
+              mainContent.classList.add('ml-0');
+            }
+            if (icon) icon.classList.replace('bi-chevron-left', 'bi-chevron-right');
+        } else {
+            sidebar.classList.remove('-translate-x-64');
+            if (mainContent) {
+              mainContent.classList.remove('ml-0');
+              mainContent.classList.add('ml-64');
+            }
+             if (icon) icon.classList.replace('bi-chevron-right', 'bi-chevron-left');
+        }
+    }
+  }
+
+  function setDarkMode(isDark) {
+    const htmlElement = document.documentElement;
+    htmlElement.classList.toggle('dark', isDark);
+    // For DaisyUI, setting the data-theme attribute is important
+    htmlElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
+    localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+    const label = document.getElementById('darkModeLabel');
+    const iconElement = document.querySelector('#btnToggleDark i');
+  
+    if (label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    if (iconElement) {
+        iconElement.className = isDark ? 'bi bi-sun text-xl text-yellow-400' : 'bi bi-moon text-xl text-slate-600';
+    }
+  }
+
+  function toggleDarkMode() {
+    const isDarkNow = document.documentElement.classList.contains('dark');
+    setDarkMode(!isDarkNow); // Toggle to the opposite state
+  }
+
+  function checkDarkMode() {
+    // Check localStorage first, then system preference
+    const storedDarkMode = localStorage.getItem('darkMode');
+    let initialIsDark;
+    if (storedDarkMode !== null) {
+        initialIsDark = storedDarkMode === 'true';
+    } else {
+        initialIsDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    setDarkMode(initialIsDark);
+  }
+
+  function logoutUser(showAlert = true) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userInfo'); // Clear specific user info
+    // Optionally clear sidebar and dark mode preferences on logout
+    // localStorage.removeItem('sidebarCollapsed');
+    // localStorage.removeItem('darkMode');
+    if (showAlert) alert('ออกจากระบบแล้ว');
+    window.location.href = '/login'; // Ensure this is your login page
+  }
+
+  function openAddLeaveModal() {
+    document.getElementById('leaveModalTitle').textContent = 'เพิ่มคำขอการลา';
+    const form = document.getElementById('leaveForm');
+    if(form) form.reset();
+    const leaveRequestIdInput = document.getElementById('leaveRequestId');
+    if(leaveRequestIdInput) leaveRequestIdInput.value = '';
+  
+    const employeeSelect = document.getElementById('employeeSelectModal');
+    if (employeeSelect && currentUserId) { // Pre-select current user
+        employeeSelect.value = currentUserId;
+    } else if (employeeSelect) {
+        employeeSelect.value = ''; // Default to no selection if currentUserId is not available
+    }
+
+    document.getElementById('leaveModal').classList.remove('hidden');
+    document.getElementById('leaveModal').classList.add('flex');
+  }
+
+  async function openEditLeaveModal(leaveId) {
+    const request = allLeaveRequests.find(r => (r._id || r.id) === leaveId);
+    if (!request) {
+      alert('ไม่พบข้อมูลการลา');
+      return;
+    }
+    document.getElementById('leaveModalTitle').textContent = 'แก้ไขคำขอการลา';
+    const form = document.getElementById('leaveForm');
+    if(form) form.reset();
+  
+    const leaveRequestIdInput = document.getElementById('leaveRequestId');
+    if(leaveRequestIdInput) leaveRequestIdInput.value = leaveId;
+
+    // Ensure user ID is correctly referenced
+    const userIdToSelect = request.user?._id || request.user; // request.user might be just an ID or an object
+    const employeeSelect = document.getElementById('employeeSelectModal');
+    if(employeeSelect) employeeSelect.value = userIdToSelect || '';
+
+    const leaveTypeModal = document.getElementById('leaveTypeModal');
+    if(leaveTypeModal) leaveTypeModal.value = request.leaveType || 'sick';
+  
+    const startDateModal = document.getElementById('startDateModal');
+    if(startDateModal) startDateModal.value = request.startDate ? request.startDate.split('T')[0] : '';
+  
+    const endDateModal = document.getElementById('endDateModal');
+    if(endDateModal) endDateModal.value = request.endDate ? request.endDate.split('T')[0] : '';
+  
+    const reasonModal = document.getElementById('reasonModal');
+    if(reasonModal) reasonModal.value = request.reason || '';
+
+    document.getElementById('leaveModal').classList.remove('hidden');
+    document.getElementById('leaveModal').classList.add('flex');
+  }
+
+  function closeLeaveModal() {
+    document.getElementById('leaveModal').classList.add('hidden');
+    document.getElementById('leaveModal').classList.remove('flex');
+  }
+
+  function openManageActionsModal(leaveId) {
+    currentLeaveIdForModal = leaveId;
+    const request = allLeaveRequests.find(r => (r._id || r.id) === leaveId);
+    if (!request) {
+        console.error('Request not found for ID in openManageActionsModal:', leaveId);
+        return;
+    }
+
+    const modalBody = document.getElementById('manageActionsModalBody');
+    if(!modalBody) return;
+    modalBody.innerHTML = '';
+
+    const employeeName = request.user?.employee?.name || request.user?.name || 'N/A';
+    const modalTitle = document.getElementById('manageActionsModalTitle');
+    if(modalTitle) modalTitle.textContent = `จัดการคำขอ (${employeeName.substring(0,15)}${employeeName.length > 15 ? '...' : ''})`;
+
+    const createActionButton = (action, text, iconClass, extraClasses = '') => {
+        const button = document.createElement('button');
+        button.dataset.action = action;
+        // DaisyUI button classes
+        button.className = `btn btn-sm w-full my-1 ${extraClasses}`;
+        // Align icon and text using flex
+        button.innerHTML = `<span class="flex items-center justify-start w-full"><i class="bi ${iconClass} mr-2"></i>${text}</span>`;
+        modalBody.appendChild(button);
+    };
+
+    createActionButton('view', 'ดูรายละเอียด', 'bi-eye', 'btn-outline');
+    if (request.status === 'pending') {
+        createActionButton('approve', 'อนุมัติ', 'bi-check2-circle', 'btn-outline btn-success');
+        createActionButton('reject', 'ไม่อนุมัติ', 'bi-x-circle', 'btn-outline btn-error');
+        createActionButton('edit', 'แก้ไข', 'bi-pencil', 'btn-outline btn-info');
+    }
+    if (request.status === 'approved') { // Typically, only print is available after approval
+        createActionButton('print', 'พิมพ์ใบลา', 'bi-printer', 'btn-outline');
+    }
+    // Allow delete for most statuses, or adjust based on your business rules
+    createActionButton('delete', 'ลบคำขอ', 'bi-trash', 'btn-outline btn-warning');
+
+    document.getElementById('manageActionsModal').classList.remove('hidden');
+    document.getElementById('manageActionsModal').classList.add('flex');
+  }
+
+  function closeManageActionsModal() {
+    document.getElementById('manageActionsModal').classList.add('hidden');
+    document.getElementById('manageActionsModal').classList.remove('flex');
+    currentLeaveIdForModal = null;
+  }
+</script>
+
+<!-- Leave Policy Management Modal -->
+<div id="policyModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden items-center justify-center z-[100] p-4">
+  <div class="modal-box w-full max-w-4xl dark:bg-gray-800">
+    <div class="flex justify-between items-center pb-3 border-b dark:border-gray-700">
+      <h3 class="text-xl font-semibold">จัดการนโยบายการลา</h3>
+      <button id="btnClosePolicyModal" class="btn btn-sm btn-circle btn-ghost">✕</button>
+    </div>
+    <div class="pt-4">
+      <div id="policyContent" class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h4 class="text-lg font-medium">นโยบายการลาปัจจุบัน</h4>
+          <button id="btnCreatePolicy" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> สร้างนโยบายใหม่
+          </button>
+        </div>
+
+        <div id="currentPolicy" class="bg-base-200 dark:bg-gray-700 rounded-lg p-4">
+          <div class="text-center text-gray-500 py-8">
+            <i class="bi bi-clock-history text-3xl mb-2"></i>
+            <p>กำลังโหลดข้อมูลนโยบายการลา...</p>
+          </div>
+        </div>
+
+        <div id="policyHistory" class="mt-6">
+          <h5 class="text-md font-medium mb-3">ประวัตินโยบาย</h5>
+          <div id="policyHistoryList" class="space-y-2">
+            <!-- History items will be populated here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

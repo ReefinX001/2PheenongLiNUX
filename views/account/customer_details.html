@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รายละเอียดลูกหนี้</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class','
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff','
+              100: '#e0f2fe','
+              500: '#0ea5e9','
+              600: '#0284c7','
+            }
+          }
+        },
+      }
+    }
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent {
+      flex: 1;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;'
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+    
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+    
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+    
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+    
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+    }
+    
+    .btn-rounded {
+      border-radius: 30px;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+    
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+    
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+    
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .page-link {
+      min-width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      text-decoration: none;
+      margin: 0 2px;
+    }
+    
+    .dark .page-link {
+      border-color: #4a5568;
+      color: #d1d5db;
+    }
+    
+    .page-link:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .page-link:hover {
+      background-color: #374151;
+    }
+    
+    .page-link.active {
+      background-color: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+    
+    .dark .account-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .account-list li {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    
+    .dark .account-list li {
+      border-bottom-color: #4a5568;
+    }
+    
+    .account-list li:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .account-list li:hover {
+      background-color: #374151;
+    }
+    
+    .account-list li.active {
+      background-color: #f0f9ff;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .dark .account-list li.active {
+      background-color: #1a4971;
+      color: #38bdf8;
+    }
+    
+    .date-range {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dark .date-range {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .date-range:focus {
+      border-color: #0ea5e9;
+      outline: none;
+    }
+    
+    .negative-value {
+      color: #ef4444;
+    }
+    
+    .dark .negative-value {
+      color: #f87171;
+    }
+    
+    .5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
+    }
+    
+    .dark .4);
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .flex-none {
+      flex: none;
+    }
+    
+    .01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .3;
+      transition: 0s;
+    }
+    
+    /* Dropdown menu styling */
+    .5rem 1rem; /* Adjust as needed */
+      cursor: pointer;
+      align-items: center; /* Vertically align icon and text */
+    }
+    
+    /* First Level Dropdown Panel */
+    .1); /* From Tailwind: shadow-lg */
+      border-radius: 0.375rem; /* From Tailwind: rounded-lg */
+      min-width: 220px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 40; /* Ensure dropdown is above other content but below higher-level modals if any */
+      padding: 0.5rem; /* From Tailwind: p-2 */
+    }
+    
+    .dark .5rem; /* Adjust to align with parent li, considering parent ul padding */
+      left: 100%;
+      /* Inherit background, shadow, radius, min-width, padding from first-level or define specifically */
+      background: white; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      border-radius: 0.375rem;
+      min-width: 220px; /* Or adjust as needed */
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(10px); /* Fly-out from right */
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 45; /* Higher than first-level dropdown */
+      padding: 0.5rem;
+    }
+    
+    .dark .5rem 1rem; /* Tailwind: px-4 py-2 */
+      color: #374151; /* Tailwind: text-gray-700 */
+      text-decoration: none;
+      border-radius: 0.25rem; /* Tailwind: rounded-md */
+      white-space: nowrap; /* Prevent text wrapping in menu items */
+    }
+    
+    .dark .dark .2s, padding-left 0.2s;
+      border-left: 3px solid transparent;
+      margin-bottom: 2px; /* Spacing between items */
+    }
+    
+    .25rem; */ /* Original style, can be kept or removed */
+    }
+    
+    /* User badge */
+    .1);
+      border-radius: 30px;
+    }
+    
+    .dark .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .expense-voucher {
+      margin-left: 20px;
+      position: relative;
+    }
+    
+    .expense-voucher::before {
+      content: '';'
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background-color: #cbd5e0;
+    }
+    
+    .dark .expense-voucher::before {
+      background-color: #4a5568;
+    }
+    
+    /* Income Statement specific styles */
+    .fin-statement-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .fin-statement-table td {
+      padding: 10px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .fin-statement-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .fin-statement-table .item-title {
+      font-weight: 500;
+    }
+    
+    .fin-statement-table .bold {
+      font-weight: 600;
+    }
+    
+    .fin-statement-table .section-header {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    
+    .dark .fin-statement-table .section-header {
+      color: #f9fafb;
+    }
+    
+    .fin-statement-table .section-total {
+      font-weight: 600;
+      color: #1e40af;
+      background-color: #f0f9ff;
+    }
+    
+    .dark .fin-statement-table .section-total {
+      color: #93c5fd;
+      background-color: #1e3a8a;
+    }
+    
+    .fin-statement-table .grand-total {
+      font-weight: 700;
+      color: #0284c7;
+      background-color: #e0f2fe;
+      font-size: 1.05rem;
+    }
+    
+    .dark .fin-statement-table .grand-total {
+      color: #38bdf8;
+      background-color: #075985;
+    }
+    
+    .fin-statement-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .fin-statement-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .overview-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      background-color: white;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .dark .overview-card {
+      background-color: #1e293b;
+    }
+    
+    .overview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .metric-label {
+      color: #9ca3af;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    
+    .dark .metric-value {
+      color: #f9fafb;
+    }
+    
+    .trend-up {
+      color: #10b981;
+    }
+    
+    .trend-down {
+      color: #ef4444;
+    }
+    
+    .dark .trend-up {
+      color: #34d399;
+    }
+    
+    .dark .trend-down {
+      color: #f87171;
+    }
+    
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+    
+    .view-switcher {
+      display: flex;
+      padding: 0.25rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-switcher {
+      background-color: #374151;
+    }
+    
+    .view-option {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .view-option.active {
+      background-color: white;
+      color: #0ea5e9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .view-option.active {
+      background-color: #1f2937;
+      color: #38bdf8;
+    }
+    
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      background-color: white;
+      color: #374151;
+      transition: all 0.2s;
+    }
+    
+    .dark .action-button {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .action-button:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+    
+    .dark .action-button:hover {
+      background-color: #374151;
+      border-color: #6b7280;
+    }
+    
+    .period-selector {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      background-color: white;
+      font-size: 0.875rem;
+      color: #374151;
+      outline: none;
+    }
+    
+    .dark .period-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Dashboard Card Styles */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .dark .dashboard-card {
+      background-color: #1e293b;
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-title {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-title {
+      color: #9ca3af;
+    }
+    
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-value {
+      color: #f9fafb;
+    }
+    
+    .comparison-value {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .comparison-up {
+      color: #10b981;
+    }
+    
+    .comparison-down {
+      color: #ef4444;
+    }
+    
+    .dark .comparison-up {
+      color: #34d399;
+    }
+    
+    .dark .comparison-down {
+      color: #f87171;
+    }
+    
+    /* Menu bar styles */
+    .5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .dark .75rem 1.25rem;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .dark .active {
+      border-bottom-color: #0ea5e9;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .month-selector {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: white;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    
+    .dark .month-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Display toggle */
+    .display-toggle {
+      display: flex;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.25rem;
+    }
+    
+    .dark .display-toggle {
+      background-color: #334155;
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .toggle-btn.active {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      color: #0ea5e9;
+    }
+    
+    .dark .toggle-btn.active {
+      background-color: #1f2937;
+    }
+    
+    /* Financial table */
+    .view-container {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-container {
+      background-color: #1e293b;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .financial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .financial-table th {
+      background-color: #f8f9fa;
+      color: #6b7280;
+      font-weight: 500;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table th {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table td {
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table .section-header {
+      font-weight: 600;
+      background-color: #f3f4f6;
+      color: #111827;
+      padding: 0.75rem 1rem;
+    }
+    
+    .dark .financial-table .section-header {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+    
+    .financial-table .subsection-header {
+      font-weight: 500;
+      color: #4b5563;
+      padding: 0.75rem 1rem;
+      background-color: #f9fafb;
+    }
+    
+    .dark .financial-table .subsection-header {
+      background-color: #1f2937;
+      color: #e5e7eb;
+    }
+    
+    .financial-table .amount {
+      text-align: right;
+      position: relative;
+    }
+    
+    .financial-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .financial-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .financial-table .total-row {
+      background-color: #e0f2fe;
+      font-weight: 600;
+    }
+    
+    .dark .financial-table .total-row {
+      background-color: #0c4a6e;
+    }
+    
+    .comparison-value {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .financial-table {
+        font-size: 0.875rem;
+      }
+      
+      .card-value {
+        font-size: 1.25rem;
+      }
+      
+      .view-container {
+        padding: 1rem;
+      }
+    }
+    
+    @media print {
+      .display-toggle, .dashboard-cards {
+        display: none;
+      }
+      
+      .view-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      body {
+        font-size: 12pt;
+      }
+    }
+    
+    /* Thai Calendar Styles */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+    }
+    
+    .dark .date-picker-input {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .thai-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      width: 280px;
+      display: none;
+    }
+    
+    .dark .thai-calendar {
+      background-color: #1e293b;
+      border-color: #4b5563;
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .month-year {
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #6b7280;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .dark .nav-btn {
+      color: #9ca3af;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+    }
+    
+    .day-name {
+      text-align: center;
+      font-weight: 500;
+      color: #6b7280;
+      font-size: 0.85rem;
+      padding: 4px 0;
+    }
+    
+    .dark .day-name {
+      color: #9ca3af;
+    }
+    
+    .calendar-dates {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .date-cell {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin: 1px;
+    }
+    
+    .date-cell:hover:not(.disabled) {
+      background-color: #f3f4f6;
+      border-radius: 50%;
+    }
+    
+    .dark .date-cell:hover:not(.disabled) {
+      background-color: #374151;
+    }
+    
+    .date-cell.disabled {
+      color: #d1d5db;
+      cursor: default;
+      opacity: 0.4;
+    }
+    
+    .dark .date-cell.disabled {
+      color: #6b7280;
+    }
+    
+    .date-cell.selected {
+      background-color: #0ea5e9;
+      color: white;
+      border-radius: 50%;
+    }
+    
+    .date-cell.today {
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      font-weight: 500;
+    }
+    
+    .dark .date-cell.today {
+      border-color: #38bdf8;
+    }
+  </style>
+  
+   <!-- Template สำหรับเมนู -->
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+  <!-- Account Menu Styles -->
+  <link rel="stylesheet" href="/css/account-menu.css">
+</head>
+
+<body class="bg-white dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Spinner -->
+<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="loader"></div>
+</div>
+  <div id="mainContent" class="container mx-auto px-4 py-6">
+    <!-- Navbar -->
+    <!-- Account System Navbar Template -->
+<div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0">
+  <div class="flex-1 flex items-center space-x-6">
+    <img src="/uploads/Logo2.png"
+         alt="Logo"
+         class="rounded-full shadow-lg"
+         style="width: 40px; height: 40px;" />
+    <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี</span>
+    <!-- Menu Container -->
+    <div id="mainMenuContainer" class="ml-auto"></div>
+  </div>
+  <div class="flex-none flex items-center space-x-2">
+    <!-- User Profile Section -->
+    <div class="flex items-center space-x-3 mr-4">
+      <img id="employeePhoto"
+           alt="Profile"
+           class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600"
+           src="/img/default-avatar.svg">
+      <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+    </div>
+
+    <!-- Dark Mode Toggle -->
+    <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+      <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+      <span id="darkModeLabel">Dark Mode</span>
+    </button>
+
+    <!-- Logout Button -->
+    <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+      <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- Breadcrumb -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
+      <nav class="flex" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+          <li class="inline-flex items-center">
+            <a href="dashboard" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+              <i class="bi bi-house-door-fill mr-2"></i>
+              หน้าหลัก
+            </a>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <i class="bi bi-chevron-right text-gray-400"></i>
+              <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">ขาย</span>
+            </div>
+          </li>
+          <li aria-current="page">
+            <div class="flex items-center">
+              <i class="bi bi-chevron-right text-gray-400"></i>
+              <span class="ml-1 text-sm font-medium text-gray-700 md:ml-2 dark:text-gray-300">รายละเอียดลูกหนี้</span>
+            </div>
+          </li>
+        </ol>
+      </nav>
+    </div>
+
+    <!-- Customer Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div class="overview-card bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-blue-100 text-sm font-medium">ลูกหนี้ทั้งหมด</p>
+            <p class="text-2xl font-bold" id="totalCustomers">0</p>
+          </div>
+          <div class="bg-white bg-opacity-20 p-3 rounded-full">
+            <i class="bi bi-people text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="overview-card bg-gradient-to-r from-green-500 to-green-600 text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-green-100 text-sm font-medium">ยอดค้างรับทั้งหมด</p>
+            <p class="text-2xl font-bold" id="totalOutstanding">฿0.00</p>
+          </div>
+          <div class="bg-white bg-opacity-20 p-3 rounded-full">
+            <i class="bi bi-cash-stack text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="overview-card bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-orange-100 text-sm font-medium">ค้างชำระเกิน 30 วัน</p>
+            <p class="text-2xl font-bold" id="overdueCustomers">0</p>
+          </div>
+          <div class="bg-white bg-opacity-20 p-3 rounded-full">
+            <i class="bi bi-clock-history text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="overview-card bg-gradient-to-r from-red-500 to-red-600 text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-red-100 text-sm font-medium">ยอดเกิน 90 วัน</p>
+            <p class="text-2xl font-bold" id="criticalOverdue">฿0.00</p>
+          </div>
+          <div class="bg-white bg-opacity-20 p-3 rounded-full">
+            <i class="bi bi-exclamation-triangle text-2xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+          <!-- Search -->
+          <div class="relative">
+            <input type="text" id="searchCustomer" placeholder="ค้นหาลูกหนี้..." 
+                   class="form-control pl-10 w-64">
+            <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+          </div>
+
+          <!-- Status Filter -->
+          <select id="statusFilter" class="dropdown-select">
+            <option value="">ทุกสถานะ</option>
+            <option value="current">ปกติ</option>
+            <option value="overdue">ค้างชำระ</option>
+            <option value="critical">วิกฤต (เกิน 90 วัน)</option>
+          </select>
+
+          <!-- Amount Range Filter -->
+          <select id="amountFilter" class="dropdown-select">
+            <option value="">ทุกยอดเงิน</option>
+            <option value="0-10000">0 - 10,000 บาท</option>
+            <option value="10000-50000">10,000 - 50,000 บาท</option>
+            <option value="50000-100000">50,000 - 100,000 บาท</option>
+            <option value="100000+">มากกว่า 100,000 บาท</option>
+          </select>
+
+          <!-- Branch Filter -->
+  <select id="branchFilter" class="dropdown-select">
+    <option value="">ทุกสาขา</option>
+    <option value="สาขาหลัก">สาขาหลัก</option>
+    <option value="สาขาย่อย1">สาขาย่อย1</option>
+    <option value="สาขาย่อย2">สาขาย่อย2</option>
+  </select>
+        </div>
+
+        <div class="flex space-x-2">
+          <button id="btnRefresh" class="action-button">
+            <i class="bi bi-arrow-clockwise"></i>
+            รีเฟรช
+          </button>
+          <button id="btnExportExcel" class="action-button">
+            <i class="bi bi-file-excel"></i>
+            ส่งออก Excel
+          </button>
+          <button id="btnExportPDF" class="action-button">
+            <i class="bi bi-file-pdf"></i>
+            ส่งออก PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer List Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">รายการลูกหนี้</h3>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="table financial-table">
+          <thead>
+            <tr>
+              <th class="w-12">
+                <input type="checkbox" id="selectAll" class="rounded">
+              </th>
+              <th>รหัสลูกหนี้</th>
+              <th>ชื่อลูกหนี้</th>
+              <th>เบอร์โทร</th>
+              <th class="text-right">ยอดค้างรับ</th>
+              <th class="text-right">วันครบกำหนด</th>
+              <th class="text-center">จำนวนวันที่ค้าง</th>
+              <th class="text-center">สถานะ</th>
+              <th class="text-center">การดำเนินการ</th>
+            </tr>
+          </thead>
+          <tbody id="customerTableBody">
+            <!-- Customer rows will be inserted here by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-gray-500 dark:text-gray-400">
+            แสดง <span id="showingStart">1</span> ถึง <span id="showingEnd">10</span> จาก <span id="totalRecords">0</span> รายการ
+          </div>
+          <div class="flex space-x-1" id="paginationContainer">
+            <!-- Pagination buttons will be inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer Detail Modal -->
+    <div id="customerModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+      <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">รายละเอียดลูกหนี้</h3>
+            <button id="closeModal" class="text-gray-400 hover:text-gray-600">
+              <i class="bi bi-x-lg text-xl"></i>
+            </button>
+          </div>
+          
+          <div class="p-6" id="modalContent">
+            <!-- Modal content will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Sample customer data
+    const customerData = [
+      {
+        id: 'C001','
+        name: 'บริษัท ABC จำกัด','
+        phone: '02-123-4567','
+        outstanding: 150000,
+        dueDate: '2024-01-15','
+        daysOverdue: 45,
+        status: 'overdue','
+        email: 'contact@abc.co.th','
+        address: '123 ถนนสุขุมวิท กรุงเทพมหานคร 10110''
+      },
+      {
+        id: 'C002','
+        name: 'ร้านค้าดีดี','
+        phone: '081-234-5678','
+        outstanding: 75000,
+        dueDate: '2024-02-20','
+        daysOverdue: 10,
+        status: 'overdue','
+        email: 'shop@deedee.com','
+        address: '456 ถนนรัชดาภิเษก กรุงเทพมหานคร 10310''
+      },
+      {
+        id: 'C003','
+        name: 'บริษัท XYZ จำกัด','
+        phone: '02-987-6543','
+        outstanding: 250000,
+        dueDate: '2024-03-10','
+        daysOverdue: 0,
+        status: 'current','
+        email: 'info@xyz.co.th','
+        address: '789 ถนนพหลโยธิน กรุงเทพมหานคร 10400''
+      },
+      {
+        id: 'C004','
+        name: 'ห้างหุ้นส่วน กกก','
+        phone: '089-876-5432','
+        outstanding: 320000,
+        dueDate: '2023-10-15','
+        daysOverdue: 95,
+        status: 'critical','
+        email: 'contact@ggg.com','
+        address: '321 ถนนเพชรบุรี กรุงเทพมหานคร 10310''
+      },
+      {
+        id: 'C005','
+        name: 'ร้านอาหารอร่อย','
+        phone: '092-345-6789','
+        outstanding: 45000,
+        dueDate: '2024-02-28','
+        daysOverdue: 2,
+        status: 'overdue','
+        email: 'delicious@food.com','
+        address: '654 ถนนสีลม กรุงเทพมหานคร 10500''
+      }
+    ];
+
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredData = [...customerData];
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      loadMainMenu();
+      initializeDarkMode();
+      loadUserInfo();
+      updateOverviewCards();
+      renderCustomerTable();
+      setupEventListeners();
+    });
+
+    function updateOverviewCards() {
+      const totalCustomers = customerData.length;
+      const totalOutstanding = customerData.reduce((sum, customer) => sum + customer.outstanding, 0);
+      const overdueCustomers = customerData.filter(c => c.status === 'overdue' || c.status === 'critical').length;'
+      const criticalOverdue = customerData.filter(c => c.status === 'critical').reduce((sum, customer) => sum + customer.outstanding, 0);'
+
+      document.getElementById('totalCustomers').textContent = totalCustomers.toLocaleString();'
+      document.getElementById('totalOutstanding').textContent = '฿' + totalOutstanding.toLocaleString('th-TH', {minimumFractionDigits: 2});'
+      document.getElementById('overdueCustomers').textContent = overdueCustomers.toLocaleString();'
+      document.getElementById('criticalOverdue').textContent = '฿' + criticalOverdue.toLocaleString('th-TH', {minimumFractionDigits: 2});'
+    }
+
+    function renderCustomerTable() {
+      const tbody = document.getElementById('customerTableBody');'
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentData = filteredData.slice(startIndex, endIndex);
+
+      tbody.innerHTML = '';'
+
+      currentData.forEach(customer => {
+        const statusBadge = getStatusBadge(customer.status);
+        const daysOverdueText = customer.daysOverdue > 0 ? `${customer.daysOverdue} วัน` : '-';'
+        
+        const row = `
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td>
+              <input type="checkbox" class="customer-checkbox rounded" value="${customer.id}">
+            </td>
+            <td class="font-medium">${customer.id}</td>
+            <td class="font-medium">${customer.name}</td>
+            <td>${customer.phone}</td>
+            <td class="text-right font-medium ${customer.outstanding "> 0 ? 'text-red-600 dark:text-red-400' : ''}">'
+              ฿${customer.outstanding.toLocaleString('th-TH', {minimumFractionDigits: 2})}'
+            </td>
+            <td class="text-right">${formatThaiDate(customer.dueDate)}</td>
+            <td class="text-center ${customer.daysOverdue "> 0 ? 'text-red-600 dark:text-red-400 font-medium' : ''}">${daysOverdueText}</td>'
+            <td class="text-center">${statusBadge}</td>
+            <td class="text-center">
+              <div class="flex justify-center space-x-1">
+                <button onclick="viewCustomerDetail('${customer.id}')" class="text-blue-600 hover:text-blue-800 p-1" title="ดูรายละเอียด">'
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button onclick="editCustomer('${customer.id}')" class="text-green-600 hover:text-green-800 p-1" title="แก้ไข">'
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button onclick="sendReminder('${customer.id}')" class="text-orange-600 hover:text-orange-800 p-1" title="ส่งใบแจ้งหนี้">'
+                  <i class="bi bi-envelope"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+
+      updatePagination();
+    }
+
+    function getStatusBadge(status) {
+      const badges = {
+        current: '<span class="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">ปกติ</span>','
+        overdue: '<span class="px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300 rounded-full">ค้างชำระ</span>','
+        critical: '<span class="px-2 py-1 text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 rounded-full">วิกฤต</span>''
+      };
+      return badges[status] || badges.current;
+    }
+
+    function formatThaiDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('th-TH', {'
+        year: 'numeric','
+        month: 'short','
+        day: 'numeric''
+      });
+    }
+
+    function updatePagination() {
+      const totalItems = filteredData.length;
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      const startItem = (currentPage - 1) * itemsPerPage + 1;
+      const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+      document.getElementById('showingStart').textContent = totalItems > 0 ? startItem : 0;'
+      document.getElementById('showingEnd').textContent = endItem;'
+      document.getElementById('totalRecords').textContent = totalItems;'
+
+      const paginationContainer = document.getElementById('paginationContainer');'
+      let paginationHTML = '';'
+
+      // Previous button
+      if (currentPage > 1) {
+        paginationHTML += `<button onclick="changePage(${currentPage - 1})" class="page-link">
+          <i class="bi bi-chevron-left"></i>
+        </button>`;
+      }
+
+      // Page numbers
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+          paginationHTML += `<button class="page-link active">${i}</button>`;
+        } else if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+          paginationHTML += `<button onclick="changePage(${i})" class="page-link">${i}</button>`;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+          paginationHTML += `<span class="page-link">...</span>`;
+        }
+      }
+
+      // Next button
+      if (currentPage < totalPages) {
+        paginationHTML += `<button onclick="changePage(${currentPage + 1})" class="page-link">
+          <i class="bi bi-chevron-right"></i>
+        </button>`;
+      }
+
+      paginationContainer.innerHTML = paginationHTML;
+    }
+
+    function changePage(page) {
+      currentPage = page;
+      renderCustomerTable();
+    }
+
+    function setupEventListeners() {
+      // Search functionality
+      document.getElementById('searchCustomer').addEventListener('input', function(e) {'
+        const searchTerm = e.target.value.toLowerCase();
+        filteredData = customerData.filter(customer => 
+          customer.name.toLowerCase().includes(searchTerm) ||
+          customer.id.toLowerCase().includes(searchTerm) ||
+          customer.phone.includes(searchTerm)
+        );
+        currentPage = 1;
+        renderCustomerTable();
+      });
+
+      // Status filter
+      document.getElementById('statusFilter').addEventListener('change', function(e) {'
+        const status = e.target.value;
+        const searchTerm = document.getElementById('searchCustomer').value.toLowerCase();'
+        
+        // Apply both filters
+        filteredData = customerData.filter(customer => {
+          const matchesStatus = !status || customer.status === status;
+          const matchesSearch = !searchTerm || 
+            customer.name.toLowerCase().includes(searchTerm) ||
+            customer.id.toLowerCase().includes(searchTerm) ||
+            customer.phone.includes(searchTerm);
+          return matchesStatus && matchesSearch;
+        });
+        
+        currentPage = 1;
+        renderCustomerTable();
+      });
+
+      // Amount filter - Fixed parsing
+      document.getElementById('amountFilter').addEventListener('change', function(e) {'
+        const range = e.target.value;
+        const searchTerm = document.getElementById('searchCustomer').value.toLowerCase();'
+        const statusFilter = document.getElementById('statusFilter').value;'
+        
+        filteredData = customerData.filter(customer => {
+          // Amount filter
+          let matchesAmount = true;
+          if (range) {
+            if (range.includes('+')) {'
+              const min = parseInt(range.replace('+', ''));'
+              matchesAmount = customer.outstanding >= min;
+            } else {
+              const [min, max] = range.split('-').map(v => parseInt(v));'
+              matchesAmount = customer.outstanding >= min && customer.outstanding <= max;
+            }
+          }
+          
+          // Status filter
+          const matchesStatus = !statusFilter || customer.status === statusFilter;
+          
+          // Search filter
+          const matchesSearch = !searchTerm || 
+            customer.name.toLowerCase().includes(searchTerm) ||
+            customer.id.toLowerCase().includes(searchTerm) ||
+            customer.phone.includes(searchTerm);
+            
+          return matchesAmount && matchesStatus && matchesSearch;
+        });
+        
+        currentPage = 1;
+        renderCustomerTable();
+      });
+
+      // Select all checkbox
+      document.getElementById('selectAll').addEventListener('change', function(e) {'
+        const checkboxes = document.querySelectorAll('.customer-checkbox');'
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+      });
+
+      // Export buttons
+      document.getElementById('btnExportExcel').addEventListener('click', exportToExcel);'
+      document.getElementById('btnExportPDF').addEventListener('click', exportToPDF);'
+      document.getElementById('btnRefresh').addEventListener('click', refreshData);'
+
+      // Modal close
+      document.getElementById('closeModal').addEventListener('click', closeModal);'
+      
+      // Close modal when clicking outside
+      document.getElementById('customerModal').addEventListener('click', function(e) {'
+        if (e.target === this) {
+          closeModal();
+        }
+      });
+    }
+
+    function loadMainMenu() {
+      const template = document.getElementById('mainMenuTemplate');'
+      const container = document.getElementById('mainMenuContainer');'
+      
+      if (template && container) {
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+      }
+    }
+
+    function initializeDarkMode() {
+      // Check if dark mode is enabled from localStorage
+      const isDarkMode = localStorage.getItem('darkMode') === 'true';'
+      
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');'
+        updateDarkModeUI(true);
+      }
+
+      // Add event listener for dark mode toggle
+      document.getElementById('btnToggleDark').addEventListener('click', function() {'
+        const isDark = document.documentElement.classList.contains('dark');'
+        
+        if (isDark) {
+          document.documentElement.classList.remove('dark');'
+          localStorage.setItem('darkMode', 'false');'
+          updateDarkModeUI(false);
+        } else {
+          document.documentElement.classList.add('dark');'
+          localStorage.setItem('darkMode', 'true');'
+          updateDarkModeUI(true);
+        }
+      });
+
+      // Add logout functionality
+      document.getElementById('btnLogout').addEventListener('click', function() {'
+        if (confirm('คุณต้องการออกจากระบบหรือไม่?')) {'
+          // Clear any stored data
+          localStorage.removeItem('userToken');'
+          localStorage.removeItem('userData');'
+          // Redirect to login page
+          window.location.href = '/login';'
+        }
+      });
+    }
+
+    function updateDarkModeUI(isDark) {
+      const themeIcon = document.getElementById('themeIcon');'
+      const darkModeLabel = document.getElementById('darkModeLabel');'
+      
+      if (isDark) {
+        themeIcon.className = 'bi bi-sun-fill mr-2 text-yellow-300';'
+        darkModeLabel.textContent = 'Light Mode';'
+      } else {
+        themeIcon.className = 'bi bi-moon-stars-fill mr-2 text-gray-700';'
+        darkModeLabel.textContent = 'Dark Mode';'
+      }
+    }
+
+    function loadUserInfo() {
+      // Simulate loading user information
+      const userData = {
+        name: 'ผู้ใช้งาน','
+        photo: '/uploads/default-avatar.png''
+      };
+
+      // Try to get user data from localStorage or API
+      const storedUser = localStorage.getItem('userData');'
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        userData.name = user.name || 'ผู้ใช้งาน';'
+        userData.photo = user.photo || '/uploads/default-avatar.png';'
+      }
+
+      // Update UI
+      document.getElementById('employeeName').textContent = userData.name;'
+      document.getElementById('employeePhoto').src = userData.photo;'
+      
+      // Handle image load error
+      document.getElementById('employeePhoto').onerror = function() {'
+        this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNENTQ0NEYiLz4KPHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOUNBM0FGIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5LjMzIDEzLjk5IDcuMDEgMTUuNyA2LjIyIDE4LjM5QzUuODcgMTkuNyA2LjkgMjEgOC4zMSAyMUgxNS42OUMxNy4xIDIxIDE4LjEzIDE5LjcgMTcuNzggMTguMzlDMTYuOTkgMTUuNyAxNC42NyAxMy45OSAxMiAxNFoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+Cjwvc3ZnPgo=';'
+      };
+    }
+
+    // Fix amount filter parsing
+    function setupEventListeners() {
+      // Search functionality''
+      document.getElementById('searchCustomer').addEventListener('input', function(e) {'
+        const searchTerm = e.target.value.toLowerCase();
+        filteredData = customerData.filter(customer => 
+          customer.name.toLowerCase().includes(searchTerm) ||
+          customer.id.toLowerCase().includes(searchTerm) ||
+          customer.phone.includes(searchTerm)
+        );
+        currentPage = 1;
+        renderCustomerTable();
+      });
+
+      // Status filter
+      document.getElementById('statusFilter').addEventListener('change', function(e) {'
+        const status = e.target.value;
+        const searchTerm = document.getElementById('searchCustomer').value.toLowerCase();'
+        
+        // Apply both filters
+        filteredData = customerData.filter(customer => {
+          const matchesStatus = !status || customer.status === status;
+          const matchesSearch = !searchTerm || 
+            customer.name.toLowerCase().includes(searchTerm) ||
+            customer.id.toLowerCase().includes(searchTerm) ||
+            customer.phone.includes(searchTerm);
+          return matchesStatus && matchesSearch;
+        });
+        
+        currentPage = 1;
+        renderCustomerTable();
+      });
+
+      // Amount filter - Fixed parsing
+      document.getElementById('amountFilter').addEventListener('change', function(e) {'
+        const range = e.target.value;
+        const searchTerm = document.getElementById('searchCustomer').value.toLowerCase();'
+        const statusFilter = document.getElementById('statusFilter').value;'
+        
+        filteredData = customerData.filter(customer => {
+          // Amount filter
+          let matchesAmount = true;
+          if (range) {
+            if (range.includes('+')) {'
+              const min = parseInt(range.replace('+', ''));'
+              matchesAmount = customer.outstanding >= min;
+            } else {
+              const [min, max] = range.split('-').map(v => parseInt(v));'
+              matchesAmount = customer.outstanding >= min && customer.outstanding <= max;
+            }
+          }
+          
+          // Status filter
+          const matchesStatus = !statusFilter || customer.status === statusFilter;
+          
+          // Search filter
+          const matchesSearch = !searchTerm || 
+            customer.name.toLowerCase().includes(searchTerm) ||
+            customer.id.toLowerCase().includes(searchTerm) ||
+            customer.phone.includes(searchTerm);
+            
+          return matchesAmount && matchesStatus && matchesSearch;
+        });
+        
+        currentPage = 1;
+        renderCustomerTable();
+      });
+
+      // Select all checkbox
+      document.getElementById('selectAll').addEventListener('change', function(e) {'
+        const checkboxes = document.querySelectorAll('.customer-checkbox');'
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+      });
+
+      // Export buttons
+      document.getElementById('btnExportExcel').addEventListener('click', exportToExcel);'
+      document.getElementById('btnExportPDF').addEventListener('click', exportToPDF);'
+      document.getElementById('btnRefresh').addEventListener('click', refreshData);'
+
+      // Modal close
+      document.getElementById('closeModal').addEventListener('click', closeModal);'
+      
+      // Close modal when clicking outside
+      document.getElementById('customerModal').addEventListener('click', function(e) {'
+        if (e.target === this) {
+          closeModal();
+        }
+      });
+    }
+
+    function viewCustomerDetail(customerId) {
+      const customer = customerData.find(c => c.id === customerId);
+      if (!customer) return;
+
+      const modalContent = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">ข้อมูลทั่วไป</h4>
+            <div class="space-y-3">
+              <div class="flex justify-between">
+                <span class="text-gray-600 dark:text-gray-400">รหัสลูกหนี้:</span>
+                <span class="font-medium text-gray-900 dark:text-white">${customer.id}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600 dark:text-gray-400">ชื่อ:</span>
+                <span class="font-medium text-gray-900 dark:text-white">${customer.name}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600 dark:text-gray-400">โทรศัพท์:</span>
+                <span class="font-medium text-gray-900 dark:text-white">${customer.phone}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600 dark:text-gray-400">อีเมล:</span>
+                <span class="font-medium text-gray-900 dark:text-white">${customer.email}</span>
+              </div>
+              <div class="flex justify-between items-start">
+                <span class="text-gray-600 dark:text-gray-400">ที่อยู่:</span>
+                <span class="font-medium text-gray-900 dark:text-white text-right max-w-xs">${customer.address}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <h4 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">ข้อมูลการเงิน</h4>
+            <div class="space-y-3">
+              <div class="flex justify-between">
+                <span class="text-gray-600 dark:text-gray-400">ยอดค้างรับ:</span>
+                <span class="font-medium text-red-600 dark:text-red-400">฿${customer.outstanding.toLocaleString('th-TH', {minimumFractionDigits: 2})}</span>'
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600 dark:text-gray-400">วันครบกำหนด:</span>
+                <span class="font-medium text-gray-900 dark:text-white">${formatThaiDate(customer.dueDate)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600 dark:text-gray-400">จำนวนวันที่ค้าง:</span>
+                <span class="font-medium ${customer.daysOverdue "> 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">${customer.daysOverdue > 0 ? customer.daysOverdue + ' วัน' : 'ไม่ค้าง'}</span>'
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 dark:text-gray-400">สถานะ:</span>
+                <span>${getStatusBadge(customer.status)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex flex-wrap gap-3">
+            <button onclick="editCustomer('${customer.id}')" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">'
+              <i class="bi bi-pencil mr-2"></i>แก้ไขข้อมูล
+            </button>
+            <button onclick="sendReminder('${customer.id}')" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">'
+              <i class="bi bi-envelope mr-2"></i>ส่งใบแจ้งหนี้
+            </button>
+            <button onclick="viewTransactionHistory('${customer.id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">'
+              <i class="bi bi-clock-history mr-2"></i>ประวัติการทำรายการ
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('modalContent').innerHTML = modalContent;'
+      document.getElementById('customerModal').classList.remove('hidden');'
+    }
+
+    function closeModal() {
+      document.getElementById('customerModal').classList.add('hidden');'
+    }
+
+    function editCustomer(customerId) {
+      closeModal();
+      // Show a simple alert for now since we don't have an edit page'
+      alert(`เปิดหน้าแก้ไขข้อมูลลูกหนี้ ${customerId}`);
+      // Uncomment when edit page is available:
+      // window.location.href = `customer_edit?id=${customerId}`;
+    }
+
+    function sendReminder(customerId) {
+      const customer = customerData.find(c => c.id === customerId);
+      if (customer) {
+        closeModal();
+        // Show success message
+        showNotification(`ส่งใบแจ้งหนี้ให้ ${customer.name} เรียบร้อยแล้ว`, 'success');'
+      }
+    }
+
+    function viewTransactionHistory(customerId) {
+      closeModal();
+      // Show a simple alert for now
+      alert(`เปิดหน้าประวัติการทำรายการของลูกหนี้ ${customerId}`);
+      // Uncomment when transaction history page is available:
+      // window.location.href = `customer_transactions?id=${customerId}`;
+    }
+
+    function showNotification(message, type = 'info') {'
+      // Create notification element
+      const notification = document.createElement('div');'
+      notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transform transition-transform duration-300 ${
+        type === 'success' ? 'bg-green-500 text-white' : '
+        type === 'error' ? 'bg-red-500 text-white' : '
+        'bg-blue-500 text-white''
+      }`;
+      notification.textContent = message;
+      
+      // Add to document
+      document.body.appendChild(notification);
+      
+      // Animate in
+      setTimeout(() => {
+        notification.style.transform = 'translateX(0)';'
+      }, 100);
+      
+      // Remove after 3 seconds
+      setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';'
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
+    }
+
+    function refreshData() {
+      document.getElementById('loadingSpinner').classList.remove('hidden');'
+      
+      // Reset filters
+      document.getElementById('searchCustomer').value = '';'
+      document.getElementById('statusFilter').value = '';'
+      document.getElementById('amountFilter').value = '';'
+      
+      setTimeout(() => {
+        filteredData = [...customerData];
+        currentPage = 1;
+        updateOverviewCards();
+        renderCustomerTable();
+        document.getElementById('loadingSpinner').classList.add('hidden');'
+        showNotification('ข้อมูลถูกรีเฟรชเรียบร้อยแล้ว', 'success');'
+      }, 1000);
+    }
+
+    function exportToExcel() {
+      try {
+        const headers = ['รหัสลูกหนี้', 'ชื่อลูกหนี้', 'เบอร์โทร', 'ยอดค้างรับ', 'วันครบกำหนด', 'จำนวนวันที่ค้าง', 'สถานะ'];'
+        const data = filteredData.map(customer => [
+          customer.id,
+          customer.name,
+          customer.phone,
+          customer.outstanding,
+          customer.dueDate,
+          customer.daysOverdue,
+          customer.status === 'current' ? 'ปกติ' : customer.status === 'overdue' ? 'ค้างชำระ' : 'วิกฤต''
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'รายละเอียดลูกหนี้');'
+        XLSX.writeFile(wb, 'customer_details.xlsx');'
+        
+        showNotification('ส่งออกไฟล์ Excel เรียบร้อยแล้ว', 'success');'
+      } catch (error) {
+        showNotification('เกิดข้อผิดพลาดในการส่งออกไฟล์', 'error');'
+      }
+    }
+
+    function exportToPDF() {
+      try {
+        // Hide action buttons and checkboxes for cleaner PDF
+        const actionCells = document.querySelectorAll('th:last-child, td:last-child, th:first-child, td:first-child');'
+        actionCells.forEach(cell => cell.style.display = 'none');'
+        
+        const element = document.querySelector('.financial-table').parentElement;'
+        const opt = {
+          margin: 1,
+          filename: 'customer_details.pdf','
+          image: { type: 'jpeg', quality: 0.98 },'
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }'
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+          // Restore hidden elements
+          actionCells.forEach(cell => cell.style.display = '');'
+          showNotification('ส่งออกไฟล์ PDF เรียบร้อยแล้ว', 'success');'
+        });
+      } catch (error) {
+        showNotification('เกิดข้อผิดพลาดในการส่งออกไฟล์', 'error');'
+      }
+    }
+
+    // ...existing code...
+  
+}</script>
+  <!-- Account Menu Script -->
+  <script src="/js/account-menu.js"></script>
+</body>
+</html>
+

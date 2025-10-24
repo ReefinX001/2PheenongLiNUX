@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Management - เพิ่มเติม</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Performance optimizations -->
+  <link rel="dns-prefetch" href="//cdn.tailwindcss.com">
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+  <script src="../js/activity-tracker.js"></script>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind Configuration (prevents "tailwind is not defined" error) -->
+  <script>
+  
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Prompt', 'sans-serif'],
+            prompt: ['Prompt', 'sans-serif'],
+          },
+          boxShadow: {
+            'lux': '0 8px 32px 0 rgba(31, 38, 135, 0.18)'
+          }
+        },
+      },
+      daisyui: {
+        themes: ['luxury', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Google Fonts with preload optimization -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" defer></script>
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Secure Firebase Configuration Loading -->
+  <script type="module">
+    // ==========================================
+    // Secure Firebase Configuration System
+    // ==========================================
+
+    let firebaseConfig = null;
+    let firebaseEnabled = false;
+
+    // Function to securely load Firebase configuration
+    async function loadFirebaseConfig() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          console.log('🔥 Firebase: No authentication token - Firebase disabled');
+          window.firebase = { enabled: false, reason: 'Not authenticated' };
+          return false;
+        }
+
+        console.log('🔥 Firebase: Loading secure configuration...');
+        const response = await fetch('/api/config/firebase', {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          console.log('🔥 Firebase: Configuration not available -', result.error || result.firebase?.reason);
+          window.firebase = {
+            enabled: false,
+            reason: result.error || result.firebase?.reason || 'Configuration not available'
+          };
+          return false;
+        }
+
+        if (!result.firebase?.enabled) {
+          console.log('🔥 Firebase: Disabled by server configuration -', result.firebase?.reason);
+          window.firebase = { enabled: false, reason: result.firebase?.reason };
+          return false;
+        }
+
+        firebaseConfig = result.firebase.config;
+        firebaseEnabled = true;
+        console.log('🔥 Firebase: Configuration loaded securely');
+        return true;
+
+      } catch (error) {
+        console.error('🔥 Firebase: Failed to load configuration:', error.message);
+        window.firebase = { enabled: false, error: 'Failed to load configuration: ' + error.message };
+        return false;
+      }
+    }
+
+    // Initialize Firebase with secure configuration
+    async function initializeFirebase() {
+      if (!firebaseEnabled || !firebaseConfig) {
+        return false;
+      }
+
+      try {
+        console.log('🔥 Firebase: Initializing with secure config...');
+
+        // Dynamic imports only when Firebase is enabled
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+        const { getDatabase, ref, onValue, set, push, serverTimestamp, onDisconnect, remove } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js');
+        const { getAuth, signInAnonymously } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const auth = getAuth(app);
+
+        window.firebase = {
+          database,
+          auth,
+          ref,
+          onValue,
+          set,
+          push,
+          serverTimestamp,
+          onDisconnect,
+          remove,
+          signInAnonymously,
+          enabled: true
+        };
+
+        console.log('🔥 Firebase: Successfully initialized with secure configuration');
+        return true;
+
+      } catch (error) {
+        console.error('🔥 Firebase: Initialization failed:', error.message);
+        console.error('🔥 Firebase: Error details:', error);
+        window.firebase = { enabled: false, error: error.message };
+        return false;
+      }
+    }
+
+    // Main initialization function
+    async function initSecureFirebase() {
+      const configLoaded = await loadFirebaseConfig();
+      if (configLoaded) {
+        return await initializeFirebase();
+      }
+      return false;
+    }
+
+    // Store the initialization function globally for use in main script
+    window.initSecureFirebase = initSecureFirebase;
+
+  </script>
+
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Sidebar Responsive Styles */
+    aside {
+      transition: width 0.3s ease-in-out;
+    }
+    aside.collapsed {
+      width: 5rem;
+    }
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+
+    /* Main content responsive margin */
+    #mainContent {
+      margin-left: 14rem; /* 56 * 0.25rem = 14rem (w-56) */
+      transition: margin-left 0.3s ease-in-out;
+    }
+    #mainContent.sidebar-collapsed {
+      margin-left: 5rem; /* When sidebar is collapsed */
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+
+    .status-connected { background-color: #4ade80 !important; }
+    .status-connecting { background-color: #fbbf24 !important; }
+    .status-disconnected { background-color: #f87171 !important; }
+    .status-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Card styles */
+    .option-card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e5e7eb;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .option-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      border-color: #3b82f6;
+    }
+
+    .option-card i {
+      font-size: 3.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .option-card:hover i {
+      transform: scale(1.1);
+    }
+
+    .option-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      text-align: center;
+      margin: 0;
+    }
+
+    .option-card p {
+      font-size: 0.875rem;
+      color: #6b7280;
+      text-align: center;
+      margin: 0;
+    }
+
+    /* Dark mode adjustments */
+    .dark .option-card {
+      background: #374151;
+      border-color: #4b5563;
+      color: #f9fafb;
+    }
+
+    .dark .option-card:hover {
+      border-color: #3b82f6;
+    }
+
+    .dark .option-card p {
+      color: #d1d5db;
+    }
+
+    /* Credit note styling */
+    .credit-note-card {
+      border-left: 4px solid #ef4444;
+    }
+
+    .credit-note-card i {
+      color: #ef4444;
+    }
+
+    .credit-note-card:hover {
+      border-color: #ef4444;
+    }
+
+    /* Debit note styling */
+    .debit-note-card {
+      border-left: 4px solid #8b5cf6;
+    }
+
+    .debit-note-card i {
+      color: #8b5cf6;
+    }
+
+    .debit-note-card:hover {
+      border-color: #8b5cf6;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  
+  <!-- Toggle Menu Button -->
+  <button
+    id="btnToggleMenu"
+    title="Toggle Menu"
+    aria-label="Toggle Menu"
+    class="fixed left-0 top-4 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-10 hover:bg-blue-700 transition"
+  >
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Layout: Sidebar - Main Content -->
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar -->
+    <div class="flex w-full">
+    <!-- Sidebar -->
+    <aside id="sidebar"
+       class="fixed inset-y-0 left-0 w-56 overflow-y-hidden bg-white dark:bg-gray-800 shadow flex flex-col
+              transform transition-transform duration-300 translate-x-0 z-20">
+      <!-- Header (Logo/Title) -->
+      <a href="StockManagehome" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="Logo animate-float shadow-soft w-full h-full object-cover" />
+      </a>
+      <!-- Main Menu (Vertical Menu) -->
+      <div class="flex-1 p-4 overflow-hidden">
+        <ul class="flex flex-col w-full space-y-1">
+
+          <li class="my-px">
+            <a href="branch_stock_overview"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-blue-500 dark:text-blue-400">
+                <i class="bi bi-grid text-xl"></i>
+              </span>
+              <span class="ml-3">สต๊อกคงเหลือ</span>
+            </a>
+          </li>
+
+          <!-- เมนู: ตรวจสินค้า/อนุมัติ -->
+          <li class="my-px">
+            <a href="inventory_dashboard"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-green-500 dark:text-green-400">
+                <i class="bi bi-clipboard-check text-xl"></i>
+              </span>
+              <span class="ml-3">ตรวจสินค้า/อนุมัติ</span>
+            </a>
+          </li>
+
+          <!-- เมนู:PO -->
+          <li class="my-px">
+            <a href="PO"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-orange-500 dark:text-orange-400">
+                <i class="bi bi-file-earmark-text text-xl"></i>
+              </span>
+              <span class="ml-3">ใบสั่งซื้อ</span>
+            </a>
+          </li>
+
+          <!-- เมนู: Quotation -->
+          <li class="my-px">
+            <a href="quotation_Stock"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-purple-500 dark:text-purple-400">
+                <i class="bi bi-file-earmark-richtext text-xl"></i>
+              </span>
+              <span class="ml-3">สร้างใบเสนอราคา</span>
+            </a>
+          </li>
+          <!-- เมนู: Transfer -->
+          <li class="my-px">
+            <a href="Transfer"
+               class="flex flex-row items-center h-12 px-4 rounded-lg
+            text-gray-600 dark:text-gray-200 
+            hover:bg-gray-100 dark:hover:bg-gray-700 transition-all sidebar-link">
+              <span class="flex items-center justify-center text-lg text-primary-500 dark:text-primary-400">
+                <i class="bi bi-truck text-xl"></i>
+              </span>
+              <span class="ml-3">ย้ายสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="product_Image"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-yellow-500 dark:text-yellow-400">
+                <i class="bi bi-upc-scan text-xl"></i>
+              </span>
+              <span class="ml-3">ลงทะเบียนสินค้า</span>
+            </a>
+          </li>
+
+          <!-- เมนู: เพิ่มเติม (Active) -->
+          <li class="my-px">
+            <a href="StockAdditional"
+               class="flex flex-row items-center h-12 px-4 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 border-l-4 border-blue-500 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-three-dots text-xl"></i>
+              </span>
+              <span class="ml-3">เพิ่มเติม</span>
+            </a>
+          </li>
+
+          
+          <li class="my-px mt-6 border-t border-gray-200 dark:border-gray-700 pt-2">
+            <!-- Dark Mode Toggle -->
+            <button id="btnToggleDark"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-600 dark:text-indigo-300">
+                <i class="bi bi-moon-stars text-xl"></i>
+              </span>
+              <span class="ml-3" id="darkModeLabel">Dark Mode</span>
+            </button>
+          </li>
+          <!-- Logout -->
+          <li class="my-px">
+            <button id="btnLogout"
+                    class="flex flex-row items-center h-12 px-4 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left transition-all">
+              <span class="flex items-center justify-center text-lg text-red-500 dark:text-red-400">
+                <i class="bi bi-box-arrow-right text-xl"></i>
+              </span>
+              <span class="ml-3">ออกจากระบบ</span>
+            </button>
+          </li>
+          <!-- Profile -->
+          <li class="my-px mt-2">
+            <div id="profile"
+                 class="flex flex-row items-center h-16 px-4 w-full rounded-lg bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200 text-left transition-colors">
+              <div class="avatar mr-3">
+                <div class="w-10 h-10 rounded-full ring-2 ring-primary-500/30 overflow-hidden">
+                  <img id="employeePhoto" src="" alt="Employee Photo" class="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium" id="employeeName">Loading...</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">พนักงาน</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content Section -->
+    <div class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="p-4 bg-white dark:bg-gray-800 shadow flex justify-between items-center transition-colors">
+        <h1 class="text-xl font-bold" id="pageTitle">เพิ่มเติม - Stock Management</h1>
+        
+        <!-- Connection Status Indicator -->
+        <div class="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
+          <div id="firebaseStatus" class="w-2 h-2 rounded-full bg-gray-400"></div>
+          <span class="text-xs text-gray-600 dark:text-gray-300">FB</span>
+          <div id="socketStatus" class="w-2 h-2 rounded-full bg-gray-400"></div>
+          <span class="text-xs text-gray-600 dark:text-gray-300">IO</span>
+          <span id="connectionStatus" class="text-xs text-gray-600 dark:text-gray-300">เชื่อมต่อ...</span>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main id="mainContent"
+      class="flex-1 p-6 space-y-6 transition-all duration-300 ease-in-out">
+        
+        <!-- Back Button -->
+        <div class="mb-6">
+          <button onclick="window.location.href='StockManagehome'" 
+                  class="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span>กลับไปหน้าหลัก</span>
+          </button>
+        </div>
+
+        <!-- Page Title -->
+        <div class="mb-8 animate-fadeIn">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">ฟีเจอร์เพิ่มเติม</h2>
+          <p class="text-gray-600 dark:text-gray-400">เลือกรายการที่ต้องการใช้งาน</p>
+        </div>
+
+        <!-- Options Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
+          
+          <!-- Purchase Credit Note Card -->
+          <div onclick="navigateToPage('PurchaseCreditNote')" 
+               class="option-card credit-note-card">
+            <i class="bi bi-dash-circle"></i>
+            <h3>ใบลดหนี้การซื้อ</h3>
+            <p>สร้างและจัดการใบลดหนี้สำหรับการซื้อสินค้า</p>
+          </div>
+
+          <!-- Purchase Debit Note Card -->
+          <div onclick="navigateToPage('PurchaseDebitNote')" 
+               class="option-card debit-note-card">
+            <i class="bi bi-plus-circle"></i>
+            <h3>ใบเพิ่มหนี้การซื้อ</h3>
+            <p>สร้างและจัดการใบเพิ่มหนี้สำหรับการซื้อสินค้า</p>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Dark Mode Toggle
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const darkModeEnabled = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', darkModeEnabled);
+      document.getElementById('darkModeLabel').textContent = darkModeEnabled ? 'Light Mode' : 'Dark Mode';
+    }
+    
+    function loadDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+
+    // Load Employee Profile with Enhanced Error Handling
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          console.warn('⚠️ Auth: No authentication token found');
+          document.getElementById('employeeName').textContent = 'ไม่ได้เข้าสู่ระบบ';
+          return false;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const res = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.warn('⚠️ Auth: Token expired or invalid');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            document.getElementById('employeeName').textContent = 'ล็อกอินหมดอายุ';
+            return false;
+          }
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const result = await res.json();
+        if (!result.success) {
+          throw new Error(result.error || 'ไม่สามารถดึงข้อมูลผู้ใช้');
+        }
+
+        const user = result.data;
+        if (!user) {
+          throw new Error('ไม่พบข้อมูลผู้ใช้');
+        }
+
+        document.getElementById('employeeName').textContent = user.name || '(ไม่พบชื่อ)';
+
+        // Safe photo URL handling
+        let photoUrl = user.photoUrl || '/uploads/default-avatar.png';
+        if (photoUrl && !photoUrl.startsWith('/') && !/^https?:\/\//.test(photoUrl)) {
+          photoUrl = '/' + photoUrl;
+        }
+
+        const photoElement = document.getElementById('employeePhoto');
+        if (photoElement) {
+          photoElement.src = photoUrl;
+          photoElement.onerror = function() {
+            this.src = '/uploads/default-avatar.png';
+          };
+        }
+
+        return true;
+
+      } catch (err) {
+        console.error('❌ Profile: Load employee profile failed:', err.message);
+
+        // Handle specific error cases
+        if (err.name === 'AbortError') {
+          document.getElementById('employeeName').textContent = 'หมดเวลาโหลดข้อมูล';
+        } else if (err.message.includes('NetworkError') || err.message.includes('Failed to fetch')) {
+          document.getElementById('employeeName').textContent = 'เชื่อมต่อล้มเหลว';
+        } else {
+          document.getElementById('employeeName').textContent = 'ข้อผิดพลาด';
+        }
+
+        return false;
+      }
+    }
+
+    // Toggle Sidebar
+    function toggleMenu() {
+      const sidebar = document.querySelector('aside');
+      const mainContent = document.getElementById('mainContent');
+      const icon = document.querySelector('#btnToggleMenu i');
+
+      sidebar.classList.toggle('collapsed');
+      mainContent.classList.toggle('sidebar-collapsed');
+
+      if (sidebar.classList.contains('collapsed')) {
+        icon.classList.remove('bi-chevron-left');
+        icon.classList.add('bi-chevron-right');
+      } else {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-left');
+      }
+    }
+
+    // Navigate to page with validation and error handling
+    function navigateToPage(page) {
+      if (!page || typeof page !== 'string') {
+        console.error('❌ Navigation: Invalid page parameter:', page);
+        return false;
+      }
+
+      // Validate against allowed pages
+      const allowedPages = [
+        'PurchaseCreditNote',
+        'PurchaseDebitNote',
+        'StockManagehome',
+        'branch_stock_overview',
+        'inventory_dashboard',
+        'PO',
+        'quotation_Stock',
+        'Transfer',
+        'product_Image'
+      ];
+
+      if (!allowedPages.includes(page)) {
+        console.error('❌ Navigation: Unauthorized page access attempt:', page);
+        return false;
+      }
+
+      try {
+        showLoading(true);
+        setTimeout(() => {
+          // Additional validation before navigation
+          const token = localStorage.getItem('authToken');
+          if (!token) {
+            console.warn('⚠️ Navigation: No authentication token, redirecting to login');
+            window.location.href = '/login';
+            return;
+          }
+
+          window.location.href = page;
+        }, 600);
+        return true;
+      } catch (err) {
+        console.error('❌ Navigation: Failed to navigate to page:', err.message);
+        showLoading(false);
+        return false;
+      }
+    }
+
+    // Connection status management
+    let firebaseConnected = false;
+    let socketConnected = false;
+    
+    function updateFirebaseStatus(connected) {
+      firebaseConnected = connected;
+      const indicator = document.getElementById('firebaseStatus');
+      if (indicator) {
+        indicator.className = 'w-2 h-2 rounded-full ' +
+          (connected ? 'status-connected' : 'status-disconnected status-pulse');
+      }
+      updateConnectionStatus();
+    }
+    
+    function updateSocketStatus(connected) {
+      socketConnected = connected;
+      const indicator = document.getElementById('socketStatus');
+      if (indicator) {
+        indicator.className = 'w-2 h-2 rounded-full ' +
+          (connected ? 'status-connected' : 'status-disconnected status-pulse');
+      }
+      updateConnectionStatus();
+    }
+    
+    function updateConnectionStatus() {
+      const statusEl = document.getElementById('connectionStatus');
+      if (!statusEl) return;
+    
+      const firebaseEnabled = window.firebase && window.firebase.enabled !== false;
+    
+      if (firebaseConnected && socketConnected) {
+        statusEl.textContent = 'เชื่อมต่อแล้ว';
+        statusEl.className = 'text-xs text-green-600 dark:text-green-400';
+      } else if (firebaseConnected || socketConnected) {
+        if (!firebaseEnabled && socketConnected) {
+          statusEl.textContent = 'Socket.IO เท่านั้น';
+        } else {
+          statusEl.textContent = 'เชื่อมต่อบางส่วน';
+        }
+        statusEl.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+      } else {
+        if (!firebaseEnabled) {
+          statusEl.textContent = 'Firebase ปิดใช้งาน';
+          statusEl.className = 'text-xs text-gray-600 dark:text-gray-400';
+        } else {
+          statusEl.textContent = 'ขัดข้อง';
+          statusEl.className = 'text-xs text-red-600 dark:text-red-400';
+        }
+      }
+    }
+
+    // Socket.IO setup
+    const socket = io({
+      timeout: 10000,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      forceNew: true,
+      transports: ['websocket', 'polling']
+    });
+    
+    socket.on('connect', () => {
+      console.log('🔌 Socket.IO: Connected');
+      updateSocketStatus(true);
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('🔌 Socket.IO: Disconnected -', reason);
+      updateSocketStatus(false);
+    });
+
+    // Initialize Firebase connection monitoring
+    function initializeFirebase() {
+      if (!window.firebase || !window.firebase.enabled) {
+        updateFirebaseStatus(false);
+        return;
+      }
+    
+      const { database, ref, onValue } = window.firebase;
+      const connectedRef = ref(database, '.info/connected');
+      onValue(connectedRef, (snapshot) => {
+        const connected = snapshot.val();
+        updateFirebaseStatus(connected);
+      });
+    }
+
+    // Enhanced Loading with Lottie animation caching and optimization
+    let lottieAnimation = null;
+    let lottieAnimationData = null; // Cache animation data
+    let lottieLoadPromise = null; // Prevent duplicate loading
+
+    async function loadLottieAnimation() {
+      if (lottieAnimationData) {
+        return lottieAnimationData; // Return cached data
+      }
+
+      if (lottieLoadPromise) {
+        return lottieLoadPromise; // Return existing promise
+      }
+
+      lottieLoadPromise = fetch('/Loading/Loading.json', {
+        cache: 'force-cache', // Use browser cache
+        credentials: 'same-origin'
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          lottieAnimationData = data; // Cache the animation data
+          console.log('✅ Lottie animation data cached successfully');
+          return data;
+        })
+        .catch(error => {
+          console.error('❌ Error loading Lottie animation:', error);
+          lottieLoadPromise = null; // Reset promise on error
+          throw error;
+        });
+
+      return lottieLoadPromise;
+    }
+
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      const container = document.getElementById('lottieContainer');
+
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        // Load and play Lottie animation with caching
+        if (!lottieAnimation) {
+          console.log('🔄 Initializing Lottie animation...');
+
+          loadLottieAnimation()
+            .then(animationData => {
+              if (container && typeof lottie !== 'undefined') {
+                lottieAnimation = lottie.loadAnimation({
+                  container: container,
+                  renderer: 'svg',
+                  loop: true,
+                  autoplay: true,
+                  animationData: animationData,
+                  rendererSettings: {
+                    preserveAspectRatio: 'xMidYMid slice',
+                    clearCanvas: false,
+                    progressiveLoad: true // Enable progressive loading
+                  }
+                });
+                console.log('✅ Lottie animation initialized successfully');
+              } else {
+                throw new Error('Lottie library not loaded or container not found');
+              }
+            })
+            .catch(error => {
+              console.warn('⚠️ Lottie fallback: Using CSS spinner', error.message);
+              // Enhanced fallback with loading states
+              if (container) {
+                container.innerHTML = `
+                  <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="loading loading-spinner loading-lg text-primary"></div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">กำลังโหลด...</p>
+                  </div>
+                `;
+              }
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 600);
+      }
+    }
+    // Make showLoading function globally accessible
+    window.showLoading = showLoading;
+
+    // Page load initialization
+    document.addEventListener('DOMContentLoaded', async () => {
+      loadDarkMode();
+    
+      // Event listeners
+      document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userId');
+        window.location.href = '/login';
+      });
+      document.getElementById('btnToggleMenu').addEventListener('click', toggleMenu);
+    
+      // Initialize connections with enhanced error handling
+      try {
+        setTimeout(async () => {
+          try {
+            await window.initSecureFirebase();
+            initializeFirebase();
+          } catch (err) {
+            console.error('🔥 Firebase: Secure initialization failed:', err.message);
+            updateFirebaseStatus(false);
+          }
+        }, 1000);
+
+        updateSocketStatus(false);
+        updateFirebaseStatus(false);
+      } catch (err) {
+        console.error('⚠️ Initialization: Connection setup failed:', err.message);
+      }
+    
+      // Load profile
+      await loadEmployeeProfile();
+
+      // Show initial loading
+      showLoading(true);
+      setTimeout(() => showLoading(false), 800);
+
+      // Sidebar highlighting
+      const sidebarLinks = document.querySelectorAll('aside a');
+      function highlightSidebar(link) {
+        sidebarLinks.forEach(l => {
+          l.style.backgroundColor = '';
+          l.style.color = '';
+          const ico = l.querySelector('i');
+          if (ico) ico.style.color = '';
+        });
+        const icon = link.querySelector('i');
+        if (icon) {
+          const c = getComputedStyle(icon).color;
+          link.style.backgroundColor = c;
+          link.style.color = '#fff';
+          icon.style.color = '#fff';
+        }
+      }
+    
+      sidebarLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          highlightSidebar(link);
+        });
+      });
+    
+      const page = window.location.pathname.split('/').pop();
+      sidebarLinks.forEach(link => {
+        if (link.getAttribute('href') === page) highlightSidebar(link);
+      });
+    });
+
+    // \u0e17\u0e33\u0e04\u0e27\u0e32\u0e21\u0e2a\u0e30\u0e2d\u0e32\u0e14 Lottie animation \u0e40\u0e21\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e27\u0e47\u0e1a\u0e16\u0e39\u0e01\u0e1b\u0e34\u0e14
+    window.addEventListener('beforeunload', () => {
+      try {
+        if (lottieAnimation) {
+          console.log('🧹 Cleanup: Destroying Lottie animation');
+          lottieAnimation.destroy();
+          lottieAnimation = null;
+        }
+
+        // Reset cached data on page unload to prevent memory leaks
+        lottieAnimationData = null;
+        lottieLoadPromise = null;
+
+        console.log('🧹 Cleanup: Resources cleaned up successfully');
+      } catch (err) {
+        console.warn('⚠️ Cleanup: Error during resource cleanup:', err.message);
+      }
+    });
+
+    // Enhanced page visibility handling for performance
+    document.addEventListener('visibilitychange', () => {
+      try {
+        if (document.hidden) {
+          // Pause animation when page is not visible
+          if (lottieAnimation && lottieAnimation.isPaused === false) {
+            lottieAnimation.pause();
+            console.log('⏸️ Performance: Paused animations (page hidden)');
+          }
+        } else {
+          // Resume animation when page becomes visible
+          if (lottieAnimation && lottieAnimation.isPaused === true) {
+            lottieAnimation.play();
+            console.log('▶️ Performance: Resumed animations (page visible)');
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Performance: Error handling visibility change:', err.message);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ลงทะเบียนผู้จำหน่าย</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif']
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0ea5e9',
+              600: '#0284c7'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+
+    #mainContent {
+      flex: 1;
+    }
+
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-rounded {
+      border-radius: 30px;
+    }
+
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      z-index: 1000;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+    }
+    .toast.show {
+      transform: translateX(0);
+    }
+    .toast.success {
+      background-color: #10b981;
+    }
+    .toast.error {
+      background-color: #ef4444;
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .dark .modal-content {
+      background-color: #2d3748;
+    }
+  </style>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+  <!-- Account Menu Styles -->
+  <link rel="stylesheet" href="/css/account-menu.css">
+</head>
+
+<body class="bg-white dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Spinner -->
+  <div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="loader"></div>
+  </div>
+
+  <!-- Navbar -->
+  <div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0 z-30">
+    <div class="flex-1 flex items-center space-x-6 px-4 py-3">
+      <img src="/uploads/Logo2.png"
+           alt="Logo"
+           class="rounded-full shadow-lg"
+           style="width: 40px; height: 40px;" />
+      <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี</span>
+      <!-- Menu Container -->
+      <div id="mainMenuContainer" class="ml-auto"></div>
+    </div>
+    <div class="flex-none flex items-center space-x-2 px-4">
+      <!-- User Profile Section -->
+      <div class="flex items-center space-x-3 mr-4">
+        <img id="employeePhoto"
+             alt="Profile"
+             class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600"
+             src="/img/default-avatar.svg">
+        <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+      </div>
+
+      <!-- Dark Mode Toggle -->
+      <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+        <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+        <span id="darkModeLabel">Dark Mode</span>
+      </button>
+
+      <!-- Logout Button -->
+      <button id="btnLogout" class="btn btn-outline-primary btn-sm btn-rounded">
+        <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+      </button>
+    </div>
+  </div>
+
+  <div id="mainContent" class="container mx-auto px-4 py-6">
+    <!-- Breadcrumbs -->
+    <nav class="mb-6 text-sm" aria-label="Breadcrumb">
+      <ol class="list-none p-0 inline-flex">
+        <li class="flex items-center">
+          <a href="index.html" class="text-primary-500 hover:text-primary-600">หน้าหลัก</a>
+          <i class="bi bi-chevron-right mx-2 text-gray-400"></i>
+        </li>
+        <li class="flex items-center">
+          <a href="#" class="text-primary-500 hover:text-primary-600">ซื้อ</a>
+          <i class="bi bi-chevron-right mx-2 text-gray-400"></i>
+        </li>
+        <li class="flex items-center">
+          <span class="text-gray-500 dark:text-gray-400">ลงทะเบียนผู้จำหน่าย</span>
+        </li>
+      </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+      <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">ลงทะเบียนผู้จำหน่าย</h1>
+      <a href="/views/account/supplier_details.html" class="btn bg-gray-500 hover:bg-gray-600 text-white btn-rounded">
+        <i class="bi bi-list-ul mr-2"></i> รายชื่อผู้จำหน่าย
+      </a>
+    </div>
+
+    <!-- Registration Form -->
+    <div class="card p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+        <i class="bi bi-person-plus-fill text-green-500 mr-2"></i>
+        ฟอร์มลงทะเบียนผู้จำหน่าย
+      </h2>
+      <form id="registerSupplierForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label for="supplierName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            ชื่อผู้จำหน่าย <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="supplierName" name="name" required
+                 class="form-control" placeholder="ระบุชื่อผู้จำหน่าย">
+        </div>
+
+        <div>
+          <label for="supplierCode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            รหัสผู้จำหน่าย <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="supplierCode" name="code" required
+                 class="form-control" placeholder="เช่น 112">
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">รหัสนี้จะต่อท้ายกับบาร์โค้ดของสินค้า</p>
+        </div>
+
+        <div>
+          <label for="taxId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            เลขประจำตัวผู้เสียภาษี
+          </label>
+          <input type="text" id="taxId" name="taxId"
+                 class="form-control" placeholder="ระบุเลขผู้เสียภาษี">
+        </div>
+
+        <div>
+          <label for="contact" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            ผู้ติดต่อ
+          </label>
+          <input type="text" id="contact" name="contact"
+                 class="form-control" placeholder="ระบุชื่อผู้ติดต่อ">
+        </div>
+
+        <div>
+          <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            เบอร์โทรศัพท์
+          </label>
+          <input type="tel" id="phone" name="phone"
+                 class="form-control" placeholder="ระบุเบอร์โทรศัพท์">
+        </div>
+
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            อีเมล
+          </label>
+          <input type="email" id="email" name="email"
+                 class="form-control" placeholder="ระบุอีเมล">
+        </div>
+
+        <div class="md:col-span-3">
+          <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            ที่อยู่
+          </label>
+          <textarea id="address" name="address" rows="2"
+                    class="form-control" placeholder="ระบุที่อยู่"></textarea>
+        </div>
+
+        <div class="md:col-span-3 flex justify-end">
+          <button type="submit" id="submitSupplierBtn" class="btn bg-primary-500 hover:bg-primary-600 text-white btn-rounded flex items-center">
+            <span class="loading-spinner hidden mr-2">
+              <div class="loader" style="width: 16px; height: 16px; border-width: 2px;"></div>
+            </span>
+            <i class="bi bi-person-plus mr-2"></i>
+            <span class="btn-text">ลงทะเบียนผู้จำหน่าย</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Suppliers Table -->
+    <div class="card p-6">
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+        <i class="bi bi-people-fill text-purple-500 mr-2"></i>
+        รายชื่อผู้จำหน่ายที่ลงทะเบียน
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="table min-w-full">
+          <thead>
+            <tr>
+              <th>รหัส</th>
+              <th>ชื่อผู้จำหน่าย</th>
+              <th>เลขประจำตัวผู้เสียภาษี</th>
+              <th>ผู้ติดต่อ</th>
+              <th>โทรศัพท์</th>
+              <th>อีเมล</th>
+              <th>ที่อยู่</th>
+              <th class="text-center">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="supplierTable" class="text-sm">
+            <tr>
+              <td colspan="8" class="text-center py-10 text-gray-500 dark:text-gray-400">
+                <i class="bi bi-inbox text-4xl mb-2"></i>
+                <p>ไม่มีข้อมูลผู้จำหน่าย</p>
+                <p class="text-sm">กรุณาเพิ่มข้อมูลผู้จำหน่ายใหม่</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editSupplierModal" class="modal hidden">
+    <div class="modal-content">
+      <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+        <i class="bi bi-pencil-square text-blue-500 mr-2"></i>
+        แก้ไขข้อมูลผู้จำหน่าย
+      </h3>
+      <form id="editSupplierForm" class="space-y-4">
+        <input type="hidden" id="editSupplierId">
+
+        <div>
+          <label for="editSupplierName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            ชื่อผู้จำหน่าย
+          </label>
+          <input type="text" id="editSupplierName" class="form-control">
+        </div>
+
+        <div>
+          <label for="editSupplierCode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            รหัสผู้จำหน่าย
+          </label>
+          <input type="text" id="editSupplierCode" class="form-control">
+        </div>
+
+        <div>
+          <label for="editTaxId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            เลขประจำตัวผู้เสียภาษี
+          </label>
+          <input type="text" id="editTaxId" class="form-control">
+        </div>
+
+        <div>
+          <label for="editContact" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            ผู้ติดต่อ
+          </label>
+          <input type="text" id="editContact" class="form-control">
+        </div>
+
+        <div>
+          <label for="editPhone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            เบอร์โทรศัพท์
+          </label>
+          <input type="tel" id="editPhone" class="form-control">
+        </div>
+
+        <div>
+          <label for="editEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            อีเมล
+          </label>
+          <input type="email" id="editEmail" class="form-control">
+        </div>
+
+        <div>
+          <label for="editAddress" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            ที่อยู่
+          </label>
+          <textarea id="editAddress" rows="2" class="form-control"></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-2">
+          <button type="button" class="btn bg-gray-500 text-white btn-rounded btn-close-modal" data-modal="editSupplierModal">
+            <i class="bi bi-x-circle mr-2"></i>ยกเลิก
+          </button>
+          <button type="submit" class="btn bg-primary-500 hover:bg-primary-600 text-white btn-rounded">
+            <i class="bi bi-check-circle mr-2"></i>บันทึก
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Modal -->
+  <div id="deleteSupplierModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="flex items-center mb-4">
+        <i class="bi bi-exclamation-triangle text-red-500 text-3xl mr-3"></i>
+        <h3 class="text-xl font-semibold text-gray-800 dark:text-white">
+          ยืนยันการลบผู้จำหน่าย
+        </h3>
+      </div>
+      <p class="text-gray-600 dark:text-gray-300 mb-6">
+        คุณแน่ใจหรือไม่ว่าต้องการลบผู้จำหน่ายนี้? การดำเนินการนี้ไม่สามารถยกเลิกได้
+      </p>
+      <div class="flex justify-end space-x-2">
+        <button type="button" class="btn bg-gray-500 text-white btn-rounded btn-close-modal" data-modal="deleteSupplierModal">
+          <i class="bi bi-x-circle mr-2"></i>ยกเลิก
+        </button>
+        <button type="button" id="confirmDeleteBtn" class="btn bg-red-600 hover:bg-red-700 text-white btn-rounded">
+          <i class="bi bi-trash mr-2"></i>ลบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Menu Script -->
+  <script src="/js/account-menu.js"></script>
+
+  <script>
+    // --- Toast Notification Function ---
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <div class="flex items-center">
+          <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+          ${message}
+        </div>
+      `;
+
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 100);
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+    }
+
+    // --- Dark Mode Persistence ---
+    const darkModePreference = localStorage.getItem('darkMode');
+    const darkModeLabel = document.getElementById('darkModeLabel');
+    if (darkModePreference === 'true') {
+      document.documentElement.classList.add('dark');
+      darkModeLabel.textContent = 'Light Mode';
+    } else {
+      document.documentElement.classList.remove('dark');
+      darkModeLabel.textContent = 'Dark Mode';
+    }
+    document.getElementById('btnToggleDark').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      darkModeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      localStorage.setItem('darkMode', isDark);
+    });
+
+    // --- Load Employee Profile ---
+    async function loadEmployeeProfile() {
+      try {
+        const token = localStorage.getItem('authToken');
+        const userId = localStorage.getItem('userId');
+        if (!token || !userId) return;
+        const res = await fetch(`/api/users/${userId}`, {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Error');
+        const emp = data.data;
+        document.getElementById('employeeName').textContent = emp.name || '(ไม่พบชื่อ)';
+        if (emp.image) {
+          let url = emp.image.startsWith('/uploads/') ? emp.image : '/uploads/' + emp.image;
+          document.getElementById('employeePhoto').src = url;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // --- Logout ---
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userId');
+      window.location.href = '/views/login.html';
+    });
+
+    // --- Supplier Logic ---
+    let allSuppliers = [];
+
+    // โหลดซัพพลายเออร์
+    async function loadSuppliers() {
+      try {
+        const res = await fetch('/api/supplier');
+
+        console.log('Response status:', res.status);
+        console.log('Response headers:', res.headers);
+
+        // ตรวจสอบว่า response เป็น JSON หรือไม่
+        const contentType = res.headers.get('content-type');
+        console.log('Content-Type:', contentType);
+
+        if (!contentType || !contentType.includes('application/json')) {
+          const htmlText = await res.text();
+          console.error('Server returned HTML instead of JSON:', htmlText.substring(0, 200));
+
+          // ตรวจสอบว่าเป็น 404 หรือไม่
+          if (res.status === 404) {
+            throw new Error('ไม่พบ API endpoint /api/supplier - กรุณาตรวจสอบ routing');
+          }
+
+          throw new Error('เซิร์ฟเวอร์ส่ง HTML กลับมาแทน JSON - อาจจะเซิร์ฟเวอร์ไม่ทำงาน');
+        }
+
+        const data = await res.json();
+        console.log('API Response:', data);
+
+        if (!res.ok || !data.success) throw new Error(data.error || 'Error loading suppliers');
+        allSuppliers = data.data || [];
+        renderSupplierTable(allSuppliers);
+      } catch (err) {
+        console.error('Error loading suppliers:', err);
+
+        // ตรวจสอบว่าเป็น network error หรือไม่
+        if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
+          err.message = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ - กรุณาตรวจสอบว่าเซิร์ฟเวอร์ทำงานอยู่';
+        }
+
+        const tbody = document.getElementById('supplierTable');
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-8 text-gray-500 dark:text-gray-400">
+              <i class="bi bi-exclamation-triangle text-2xl mb-2"></i>
+              <div>ไม่สามารถโหลดข้อมูลซัพพลายเออร์ได้</div>
+              <div class="text-sm mt-1">${err.message}</div>
+              <div class="text-xs mt-2 text-gray-400">กรุณาเปิด Console (F12) เพื่อดูรายละเอียด</div>
+            </td>
+          </tr>`;
+      }
+    }
+
+    function renderSupplierTable(suppliers) {
+      const tbody = document.getElementById('supplierTable');
+      tbody.innerHTML = '';
+
+      if (!suppliers || suppliers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-8 text-gray-500 dark:text-gray-400">
+              <i class="bi bi-inbox text-2xl mb-2"></i>
+              <div>ไม่มีข้อมูลผู้จำหน่าย</div>
+            </td>
+          </tr>`;
+        return;
+      }
+
+      suppliers.forEach(sup => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="text-gray-700 dark:text-gray-200">${sup.code || '-'}</td>
+          <td class="text-gray-700 dark:text-gray-200">${sup.name || '-'}</td>
+          <td class="text-gray-700 dark:text-gray-200">${sup.taxId || '-'}</td>
+          <td class="text-gray-700 dark:text-gray-200">${sup.contact || '-'}</td>
+          <td class="text-gray-700 dark:text-gray-200">${sup.phone || '-'}</td>
+          <td class="text-gray-700 dark:text-gray-200">${sup.email || '-'}</td>
+          <td class="text-gray-700 dark:text-gray-200">${sup.address || '-'}</td>
+          <td class="text-center space-x-2">
+            <button class="btn-edit-supplier btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-2 py-1" data-supplier-id="${sup._id}">
+              <i class="bi bi-pencil mr-1"></i>แก้ไข
+            </button>
+            <button class="btn-delete-supplier btn bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1" data-supplier-id="${sup._id}">
+              <i class="bi bi-trash mr-1"></i>ลบ
+            </button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+      attachSupplierTableEvents();
+    }
+
+    function attachSupplierTableEvents() {
+      document.querySelectorAll('.btn-edit-supplier').forEach(btn =>
+        btn.addEventListener('click', () => editSupplier(btn.dataset.supplierId))
+      );
+      document.querySelectorAll('.btn-delete-supplier').forEach(btn =>
+        btn.addEventListener('click', () => deleteSupplier(btn.dataset.supplierId))
+      );
+    }
+
+    // ลงทะเบียนซัพพลายเออร์
+    async function registerSupplier(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitSupplierBtn');
+      const spinner = submitBtn.querySelector('.loading-spinner');
+      const btnText = submitBtn.querySelector('.btn-text');
+
+      // แสดง loading state
+      submitBtn.disabled = true;
+      spinner.classList.remove('hidden');
+      btnText.textContent = 'กำลังลงทะเบียน...';
+
+      const formData = new FormData(e.target);
+      try {
+        const res = await fetch('/api/supplier', { method: 'POST', body: formData });
+
+        // ตรวจสอบว่า response เป็น JSON หรือไม่
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const htmlText = await res.text();
+          console.error('Server returned HTML instead of JSON:', htmlText.substring(0, 200));
+          throw new Error('เซิร์ฟเวอร์ส่ง HTML กลับมาแทน JSON - กรุณาตรวจสอบ API endpoint');
+        }
+
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Error registering');
+        showToast('ลงทะเบียนผู้จำหน่ายเรียบร้อยแล้ว', 'success');
+        e.target.reset();
+        loadSuppliers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        // ซ่อน loading state
+        submitBtn.disabled = false;
+        spinner.classList.add('hidden');
+        btnText.textContent = 'ลงทะเบียนผู้จำหน่าย';
+      }
+    }
+
+    // แก้ไขซัพพลายเออร์
+    async function editSupplier(id) {
+      const supplier = allSuppliers.find(s => s._id === id);
+      if (!supplier) return;
+
+      // เติมข้อมูลลงใน modal
+      document.getElementById('editSupplierId').value = supplier._id;
+      document.getElementById('editSupplierName').value = supplier.name || '';
+      document.getElementById('editSupplierCode').value = supplier.code || '';
+      document.getElementById('editTaxId').value = supplier.taxId || '';
+      document.getElementById('editContact').value = supplier.contact || '';
+      document.getElementById('editPhone').value = supplier.phone || '';
+      document.getElementById('editEmail').value = supplier.email || '';
+      document.getElementById('editAddress').value = supplier.address || '';
+
+      // แสดง modal
+      showModal('editSupplierModal');
+    }
+
+    async function updateSupplier(e) {
+      e.preventDefault();
+      const id = document.getElementById('editSupplierId').value;
+
+      const supplierData = {
+        name: document.getElementById('editSupplierName').value,
+        code: document.getElementById('editSupplierCode').value,
+        taxId: document.getElementById('editTaxId').value,
+        contact: document.getElementById('editContact').value,
+        phone: document.getElementById('editPhone').value,
+        email: document.getElementById('editEmail').value,
+        address: document.getElementById('editAddress').value
+      };
+
+      try {
+        const res = await fetch(`/api/supplier/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(supplierData)
+        });
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            throw new Error('ไม่พบข้อมูลผู้จำหน่าย');
+          }
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'ไม่สามารถอัพเดทข้อมูลได้');
+        }
+
+        const data = await res.json();
+        showToast('อัพเดทข้อมูลผู้จำหน่ายเรียบร้อยแล้ว', 'success');
+        hideModal('editSupplierModal');
+        loadSuppliers();
+      } catch (err) {
+        console.error('Update error:', err);
+        showToast(err.message || 'เกิดข้อผิดพลาดในการอัพเดทข้อมูล', 'error');
+      }
+    }
+
+    let deleteSupplierIdToDelete = null;
+
+    async function deleteSupplier(id) {
+      const supplier = allSuppliers.find(s => s._id === id);
+      if (!supplier) {
+        showToast('ไม่พบข้อมูลผู้จำหน่าย', 'error');
+        return;
+      }
+      deleteSupplierIdToDelete = id;
+      showModal('deleteSupplierModal');
+    }
+
+    async function confirmDeleteSupplier() {
+      if (!deleteSupplierIdToDelete) return;
+
+      const confirmBtn = document.getElementById('confirmDeleteBtn');
+      const originalText = confirmBtn.innerHTML;
+
+      try {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="bi bi-hourglass-split mr-2"></i>กำลังลบ...';
+
+        const res = await fetch(`/api/supplier/${deleteSupplierIdToDelete}`, {
+          method: 'DELETE'
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          if (res.status === 404) {
+            throw new Error('ไม่พบข้อมูลผู้จำหน่าย');
+          }
+          throw new Error(errorData.error || 'ไม่สามารถลบข้อมูลได้');
+        }
+
+        showToast('ลบผู้จำหน่ายเรียบร้อยแล้ว', 'success');
+        hideModal('deleteSupplierModal');
+        await loadSuppliers(); // รีโหลดข้อมูลหลังจากลบสำเร็จ
+      } catch (err) {
+        console.error('Delete error:', err);
+        showToast(err.message || 'เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+      } finally {
+        deleteSupplierIdToDelete = null;
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = originalText;
+      }
+    }
+
+    // Modal close
+    function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSuppliers();
+      loadEmployeeProfile();
+      document.getElementById('registerSupplierForm').addEventListener('submit', registerSupplier);
+      document.getElementById('editSupplierForm').addEventListener('submit', updateSupplier);
+      document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDeleteSupplier);
+      document.querySelectorAll('.btn-close-modal').forEach(btn =>
+        btn.addEventListener('click', () => hideModal(btn.dataset.modal))
+      );
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ประวัติการสั่งซื้อสินค้าของแถม</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'sans-serif'] }
+        }
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] }
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- jQuery & Day.js (locale ไทย) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/locale/th.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Prompt', sans-serif; }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    aside.collapsed { width: 5rem; }
+    aside.collapsed .ml-3 { display: none; }
+    @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .spinner { border:4px solid #f3f3f3;border-top:4px solid #3498db;border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite; }
+    .Logo { max-width:100%;height:auto; }
+    .status-paid { color: #16a34a; }
+    .status-pending { color: #ca8a04; }
+    .status-late { color: #dc2626; }
+  </style>
+</head>
+
+<body class="bg-white text-gray-700 dark:bg-gray-900 dark:text-gray-200">
+
+  <!-- Toggle Menu -->
+  <button id="btnToggleMenu" title="Toggle Menu" aria-label="Toggle Menu"
+    class="fixed left-0 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-r-full shadow-lg z-50 hover:bg-blue-700 transition">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <div class="min-h-screen flex">
+    <aside id="sidebar"
+           class="w-64 bg-white dark:bg-gray-800 flex flex-col transition-transform duration-300 transform">
+      <a href="gifts_dashboard" class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <img src="/uploads/Logo2.png" alt="Logo" class="Logo animate-float shadow-soft w-full h-full object-cover"
+        />
+      </a>
+      <nav class="flex-1 p-4 overflow-y-auto">
+        <ul class="space-y-1">
+          <li><a href="gifts_dashboard" class="flex items-center px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-house-door text-xl text-blue-500"></i><span class="ml-3">หน้าแรก</span>
+          </a></li>
+
+          <!-- เริ่มเมนูใหม่ -->
+          <li class="my-px">
+            <a href="inventory"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-indigo-500 dark:text-indigo-400">
+                <i class="bi bi-boxes text-xl"></i>
+              </span>
+              <span class="ml-3">คลังสินค้า</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="order_history"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-amber-500 dark:text-amber-400">
+                <i class="bi bi-clock-history text-xl"></i>
+              </span>
+              <span class="ml-3">ประวัติการสั่งซื้อ</span>
+            </a>
+          </li>
+          <li class="my-px">
+            <a href="costs"
+               class="flex flex-row items-center h-12 px-4 rounded-lg text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <span class="flex items-center justify-center text-lg text-cyan-500 dark:text-cyan-400">
+                <i class="bi bi-currency-dollar text-xl"></i>
+              </span>
+              <span class="ml-3">ต้นทุน</span>
+            </a>
+          </li>
+          <li class="mt-6"><button id="btnToggleDark" class="flex items-center w-full px-4 h-12 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-moon text-xl text-indigo-500"></i><span class="ml-3" id="darkModeLabel">Dark Mode</span>
+          </button></li>
+          <li><button id="btnLogout" class="flex items-center w-full px-4 h-12 rounded-lg text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <i class="bi bi-box-arrow-right text-xl text-red-500"></i><span class="ml-3">ออกจากระบบ</span>
+          </button></li>
+          <li class="mt-auto">
+            <div id="profile" class="flex items-center px-4 h-12 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <img id="employeePhoto" class="w-10 h-10 rounded-full mr-3" src="/static/images/avatar-default.png" alt="Emp"/>
+              <span id="employeeName">Loading...</span>
+            </div>
+          </li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 animate-fadeIn">
+      <div class="container mx-auto">
+        
+        <!-- Page Header -->
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">
+            <i class="bi bi-clock-history text-amber-500 me-2"></i>ประวัติการสั่งซื้อสินค้าของแถม
+          </h1>
+          <button id="btnNewOrder" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> สั่งซื้อใหม่
+          </button>
+        </div>
+        
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-blue-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 mr-4">
+                <i class="bi bi-cart-check text-xl text-blue-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">จำนวนรายการสั่งซื้อทั้งหมด</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="totalOrders">12 รายการ</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-green-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 mr-4">
+                <i class="bi bi-cash-stack text-xl text-green-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">งบประมาณที่ใช้ไปทั้งหมด</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="totalBudget">9,875.00 บาท</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-amber-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-amber-100 dark:bg-amber-900 mr-4">
+                <i class="bi bi-truck text-xl text-amber-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">จำนวนสินค้าที่สั่งซื้อทั้งหมด</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="totalItems">450 ชิ้น</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border-l-4 border-purple-500">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 mr-4">
+                <i class="bi bi-shop text-xl text-purple-500"></i>
+              </div>
+              <div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">จำนวนซัพพลายเออร์</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-white" id="totalSuppliers">1 ราย</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Filter and Search Section -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+          <div class="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+            <div class="flex flex-1 space-x-2">
+              <div class="form-control flex-1">
+                <div class="input-group">
+                  <input type="text" id="searchOrder" placeholder="ค้นหาคำสั่งซื้อ..." 
+                         class="input input-bordered w-full dark:bg-gray-700 dark:border-gray-600" />
+                  <button class="btn btn-square">
+                    <i class="bi bi-search"></i>
+                  </button>
+                </div>
+              </div>
+              <select id="statusFilter" class="select select-bordered dark:bg-gray-700 dark:border-gray-600">
+                <option value="all">ทั้งหมด</option>
+                <option value="completed">เสร็จสิ้น</option>
+                <option value="pending">รอดำเนินการ</option>
+                <option value="canceled">ยกเลิก</option>
+              </select>
+            </div>
+            <div class="flex space-x-2">
+              <div class="form-control">
+                <div class="relative">
+                  <div class="flex space-x-1">
+                    <input type="date" id="startDate" class="input input-bordered input-sm dark:bg-gray-700 dark:border-gray-600">
+                    <span class="self-center">ถึง</span>
+                    <input type="date" id="endDate" class="input input-bordered input-sm dark:bg-gray-700 dark:border-gray-600">
+                  </div>
+                </div>
+              </div>
+              <button id="btnExport" class="btn btn-outline btn-sm">
+                <i class="bi bi-download"></i> ส่งออก
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Orders Table -->
+        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="table w-full">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-700">
+                  <th class="px-4 py-3">#</th>
+                  <th class="px-4 py-3">วันที่สั่งซื้อ</th>
+                  <th class="px-4 py-3">รายการ</th>
+                  <th class="px-4 py-3">ซัพพลายเออร์</th>
+                  <th class="px-4 py-3">มูลค่ารวม</th>
+                  <th class="px-4 py-3">สถานะ</th>
+                  <th class="px-4 py-3">การดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Order 1 -->
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700 border-b dark:border-gray-600">
+                  <td class="px-4 py-3 font-medium dark:text-white">PO-2566-001</td>
+                  <td class="px-4 py-3">10 มิ.ย. 2566</td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-col">
+                      <span>หวีผมพกพา x 50 ชิ้น</span>
+                      <span class="text-xs text-gray-500">และอีก 0 รายการ</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">หมอชินะ</td>
+                  <td class="px-4 py-3 font-medium">625.00 บาท</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-success">เสร็จสิ้น</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info view-order" data-order-id="PO-2566-001">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-warning" title="พิมพ์">
+                        <i class="bi bi-printer"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Order 2 -->
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700 border-b dark:border-gray-600">
+                  <td class="px-4 py-3 font-medium dark:text-white">PO-2566-002</td>
+                  <td class="px-4 py-3">28 พ.ค. 2566</td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-col">
+                      <span>กระจกพกพา x 30 ชิ้น</span>
+                      <span class="text-xs text-gray-500">และอีก 0 รายการ</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">หมอชินะ</td>
+                  <td class="px-4 py-3 font-medium">562.50 บาท</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-success">เสร็จสิ้น</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info view-order" data-order-id="PO-2566-002">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-warning" title="พิมพ์">
+                        <i class="bi bi-printer"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Order 3 -->
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700 border-b dark:border-gray-600">
+                  <td class="px-4 py-3 font-medium dark:text-white">PO-2566-003</td>
+                  <td class="px-4 py-3">15 พ.ค. 2566</td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-col">
+                      <span>พวงกุญแจ x 40 ชิ้น</span>
+                      <span class="text-xs text-gray-500">และอีก 0 รายการ</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">หมอชินะ</td>
+                  <td class="px-4 py-3 font-medium">600.00 บาท</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-success">เสร็จสิ้น</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info view-order" data-order-id="PO-2566-003">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-warning" title="พิมพ์">
+                        <i class="bi bi-printer"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Order 4 -->
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700 border-b dark:border-gray-600">
+                  <td class="px-4 py-3 font-medium dark:text-white">PO-2566-004</td>
+                  <td class="px-4 py-3">1 พ.ค. 2566</td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-col">
+                      <span>ปากกา x 100 ชิ้น</span>
+                      <span class="text-xs text-gray-500">และอีก 1 รายการ</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">หมอชินะ</td>
+                  <td class="px-4 py-3 font-medium">1,350.00 บาท</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-success">เสร็จสิ้น</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info view-order" data-order-id="PO-2566-004">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-warning" title="พิมพ์">
+                        <i class="bi bi-printer"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Order 5 -->
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700 border-b dark:border-gray-600">
+                  <td class="px-4 py-3 font-medium dark:text-white">PO-2566-005</td>
+                  <td class="px-4 py-3">20 เม.ย. 2566</td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-col">
+                      <span>หวีผมพกพา x 50 ชิ้น</span>
+                      <span class="text-xs text-gray-500">และอีก 2 รายการ</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">หมอชินะ</td>
+                  <td class="px-4 py-3 font-medium">1,250.00 บาท</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-success">เสร็จสิ้น</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info view-order" data-order-id="PO-2566-005">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-warning" title="พิมพ์">
+                        <i class="bi bi-printer"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Order 6 (Pending) -->
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <td class="px-4 py-3 font-medium dark:text-white">PO-2566-006</td>
+                  <td class="px-4 py-3">15 มิ.ย. 2566</td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-col">
+                      <span>พวงกุญแจ x 50 ชิ้น</span>
+                      <span class="text-xs text-gray-500">และอีก 1 รายการ</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">หมอชินะ</td>
+                  <td class="px-4 py-3 font-medium">950.00 บาท</td>
+                  <td class="px-4 py-3">
+                    <span class="badge badge-warning">รอดำเนินการ</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex space-x-1">
+                      <button class="btn btn-xs btn-outline btn-info view-order" data-order-id="PO-2566-006">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button class="btn btn-xs btn-outline btn-error" title="ยกเลิก">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-6">
+          <span class="text-sm text-gray-600 dark:text-gray-300">แสดง 1-6 จาก 12 รายการ</span>
+          <div class="btn-group">
+            <button class="btn btn-sm">«</button>
+            <button class="btn btn-sm btn-active">1</button>
+            <button class="btn btn-sm">2</button>
+            <button class="btn btn-sm">»</button>
+          </div>
+        </div>
+        
+        <!-- Annual Statistics -->
+        <div class="mt-8 bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+          <div class="p-4 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
+            <h2 class="font-semibold text-lg text-gray-800 dark:text-white">สถิติการสั่งซื้อประจำปี</h2>
+          </div>
+          <div class="p-4">
+            <canvas id="orderStatsChart" height="300"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Order Detail Modal -->
+      <div id="orderDetailModal" class="modal">
+        <div class="modal-box max-w-3xl">
+          <h3 class="font-bold text-lg mb-4" id="orderTitle">รายละเอียดคำสั่งซื้อ: PO-2566-001</h3>
+          
+          <!-- Order Info -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <h4 class="font-medium text-sm text-gray-500 dark:text-gray-400 mb-2">ข้อมูลคำสั่งซื้อ</h4>
+              <div class="space-y-2">
+                <div class="flex justify-between">
+                  <span class="text-sm text-gray-500 dark:text-gray-400">เลขที่คำสั่งซื้อ:</span>
+                  <span class="font-medium text-gray-800 dark:text-white" id="orderNumber">PO-2566-001</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-sm text-gray-500 dark:text-gray-400">วันที่สั่งซื้อ:</span>
+                  <span class="font-medium text-gray-800 dark:text-white" id="orderDate">10 มิ.ย. 2566</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-sm text-gray-500 dark:text-gray-400">สถานะ:</span>
+                  <span class="badge badge-success" id="orderStatus">เสร็จสิ้น</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-sm text-gray-500 dark:text-gray-400">วันที่รับสินค้า:</span>
+                  <span class="font-medium text-gray-800 dark:text-white" id="receivedDate">12 มิ.ย. 2566</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <h4 class="font-medium text-sm text-gray-500 dark:text-gray-400 mb-2">ข้อมูลซัพพลายเออร์</h4>
+              <div class="flex items-start">
+                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                  <i class="bi bi-person-circle text-xl text-blue-500"></i>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-800 dark:text-white">หมอชินะ</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">085-123-4567</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">china_supply@email.com</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Order Items -->
+          <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg mb-4">
+            <table class="table w-full">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-700">
+                  <th class="px-4 py-2">สินค้า</th>
+                  <th class="px-4 py-2">ราคาต่อหน่วย</th>
+                  <th class="px-4 py-2">จำนวน</th>
+                  <th class="px-4 py-2">ราคารวม</th>
+                </tr>
+              </thead>
+              <tbody id="orderItems">
+                <tr class="border-b dark:border-gray-700">
+                  <td class="px-4 py-3">
+                    <div class="flex items-center">
+                      <img src="/uploads/placeholder.jpg" alt="หวีผม" class="w-10 h-10 object-cover rounded mr-3" />
+                      <div>
+                        <p class="font-medium">หวีผมพกพา</p>
+                        <p class="text-xs text-gray-500">รหัส: CMB-001</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">12.50 บาท</td>
+                  <td class="px-4 py-3">50 ชิ้น</td>
+                  <td class="px-4 py-3 font-medium">625.00 บาท</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="bg-gray-50 dark:bg-gray-700">
+                  <td colspan="3" class="px-4 py-2 text-right font-medium">รวมทั้งสิ้น:</td>
+                  <td class="px-4 py-2 font-bold" id="orderTotal">625.00 บาท</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          
+          <!-- Notes & Additional Info -->
+          <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
+            <h4 class="font-medium text-gray-800 dark:text-white mb-2">หมายเหตุ</h4>
+            <p class="text-gray-600 dark:text-gray-300" id="orderNotes">สั่งซื้อเพื่อเติมสต็อกสินค้าของแถมสำหรับลูกค้า</p>
+          </div>
+          
+          <div class="modal-action">
+            <button id="btnPrint" class="btn btn-outline btn-warning">
+              <i class="bi bi-printer mr-2"></i> พิมพ์
+            </button>
+            <button type="button" class="btn btn-outline" onclick="closeOrderModal()">ปิด</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- New Order Modal -->
+      <div id="newOrderModal" class="modal">
+        <div class="modal-box max-w-4xl">
+          <h3 class="font-bold text-lg mb-4">สร้างคำสั่งซื้อใหม่</h3>
+          <form id="newOrderForm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">เลขที่คำสั่งซื้อ</span>
+                </label>
+                <input type="text" id="newOrderId" class="input input-bordered" value="PO-2566-007" disabled>
+              </div>
+              
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">วันที่สั่งซื้อ</span>
+                </label>
+                <input type="date" id="newOrderDate" class="input input-bordered" required>
+              </div>
+              
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">ซัพพลายเออร์</span>
+                </label>
+                <select id="supplier" class="select select-bordered" required>
+                  <option value="หมอชินะ">หมอชินะ</option>
+                </select>
+              </div>
+              
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">วันที่คาดว่าจะได้รับสินค้า</span>
+                </label>
+                <input type="date" id="expectedDate" class="input input-bordered" required>
+              </div>
+            </div>
+            
+            <!-- Order Items Section -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
+              <div class="flex justify-between items-center mb-3">
+                <h4 class="font-medium">รายการสินค้า</h4>
+                <button type="button" class="btn btn-sm btn-outline btn-info" id="addItemRow">
+                  <i class="bi bi-plus-circle mr-1"></i> เพิ่มรายการ
+                </button>
+              </div>
+              
+              <table class="table w-full mb-3">
+                <thead>
+                  <tr class="bg-gray-100 dark:bg-gray-600">
+                    <th class="px-2 py-2">สินค้า</th>
+                    <th class="px-2 py-2">ราคา/หน่วย</th>
+                    <th class="px-2 py-2">จำนวน</th>
+                    <th class="px-2 py-2">ราคารวม</th>
+                    <th class="px-2 py-2 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody id="orderItemsTable">
+                  <tr class="item-row border-b dark:border-gray-600">
+                    <td class="px-2 py-2">
+                      <select class="select select-bordered select-sm w-full item-select" required>
+                        <option value="" disabled selected>เลือกสินค้า</option>
+                        <option value="1" data-price="12.50">หวีผมพกพา</option>
+                        <option value="2" data-price="18.75">กระจกพกพา</option>
+                        <option value="3" data-price="15.00">พวงกุญแจ</option>
+                        <option value="4" data-price="8.50">ปากกา</option>
+                      </select>
+                    </td>
+                    <td class="px-2 py-2">
+                      <input type="number" class="input input-bordered input-sm w-full item-price" min="0" step="0.01" value="0.00" required>
+                    </td>
+                    <td class="px-2 py-2">
+                      <input type="number" class="input input-bordered input-sm w-full item-quantity" min="1" value="1" required>
+                    </td>
+                    <td class="px-2 py-2">
+                      <input type="number" class="input input-bordered input-sm w-full item-total" readonly value="0.00">
+                    </td>
+                    <td class="px-2 py-2">
+                      <button type="button" class="btn btn-xs btn-outline btn-error remove-item">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr class="bg-gray-100 dark:bg-gray-600">
+                    <td colspan="3" class="px-4 py-2 text-right font-medium">รวมทั้งสิ้น:</td>
+                    <td class="px-4 py-2 font-bold" id="newOrderTotal">0.00 บาท</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">หมายเหตุ</span>
+              </label>
+              <textarea id="newOrderNotes" class="textarea textarea-bordered h-24" placeholder="กรอกรายละเอียดเพิ่มเติม (ถ้ามี)"></textarea>
+            </div>
+            
+            <div class="modal-action">
+              <button type="button" class="btn btn-outline" onclick="closeNewOrderModal()">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary">บันทึก</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Toggle sidebar
+    document.getElementById('btnToggleMenu').addEventListener('click', function() {
+      const sidebar = document.getElementById('sidebar');'
+      sidebar.classList.toggle('collapsed');'
+      this.querySelector('i').classList.toggle('bi-chevron-left');'
+      this.querySelector('i').classList.toggle('bi-chevron-right');'
+    });
+    
+    // Toggle dark mode
+    document.getElementById('btnToggleDark').addEventListener('click', function() {'
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark;
+      const newTheme = isDark ? 'light' : 'dark;
+      document.documentElement.setAttribute('data-theme', newTheme);'
+      document.documentElement.classList.toggle('dark', !isDark);'
+      localStorage.setItem('theme', newTheme);'
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Dark Mode' : 'Light Mode;
+    });
+    
+    // Logout button
+    document.getElementById('btnLogout').addEventListener('click', function() {'
+      if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {'
+        window.location.href = '/logout;
+      }
+    });
+
+    // Order Details Modal
+    const viewOrderButtons = document.querySelectorAll('.view-order');'
+    viewOrderButtons.forEach(button => {
+      button.addEventListener('click', function() {'
+        const orderId = this.getAttribute('data-order-id');'
+        openOrderModal(orderId);
+      });
+    });
+
+    function openOrderModal(orderId) {
+      document.getElementById('orderDetailModal').classList.add('modal-open');'
+      
+      // Update modal content based on order ID
+      document.getElementById('orderTitle').textContent = `รายละเอียดคำสั่งซื้อ: ${orderId}`;'
+      document.getElementById('orderNumber').textContent = orderId;'
+      
+      // In a real app, you'd fetch order details from the server'
+      // For demo purposes, we'll simulate different orders'
+      let orderData = {
+        date: '10 มิ.ย. 2566','
+        status: 'เสร็จสิ้น','
+        receivedDate: '12 มิ.ย. 2566','
+        total: '625.00 บาท','
+        notes: 'สั่งซื้อเพื่อเติมสต็อกสินค้าของแถมสำหรับลูกค้า''
+      };
+      
+      // Change details based on order ID
+      if (orderId === 'PO-2566-002') {'
+        orderData.date = '28 พ.ค. 2566;
+        orderData.receivedDate = '30 พ.ค. 2566;
+        orderData.total = '562.50 บาท;
+        
+        // Update order items display
+        document.getElementById('orderItems').innerHTML = `'
+          <tr class="border-b dark:border-gray-700">
+            <td class="px-4 py-3">
+              <div class="flex items-center">
+                <img src="/uploads/placeholder.jpg" alt="กระจกพกพา" class="w-10 h-10 object-cover rounded mr-3" />
+                <div>
+                  <p class="font-medium">กระจกพกพา</p>
+                  <p class="text-xs text-gray-500">รหัส: MRR-002</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3">18.75 บาท</td>
+            <td class="px-4 py-3">30 ชิ้น</td>
+            <td class="px-4 py-3 font-medium">562.50 บาท</td>
+          </tr>
+        `;
+      } else if (orderId === 'PO-2566-003') {'
+        orderData.date = '15 พ.ค. 2566;
+        orderData.receivedDate = '18 พ.ค. 2566;
+        orderData.total = '600.00 บาท;
+        
+        document.getElementById('orderItems').innerHTML = `'
+          <tr class="border-b dark:border-gray-700">
+            <td class="px-4 py-3">
+              <div class="flex items-center">
+                <img src="/uploads/placeholder.jpg" alt="พวงกุญแจ" class="w-10 h-10 object-cover rounded mr-3" />
+                <div>
+                  <p class="font-medium">พวงกุญแจ</p>
+                  <p class="text-xs text-gray-500">รหัส: KEY-003</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3">15.00 บาท</td>
+            <td class="px-4 py-3">40 ชิ้น</td>
+            <td class="px-4 py-3 font-medium">600.00 บาท</td>
+          </tr>
+        `;
+      } else if (orderId === 'PO-2566-006') {'
+        orderData.date = '15 มิ.ย. 2566;
+        orderData.status = 'รอดำเนินการ;
+        orderData.receivedDate = 'รอการจัดส่ง;
+        orderData.total = '950.00 บาท;
+        orderData.notes = 'สั่งซื้อด่วน เพื่อเตรียมแจกในงานเปิดร้านสาขาใหม่;
+        
+        document.getElementById('orderItems').innerHTML = `'
+          <tr class="border-b dark:border-gray-700">
+            <td class="px-4 py-3">
+              <div class="flex items-center">
+                <img src="/uploads/placeholder.jpg" alt="พวงกุญแจ" class="w-10 h-10 object-cover rounded mr-3" />
+                <div>
+                  <p class="font-medium">พวงกุญแจ</p>
+                  <p class="text-xs text-gray-500">รหัส: KEY-003</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3">15.00 บาท</td>
+            <td class="px-4 py-3">50 ชิ้น</td>
+            <td class="px-4 py-3 font-medium">750.00 บาท</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3">
+              <div class="flex items-center">
+                <img src="/uploads/placeholder.jpg" alt="ปากกา" class="w-10 h-10 object-cover rounded mr-3" />
+                <div>
+                  <p class="font-medium">ปากกา</p>
+                  <p class="text-xs text-gray-500">รหัส: PEN-004</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3">8.50 บาท</td>
+            <td class="px-4 py-3">25 ชิ้น</td>
+            <td class="px-4 py-3 font-medium">200.00 บาท</td>
+          </tr>
+        `;
+
+        // Update status badge color
+        document.getElementById('orderStatus').className = 'badge badge-warning;
+      } else {
+        // Default order (PO-2566-001)
+        document.getElementById('orderItems').innerHTML = `'
+          <tr class="border-b dark:border-gray-700">
+            <td class="px-4 py-3">
+              <div class="flex items-center">
+                <img src="/uploads/placeholder.jpg" alt="หวีผม" class="w-10 h-10 object-cover rounded mr-3" />
+                <div>
+                  <p class="font-medium">หวีผมพกพา</p>
+                  <p class="text-xs text-gray-500">รหัส: CMB-001</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3">12.50 บาท</td>
+            <td class="px-4 py-3">50 ชิ้น</td>
+            <td class="px-4 py-3 font-medium">625.00 บาท</td>
+          </tr>
+        `;
+      }
+      
+      // Update order details with the data
+      document.getElementById('orderDate').textContent = orderData.date;'
+      document.getElementById('orderStatus').textContent = orderData.status;'
+      document.getElementById('receivedDate').textContent = orderData.receivedDate;'
+      document.getElementById('orderTotal').textContent = orderData.total;'
+      document.getElementById('orderNotes').textContent = orderData.notes;'
+    }
+
+    function closeOrderModal() {
+      document.getElementById('orderDetailModal').classList.remove('modal-open');'
+    }
+    
+    // New Order Modal
+    document.getElementById('btnNewOrder').addEventListener('click', function() {'
+      openNewOrderModal();
+    });
+
+    function openNewOrderModal() {
+      document.getElementById('newOrderModal').classList.add('modal-open');'
+      
+      // Set default date to today
+      const today = new Date().toISOString().split('T')[0];'
+      document.getElementById('newOrderDate').value = today;'
+      
+      // Set expected date to 3 days from now
+      const expectedDate = new Date();
+      expectedDate.setDate(expectedDate.getDate() + 3);
+      document.getElementById('expectedDate').value = expectedDate.toISOString().split('T')[0];'
+      
+      // Reset form
+      document.getElementById('newOrderForm').reset();'
+      document.getElementById('newOrderDate').value = today;'
+      document.getElementById('expectedDate').value = expectedDate.toISOString().split('T')[0];'
+    }
+
+    function closeNewOrderModal() {
+      document.getElementById('newOrderModal').classList.remove('modal-open');'
+    }
+    
+    // Add new item row
+    document.getElementById('addItemRow').addEventListener('click', function() {'
+      const newRow = document.createElement('tr');'
+      newRow.className = 'item-row border-b dark:border-gray-600;
+      newRow.innerHTML = `
+        <td class="px-2 py-2">
+          <select class="select select-bordered select-sm w-full item-select" required>
+            <option value="" disabled selected>เลือกสินค้า</option>
+            <option value="1" data-price="12.50">หวีผมพกพา</option>
+            <option value="2" data-price="18.75">กระจกพกพา</option>
+            <option value="3" data-price="15.00">พวงกุญแจ</option>
+            <option value="4" data-price="8.50">ปากกา</option>
+          </select>
+        </td>
+        <td class="px-2 py-2">
+          <input type="number" class="input input-bordered input-sm w-full item-price" min="0" step="0.01" value="0.00" required>
+        </td>
+        <td class="px-2 py-2">
+          <input type="number" class="input input-bordered input-sm w-full item-quantity" min="1" value="1" required>
+        </td>
+        <td class="px-2 py-2">
+          <input type="number" class="input input-bordered input-sm w-full item-total" readonly value="0.00">
+        </td>
+        <td class="px-2 py-2">
+          <button type="button" class="btn btn-xs btn-outline btn-error remove-item">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      document.getElementById('orderItemsTable').appendChild(newRow);'
+      
+      // Add event listeners to new elements
+      setupItemEvents(newRow);
+      updateOrderTotal();
+    });
+    
+    // Remove item row
+    document.addEventListener('click', function(e) {'
+      if (e.target.closest('.remove-item')) {'
+        const row = e.target.closest('.item-row');'
+        if (document.querySelectorAll('.item-row').length > 1) {'
+          row.remove();
+          updateOrderTotal();
+        } else {
+          alert('ต้องมีรายการสินค้าอย่างน้อย 1 รายการ');'
+        }
+      }
+    });
+    
+    // Update item price when selecting a product
+    function setupItemEvents(row) {
+      const select = row.querySelector('.item-select');'
+      const priceInput = row.querySelector('.item-price');'
+      const quantityInput = row.querySelector('.item-quantity');'
+      
+      select.addEventListener('change', function() {'
+        const selectedOption = this.options[this.selectedIndex];
+        const price = selectedOption.getAttribute('data-price');'
+        priceInput.value = price;
+        updateItemTotal(row);
+      });
+      
+      priceInput.addEventListener('input', function() {'
+        updateItemTotal(row);
+      });
+      
+      quantityInput.addEventListener('input', function() {'
+        updateItemTotal(row);
+      });
+    }
+    
+    // Calculate item total
+    function updateItemTotal(row) {
+      const price = parseFloat(row.querySelector('.item-price').value) || 0;'
+      const quantity = parseInt(row.querySelector('.item-quantity').value) || 0;'
+      const total = price * quantity;
+      row.querySelector('.item-total').value = total.toFixed(2);'
+      updateOrderTotal();
+    }
+    
+    // Calculate order total
+    function updateOrderTotal() {
+      let total = 0;
+      document.querySelectorAll('.item-total').forEach(input => {'
+        total += parseFloat(input.value) || 0;
+      });
+      document.getElementById('newOrderTotal').textContent = total.toFixed(2) + ' บาท;
+    }
+    
+    // Initialize the first row events
+    setupItemEvents(document.querySelector('.item-row'));'
+    
+    // Form submission for new order
+    document.getElementById('newOrderForm').addEventListener('submit', function(e) {'
+      e.preventDefault();
+      // Here you would typically send the data to the server
+      alert('บันทึกคำสั่งซื้อเรียบร้อย');'
+      closeNewOrderModal();
+    });
+    
+    // Search and filters
+    document.getElementById('searchOrder').addEventListener('input', function() {'
+      const searchTerm = this.value.toLowerCase();
+      const rows = document.querySelectorAll('tbody tr');'
+      
+      rows.forEach(row => {
+        const orderId = row.querySelector('td:nth-child(1)').textContent.toLowerCase();'
+        const items = row.querySelector('td:nth-child(3)').textContent.toLowerCase();'
+        if (orderId.includes(searchTerm) || items.includes(searchTerm)) {
+          row.style.display = ';
+        } else {
+          row.style.display = 'none;
+        }
+      });
+    });
+    
+    document.getElementById('statusFilter').addEventListener('change', function() {'
+      const filter = this.value;
+      const rows = document.querySelectorAll('tbody tr');'
+      
+      rows.forEach(row => {
+        const status = row.querySelector('td:nth-child(6) .badge').textContent.toLowerCase();'
+        
+        if (filter === 'all' || '
+            (filter === 'completed' && status === 'เสร็จสิ้น') || '
+            (filter === 'pending' && status === 'รอดำเนินการ') || '
+            (filter === 'canceled' && status === 'ยกเลิก')) {'
+          row.style.display = ';
+        } else {
+          row.style.display = 'none;
+        }
+      });
+    });
+    
+    // Date filters
+    document.getElementById('startDate').addEventListener('change', filterByDate);'
+    document.getElementById('endDate').addEventListener('change', filterByDate);'
+    
+    function filterByDate() {
+      const startDate = document.getElementById('startDate').value;'
+      const endDate = document.getElementById('endDate').value;'
+      
+      if (!startDate && !endDate) return;
+      
+      const rows = document.querySelectorAll('tbody tr');'
+      
+      rows.forEach(row => {
+        // For demo purposes, this is simplified
+        // In a real app, you'd convert dates properly'
+        const orderDateText = row.querySelector('td:nth-child(2)').textContent;'
+        const orderDate = parseThaiDate(orderDateText);
+        
+        let display = true;
+        if (startDate && new Date(startDate) > orderDate) {
+          display = false;
+        }
+        if (endDate && new Date(endDate) < orderDate) {
+          display = false;
+        }
+        
+        row.style.display = display ? '' : 'none;
+      });
+    }
+    
+    // Helper function to parse Thai date format for demo
+    function parseThaiDate(thaiDate) {
+      // Very simplified parser for "DD เดือน YYYY" format
+      const parts = thaiDate.split(' ');'
+      const day = parseInt(parts[0]);
+      const month = getThaiMonth(parts[1]);
+      const year = parseInt(parts[2]) - 543; // Convert Buddhist year to Gregorian
+      
+      return new Date(year, month, day);
+    }
+    
+    function getThaiMonth(monthName) {
+      const months = {
+        'ม.ค.': 0, 'มค.': 0, 'มกราคม': 0,'
+        'ก.พ.': 1, 'กพ.': 1, 'กุมภาพันธ์': 1,'
+        'มี.ค.': 2, 'มีค.': 2, 'มีนาคม': 2,'
+        'เม.ย.': 3, 'เมย.': 3, 'เมษายน': 3,'
+        'พ.ค.': 4, 'พค.': 4, 'พฤษภาคม': 4,'
+        'มิ.ย.': 5, 'มิย.': 5, 'มิถุนายน': 5,'
+        'ก.ค.': 6, 'กค.': 6, 'กรกฎาคม': 6,'
+        'ส.ค.': 7, 'สค.': 7, 'สิงหาคม': 7,'
+        'ก.ย.': 8, 'กย.': 8, 'กันยายน': 8,'
+        'ต.ค.': 9, 'ตค.': 9, 'ตุลาคม': 9,'
+        'พ.ย.': 10, 'พย.': 10, 'พฤศจิกายน': 10,'
+        'ธ.ค.': 11, 'ธค.': 11, 'ธันวาคม': 11'
+      };
+      
+      return months[monthName] || 0;
+    }
+    
+    // Initialize charts
+    function initCharts() {
+      const ctx = document.getElementById('orderStatsChart').getContext('2d');'
+      
+      new Chart(ctx, {
+        type: 'bar','
+        data: {
+          labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],'
+          datasets: [{
+            label: 'มูลค่าการสั่งซื้อ (บาท)','
+            data: [1200, 1500, 1800, 2500, 1850, 1787, 0, 0, 0, 0, 0, 0],
+            backgroundColor: 'rgba(54, 162, 235, 0.6)','
+            borderColor: 'rgba(54, 162, 235, 1)','
+            borderWidth: 1
+          }, {
+            label: 'จำนวนสินค้า (ชิ้น)','
+            data: [80, 100, 120, 150, 120, 120, 0, 0, 0, 0, 0, 0],
+            backgroundColor: 'rgba(255, 159, 64, 0.6)','
+            borderColor: 'rgba(255, 159, 64, 1)','
+            borderWidth: 1,
+            yAxisID: 'y1''
+          }]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            intersect: false,
+            mode: 'index','
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'มูลค่า (บาท)''
+              }
+            },
+            y1: {
+              beginAtZero: true,
+              position: 'right','
+              grid: {
+                drawOnChartArea: false,
+              },
+              title: {
+                display: true,
+                text: 'จำนวน (ชิ้น)''
+              }
+            }
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: 'สถิติการสั่งซื้อประจำปี 2566','
+              font: {
+                size: 16
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Initialize socket connection
+    const socket = io();
+    
+    // Load employee data from API
+    async function loadEmployeeData() {
+      try {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        if (!token) {
+          document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+          return;
+        }
+
+        const response = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const userData = result.data;
+          
+          document.getElementById('employeeName').textContent = userData.name || 'คุณ พนักงาน';
+          if (userData.photoUrl) {
+            document.getElementById('employeePhoto').src = userData.photoUrl;
+          }
+        } else {
+          document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+        }
+      } catch (error) {
+        console.error('Error loading employee data:', error);
+        document.getElementById('employeeName').textContent = 'คุณ พนักงาน';
+      }
+    }
+    
+    // Export functionality
+    document.getElementById('btnExport').addEventListener('click', function() {
+      alert('กำลังส่งออกข้อมูลเป็นไฟล์ Excel');
+      // In a real app, this would trigger a download
+    });
+    
+    // Initialize everything
+    document.addEventListener('DOMContentLoaded', function() {
+      loadEmployeeData();
+      initCharts();
+      
+      // Update the dark mode label correctly on page load
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.getElementById('darkModeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    });
+  </script>
+</body>
+</html>

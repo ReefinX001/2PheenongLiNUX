@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Log - สำหรับผู้บริหาร</title>
+  
+  <!-- Tailwind + DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet" />
+  
+  <style>
+    body { 
+      font-family: 'Prompt', sans-serif; '
+      background-color: #f5f7fa;
+    }
+    .tab-active {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white !important;
+    }
+    .action-login { background-color: #dbeafe; }
+    .action-create { background-color: #d1fae5; }
+    .action-update { background-color: #fef3c7; }
+    .action-delete { background-color: #fee2e2; }
+    .action-error { background-color: #fecaca; }
+  </style>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+</head>
+<body>
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-lg">
+    <div class="container mx-auto flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold">
+          <i class="bi bi-shield-check"></i> ระบบตรวจสอบประวัติการทำงาน
+        </h1>
+        <p class="text-sm opacity-90">Audit Log System - For Management Only</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-sm">
+          <i class="bi bi-person-circle"></i> ผู้บริหาร
+        </span>
+        <button onclick="window.location.href='/views/BOSS/home.html'" class="btn btn-sm btn-ghost">'
+          <i class="bi bi-house"></i> กลับหน้าหลัก
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container mx-auto p-4">
+    <!-- Filters -->
+    <div class="card bg-white shadow-lg mb-4">
+      <div class="card-body">
+        <h2 class="card-title mb-4">
+          <i class="bi bi-funnel"></i> ตัวกรองข้อมูล
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Date Range -->
+          <div>
+            <label class="label">
+              <span class="label-text">วันที่เริ่มต้น</span>
+            </label>
+            <input type="date" id="startDate" class="input input-bordered w-full" />
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text">วันที่สิ้นสุด</span>
+            </label>
+            <input type="date" id="endDate" class="input input-bordered w-full" />
+          </div>
+          
+          <!-- Employee Filter -->
+          <div>
+            <label class="label">
+              <span class="label-text">พนักงาน</span>
+            </label>
+            <select id="employeeFilter" class="select select-bordered w-full">
+              <option value="">ทั้งหมด</option>
+            </select>
+          </div>
+          
+          <!-- Action Type -->
+          <div>
+            <label class="label">
+              <span class="label-text">ประเภทการกระทำ</span>
+            </label>
+            <select id="actionFilter" class="select select-bordered w-full">
+              <option value="">ทั้งหมด</option>
+              <option value="login">เข้าสู่ระบบ</option>
+              <option value="logout">ออกจากระบบ</option>
+              <option value="create">สร้างข้อมูล</option>
+              <option value="update">แก้ไขข้อมูล</option>
+              <option value="delete">ลบข้อมูล</option>
+              <option value="export">ส่งออกข้อมูล</option>
+              <option value="error">ข้อผิดพลาด</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="mt-4 flex gap-2">
+          <button onclick="searchLogs()" class="btn btn-primary">
+            <i class="bi bi-search"></i> ค้นหา
+          </button>
+          <button onclick="resetFilters()" class="btn btn-ghost">
+            <i class="bi bi-arrow-clockwise"></i> รีเซ็ต
+          </button>
+          <button onclick="exportLogs()" class="btn btn-success">
+            <i class="bi bi-download"></i> ส่งออก Excel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs tabs-boxed bg-white shadow-lg mb-4">
+      <a class="tab tab-active" onclick="switchTab('all')" data-tab="all">'
+        <i class="bi bi-list-ul"></i> ทั้งหมด
+      </a>
+      <a class="tab" onclick="switchTab('installment')" data-tab="installment">'
+        <i class="bi bi-credit-card"></i> ระบบผ่อน
+      </a>
+      <a class="tab" onclick="switchTab('register')" data-tab="register">'
+        <i class="bi bi-box-seam"></i> ลงทะเบียนสินค้า
+      </a>
+      <a class="tab" onclick="switchTab('accounting')" data-tab="accounting">'
+        <i class="bi bi-calculator"></i> บัญชี
+      </a>
+      <a class="tab" onclick="switchTab('inventory')" data-tab="inventory">'
+        <i class="bi bi-archive"></i> คลังสินค้า
+      </a>
+      <a class="tab" onclick="switchTab('auth')" data-tab="auth">'
+        <i class="bi bi-shield-lock"></i> ระบบความปลอดภัย
+      </a>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+      <div class="stat bg-white rounded-lg shadow">
+        <div class="stat-figure text-primary">
+          <i class="bi bi-activity text-3xl"></i>
+        </div>
+        <div class="stat-title">กิจกรรมวันนี้</div>
+        <div class="stat-value text-primary" id="todayCount">0</div>
+        <div class="stat-desc">↗︎ เพิ่มขึ้น 10%</div>
+      </div>
+      
+      <div class="stat bg-white rounded-lg shadow">
+        <div class="stat-figure text-success">
+          <i class="bi bi-check-circle text-3xl"></i>
+        </div>
+        <div class="stat-title">การทำงานสำเร็จ</div>
+        <div class="stat-value text-success" id="successCount">0</div>
+        <div class="stat-desc">อัตราสำเร็จ 98%</div>
+      </div>
+      
+      <div class="stat bg-white rounded-lg shadow">
+        <div class="stat-figure text-warning">
+          <i class="bi bi-exclamation-triangle text-3xl"></i>
+        </div>
+        <div class="stat-title">เหตุการณ์ผิดปกติ</div>
+        <div class="stat-value text-warning" id="warningCount">0</div>
+        <div class="stat-desc">ต้องตรวจสอบ</div>
+      </div>
+      
+      <div class="stat bg-white rounded-lg shadow">
+        <div class="stat-figure text-error">
+          <i class="bi bi-x-circle text-3xl"></i>
+        </div>
+        <div class="stat-title">ข้อผิดพลาด</div>
+        <div class="stat-value text-error" id="errorCount">0</div>
+        <div class="stat-desc">ลดลง 5%</div>
+      </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="card bg-white shadow-lg">
+      <div class="card-body">
+        <h2 class="card-title mb-4">
+          <i class="bi bi-journal-text"></i> บันทึกกิจกรรม
+          <span class="badge badge-primary" id="totalLogs">0</span>
+        </h2>
+        
+        <!-- Loading -->
+        <div id="loadingSpinner" class="text-center py-8 hidden">
+          <div class="loading loading-spinner loading-lg"></div>
+          <p class="mt-2">กำลังโหลดข้อมูล...</p>
+        </div>
+        
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th>วันที่/เวลา</th>
+                <th>พนักงาน</th>
+                <th>ระบบ</th>
+                <th>การกระทำ</th>
+                <th>รายละเอียด</th>
+                <th>IP Address</th>
+                <th>สถานะ</th>
+                <th>ดูเพิ่มเติม</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody">
+              <!-- Logs will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-4">
+          <div class="text-sm text-gray-600">
+            แสดง <span id="showingFrom">0</span> - <span id="showingTo">0</span> 
+            จาก <span id="totalRecords">0</span> รายการ
+          </div>
+          <div class="join">
+            <button class="join-item btn btn-sm" onclick="changePage(-1)">«</button>
+            <button class="join-item btn btn-sm btn-active" id="currentPage">1</button>
+            <button class="join-item btn btn-sm" onclick="changePage(1)">»</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Detail Modal -->
+  <dialog id="detailModal" class="modal">
+    <div class="modal-box max-w-3xl">
+      <h3 class="font-bold text-lg mb-4">
+        <i class="bi bi-info-circle"></i> รายละเอียดกิจกรรม
+      </h3>
+      <div id="modalContent" class="space-y-3">
+        <!-- Detail content will be inserted here -->
+      </div>
+      <div class="modal-action">
+        <form method="dialog">
+          <button class="btn">ปิด</button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    // Global variables
+    let currentPage = 1;
+    let totalPages = 1;
+    let currentTab = 'all';'
+    let logs = [];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      // Set default dates
+      const today = new Date();
+      const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      document.getElementById('startDate').value = lastWeek.toISOString().split('T')[0];'
+      document.getElementById('endDate').value = today.toISOString().split('T')[0];'
+      
+      // Load employees
+      await loadEmployees();
+      
+      // Load initial data
+      await searchLogs();
+    });
+
+    // Load employees for filter
+    async function loadEmployees() {
+      try {
+        const token = localStorage.getItem('authToken');'
+        const response = await fetch('/api/users/employees', {'
+          headers: {
+            'Authorization': `Bearer ${token}`'
+          }
+        });
+        
+        if (response.ok) {
+          const employees = await response.json();
+          const select = document.getElementById('employeeFilter');'
+          
+          employees.forEach(emp => {
+            const option = document.createElement('option');'
+            option.value = emp._id;
+            option.textContent = `${emp.name} (${emp.employeeId})`;
+            select.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error('Error loading employees:', error);'
+      }
+    }
+
+    // Search logs
+    async function searchLogs() {
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...','
+        showProgress: true,
+        autoProgress: true
+      });
+      
+      try {
+        const token = localStorage.getItem('authToken');'
+        const params = new URLSearchParams({
+          startDate: document.getElementById('startDate').value,'
+          endDate: document.getElementById('endDate').value,'
+          employee: document.getElementById('employeeFilter').value,'
+          action: document.getElementById('actionFilter').value,'
+          system: currentTab === 'all' ? '' : currentTab,'
+          page: currentPage,
+          limit: 50
+        });
+        
+        const response = await fetch(`/api/audit-logs?${params}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          logs = data.logs;
+          totalPages = data.totalPages;
+          
+          displayLogs();
+          updateStatistics(data.statistics);
+          updatePagination(data);
+        } else {
+          showError('ไม่สามารถโหลดข้อมูลได้');'
+        }
+      } catch (error) {
+        console.error('Error searching logs:', error);'
+        showError('เกิดข้อผิดพลาดในการค้นหา');'
+      } finally {
+        LoadingSystem.hide(loaderId);
+      }
+    }
+
+    // Display logs in table
+    function displayLogs() {
+      const tbody = document.getElementById('logsTableBody');'
+      tbody.innerHTML = '';'
+      
+      if (logs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-8 text-gray-500">
+              <i class="bi bi-inbox text-4xl"></i>
+              <p class="mt-2">ไม่พบข้อมูลที่ค้นหา</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      logs.forEach(log => {
+        const row = document.createElement('tr');'
+        row.className = `action-${log.action}`;
+        
+        row.innerHTML = `
+          <td>
+            <div class="text-sm font-medium">${formatDateTime(log.timestamp)}</div>
+          </td>
+          <td>
+            <div class="flex items-center gap-2">
+              <div class="avatar placeholder">
+                <div class="bg-neutral-focus text-neutral-content rounded-full w-8">
+                  <span class="text-xs">${getInitials(log.employeeName)}</span>
+                </div>
+              </div>
+              <div>
+                <div class="font-medium">${log.employeeName}</div>
+                <div class="text-xs text-gray-500">${log.employeeId}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-outline">${getSystemName(log.system)}</span>
+          </td>
+          <td>
+            <span class="badge ${getActionBadgeClass(log.action)}">
+              ${getActionIcon(log.action)} ${getActionName(log.action)}
+            </span>
+          </td>
+          <td>
+            <div class="max-w-xs truncate">${log.description}</div>
+          </td>
+          <td>
+            <span class="text-xs">${log.ipAddress}</span>
+          </td>
+          <td>
+            ${log.status === 'success' '
+              ? '<span class="text-success"><i class="bi bi-check-circle"></i></span>''
+              : '<span class="text-error"><i class="bi bi-x-circle"></i></span>''
+            }
+          </td>
+          <td>
+            <button onclick="showDetail('${log._id}')" class="btn btn-ghost btn-xs">'
+              <i class="bi bi-eye"></i>
+            </button>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    // Show detail modal
+    function showDetail(logId) {
+      const log = logs.find(l => l._id === logId);
+      if (!log) return;
+      
+      const modalContent = document.getElementById('modalContent');'
+      modalContent.innerHTML = `
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm text-gray-500">วันที่/เวลา</label>
+            <p class="font-medium">${formatDateTime(log.timestamp)}</p>
+          </div>
+          <div>
+            <label class="text-sm text-gray-500">พนักงาน</label>
+            <p class="font-medium">${log.employeeName} (${log.employeeId})</p>
+          </div>
+          <div>
+            <label class="text-sm text-gray-500">ระบบ</label>
+            <p class="font-medium">${getSystemName(log.system)}</p>
+          </div>
+          <div>
+            <label class="text-sm text-gray-500">การกระทำ</label>
+            <p class="font-medium">${getActionName(log.action)}</p>
+          </div>
+          <div>
+            <label class="text-sm text-gray-500">IP Address</label>
+            <p class="font-medium">${log.ipAddress}</p>
+          </div>
+          <div>
+            <label class="text-sm text-gray-500">User Agent</label>
+            <p class="font-medium text-xs">${log.userAgent || '-'}</p>'
+          </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div>
+          <label class="text-sm text-gray-500">รายละเอียด</label>
+          <p class="mt-1">${log.description}</p>
+        </div>
+        
+        ${log.details ? `
+          <div>
+            <label class="text-sm text-gray-500">ข้อมูลเพิ่มเติม</label>
+            <pre class="mt-1 p-3 bg-gray-100 rounded text-xs overflow-auto max-h-48">
+${JSON.stringify(log.details, null, 2)}
+            </pre>
+          </div>
+        ` : ''}'
+        
+        ${log.errorMessage ? `
+          <div class="alert alert-error">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>${log.errorMessage}</span>
+          </div>
+        ` : ''}'
+      `;
+      
+      document.getElementById('detailModal').showModal();'
+    }
+
+    // Update statistics
+    function updateStatistics(stats) {
+      document.getElementById('todayCount').textContent = stats.today || 0;'
+      document.getElementById('successCount').textContent = stats.success || 0;'
+      document.getElementById('warningCount').textContent = stats.warning || 0;'
+      document.getElementById('errorCount').textContent = stats.error || 0;'
+      document.getElementById('totalLogs').textContent = stats.total || 0;'
+    }
+
+    // Update pagination
+    function updatePagination(data) {
+      document.getElementById('showingFrom').textContent = data.from || 0;'
+      document.getElementById('showingTo').textContent = data.to || 0;'
+      document.getElementById('totalRecords').textContent = data.total || 0;'
+      document.getElementById('currentPage').textContent = currentPage;'
+    }
+
+    // Change page
+    function changePage(direction) {
+      const newPage = currentPage + direction;
+      if (newPage >= 1 && newPage <= totalPages) {
+        currentPage = newPage;
+        searchLogs();
+      }
+    }
+
+    // Switch tab
+    function switchTab(tab) {
+      currentTab = tab;
+      currentPage = 1;
+      
+      // Update tab UI
+      document.querySelectorAll('.tab').forEach(t => {'
+        t.classList.remove('tab-active');'
+        if (t.dataset.tab === tab) {
+          t.classList.add('tab-active');'
+        }
+      });
+      
+      searchLogs();
+    }
+
+    // Reset filters
+    function resetFilters() {
+      document.getElementById('employeeFilter').value = '';'
+      document.getElementById('actionFilter').value = '';'
+      
+      const today = new Date();
+      const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      document.getElementById('startDate').value = lastWeek.toISOString().split('T')[0];'
+      document.getElementById('endDate').value = today.toISOString().split('T')[0];'
+      
+      currentPage = 1;
+      searchLogs();
+    }
+
+    // Export logs
+    async function exportLogs() {
+      try {
+        const token = localStorage.getItem('authToken');'
+        const params = new URLSearchParams({
+          startDate: document.getElementById('startDate').value,'
+          endDate: document.getElementById('endDate').value,'
+          employee: document.getElementById('employeeFilter').value,'
+          action: document.getElementById('actionFilter').value,'
+          system: currentTab === 'all' ? '' : currentTab,'
+          format: 'excel''
+        });
+        
+        const response = await fetch(`/api/audit-logs/export?${params}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`'
+          }
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');'
+          a.href = url;
+          a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.xlsx`;'
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+          
+          showSuccess('ส่งออกข้อมูลสำเร็จ');'
+        }
+      } catch (error) {
+        console.error('Error exporting logs:', error);'
+        showError('ไม่สามารถส่งออกข้อมูลได้');'
+      }
+    }
+
+    // Helper functions
+    function formatDateTime(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleString('th-TH', {'
+        year: 'numeric','
+        month: '2-digit','
+        day: '2-digit','
+        hour: '2-digit','
+        minute: '2-digit','
+        second: '2-digit''
+      });
+    }
+
+    function getInitials(name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase();'
+    }
+
+    function getSystemName(system) {
+      const systems = {
+        'installment': 'ระบบผ่อน','
+        'register': 'ลงทะเบียน','
+        'accounting': 'บัญชี','
+        'inventory': 'คลังสินค้า','
+        'auth': 'ระบบความปลอดภัย','
+        'report': 'รายงาน''
+      };
+      return systems[system] || system;
+    }
+
+    function getActionName(action) {
+      const actions = {
+        'login': 'เข้าสู่ระบบ','
+        'logout': 'ออกจากระบบ','
+        'create': 'สร้างข้อมูล','
+        'update': 'แก้ไขข้อมูล','
+        'delete': 'ลบข้อมูล','
+        'view': 'ดูข้อมูล','
+        'export': 'ส่งออกข้อมูล','
+        'print': 'พิมพ์เอกสาร','
+        'error': 'ข้อผิดพลาด''
+      };
+      return actions[action] || action;
+    }
+
+    function getActionIcon(action) {
+      const icons = {
+        'login': '<i class="bi bi-box-arrow-in-right"></i>','
+        'logout': '<i class="bi bi-box-arrow-right"></i>','
+        'create': '<i class="bi bi-plus-circle"></i>','
+        'update': '<i class="bi bi-pencil"></i>','
+        'delete': '<i class="bi bi-trash"></i>','
+        'view': '<i class="bi bi-eye"></i>','
+        'export': '<i class="bi bi-download"></i>','
+        'print': '<i class="bi bi-printer"></i>','
+        'error': '<i class="bi bi-exclamation-circle"></i>''
+      };
+      return icons[action] || '<i class="bi bi-circle"></i>';'
+    }
+
+    function getActionBadgeClass(action) {
+      const classes = {
+        'login': 'badge-info','
+        'logout': 'badge-ghost','
+        'create': 'badge-success','
+        'update': 'badge-warning','
+        'delete': 'badge-error','
+        'error': 'badge-error''
+      };
+      return classes[action] || 'badge-ghost';'
+    }
+
+        function showSuccess(message) {
+      // You can implement toast notification here
+      alert(message);
+    }
+
+    function showError(message) {
+      // You can implement toast notification here
+      alert(message);
+    }
+  
+}</script>
+</body>
+</html> 

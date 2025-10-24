@@ -1,0 +1,2473 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ใบเพิ่มหนี้</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+
+  <!-- Required Libraries for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Add Thai calendar locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],'
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff','
+              100: '#e0f2fe','
+              500: '#0ea5e9','
+              600: '#0284c7','
+            }
+          }
+        },
+      }
+    }
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent {
+      flex: 1;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;'
+      font-size: 0.875rem;
+      background-color: #f8f9fa;
+    }
+    
+    .dark body {
+      background-color: #1a202c;
+      color: #f8f9fa;
+    }
+    
+    .breadcrumb-item {
+      color: #6c757d;
+    }
+    
+    .breadcrumb-item a {
+      color: #0ea5e9;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dark .card {
+      background-color: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+    }
+    
+    .dark .form-control {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .btn {
+      border-radius: 4px;
+      padding: 8px 16px;
+      transition: all 0.2s;
+    }
+    
+    .btn-rounded {
+      border-radius: 30px;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid #0ea5e9;
+      color: #0ea5e9;
+      background-color: white;
+    }
+    
+    .btn-outline-primary:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .dark .btn-outline-primary {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background-color: transparent;
+    }
+    
+    .dark .btn-outline-primary:hover {
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      background-color: #f8f9fa;
+      text-align: left;
+      padding: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .dark .table th {
+      background-color: #2d3748;
+      color: #d1d5db;
+      border-bottom-color: #4a5568;
+    }
+    
+    .table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    
+    .dark .table td {
+      border-bottom-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .page-link {
+      min-width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      text-decoration: none;
+      margin: 0 2px;
+    }
+    
+    .dark .page-link {
+      border-color: #4a5568;
+      color: #d1d5db;
+    }
+    
+    .page-link:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .page-link:hover {
+      background-color: #374151;
+    }
+    
+    .page-link.active {
+      background-color: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+    
+    .dropdown-select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: white;
+      color: #333;
+    }
+    
+    .dark .dropdown-select {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .account-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .account-list li {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    
+    .dark .account-list li {
+      border-bottom-color: #4a5568;
+    }
+    
+    .account-list li:hover {
+      background-color: #f9f9fb;
+    }
+    
+    .dark .account-list li:hover {
+      background-color: #374151;
+    }
+    
+    .account-list li.active {
+      background-color: #f0f9ff;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .dark .account-list li.active {
+      background-color: #1a4971;
+      color: #38bdf8;
+    }
+    
+    .date-range {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dark .date-range {
+      background-color: #2d3748;
+      border-color: #4a5568;
+      color: #f8f9fa;
+    }
+    
+    .date-range:focus {
+      border-color: #0ea5e9;
+      outline: none;
+    }
+    
+    .negative-value {
+      color: #ef4444;
+    }
+    
+    .dark .negative-value {
+      color: #f87171;
+    }
+    
+    .navbar {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
+    }
+    
+    .dark .navbar {
+      background-color: #1e293b;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .flex-none {
+      flex: none;
+    }
+    
+    .btn-fancy {
+      position: relative;
+      overflow: hidden;
+      transform: translate3d(0, 0, 0);
+    }
+    
+    .btn-fancy:after {
+      content: "";
+      display: block;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+    
+    .btn-fancy:active:after {
+      transform: scale(0, 0);
+      opacity: 0.3;
+      transition: 0s;
+    }
+    
+    /* Dropdown menu styling */
+    .menu {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+    }
+    
+    .menu-horizontal {
+      display: flex;
+      flex-direction: row;
+    }
+    
+    .dropdown {
+      position: relative;
+    }
+    
+    .dropdown > a { /* Main category link */
+      display: flex;
+      padding: 0.5rem 1rem; /* Adjust as needed */
+      cursor: pointer;
+      align-items: center; /* Vertically align icon and text */
+    }
+    
+    /* First Level Dropdown Panel */
+    .dropdown > ul {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: white; /* From Tailwind: bg-base-100 */
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); /* From Tailwind: shadow-lg */
+      border-radius: 0.375rem; /* From Tailwind: rounded-lg */
+      min-width: 220px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 40; /* Ensure dropdown is above other content but below higher-level modals if any */
+      padding: 0.5rem; /* From Tailwind: p-2 */
+    }
+    
+    .dark .dropdown > ul {
+      background-color: #1e293b; /* From Tailwind: dark:bg-gray-700 or dark:bg-gray-800 */
+    }
+    
+    .dropdown:hover > ul,
+    .dropdown:focus-within > ul {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    /* Nested Dropdown Panels (Fly-out) */
+    .dropdown ul li.dropdown > ul { /* Target UL inside an LI that is also a .dropdown */
+      position: absolute;
+      top: -0.5rem; /* Adjust to align with parent li, considering parent ul padding */
+      left: 100%;
+      /* Inherit background, shadow, radius, min-width, padding from first-level or define specifically */
+      background: white; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      border-radius: 0.375rem;
+      min-width: 220px; /* Or adjust as needed */
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(10px); /* Fly-out from right */
+      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
+      z-index: 45; /* Higher than first-level dropdown */
+      padding: 0.5rem;
+    }
+    
+    .dark .dropdown ul li.dropdown > ul {
+      background-color: #1e293b;
+    }
+    
+    .dropdown ul li.dropdown:hover > ul,
+    .dropdown ul li.dropdown:focus-within > ul {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+
+    .dropdown ul li {
+      list-style: none;
+    }
+    
+    .dropdown ul li a { /* Styling for all links within dropdowns */
+      display: flex; /* Use flex for alignment of icon and text */
+      align-items: center;
+      padding: 0.5rem 1rem; /* Tailwind: px-4 py-2 */
+      color: #374151; /* Tailwind: text-gray-700 */
+      text-decoration: none;
+      border-radius: 0.25rem; /* Tailwind: rounded-md */
+      white-space: nowrap; /* Prevent text wrapping in menu items */
+    }
+    
+    .dark .dropdown ul li a {
+      color: #d1d5db; /* Tailwind: dark:text-gray-200 */
+    }
+    
+    .dropdown ul li a:hover {
+      background-color: #f3f4f6; /* Tailwind: hover:bg-gray-100 */
+    }
+    
+    .dark .dropdown ul li a:hover {
+      background-color: #374151; /* Tailwind: dark:hover:bg-gray-600 */
+    }
+
+    /* Specific for an LI that is a dropdown trigger within another dropdown */
+    .dropdown ul li.dropdown > a {
+      justify-content: space-between; /* Puts arrow icon to the right */
+    }
+    
+    .submenu-item { /* General styling for submenu items, including hover effect */
+      transition: background-color 0.2s, padding-left 0.2s;
+      border-left: 3px solid transparent;
+      margin-bottom: 2px; /* Spacing between items */
+    }
+    
+    .submenu-item:hover { /* Visual cue on hover */
+      /* border-left-color: #0ea5e9; */ /* Original style, can be kept or removed */
+      /* padding-left: 0.25rem; */ /* Original style, can be kept or removed */
+    }
+    
+    /* User badge */
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background-color: rgba(14, 165, 233, 0.1);
+      border-radius: 30px;
+    }
+    
+    .user-avatar {
+      background-color: #0ea5e9;
+      color: white;
+      height: 30px;
+      width: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+    }
+    
+    .dark .user-avatar {
+      background-color: #38bdf8;
+      color: #1a202c;
+    }
+    
+    /* Loader */
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .expense-voucher {
+      margin-left: 20px;
+      position: relative;
+    }
+    
+    .expense-voucher::before {
+      content: '';'
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background-color: #cbd5e0;
+    }
+    
+    .dark .expense-voucher::before {
+      background-color: #4a5568;
+    }
+    
+    /* Income Statement specific styles */
+    .fin-statement-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .fin-statement-table td {
+      padding: 10px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .fin-statement-table td {
+      border-bottom-color: #374151;
+    }
+    
+    .fin-statement-table .item-title {
+      font-weight: 500;
+    }
+    
+    .fin-statement-table .bold {
+      font-weight: 600;
+    }
+    
+    .fin-statement-table .section-header {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+    
+    .dark .fin-statement-table .section-header {
+      color: #f9fafb;
+    }
+    
+    .fin-statement-table .section-total {
+      font-weight: 600;
+      color: #1e40af;
+      background-color: #f0f9ff;
+    }
+    
+    .dark .fin-statement-table .section-total {
+      color: #93c5fd;
+      background-color: #1e3a8a;
+    }
+    
+    .fin-statement-table .grand-total {
+      font-weight: 700;
+      color: #0284c7;
+      background-color: #e0f2fe;
+      font-size: 1.05rem;
+    }
+    
+    .dark .fin-statement-table .grand-total {
+      color: #38bdf8;
+      background-color: #075985;
+    }
+    
+    .fin-statement-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .fin-statement-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .overview-card {
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      background-color: white;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .dark .overview-card {
+      background-color: #1e293b;
+    }
+    
+    .overview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .metric-label {
+      color: #9ca3af;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    
+    .dark .metric-value {
+      color: #f9fafb;
+    }
+    
+    .trend-up {
+      color: #10b981;
+    }
+    
+    .trend-down {
+      color: #ef4444;
+    }
+    
+    .dark .trend-up {
+      color: #34d399;
+    }
+    
+    .dark .trend-down {
+      color: #f87171;
+    }
+    
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+    
+    .view-switcher {
+      display: flex;
+      padding: 0.25rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-switcher {
+      background-color: #374151;
+    }
+    
+    .view-option {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .view-option.active {
+      background-color: white;
+      color: #0ea5e9;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dark .view-option.active {
+      background-color: #1f2937;
+      color: #38bdf8;
+    }
+    
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      background-color: white;
+      color: #374151;
+      transition: all 0.2s;
+    }
+    
+    .dark .action-button {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .action-button:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+    
+    .dark .action-button:hover {
+      background-color: #374151;
+      border-color: #6b7280;
+    }
+    
+    .period-selector {
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      background-color: white;
+      font-size: 0.875rem;
+      color: #374151;
+      outline: none;
+    }
+    
+    .dark .period-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Dashboard Card Styles */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .dark .dashboard-card {
+      background-color: #1e293b;
+    }
+    
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-title {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-title {
+      color: #9ca3af;
+    }
+    
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dark .card-value {
+      color: #f9fafb;
+    }
+    
+    .comparison-value {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .comparison-up {
+      color: #10b981;
+    }
+    
+    .comparison-down {
+      color: #ef4444;
+    }
+    
+    .dark .comparison-up {
+      color: #34d399;
+    }
+    
+    .dark .comparison-down {
+      color: #f87171;
+    }
+    
+    /* Menu bar styles */
+    .menu-bar {
+      display: flex;
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .dark .menu-bar {
+      background-color: #1e293b;
+    }
+    
+    .menu-item {
+      padding: 0.75rem 1.25rem;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .menu-item:hover {
+      background-color: #f3f4f6;
+      color: #0ea5e9;
+    }
+    
+    .dark .menu-item:hover {
+      background-color: #334155;
+    }
+    
+    .menu-item.active {
+      border-bottom-color: #0ea5e9;
+      color: #0ea5e9;
+      font-weight: 500;
+    }
+    
+    .menu-spacer {
+      flex: 1;
+    }
+    
+    .month-selector {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: white;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    
+    .dark .month-selector {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    /* Display toggle */
+    .display-toggle {
+      display: flex;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.25rem;
+    }
+    
+    .dark .display-toggle {
+      background-color: #334155;
+    }
+    
+    .toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .toggle-btn.active {
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      color: #0ea5e9;
+    }
+    
+    .dark .toggle-btn.active {
+      background-color: #1f2937;
+    }
+    
+    /* Financial table */
+    .view-container {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .dark .view-container {
+      background-color: #1e293b;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .financial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .financial-table th {
+      background-color: #f8f9fa;
+      color: #6b7280;
+      font-weight: 500;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table th {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dark .financial-table td {
+      border-bottom-color: #4b5563;
+    }
+    
+    .financial-table .section-header {
+      font-weight: 600;
+      background-color: #f3f4f6;
+      color: #111827;
+      padding: 0.75rem 1rem;
+    }
+    
+    .dark .financial-table .section-header {
+      background-color: #374151;
+      color: #f3f4f6;
+    }
+    
+    .financial-table .subsection-header {
+      font-weight: 500;
+      color: #4b5563;
+      padding: 0.75rem 1rem;
+      background-color: #f9fafb;
+    }
+    
+    .dark .financial-table .subsection-header {
+      background-color: #1f2937;
+      color: #e5e7eb;
+    }
+    
+    .financial-table .amount {
+      text-align: right;
+      position: relative;
+    }
+    
+    .financial-table .indent-1 {
+      padding-left: 2rem;
+    }
+    
+    .financial-table .indent-2 {
+      padding-left: 3.5rem;
+    }
+    
+    .financial-table .total-row {
+      background-color: #e0f2fe;
+      font-weight: 600;
+    }
+    
+    .dark .financial-table .total-row {
+      background-color: #0c4a6e;
+    }
+    
+    .comparison-value {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .financial-table {
+        font-size: 0.875rem;
+      }
+      
+      .menu-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      
+      .card-value {
+        font-size: 1.25rem;
+      }
+      
+      .view-container {
+        padding: 1rem;
+      }
+    }
+    
+    @media print {
+      .navbar, .menu-bar, .display-toggle, .dashboard-cards {
+        display: none;
+      }
+      
+      .view-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      body {
+        font-size: 12pt;
+      }
+    }
+    
+    /* Thai Calendar Styles */
+    .date-picker-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .date-picker-input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+    }
+    
+    .dark .date-picker-input {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+    
+    .thai-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      width: 280px;
+      display: none;
+    }
+    
+    .dark .thai-calendar {
+      background-color: #1e293b;
+      border-color: #4b5563;
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .month-year {
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    
+    .nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #6b7280;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    
+    .dark .nav-btn {
+      color: #9ca3af;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+    }
+    
+    .day-name {
+      text-align: center;
+      font-weight: 500;
+      color: #6b7280;
+      font-size: 0.85rem;
+      padding: 4px 0;
+    }
+    
+    .dark .day-name {
+      color: #9ca3af;
+    }
+    
+    .calendar-dates {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .date-cell {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      margin: 1px;
+    }
+    
+    .date-cell:hover:not(.disabled) {
+      background-color: #f3f4f6;
+      border-radius: 50%;
+    }
+    
+    .dark .date-cell:hover:not(.disabled) {
+      background-color: #374151;
+    }
+    
+    .date-cell.disabled {
+      color: #d1d5db;
+      cursor: default;
+      opacity: 0.4;
+    }
+    
+    .dark .date-cell.disabled {
+      color: #6b7280;
+    }
+    
+    .date-cell.selected {
+      background-color: #0ea5e9;
+      color: white;
+      border-radius: 50%;
+    }
+    
+    .date-cell.today {
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      font-weight: 500;
+    }
+    
+    .dark .date-cell.today {
+      border-color: #38bdf8;
+    }
+
+    /* เพิ่ม CSS สำหรับปุ่มและสถานะ */
+    .status-pill {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: inline-block;
+    }
+    .status-pending {
+      background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24;
+    }
+    .status-approved {
+      background-color: #d1fae5; color: #065f46; border: 1px solid #34d399;
+    }
+    .status-rejected {
+      background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171;
+    }
+    .action-btn {
+      padding: 6px 10px; border-radius: 6px; border: 1px solid transparent;
+      background: transparent; cursor: pointer; transition: all 0.2s; font-size: 1.1rem;
+    }
+    .btn-approve {
+      color: #10b981; border-color: #10b981;
+    }
+    .btn-approve:hover:not(:disabled) {
+      background-color: #10b981; color: white;
+    }
+    .btn-reject {
+      color: #ef4444; border-color: #ef4444;
+    }
+    .btn-reject:hover:not(:disabled) {
+      background-color: #ef4444; color: white;
+    }
+    .btn-download {
+      color: #3b82f6; border-color: #3b82f6;
+    }
+    .btn-download:hover {
+      background-color: #3b82f6; color: white;
+    }
+    .btn-approved, .btn-rejected {
+      opacity: 0.5; cursor: not-allowed;
+    }
+    .data-row:hover {
+      background-color: #f9fafb;
+    }
+    .dark .data-row:hover {
+      background-color: #374151;
+    }
+    .loading {
+      display: flex; justify-content: center; align-items: center; padding: 2rem;
+    }
+    .loading-spinner {
+      border: 3px solid #f3f4f6; border-top: 3px solid #3b82f6;
+      border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
+    }
+    .card-custom {
+      background-color: white; border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;
+    }
+    .dark .card-custom {
+      background-color: #1f2937; border-color: #374151;
+    }
+    .section-divider {
+      padding: 1rem; border-bottom: 1px solid #e5e7eb;
+      font-weight: 600; color: #111827;
+    }
+    .dark .section-divider {
+      border-bottom-color: #374151; color: #f9fafb;
+    }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    }
+    @keyframes spin { 0%{transform:rotate(0)}100%{transform:rotate(360deg)} }
+  </style>
+  
+      <!-- Template สำหรับเมนู -->
+  <template id="mainMenuTemplate">
+    <div class="flex justify-center">
+      <ul class="menu menu-horizontal p-0 bg-white dark:bg-gray-800 rounded-lg shadow-md space-x-2">
+<!-- ซื้อ -->
+<li tabindex="0" class="dropdown">
+  <a class="flex justify-between items-center px-4 py-2">
+    <i class="bi bi-cart-fill text-green-600 mr-2"></i> ซื้อ
+    <i class="bi bi-caret-down-fill text-green-600 ml-1"></i> <!-- Added ml-1 for spacing -->
+  </a>
+  <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg space-y-1">
+    <li class="submenu-item">
+      <a href="purchase_order">
+        <i class="bi bi-file-earmark-text text-green-500 mr-2"></i> ใบสั่งซื้อ
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="purchase_product">
+        <i class="bi bi-bag-fill text-green-500 mr-2"></i> ซื้อสินค้า
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="purchase_asset"> 
+        <i class="bi bi-archive-fill text-green-500 mr-2"></i> ซื้อสินทรัพย์ 
+      </a>
+      <li class="submenu-item">
+      <a href="goods_receipt">
+        <i class="bi bi-box-arrow-in-down text-green-500 mr-2"></i> ใบรับสินค้า 
+      </a>
+    </li>
+    </li>
+    <li class="submenu-item">
+      <a href="supplier_details"> 
+        <i class="bi bi-person-lines-fill text-green-500 mr-2"></i> รายละเอียดผู้จำหน่าย
+      </a>
+    </li>
+    
+    <li class="submenu-item">
+      <a href="deposit_payment">
+        <i class="bi bi-cash-stack text-green-500 mr-2"></i> ใบจ่ายเงินมัดจำ
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="purchase_tax_invoice">
+        <i class="bi bi-file-earmark-spreadsheet text-green-500 mr-2"></i> ใบกำกับภาษีซื้อ
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="credit_note">
+        <i class="bi bi-file-earmark-minus text-green-500 mr-2"></i> ใบลดหนี้
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="debit_note">
+        <i class="bi bi-file-earmark-plus text-green-500 mr-2"></i> ใบเพิ่มหนี้
+      </a>
+    </li>
+    <li class="submenu-item expense-group">
+      <a href="expense_record">
+        <i class="bi bi-journal-text text-green-500 mr-2"></i> บันทึกค่าใช้จ่าย
+      </a>
+    </li>
+  </ul>
+</li>
+      
+        <!-- ขาย -->
+        <li tabindex="0" class="dropdown">
+          <a class="flex justify-between items-center px-4 py-2">
+            <i class="bi bi-shop text-red-600 mr-2"></i> ขาย
+            <i class="bi bi-caret-down-fill text-red-600 ml-1"></i>
+          </a>
+          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+            <li class="submenu-item">
+              <a href="quotation">
+                <i class="bi bi-file-earmark-text text-red-500 mr-2"></i> ใบเสนอราคา
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="invoice">
+                <i class="bi bi-receipt text-red-500 mr-2"></i> ใบแจ้งหนี้
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="deposit_receipt">
+                <i class="bi bi-file-earmark-check text-red-500 mr-2"></i> ใบรับเงินมัดจำ
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="receipt">
+                <i class="bi bi-receipt-cutoff text-red-500 mr-2"></i> ใบเสร็จรับเงิน
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="sales_tax_invoice">
+                <i class="bi bi-file-earmark-spreadsheet text-red-500 mr-2"></i> ใบกำกับภาษีขาย
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="other_income">
+                <i class="bi bi-cash-coin text-red-500 mr-2"></i> บันทึกรายได้อื่นๆ
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="sales_debit_notee">
+                <i class="bi bi-file-earmark-plus text-red-500 mr-2"></i> ใบเพิ่มหนี้
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="sales_credit_notee">
+                <i class="bi bi-file-earmark-minus text-red-500 mr-2"></i> ใบลดหนี้
+              </a>
+            </li>
+            <!-- เพิ่มเมนู รายละเอียดลูกหนี้ -->
+            <li class="submenu-item">
+            <a href="customer_details">
+            <i class="bi bi-people text-red-500 mr-2"></i> รายละเอียดลูกหนี้
+            </a>
+          </li>
+          </ul>
+        </li>
+      
+        <!-- บัญชี -->
+         <li tabindex="0" class="dropdown">
+          <a class="flex justify-between items-center px-4 py-2">
+            <i class="bi bi-bank text-blue-600 mr-2"></i> บัญชี
+            <i class="bi bi-caret-down-fill text-blue-600 ml-1"></i>
+          </a>
+          
+          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+            <li class="submenu-item">
+              <a href="chart_of_accounts">
+                <i class="bi bi-diagram-3-fill text-blue-500 mr-2"></i> ผังบัญชี
+              </a>
+            </li>
+
+            <!-- หัวข้อย่อย ลงประจำวัน (Nested Dropdown) -->
+            <li tabindex="0" class="submenu-item dropdown"> <!-- Added tabindex for focus -->
+              <a href="javascript:void(0);" class="flex justify-between items-center w-full"> <!-- Use href for focusability -->
+                <i class="bi bi-journal-text text-blue-500 mr-2"></i> ลงประจำวัน
+                <i class="bi bi-caret-right-fill text-blue-500 ml-auto"></i>
+              </a>
+              <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg"> <!-- Nested UL for fly-out -->
+                <li class="submenu-item">
+                  <a href="journal_general">
+                    <i class="bi bi-journal-text text-blue-500 mr-2"></i> สมุดรายวันทั่วไป
+                  </a>
+                </li>
+                <li class="submenu-item">
+                  <a href="journal_payment">
+                    <i class="bi bi-journal-text text-blue-500 mr-2"></i> สมุดรายวันจ่าย
+                  </a>
+                </li>
+                <li class="submenu-item">
+                  <a href="journal_receipt">
+                    <i class="bi bi-journal-text text-blue-500 mr-2"></i> สมุดรายวันรับ
+                  </a>
+                </li>
+                <li class="submenu-item">
+                  <a href="journal_sales">
+                    <i class="bi bi-journal-text text-blue-500 mr-2"></i> สมุดรายวันขาย
+                  </a>
+                </li>
+                <li class="submenu-item">
+                  <a href="journal_purchase">
+                    <i class="bi bi-journal-text text-blue-500 mr-2"></i> สมุดรายวันซื้อ
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            <!-- เพิ่มเมนู งบกระแสเงินสด -->
+            <li class="submenu-item">
+              <a href="cash_flow">
+                <i class="bi bi-cash text-blue-500 mr-2"></i> งบกระแสเงินสด
+              </a>
+            </li>
+  
+             <li class="submenu-item">
+              <a href="social_security">
+                <i class="bi bi-shield-check text-blue-500 mr-2"></i> ภาษีและประกันสังคม
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="assets">
+                <i class="bi bi-collection-fill text-blue-500 mr-2"></i> สินทรัพย์
+              </a>
+            </li>
+            <!-- เพิ่มเมนู ทุน -->
+            <li class="submenu-item">
+              <a href="capital">
+                <i class="bi bi-piggy-bank text-blue-500 mr-2"></i> ทุน
+              </a>
+            </li>
+          </ul>
+        </li>
+
+ <!-- การเงิน -->
+        <li tabindex="0" class="dropdown">
+          <a class="flex justify-between items-center px-4 py-2">
+            <i class="bi bi-currency-exchange text-teal-600 mr-2"></i> การเงิน
+            <i class="bi bi-caret-down-fill text-teal-600 ml-1"></i>
+          </a>
+          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+            <li class="submenu-item">
+              <a href="cash_management">
+                <i class="bi bi-wallet2 text-teal-500 mr-2"></i> การจัดการเงินสด
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="bank_reconciliation">
+                <i class="bi bi-bank text-teal-500 mr-2"></i> กระทบยอดธนาคาร
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="loan_management">
+                <i class="bi bi-cash-coin text-teal-500 mr-2"></i> การจัดการเงินกู้
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="investment_management">
+                <i class="bi bi-bar-chart text-teal-500 mr-2"></i> การจัดการการลงทุน
+              </a>
+            </li>
+             <li class="submenu-item">
+              <a href="cash_flow_planning">
+                <i class="bi bi-calendar3-range text-teal-500 mr-2"></i> วางแผนกระแสเงินสด
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="received_checks">
+                <i class="bi bi-receipt text-teal-500 mr-2"></i> เช็ครับ
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="issued_checks">
+                <i class="bi bi-journal-check text-teal-500 mr-2"></i> เช็คจ่าย
+              </a>
+            </li>
+            <!-- เพิ่มเมนู ตั๋วเงินรับ และ ตั๋วเงินจ่าย -->
+    <li class="submenu-item">
+      <a href="promissory_notes_received">
+        <i class="bi bi-file-earmark-text text-teal-500 mr-2"></i> ตั๋วเงินรับ
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="promissory_notes_payable">
+        <i class="bi bi-file-earmark-text text-teal-500 mr-2"></i> ตั๋วเงินจ่าย
+      </a>
+    </li>
+            <li class="submenu-item">
+              <a href="withholding_tax_received">
+                <i class="bi bi-file-earmark-minus text-teal-500 mr-2"></i> ภาษีถูกหัก ณ ที่จ่าย
+              </a>
+            </li>
+            <li class="submenu-item">
+              <a href="withholding_tax_paid">
+                <i class="bi bi-file-earmark-plus text-teal-500 mr-2"></i> ภาษีหัก ณ ที่จ่าย
+              </a>
+            </li>
+          </ul>
+        </li>
+
+      
+        <!-- สินค้า -->
+<li tabindex="0" class="dropdown">
+  <a class="flex justify-between items-center px-4 py-2">
+    <i class="bi bi-box-seam text-amber-600 mr-2"></i> สินค้า
+    <i class="bi bi-caret-down-fill text-amber-600 ml-1"></i>
+  </a>
+  <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+    <li class="submenu-item">
+      <a href="product_details">
+        <i class="bi bi-info-circle text-amber-500 mr-2"></i> รายละเอียดสินค้า
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="service_details">
+        <i class="bi bi-briefcase text-amber-500 mr-2"></i> รายละเอียดบริการ
+      </a>
+    </li>
+    <!-- เพิ่มเมนูรายการเคลื่อนไหวสินค้า -->
+    <li class="submenu-item">
+      <a href="product_movements">
+        <i class="bi bi-arrow-left-right text-amber-500 mr-2"></i> รายการเคลื่อนไหวสินค้า
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="opening_inventory">
+        <i class="bi bi-box-arrow-in-left text-amber-500 mr-2"></i> สินค้าคงเหลือต้นงวด
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="closing_inventory">
+        <i class="bi bi-box-arrow-right text-amber-500 mr-2"></i> สินค้าคงเหลือปลายงวด
+      </a>
+    </li>
+  </ul>
+</li>
+      
+       
+      
+       <!-- รายงาน -->
+        <li tabindex="0" class="dropdown">
+          <a class="flex justify-between items-center px-4 py-2">
+            <i class="bi bi-folder2 text-cyan-600 mr-2"></i> รายงาน
+            <i class="bi bi-caret-down-fill text-cyan-600 ml-1"></i>
+          </a>
+          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+            <li class="submenu-item">
+              <a href="inventory_report">
+                <i class="bi bi-box-seam text-cyan-500 mr-2"></i> รายงานสินค้าคงเหลือ
+              </a>
+            </li>
+             <!-- ... other report items ... -->
+            <li class="submenu-item">
+              <a href="purchase_summary_report"><i class="bi bi-cart-check text-cyan-500 mr-2"></i> รายงานสรุปยอดซื้อ</a>
+            </li>
+            <li class="submenu-item">
+              <a href="sales_summary_report"><i class="bi bi-bar-chart text-cyan-500 mr-2"></i> รายงานสรุปยอดขาย</a>
+            </li>
+            <li class="submenu-item">
+              <a href="financial_statement_report"><i class="bi bi-graph-up text-cyan-500 mr-2"></i> รายงานงบการเงิน</a>
+            </li>
+            <li class="submenu-item">
+              <a href="product_cost_report"><i class="bi bi-cash-coin text-cyan-500 mr-2"></i> รายงานต้นทุนสินค้า</a>
+            </li>
+            <li class="submenu-item">
+              <a href="customer_report"><i class="bi bi-people text-cyan-500 mr-2"></i> รายงานลูกหนี้</a>
+            </li>
+            <li class="submenu-item">
+              <a href="supplier_report"><i class="bi bi-truck text-cyan-500 mr-2"></i> รายงานเจ้าหนี้</a>
+            </li>
+            
+    <li class="submenu-item">
+      <a href="trial_balance">
+        <i class="bi bi-list-ul text-cyan-500 mr-2"></i> รายงานงบทดลอง
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="financial_position">
+        <i class="bi bi-columns-gap text-cyan-500 mr-2"></i> รายงานงบฐานะการเงิน
+      </a>
+    </li>
+    <li class="submenu-item">
+      <a href="income_statement">
+        <i class="bi bi-cash-stack text-cyan-500 mr-2"></i> รายงานงบกำไรขาดทุน
+      </a>
+    </li>
+    <!-- รายงานงบกระแสเงินสด -->
+    <li class="submenu-item">
+      <a href="cash_flow">
+        <i class="bi bi-cash text-cyan-500 mr-2"></i> รายงานงบกระแสเงินสด
+      </a>
+    </li>
+        <!-- รายงานบัญชีแยกประเภท -->
+    <li class="submenu-item">
+      <a href="general_ledger">
+        <i class="bi bi-journal-text text-cyan-500 mr-2"></i> รายงานบัญชีแยกประเภท
+      </a>
+    </li>
+           
+
+            <!-- รายงานภาษี (Nested Dropdown) -->
+            <li tabindex="0" class="submenu-item dropdown">
+              <a href="javascript:void(0);" class="flex justify-between items-center w-full">
+                <i class="bi bi-receipt text-cyan-500 mr-2"></i> รายงานภาษี
+                <i class="bi bi-caret-right-fill text-cyan-500 ml-auto"></i>
+              </a>
+              <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+                <!-- ภาษีมูลค่าเพิ่ม (Deeper Nested Dropdown) -->
+                <li tabindex="0" class="submenu-item dropdown">
+                  <a href="javascript:void(0);" class="flex justify-between items-center w-full">
+                    ภาษีมูลค่าเพิ่ม
+                    <i class="bi bi-caret-right-fill text-cyan-500 ml-auto"></i>
+                  </a>
+                  <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+                    <li class="submenu-item">
+                      <a href="vat_purchase_report">
+                        <i class="bi bi-arrow-down-circle text-cyan-500 mr-2"></i> ภาษีซื้อ
+                      </a>
+                    </li>
+                    <li class="submenu-item">
+                      <a href="vat_sales_report">
+                        <i class="bi bi-arrow-up-circle text-cyan-500 mr-2"></i> ภาษีขาย
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+                <li class="submenu-item">
+                  <a href="withholding_tax_report">
+                    <i class="bi bi-currency-exchange text-cyan-500 mr-2"></i> ภาษีหัก ณ ที่จ่าย
+                  </a>
+                </li>
+              </ul>
+            </li>
+                
+            <li class="submenu-item">
+              <a href="sales_analysis_report"><i class="bi bi-bar-chart-line text-cyan-500 mr-2"></i> รายงานวิเคราะห์การขาย</a>
+            </li>
+            <li class="submenu-item">
+              <a href="purchase_analysis_report"><i class="bi bi-graph-up-arrow text-cyan-500 mr-2"></i> รายงานวิเคราะห์การซื้อ</a>
+            </li>
+          </ul>
+        </li>
+      
+        <!-- ตั้งค่า -->
+        <li tabindex="0" class="dropdown">
+          <a class="flex justify-between items-center px-4 py-2">
+            <i class="bi bi-gear-fill text-slate-600 mr-2"></i> ตั้งค่า
+            <i class="bi bi-caret-down-fill text-slate-600 ml-1"></i>
+          </a>
+          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+            
+            <li class="submenu-item"><a href="organization_settings"><i class="bi bi-building text-slate-500 mr-2"></i> ตั้งค่าองค์กร</a></li>
+            <li class="submenu-item"><a href="user_settings"><i class="bi bi-person-gear text-slate-500 mr-2"></i> ตั้งค่าผู้ใช้งาน</a></li>
+            <li class="submenu-item"><a href="document_settings"><i class="bi bi-file-earmark-text text-slate-500 mr-2"></i> ตั้งค่าเอกสาร</a></li>
+            <li class="submenu-item"><a href="accounting_policy"><i class="bi bi-shield-lock text-slate-500 mr-2"></i> นโยบายบัญชี</a></li>
+            <li class="submenu-item"><a href="external_integration"><i class="bi bi-plug-fill text-slate-500 mr-2"></i> เชื่อมต่อภายนอก</a></li>
+            <li class="submenu-item"><a href="register_accounting_firm"><i class="bi bi-journal-bookmark-fill text-slate-500 mr-2"></i> ลงทะเบียนสำนักงานบัญชี</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </template>
+
+  <!-- Loading System -->
+  <link rel="stylesheet" href="/css/loading-components.css">
+  <script src="/js/loading-system.js"></script>
+
+</head>
+
+<body class="bg-white dark:bg-gray-900 dark:text-white w-full h-screen">
+  <!-- Loading Spinner -->
+<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="loader"></div>
+</div>
+  <div id="mainContent" class="container mx-auto px-4 py-6">
+    <!-- Navbar -->
+    <div class="navbar bg-white dark:bg-gray-800 shadow-md sticky top-0"> <!-- Removed z-30 from navbar, menu will handle z-index -->
+      <div class="flex-1 flex items-center space-x-6">
+        <img src="/uploads/Logo2.png"
+             alt="Logo"
+             class="rounded-full shadow-lg"
+             style="width: 40px; height: 40px;" />
+        <span class="text-lg font-semibold">บัญชี - ใบเพิ่มหนี้</span>
+        <!-- จุดปล่อยเมนู -->
+        <div id="mainMenuContainer" class="ml-auto"></div> <!-- Added ml-auto to push menu towards center/right if space allows -->
+      </div>
+      <div class="flex-none flex items-center space-x-2">
+  <!-- เพิ่มส่วนแสดงข้อมูลผู้ใช้ -->
+  <div class="flex items-center space-x-3 mr-4">
+    <img id="employeePhoto" 
+     alt="Profile" 
+     class="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600">
+    <span id="employeeName" class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</span>
+  </div>
+  
+  <button id="btnToggleDark" class="btn btn-rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+    <i id="themeIcon" class="bi bi-moon-stars-fill mr-2 text-gray-700 dark:text-yellow-300"></i>
+    <span id="darkModeLabel">Dark Mode</span>
+  </button>
+        <button id="btnLogout" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+          <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ส่วนค้นหาและตัวกรอง -->
+    <div class="p-4 flex justify-between items-center flex-wrap gap-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+      <div class="flex items-center gap-3">
+        <span class="font-medium flex items-center text-sm"><i class="bi bi-calendar-event mr-2 text-primary-500"></i> วันที่ออกใบลดหนี้</span>
+        <div class="relative">
+          <div id="datePickerTrigger" class="flex items-center gap-2 cursor-pointer bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-3 py-1.5 shadow-sm hover:shadow-md transition-shadow duration-300 text-sm">
+            <i class="bi bi-calendar3 text-blue-600"></i>
+            <span id="selectedDateRange">01/04/2025 - 31/05/2025</span>
+            <i class="bi bi-chevron-down text-blue-600 text-xs"></i>
+          </div>
+          <div id="datePickerMenu" class="absolute top-full left-0 mt-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-4 hidden z-50">
+            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">เลือกช่วงเวลา</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">วันที่เริ่มต้น</label>
+                <input type="date" id="startDate" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" value="2025-04-01" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">วันที่สิ้นสุด</label>
+                <input type="date" id="endDate" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" value="2025-05-31" />
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+              <button id="cancelDatePicker" class="btn btn-sm btn-outline">ยกเลิก</button>
+              <button id="applyDatePicker" class="btn btn-sm btn-primary">ยืนยัน</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <i class="bi bi-search search-icon text-gray-400"></i>
+          <input type="text" placeholder="ค้นหาใบลดหนี้, ชื่อผู้ขาย, หรือเลขที่ใบลดหนี้" 
+                 class="pl-9 pr-4 py-1.5 rounded-lg bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 w-64 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50 text-sm" />
+        </div>
+        <div class="relative">
+          <select id="statusFilter" class="dropdown-select">
+            <option value="all">ทุกสถานะ</option>
+            <option value="approved">อนุมัติ</option>
+            <option value="pending">รอดำเนินการ</option>
+            <option value="rejected">ปฏิเสธ</option>
+          </select>
+        </div>
+        <a href="#" class="text-blue-600 hover:underline font-medium flex items-center text-sm">
+          <i class="bi bi-funnel-fill mr-1"></i> ค้นหาขั้นสูง
+        </a>
+      </div>
+    </div>
+
+    <!-- ตาราง -->
+    <div class="quotation-table-container overflow-x-auto">
+      <table class="table w-full table-custom">
+        <thead class="bg-gray-100 dark:bg-gray-700">
+          <tr>
+            <th class="w-12"><input type="checkbox" class="rounded border-gray-300" /></th>
+            <th class="cursor-pointer"><div class="flex items-center">ใบลดหนี้ <i class="bi bi-arrow-down-up text-gray-400 ml-1 text-xs"></i></div></th>
+            <th><div class="flex items-center">วันที่</div></th>
+            <th><div class="flex items-center">สถานะ</div></th>
+            <th><div class="flex items-center">เลขที่ใบลดหนี้</div></th>
+            <th><div class="flex items-center">ลูกค้า</div></th>
+            <th><div class="flex items-center">สินค้า</div></th>
+            <th class="text-right"><div class="flex items-center justify-end">ยอดใบลดหนี้</div></th>
+            <th class="text-right"><div class="flex items-center justify-end">ยอดคงเหลือ</div></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Row 1 -->
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+            <td><input type="checkbox" class="rounded border-gray-300" /></td>
+            <td>SC-680327001</td>
+            <td>27/03/68</td>
+            <td><span class="badge badge-success">อนุมัติ</span></td>
+            <td>00212517</td>
+            <td>นิมะ มะยี</td>
+            <td> 17 pro max</td>
+            <td class="text-right">฿72,322.77</td>
+            <td class="text-right">฿0.00</td>
+          </tr>
+          <!-- Row 2 -->
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+            <td><input type="checkbox" class="rounded border-gray-300" /></td>
+            <td>SC-680324001</td>
+            <td>24/03/68</td>
+            <td><span class="badge badge-success">อนุมัติ</span></td>
+            <td>00212451</td>
+            <td>ฮาฟินด้า ยีมูซอ</td>
+            <td>18 pro max</td>
+            <td class="text-right">฿81,559.99</td>
+            <td class="text-right">฿0.00</td>
+          </tr>
+          <!-- Row 3 -->
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-600">
+            <td><input type="checkbox" class="rounded border-gray-300" /></td>
+            <td>SC-680301001</td>
+            <td>01/03/68</td>
+            <td><span class="badge badge-success">อนุมัติ</span></td>
+            <td>IV20250201411</td>
+            <td>อารีฟีน กาซอ</td>
+            <td>19 pro max</td>
+            <td class="text-right">฿115,591.36</td>
+            <td class="text-right">฿0.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+      
+      <!-- Pagination -->
+      <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-gray-600 dark:text-gray-400 text-sm">แสดง</span>
+          <div class="dropdown relative">
+            <button tabindex="0" class="btn btn-xs btn-outline no-animation flex items-center gap-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 px-2 py-1 rounded text-sm">
+              10 <i class="bi bi-chevron-down text-primary-500"></i>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu shadow bg-base-100 dark:bg-gray-700 rounded-md w-16 border border-gray-200 dark:border-gray-500 text-sm hidden absolute top-full left-0 mt-1 z-50 bg-white">
+              <li><a class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600">10</a></li>
+              <li><a class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600">20</a></li>
+              <li><a class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600">50</a></li>
+            </ul>
+          </div>
+          <span class="text-gray-600 dark:text-gray-400 text-sm">รายการ</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn btn-xs btn-outline border border-gray-300 dark:border-gray-600 px-2 py-1 rounded bg-white dark:bg-gray-700 disabled:opacity-50" disabled><i class="bi bi-chevron-left text-gray-400"></i></button>
+          <span class="text-sm">หน้า</span>
+          <input type="text" value="1" class="input input-xs input-bordered w-12 text-center bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded px-2 py-1" />
+          <button class="btn btn-xs btn-outline border border-gray-300 dark:border-gray-600 px-2 py-1 rounded bg-white dark:bg-gray-700"><i class="bi bi-chevron-right text-blue-500"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for creating a new deposit receipt -->
+  <div id="newDepositReceiptModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-11/12 max-w-4xl p-6 modal-container">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold dark:text-white">สร้างใบรับเงินมัดจำ</h2>
+        <div class="flex items-center gap-2">
+          <label for="receiptDate" class="text-sm font-medium text-gray-700 dark:text-gray-300">วันที่และเวลา:</label>
+          <input
+            type="datetime-local"
+            id="receiptDate"
+            readonly
+            class="block w-60 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 cursor-not-allowed"
+          />
+        </div>
+        <button id="closeDepositReceiptModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="overflow-y-auto">
+        <form id="depositReceiptForm">
+          <!-- Salesperson Section -->
+          <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">พนักงานขาย / ตัวแทนขาย</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">พนักงานขาย</label>
+                <div class="relative">
+                  <select class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 pr-10 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white appearance-none">
+                    <option disabled selected>เลือกพนักงานขาย</option>
+                  </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-600">
+                    <i class="bi bi-chevron-down"></i>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ตัวแทนขาย</label>
+                <div class="relative">
+                  <select class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 pr-10 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white appearance-none">
+                    <option disabled selected>เลือกตัวแทนขาย</option>
+                  </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-600">
+                    <i class="bi bi-chevron-down"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Section -->
+          <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">ลูกค้า</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อลูกค้า</label>
+                <div class="relative mt-1 flex gap-2">
+                  <input type="text" id="customerSearch" placeholder="ชื่อลูกค้า" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" />
+                  <button type="button" class="bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm py-2 px-3 text-gray-600 dark:text-gray-300">
+                    <i class="bi bi-search"></i> ข้อมูลการเสาะหา
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ที่อยู่</label>
+                <textarea id="customerAddress" placeholder="รายละเอียดที่อยู่" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"></textarea>
+              </div>
+            </div>
+                  <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">เลขประจำตัวผู้เสียภาษี</label>
+                <input id="customerTaxId" type="text" maxlength="13" placeholder="กรอกเลขประจำตัวผู้เสียภาษี (13 หลัก)" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" />
+              </div>
+            </div>
+
+          <!-- Transaction Section -->
+          <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">รายละเอียดรายการ</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อรายการเงินเข้า-ออก</label>
+                <div class="flex gap-2">
+                  <select class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                    <option value="" disabled selected>เลือกประเภทรายการ</option>
+                    <option value="deposit">เงินมัดจำสินค้า</option>
+                    <option value="reservation">เงินจองสินค้า</option>
+                    <option value="partial">เงินชำระบางส่วน</option>
+                    <option value="other">อื่นๆ</option>
+                  </select>
+                  <button type="button" class="mt-1 flex-shrink-0 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm py-2 px-3 text-gray-600 dark:text-gray-300">
+                    <i class="bi bi-search"></i>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">รหัสอ้างอิง</label>
+                <input type="text" placeholder="รหัสอ้างอิงเอกสาร" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" />
+              </div>
+            </div>
+          </div>
+          
+          <!-- Amount Section -->
+          <div class="mb-6 border p-4 rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">รายละเอียดการชำระเงิน</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ยอดรวมก่อนภาษี</label>
+                <div class="mt-1 relative">
+                  <input type="number" id="subtotalAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-right" />
+                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                    บาท
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ส่วนลด</label>
+                <div class="mt-1 relative">
+                  <input type="number" id="discountAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-right" />
+                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                    บาท
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ภาษีมูลค่าเพิ่ม (7.00%)</label>
+                <div class="mt-1 relative">
+                  <input type="number" id="vatAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-right" readonly />
+                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                    บาท
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 font-semibold">ยอดเงินที่ต้องชำระ</label>
+                <div class="mt-1 relative">
+                  <input type="number" id="totalAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-right font-bold bg-blue-50 dark:bg-blue-900" readonly />
+                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                    บาท
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Payment Method Section -->
+          <div class="mb-4">
+            <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">รูปแบบการชำระเงิน</h3>
+            <div class="flex gap-4">
+              <label class="inline-flex items-center">
+                <input type="radio" name="paymentType" value="cash" checked class="form-radio h-5 w-5 text-blue-600">
+                <span class="ml-2 text-gray-700 dark:text-gray-300">เงินสด</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="radio" name="paymentType" value="transfer" class="form-radio h-5 w-5 text-blue-600">
+                <span class="ml-2 text-gray-700 dark:text-gray-300">โอนเงิน</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="radio" name="paymentType" value="check" class="form-radio h-5 w-5 text-blue-600">
+                <span class="ml-2 text-gray-700 dark:text-gray-300">เช็คธนาคาร</span>
+              </label>
+            </div>
+            
+            <!-- Bank Check Fields (Initially Hidden) -->
+            <div id="bankCheckFields" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ธนาคารที่ออกเช็ค</label>
+                <div class="relative mt-1">
+                  <select class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white appearance-none pr-10">
+                    <option value="" disabled selected>เลือกธนาคาร</option>
+                    <option value="SCB" class="flex items-center">
+                      <div class="flex items-center">
+                        <img src="/static/images/banks/scb-logo.png" alt="SCB" class="inline-block w-5 h-5 mr-2" 
+                            onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2E5MjZmNyI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiI+PC9wYXRoPjxwYXRoIGQ9Ik0xMSA3aDJ2MmgtMnptMCA0aDJ2NmgtMnoiPjwvcGF0aD48L3N2Zz4='; this.className='inline-block w-5 h-5 mr-2 text-purple-600';" /> ธนาคารไทยพาณิชย์'
+                      </div>
+                    </option>
+                    <option value="KBANK">
+                      <img src="/static/images/banks/kbank-logo.png" alt="KBANK" class="inline-block w-5 h-5 mr-2" 
+                          onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzBiODczOCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiI+PC9wYXRoPjwvc3ZnPg=='; this.className='inline-block w-5 h-5 mr-2 text-green-600';" /> ธนาคารกสิกรไทย'
+                    </option>
+                    <option value="BBL">
+                      <img src="/static/images/banks/bbl-logo.png" alt="BBL" class="inline-block w-5 h-5 mr-2" 
+                          onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzEzMzJhMSI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiI+PC9wYXRoPjwvc3ZnPg=='; this.className='inline-block w-5 h-5 mr-2 text-blue-700';" /> ธนาคารกรุงเทพ'
+                    </option>
+                    <option value="KTB">
+                      <img src="/static/images/banks/ktb-logo.png" alt="KTB" class="inline-block w-5 h-5 mr-2" 
+                          onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzE3NTY5ZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiI+PC9wYXRoPjwvc3ZnPg=='; this.className='inline-block w-5 h-5 mr-2 text-blue-800';" /> ธนาคารกรุงไทย'
+                    </option>
+                    <option value="BAY">
+                      <img src="/static/images/banks/bay-logo.png" alt="BAY" class="inline-block w-5 h-5 mr-2" 
+                          onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZkYmIzMCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiI+PC9wYXRoPjwvc3ZnPg=='; this.className='inline-block w-5 h-5 mr-2 text-yellow-500';" /> ธนาคารกรุงศรีอยุธยา'
+                    </option>
+                    <option value="TMB">
+                      <img src="/static/images/banks/ttb-logo.png" alt="TTB" class="inline-block w-5 h-5 mr-2" 
+                          onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAzOTZhNiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiI+PC9wYXRoPjwvc3ZnPg=='; this.className='inline-block w-5 h-5 mr-2 text-teal-500';" /> ธนาคารทหารไทยธนชาต'
+                    </option>
+                  </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                    <i class="bi bi-chevron-down"></i>
+                  </div>
+                </div>
+                <!-- Note: Add actual bank logo images to your project -->
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <i class="bi bi-info-circle"></i> กรุณาเพิ่มโลโก้ธนาคารในโฟลเดอร์ /static/images/banks/
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">เลขที่เช็ค</label>
+                <input type="text" placeholder="เลขที่เช็ค" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" />
+              </div>
+            </div>
+          </div>
+          
+          <!-- Account Selection -->
+          <div class="mb-4">
+            <label for="bankAccount" class="block text-sm font-medium text-gray-700 dark:text-gray-300">เข้าบัญชี</label>
+            <div class="relative mt-1">
+              <select id="bankAccount" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white appearance-none pr-10">
+                <option>อุ๊บ รวมทุน</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                <i class="bi bi-chevron-down"></i>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Amount and Date -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ยอดชำระเงิน</label>
+              <input type="number" value="0" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">วันที่รับเงิน</label>
+              <div class="relative">
+                <input type="date" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" />
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                  <i class="bi bi-calendar"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Evidence Section -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">หลักฐานการชำระ</label>
+            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md">
+              <div class="space-y-1 text-center">
+                <i class="bi bi-cloud-arrow-up mx-auto text-gray-400 text-3xl"></i>
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                  <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 focus-within:outline-none">
+                    <span>อัพโหลดไฟล์</span>
+                    <input id="file-upload" name="file-upload" type="file" class="sr-only">
+                  </label>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF ขนาดไม่เกิน 10MB</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Notes -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">หมายเหตุ</label>
+            <textarea placeholder="เพิ่มข้อมูล" class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"></textarea>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="mt-6 flex justify-end gap-3">
+            <button type="button" id="cancelDepositReceipt" class="btn btn-outline btn-sm px-4 py-2 border border-gray-300 hover:bg-gray-100 rounded-md text-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary btn-sm px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md">บันทึก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    // JavaScript code for handling modals and other interactive elements
+    document.addEventListener('DOMContentLoaded', function () {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      // เก็บรายการสินค้า
+      let branchProducts = [];
+      
+      // โหลดรายการสินค้าจาก API สาขา 00000
+      async function loadBranchProducts() {
+        try {
+          const res = await fetch('/api/branch-stock?branch_code=00000');'
+          const body = await res.json();
+          if (body.success) branchProducts = body.data;
+          else console.error('Load products failed:', body.error);'
+        } catch (err) {
+          console.error('Fetch error:', err);'
+        }
+      }
+      
+      // helper สร้าง <option>
+      function createProductOptions() {
+        let html = '<option disabled selected>เลือกสินค้า/บริการ</option>';'
+        branchProducts.forEach(p => {
+          html += `<option value="${p._id}">${p.name}</option>`;
+        });
+        return html;
+      }
+      
+      // โหลดตอนเริ่มหน้า
+      loadBranchProducts();
+
+      const btnToggleDark = document.getElementById('btnToggleDark');'
+      const body = document.body;
+      
+      // Load dark mode preference from local storage
+      if (localStorage.getItem('darkMode') === 'enabled') {'
+        body.classList.add('dark');'
+      } else {
+        body.classList.remove('dark');'
+      }
+      
+      btnToggleDark.addEventListener('click', function () {'
+        body.classList.toggle('dark');'
+        
+        // Save user preference to local storage
+        if (body.classList.contains('dark')) {'
+          localStorage.setItem('darkMode', 'enabled');'
+        } else {
+          localStorage.removeItem('darkMode');'
+        }
+      });
+      
+      // Logout button functionality
+      document.getElementById('btnLogout').addEventListener('click', function () {'
+        // Perform logout action here
+        alert('ออกจากระบบเรียบร้อยแล้ว');'
+      });
+      
+      // Open display settings modal (guard in case element is missing)
+      const btnDisplaySettings = document.getElementById('btnDisplaySettings');'
+      if (btnDisplaySettings) {
+        btnDisplaySettings.addEventListener('click', function () {'
+          document.getElementById('displaySettingsModal').classList.remove('hidden');'
+        });
+      }
+      
+      // Close display settings modal
+      document.getElementById('closeDisplaySettingsModal')?.addEventListener('click', function () {'
+        document.getElementById('displaySettingsModal').classList.add('hidden');'
+      });
+      
+      // Open print report modal (guard in case element is missing)
+      const btnPrintReport = document.getElementById('btnPrintReport');'
+      if (btnPrintReport) {
+        btnPrintReport.addEventListener('click', function () {'
+          document.getElementById('printReportModal').classList.remove('hidden');'
+        });
+      }
+      
+      // Close print report modal
+      document.getElementById('closePrintReportModal')?.addEventListener('click', function () {'
+        document.getElementById('printReportModal').classList.add('hidden');'
+      });
+      
+      // Print report button in modal
+      document.getElementById('printReportModal')?.addEventListener('submit', function (e) {'
+        e.preventDefault();
+        // Perform print action here
+        alert('กำลังพิมพ์รายงาน...');'
+        document.getElementById('printReportModal').classList.add('hidden');'
+      });
+      
+      // Display settings form submission
+      document.getElementById('displaySettingsModal')?.addEventListener('submit', function (e) {'
+        e.preventDefault();
+        // Perform settings save action here
+        alert('บันทึกการตั้งค่าเรียบร้อยแล้ว');'
+        document.getElementById('displaySettingsModal').classList.add('hidden');'
+      });
+    });
+  
+}</script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+    const datePickerTrigger = document.getElementById('datePickerTrigger');'
+    const datePickerMenu = document.getElementById('datePickerMenu');'
+    const selectedDateRange = document.getElementById('selectedDateRange');'
+    const startDate = document.getElementById('startDate');'
+    const endDate = document.getElementById('endDate');'
+    const cancelDatePicker = document.getElementById('cancelDatePicker');'
+    const applyDatePicker = document.getElementById('applyDatePicker');'
+
+    // Toggle date picker menu
+    datePickerTrigger.addEventListener('click', function () {'
+      datePickerMenu.classList.toggle('hidden');'
+    });
+
+    // Cancel button functionality
+    cancelDatePicker.addEventListener('click', function () {'
+      datePickerMenu.classList.add('hidden');'
+    });
+
+    // Apply button functionality
+    applyDatePicker.addEventListener('click', function () {'
+      const start = startDate.value;
+      const end = endDate.value;
+      if (start && end) {
+        selectedDateRange.textContent = `${start} - ${end}`;
+        datePickerMenu.classList.add('hidden');'
+      } else {
+        alert('กรุณาเลือกวันที่เริ่มต้นและวันที่สิ้นสุด');'
+      }
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function (e) {'
+      if (!datePickerTrigger.contains(e.target) && !datePickerMenu.contains(e.target)) {
+        datePickerMenu.classList.add('hidden');'
+      }
+    });
+  });
+  
+}</script>
+
+  <!-- Additional script for VAT calculation -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      // VAT calculation (guard if elements are missing)
+      const vatOption = document.getElementById('vatOption');'
+      const vatElement = document.getElementById('vat');'
+      const totalValueElement = document.querySelector('.font-medium');'
+      if (vatOption && vatElement) {
+        function updateVAT() {
+          const vatRate = 0.07;
+          // derive totalValue from your actual element or logic:
+          const totalValue = parseFloat(totalValueElement?.textContent) || 0;
+          let vat = vatOption.value === 'exclusive''
+            ? totalValue * vatRate
+            : totalValue - totalValue / (1 + vatRate);
+          vatElement.textContent = vat.toFixed(2);
+        }
+        vatOption.addEventListener('change', updateVAT);'
+        updateVAT();
+      }
+    });
+  
+}</script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+    const btnCreateNewDepositReceipt = document.getElementById('createNewDepositReceipt');'
+    const btnCreateFromEmpty = document.getElementById('btnCreateFromEmpty');'
+    const modalNewDepositReceipt = document.getElementById('newDepositReceiptModal');'
+    const btnCloseDepositReceiptModal = document.getElementById('closeDepositReceiptModal');'
+    const btnCancelDepositReceipt = document.getElementById('cancelDepositReceipt');'
+    const depositReceiptForm = document.getElementById('depositReceiptForm');'
+
+    // Open Modal when clicking the create new button
+    if (btnCreateNewDepositReceipt) {
+      btnCreateNewDepositReceipt.addEventListener('click', openDepositModal);'
+    }
+
+    // Also open modal from empty state button if it exists
+    if (btnCreateFromEmpty) {
+      btnCreateFromEmpty.addEventListener('click', openDepositModal);'
+    }
+
+    // Function to open modal and setup data
+    function openDepositModal() {
+      // Set current date/time in the receipt date field
+      const now = new Date();
+      const offsetMs = now.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(now - offsetMs).toISOString().slice(0,16);
+      const dateInput = document.getElementById('receiptDate');'
+      if (dateInput) {
+        dateInput.value = localISOTime;
+      }
+      
+      // Show the modal
+      modalNewDepositReceipt.classList.remove('hidden');'
+    }
+
+    // Close Modal (X button)
+    if (btnCloseDepositReceiptModal) {
+      btnCloseDepositReceiptModal.addEventListener('click', () => {'
+        modalNewDepositReceipt.classList.add('hidden');'
+      });
+    }
+
+    // Close Modal (Cancel button)
+    if (btnCancelDepositReceipt) {
+      btnCancelDepositReceipt.addEventListener('click', () => {'
+        modalNewDepositReceipt.classList.add('hidden');'
+      });
+    }
+
+    // Handle form submission
+    if (depositReceiptForm) {
+      depositReceiptForm.addEventListener('submit', (e) => {'
+        e.preventDefault();
+        alert('บันทึกใบรับเงินมัดจำเรียบร้อยแล้ว!');'
+        modalNewDepositReceipt.classList.add('hidden');'
+      });
+    }
+    
+    // Fix for fallback image
+    const emptyStateImg = document.querySelector('.empty-state-container img');'
+    if (emptyStateImg) {
+      emptyStateImg.onerror = function() {
+        this.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2E5MjZmNyI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiI+PC9wYXRoPjxwYXRoIGQ9Ik0xMSA3aDJ2MmgtMnptMCA0aDJ2NmgtMnoiPjwvcGF0aD48L3N2Zz4=';'
+        this.onerror = null;
+      }
+    }
+  });
+  
+}</script>
+
+ 
+  <script>
+    // JavaScript code for handling modals and other interactive elements''
+    document.addEventListener('DOMContentLoaded', function () {'
+      const pageLoaderId = LoadingSystem.show({
+        message: 'กำลังโหลดหน้าเว็บ...','
+        showProgress: true,
+        autoProgress: true,
+        spinnerType: 'default''
+      
+      } catch (error) {
+        console.error('Page loading error:', error);
+      } finally {
+        LoadingSystem.completeProgress();
+      }});
+      
+      try {
+      // Clone the main menu from the template
+      const menuTemplate = document.getElementById('mainMenuTemplate');'
+      const menuContainer = document.getElementById('mainMenuContainer');'
+    
+      if (menuTemplate && menuContainer) {
+        const menuClone = menuTemplate.content.cloneNode(true);
+        menuContainer.appendChild(menuClone);
+      }
+      
+      // Show/Hide Bank Check fields based on payment type selection
+      const paymentTypeRadios = document.querySelectorAll('input[name="paymentType"]');'
+      const bankCheckFields = document.getElementById('bankCheckFields');'
+      
+      paymentTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {'
+          if (this.value === 'check') {'
+            bankCheckFields.classList.remove('hidden');'
+          } else {
+            bankCheckFields.classList.add('hidden');'
+          }
+        });
+      });
+    });
+  
+}</script>
+
+  <script>
+    // Define the toggleSubmenu function
+    function toggleSubmenu(event) {
+      event.preventDefault();
+      const parent = event.currentTarget.parentElement;
+      const submenu = parent.querySelector('ul');'
+      submenu.classList.toggle('hidden');'
+    }
+  </script>
+</body>
+</html>

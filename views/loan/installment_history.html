@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ประวัติการชำระเงิน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CSS & DaisyUI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'Prompt', 'sans-serif'] },
+        },
+      },
+      daisyui: { themes: ['light', 'dark', 'corporate'] },
+    };
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- jQuery & Day.js (locale ไทย) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs/locale/th.js"></script>
+
+  <!-- Avatar Utils - แก้ไขปัญหา 404 errors จาก avatar-default.png -->
+  <script src="/js/avatar-utils.js"></script>
+
+  <!-- Lottie Web for loading animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css for smooth animations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <!-- Loan Sidebar JS -->
+  <script src="/views/loan/loan-sidebar.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { 
+      font-family: 'Inter', 'Prompt', sans-serif; 
+      font-weight: 400;
+      line-height: 1.5;
+    }
+    
+    /* Minimal animations */
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(8px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+    
+    /* Minimal spinner */
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .spinner { 
+      border: 2px solid #f1f5f9;
+      border-top: 2px solid #64748b;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite; 
+    }
+    
+    /* Minimal status colors */
+    .status-paid { color: #374151; font-weight: 500; }
+    .status-pending { color: #6b7280; font-weight: 500; }
+    .status-late { color: #374151; font-weight: 500; }
+    
+    /* Clean table styling */
+    .minimal-table th {
+      background: #fafafa;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 500;
+      font-size: 14px;
+      color: #374151;
+    }
+    
+    .minimal-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+      color: #374151;
+    }
+    
+    .minimal-table tbody tr:hover {
+      background: #fafafa;
+    }
+    
+    /* Dark mode adjustments */
+    .dark .minimal-table th {
+      background: #1f2937;
+      border-bottom: 1px solid #374151;
+      color: #d1d5db;
+    }
+    
+    .dark .minimal-table td {
+      border-bottom: 1px solid #374151;
+      color: #d1d5db;
+    }
+    
+    .dark .minimal-table tbody tr:hover {
+      background: #1f2937;
+    }
+    
+    /* Clean inputs */
+    .input-minimal {
+      @apply border-gray-300 focus:border-gray-500 focus:ring-0 text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100;
+    }
+    
+    .Logo { max-width: 100%; height: auto; }
+
+    /* Loading overlay styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] .loading-overlay {
+      background: rgba(31, 41, 55, 0.9);
+    }
+  </style>
+</head>
+
+<body class="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 font-light">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+  <!-- Sidebar Container - จะถูกเติมด้วย loan-sidebar.js -->
+  <div id="sidebarContainer"></div>
+
+  <div class="min-h-screen bg-white dark:bg-gray-900">
+    <div class="flex-1 flex flex-col ml-64 main-content">
+      
+      <!-- Minimal Header -->
+      <header class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div class="flex justify-between items-center">
+          <h1 class="text-xl font-medium text-gray-900 dark:text-gray-100" id="pageTitle">ประวัติการชำระเงิน</h1>
+          <div class="flex gap-2">
+            <button id="btnRefresh" class="btn btn-sm">
+              <i class="bi bi-arrow-clockwise text-sm"></i>
+              <span class="ml-1">รีเฟรช</span>
+          </button>
+            <button id="btnExport" class="btn btn-primary btn-sm">
+              <i class="bi bi-download text-sm"></i>
+              <span class="ml-1">ส่งออก</span>
+          </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="p-6">
+        <!-- Minimal Filters -->
+        <div class="flex flex-wrap gap-3 mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <input type="date" id="filter-from" class="input input-minimal w-40" />
+          <input type="text" id="filter-search" class="input input-minimal flex-1" placeholder="ค้นหาเลขบัตร" />
+          <select id="filter-branch" class="select input-minimal w-40">
+          <option value="">ทุกสาขา</option>
+        </select>
+          <select id="filter-status" class="select input-minimal w-32">
+            <option value="">ทั้งหมด</option>
+            <option value="paid">ชำระแล้ว</option>
+        </select>
+          <button id="btnApplyFilter" class="btn btn-primary btn-sm px-4">
+            ค้นหา
+        </button>
+          <button id="btnClearFilter" class="btn btn-sm px-4">
+            ล้าง
+        </button>
+      </div>
+
+        <!-- Stats Section -->
+        <div class="stats stats-vertical sm:stats-horizontal shadow-sm mb-6 w-full">
+          <div class="stat">
+            <div class="stat-figure text-primary">
+              <i class="bi bi-receipt text-2xl"></i>
+            </div>
+            <div class="stat-title">รายการชำระทั้งหมด</div>
+            <div class="stat-value text-primary" id="total-transactions">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-figure text-success">
+              <i class="bi bi-cash text-2xl"></i>
+            </div>
+            <div class="stat-title">ยอดเงินรวม</div>
+            <div class="stat-value text-success" id="total-amount">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-figure text-info">
+              <i class="bi bi-calendar-check text-2xl"></i>
+        </div>
+            <div class="stat-title">ชำระวันนี้</div>
+            <div class="stat-value text-info" id="today-payments">0</div>
+        </div>
+          <div class="stat">
+            <div class="stat-figure text-secondary">
+              <i class="bi bi-calendar-month text-2xl"></i>
+        </div>
+            <div class="stat-title">ชำระเดือนนี้</div>
+            <div class="stat-value text-secondary" id="month-payments">0</div>
+        </div>
+      </div>
+
+        <!-- Minimal Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+          <table id="installment-table" class="w-full minimal-table">
+          <thead>
+            <tr>
+                <th>วันที่ชำระ</th>
+                <th>เวลา</th>
+                <th>คำนำหน้า</th>
+                <th>ชื่อ-นามสกุล</th>
+                <th>เบอร์โทร</th>
+                <th>เลขบัตร</th>
+                <th>งวดที่</th>
+                <th>เลขใบเสร็จ</th>
+                <th>ครบกำหนดถัดไป</th>
+                <th>งวดถัดไป</th>
+                <th class="text-right">ยอดชำระ</th>
+                <th>สาขา</th>
+                <th>วิธีชำระ</th>
+                <th class="text-center">สถานะ</th>
+                <th class="text-center">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                <td colspan="11" class="text-center py-8">
+                  <div class="flex items-center justify-center">
+                    <div class="spinner mr-2"></div>
+                    <span class="text-gray-500">กำลังโหลดข้อมูล...</span>
+                  </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+        <!-- Minimal Pagination -->
+        <div class="flex justify-between items-center mt-6">
+          <div class="text-sm text-gray-500 dark:text-gray-400">
+            แสดง <span id="showing-records">0</span> จาก <span id="total-records">0</span> รายการ
+          </div>
+          <div class="flex gap-2">
+            <button id="btn-prev-page" class="btn btn-sm px-4 py-2">
+              <i class="bi bi-chevron-left"></i>
+              <span class="ml-1">ก่อนหน้า</span>
+            </button>
+            <button id="btn-next-page" class="btn btn-sm px-4 py-2">
+              <span class="mr-1">ถัดไป</span>
+              <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minimal Modal -->
+  <div id="detailModal" class="modal">
+    <div class="modal-box w-11/12 max-w-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+      <h3 class="font-medium text-lg mb-6 text-gray-900 dark:text-gray-100">รายละเอียดการชำระเงิน</h3>
+      <div id="modalContent" class="space-y-4"></div>
+      <div class="modal-action mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <button id="btnPrintReceipt" class="btn btn-primary">
+          <i class="bi bi-printer"></i>
+          <span class="ml-1">พิมพ์ใบเสร็จ</span>
+        </button>
+        <button id="btnCloseModal" class="btn">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Utility functions
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    let lottieAnimation = null;
+    function showLoading(show = true) {
+      const loader = document.getElementById('loadingOverlay');
+      if (!loader) {
+        console.warn('Loading overlay not found');
+        return;
+      }
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => response.json())
+            .then(animationData => {
+              console.log('✅ Lottie animation data loaded successfully');
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: false,
+                animationData: animationData
+              });
+            })
+            .catch(error => {
+              console.warn('Failed to load Lottie animation:', error);
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        }
+        if (lottieAnimation) lottieAnimation.play();
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 300);
+      }
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB'
+      }).format(amount || 0);
+    }
+
+    function formatDate(date) {
+      if (!date) return '-';
+      return new Date(date).toLocaleDateString('th-TH');
+    }
+
+    // Make functions globally available
+    window.showToast = showToast;
+    window.showLoading = showLoading;
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+
+    const API_BASE    = '/api';  // Changed to use /api prefix
+    const token       = localStorage.getItem('authToken');
+    let installmentData = [];
+    let currentPage     = 1;
+    const itemsPerPage  = 10;
+    let totalRecords    = 0;
+    let branchList      = [];  // List to store available branches
+
+    // Loading state management
+
+    $(async function(){
+      try {
+        dayjs.locale('th');
+
+        // Initialize loan sidebar first
+        if (typeof initializeLoanSidebar === 'function') {
+          initializeLoanSidebar();
+        }
+
+        // Show loading
+        showLoading(true);
+
+        const branches = await loadBranches();        // โหลดข้อมูลสาขา
+
+        // เติมข้อมูลสาขาใน dropdown
+        const branchSelect = $('#filter-branch');
+        branches.forEach(branch => {
+          const branchId = branch._id || branch.branch_code;
+          const branchName = branch.name || branch.branch_code;
+          branchSelect.append(`<option value="${branchId}">${branchName}</option>`);
+        });
+
+        setupEventListeners();
+        await fetchData();
+
+        // ——— เริ่ม realtime update ———
+        const socket = io(window.location.origin, {
+          transports: ['websocket'],
+          path: '/socket.io'
+        });
+        socket.on('installmentHistoryUpdated', async () => {
+          await fetchData(currentPage);
+        });
+      } catch (error) {
+        console.error('Error loading data:', error);
+        alert('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      }
+    });
+
+    // โหลดข้อมูลสาขาทั้งหมด
+    async function loadBranches() {
+      try {
+        console.log('🔄 Loading branches...');
+
+        // ใช้ API ที่ถูกต้อง: /api/branch (ไม่มี s)
+        const res = await fetch('/api/branch', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            branchList = data.data || [];
+          } else {
+            branchList = [];
+          }
+        } else {
+          branchList = [];
+        }
+
+        return branchList;
+      } catch (err) {
+        console.warn('❌ Load Branches Error, using fallback:', err.message);
+
+        // Fallback: เพิ่มสาขาตัวอย่าง
+        branchList = [
+          { _id: 'PATTANI', name: 'สาขาปัตตานี', branch_code: 'PATTANI' },
+          { _id: 'YALA', name: 'สาขายะลา', branch_code: 'YALA' },
+          { _id: 'NARATHIWAT', name: 'สาขานราธิวาส', branch_code: 'NARATHIWAT' },
+          { _id: 'MAIN', name: 'สาขาหลัก', branch_code: 'MAIN' }
+        ];
+
+        console.log('📋 Using fallback branches:', branchList.length);
+        return branchList;
+      }
+    }
+
+    // Note: Employee profile loading is handled by loan-sidebar.js
+
+    function setupEventListeners(){
+      $('#btnRefresh').on('click', async () => await fetchData(currentPage));
+      $('#btnExport').on('click', exportExcel);
+      $('#btnApplyFilter').on('click', async () => await fetchData(1));
+      $('#btnClearFilter').on('click', async () => {
+        $('#filter-from,#filter-search,#filter-status,#filter-branch').val('');
+        await fetchData(1);
+      });
+      $('#btn-prev-page').on('click', async () => {
+        if(currentPage>1) await fetchData(currentPage-1);
+      });
+      $('#btn-next-page').on('click', async () => {
+        const totalPages = Math.ceil(totalRecords/itemsPerPage);
+        if(currentPage<totalPages) await fetchData(currentPage+1);
+      });
+      // View payment details button
+      $(document).on('click','.view-payment-btn',function(){
+        const id = $(this).data('id');
+        const payment = installmentData.find(i=>i._id===id);
+        if(!payment) return;
+        viewPaymentDetails(payment);
+      });
+
+      // Print receipt button
+      $(document).on('click','.print-receipt-btn',function(){
+        const id = $(this).data('id');
+        printPaymentReceipt(id);
+      });
+
+      // Edit button (legacy - kept for compatibility)
+      $(document).on('click','.edit-btn',function(){
+        const id = $(this).data('id');
+        const item = installmentData.find(i=>i._id===id);
+        if(!item) return;
+        $('#detailModal h3').text('แก้ไขข้อมูลการชำระเงิน');
+        $('#modalContent').html(`
+          <form id="editForm" class="space-y-5">
+            <input type="hidden" name="id" value="${item.id}" />
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">ชื่อ-นามสกุล</label>
+              <input name="name" value="${item.name}" class="input input-minimal w-full"/>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">เบอร์โทร</label>
+              <input name="phone" value="${item.phone}" class="input input-minimal w-full"/>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">เลขบัตร</label>
+              <input name="id_card" value="${item.id_card}" class="input input-minimal w-full"/>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">วันครบกำหนด</label>
+              <input type="date" name="dueDate" value="${item.dueDate}" class="input input-minimal w-full"/>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">จำนวนเงิน</label>
+              <input type="number" name="amount" value="${item.amount}" class="input input-minimal w-full"/>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">สถานะ</label>
+              <select name="paid" class="select input-minimal w-full">
+                <option value="true" ${item.paid?'selected':''}>ชำระแล้ว</option>
+                <option value="false" ${!item.paid?'selected':''}>ยังไม่ชำระ</option>
+              </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-4">
+              <button type="button" id="btnCloseModal" class="btn">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary">บันทึก</button>
+            </div>
+          </form>
+        `);
+        $('#detailModal').addClass('modal-open');
+      });
+      $(document).on('click','#btnCloseModal',()=> $('#detailModal').removeClass('modal-open'));
+      $(document).on('submit','#editForm',function(e){
+        e.preventDefault();
+        const f = e.currentTarget;
+        const id = Number(f.id.value);
+        const idx = installmentData.findIndex(i=>i.id===id);
+        if(idx<0) return;
+        installmentData[idx]={
+          ...installmentData[idx],
+          name: f.name.value,
+          phone: f.phone.value,
+          id_card: f.id_card.value,
+          dueDate: f.dueDate.value,
+          amount: Number(f.amount.value),
+          paid: f.paid.value==='true'
+        };
+        $('#detailModal').removeClass('modal-open');
+        renderTable(installmentData);
+      });
+    }
+
+    let isLoading = false;
+
+    async function fetchData(page=1){
+      if (isLoading) {
+        console.log('⏳ Already loading data, skipping...');
+        return;
+      }
+
+      isLoading = true;
+      currentPage = page;
+    
+      try {
+        // Build query parameters
+        const params = new URLSearchParams({
+          page: page,
+          limit: itemsPerPage
+        });
+    
+        // Add filters if selected
+        const startDate = $('#filter-from').val();
+        const searchQuery = $('#filter-search').val();
+        const status = $('#filter-status').val();
+        const branchCode = $('#filter-branch').val();
+    
+        if (startDate) params.append('startDate', startDate);
+        if (searchQuery) params.append('search', searchQuery);
+        if (status) params.append('status', status);
+        if (branchCode) params.append('branch', branchCode);
+    
+        console.log('🔄 Fetching payment history with params:', Object.fromEntries(params));
+    
+        // Show loading state
+        $('#installment-table tbody').html(`
+          <tr><td colspan="15" class="text-center py-8">
+            <div class="flex items-center justify-center">
+              <div class="spinner mr-2"></div>
+              <span class="text-gray-500">กำลังโหลดประวัติการชำระเงิน...</span>
+            </div>
+          </td></tr>`);
+    
+        // Use the correct API endpoint for payment history
+        const response = await fetch(`${API_BASE}/installment/payment-history?${params}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('📊 API Response:', data);
+        console.log('📊 Data length:', data.data ? data.data.length : 0);
+        console.log('📊 Statistics:', data.statistics);
+
+        if (data.success && data.data) {
+          installmentData = data.data;
+          totalRecords = data.pagination?.totalRecords || installmentData.length;
+
+          // Debug: Show sample data
+          if (installmentData.length > 0) {
+            console.log('✅ Sample payment data:', JSON.stringify(installmentData[0], null, 2));
+          }
+
+          console.log(`✅ Successfully loaded ${installmentData.length} payment records`);
+    
+          // Update dashboard with statistics from API
+          if (data.statistics) {
+            updateDashboardFromAPI(data.statistics);
+          } else {
+            updateDashboard(installmentData);
+          }
+    
+          renderTable(installmentData);
+          updatePaginationControls();
+        } else {
+          displayEmptyState();
+        }
+    
+      } catch (error) {
+        console.error('❌ Error loading payment history:', error);
+        displayErrorState(error.message);
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    function displayEmptyState() {
+      $('#installment-table tbody').html(`
+        <tr><td colspan="15" class="text-center py-8">
+          <div class="text-gray-500">
+            <i class="bi bi-inbox text-4xl mb-3"></i>
+            <div class="mb-2">ไม่พบประวัติการชำระเงิน</div>
+            <p class="text-sm">ลองค้นหาด้วยเงื่อนไขอื่น หรือสร้างการชำระเงินใหม่</p>
+          </div>
+        </td></tr>`);
+    
+      installmentData = [];
+      totalRecords = 0;
+      updateDashboard([]);
+      updatePaginationControls();
+    }
+
+    function displayErrorState(error) {
+      $('#installment-table tbody').html(`
+        <tr><td colspan="15" class="text-center py-8">
+          <div class="text-gray-500">
+            <i class="bi bi-exclamation-triangle text-yellow-500 text-4xl mb-3"></i>
+            <div class="mb-2">ไม่สามารถโหลดข้อมูลประวัติการชำระเงินได้</div>
+            <p class="text-sm mb-3">Error: ${error}</p>
+            <button onclick="fetchData(${currentPage})" class="btn btn-sm">
+              <i class="bi bi-arrow-clockwise"></i> ลองใหม่
+            </button>
+          </div>
+        </td></tr>`);
+
+      installmentData = [];
+      totalRecords = 0;
+      updateDashboard([]);
+      updatePaginationControls();
+    }
+
+    function updateTable(data){
+      installmentData=data;
+      updateDashboard(data);
+      renderTable(data);
+    }
+
+    function renderTable(data) {
+      if (!data || !data.length) {
+        displayEmptyState();
+        return;
+      }
+
+      const rows = data.map(item => {
+        // 1) วันที่ / เวลา ที่ชำระเงิน
+        const paymentDate = new Date(item.paymentDate || item.createdAt);
+        const fmtDate = paymentDate.toLocaleDateString('th-TH');
+        const fmtTime = paymentDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+        // 2) ข้อมูลลูกค้า - รองรับทั้ง field จาก API และ fallback values
+        const customerName = item.customerName || item.customer_name || 'ไม่ระบุ';
+        const customerPhone = item.customerPhone || item.customer_phone || 'ไม่ระบุ';
+
+        // 3) งวดที่ชำระ - รองรับทั้ง installmentNo และ installmentNumber
+        const installmentNo = item.installmentNo || item.installmentNumber || 1;
+        const installmentText = `งวดที่ ${installmentNo}`;
+
+        // 4) วันครบกำหนดงวดถัดไป (คำนวณจากงวดปัจจุบัน + 1 เดือน)
+        let nextDueDate = new Date(paymentDate);
+        nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+        const fmtDue = nextDueDate.toLocaleDateString('th-TH');
+
+        // 5) งวดถัดไป
+        const nextInstallment = `งวดที่ ${installmentNo + 1}`;
+
+        // 6) จำนวนเงินที่ชำระ - ใช้ amount ตาม database model
+        const amount = item.amount || 0;
+        const fmtAmount = `${amount.toLocaleString('th-TH')} บาท`;
+
+        // 7) ข้อมูลสาขา
+        let branchName = item.branchName || 'ไม่ระบุ';
+        if (!branchName || branchName === 'ไม่ระบุ') {
+          // หาชื่อสาขาจาก branchCode
+          if (item.branchCode && branchList.length > 0) {
+            const branch = branchList.find(b =>
+              b._id === item.branchCode ||
+              b.branch_code === item.branchCode
+            );
+            branchName = branch ? branch.name : item.branchCode;
+          }
+        }
+
+        // 8) วิธีการชำระเงิน
+        const paymentMethodDisplay = getPaymentMethodDisplay(item.paymentMethod, item);
+
+        // 9) สถานะ
+        const statusDisplay = getStatusDisplay(item.status);
+
+        // 10) ข้อมูลใบเสร็จ
+        const receiptNumber = item.receiptNumber || item.paymentId || '-';
+
+        // 11) เลขที่สัญญา - รองรับทั้ง contractNo และ contractNumber
+        const contractNo = item.contractNo || item.contractNumber || '-';
+
+        return `
+          <tr class="animate-fadeIn">
+            <td>${fmtDate}</td>
+            <td>${fmtTime}</td>
+            <td>-</td>
+            <td>${customerName}</td>
+            <td>${customerPhone}</td>
+            <td>${contractNo}</td>
+            <td>${installmentText}</td>
+            <td>${receiptNumber}</td>
+            <td>${fmtDue}</td>
+            <td>${nextInstallment}</td>
+            <td class="text-right">${fmtAmount}</td>
+            <td>${branchName}</td>
+            <td>${paymentMethodDisplay}</td>
+            <td class="text-center">${statusDisplay}</td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-info view-payment-btn" data-id="${item._id}" title="ดูรายละเอียดการชำระ">
+                <i class="bi bi-eye"></i>
+              </button>
+              <button class="btn btn-sm btn-primary print-receipt-btn" data-id="${item._id}" title="พิมพ์ใบเสร็จ">
+                <i class="bi bi-printer"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      $('#installment-table tbody').html(rows);
+    }
+
+    function getPaymentMethodDisplay(method, paymentData) {
+      switch (method) {
+        case 'cash':
+          return 'เงินสด';
+        case 'transfer':
+          const bankName = paymentData.transferDetails?.bankName || 'ธนาคาร';
+          return `โอนเงิน (${bankName})`;
+        case 'mixed':
+          const cashAmount = paymentData.mixedPayment?.cashAmount || 0;
+          const transferAmount = paymentData.mixedPayment?.transferAmount || 0;
+          return `ผสม (เงินสด: ${cashAmount.toLocaleString()} บาท, โอน: ${transferAmount.toLocaleString()} บาท)`;
+        default:
+          return method || 'ไม่ระบุ';
+      }
+    }
+
+    function getStatusDisplay(status) {
+      switch (status) {
+        case 'confirmed':
+          return '<span class="badge badge-success">ชำระแล้ว</span>';
+        case 'pending':
+          return '<span class="badge badge-warning">รอยืนยัน</span>';
+        case 'cancelled':
+          return '<span class="badge badge-error">ยกเลิก</span>';
+        default:
+          return '<span class="badge badge-info">ไม่ระบุ</span>';
+      }
+    }
+
+    function updateDashboard(data){
+      $('#total-transactions').text(data.length);
+    
+      // คำนวณยอดเงินรวม
+      let totalAmount = 0;
+      let todayPayments = 0;
+      let monthPayments = 0;
+    
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+    
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+      data.forEach(item => {
+        // ใช้ amount field ตาม database model
+        const amount = Math.max(0, item.amount || 0);
+        totalAmount += amount;
+    
+        const paymentDate = new Date(item.paymentDate || item.createdAt);
+    
+        // นับรายการที่ชำระวันนี้
+        if (paymentDate >= today && paymentDate < tomorrow) {
+          todayPayments++;
+        }
+    
+        // นับรายการที่ชำระในเดือนนี้
+        if (paymentDate >= startOfMonth && paymentDate <= endOfMonth) {
+          monthPayments++;
+        }
+      });
+
+      // แสดงยอดเงินรวมเป็นบาท
+      $('#total-amount').text(Math.max(0, totalAmount).toLocaleString('th-TH') + ' บาท');
+      $('#today-payments').text(todayPayments);
+      $('#month-payments').text(monthPayments);
+    }
+
+    function updateDashboardFromAPI(statistics) {
+      $('#total-transactions').text(statistics.totalTransactions || 0);
+      $('#total-amount').text((statistics.totalAmount || 0).toLocaleString('th-TH') + ' บาท');
+      $('#today-payments').text(statistics.todayPayments || 0);
+      $('#month-payments').text(statistics.monthPayments || 0);
+    }
+
+
+    function updatePaginationControls(){
+      const totalPages = Math.ceil(totalRecords/itemsPerPage);
+      $('#showing-records').text(installmentData.length);
+      $('#total-records').text(totalRecords);
+    
+      // Update button states with minimal styling
+      if (currentPage <= 1) {
+        $('#btn-prev-page').addClass('opacity-50 cursor-not-allowed').prop('disabled', true);
+      } else {
+        $('#btn-prev-page').removeClass('opacity-50 cursor-not-allowed').prop('disabled', false);
+      }
+    
+      if (currentPage >= totalPages) {
+        $('#btn-next-page').addClass('opacity-50 cursor-not-allowed').prop('disabled', true);
+      } else {
+        $('#btn-next-page').removeClass('opacity-50 cursor-not-allowed').prop('disabled', false);
+      }
+    }
+
+    function exportExcel(){
+      let csv = 'วันที่ชำระ,เวลา,เลขที่สัญญา,ชื่อลูกค้า,เบอร์โทร,งวดที่,ยอดชำระ,วิธีชำระ,สาขา,เลขที่ใบเสร็จ,สถานะ\n';
+      installmentData.forEach(payment => {
+        const paymentDate = new Date(payment.paymentDate || payment.createdAt);
+        const fmtDate = paymentDate.toLocaleDateString('th-TH');
+        const fmtTime = paymentDate.toLocaleTimeString('th-TH');
+        const amt = (payment.amount || 0).toLocaleString('th-TH');
+        const branchName = payment.branchName || 'ไม่ระบุ';
+        const paymentMethod = getPaymentMethodDisplay(payment.paymentMethod, payment);
+        const status = payment.status === 'confirmed' ? 'ชำระแล้ว' : payment.status;
+
+        csv += [
+          fmtDate,
+          fmtTime,
+          payment.contractNumber || '-',
+          payment.customerName || '-',
+          payment.customerPhone || '-',
+          payment.installmentNumber || '-',
+          amt + ' บาท',
+          paymentMethod,
+          branchName,
+          payment.receiptNumber || payment.paymentId || '-',
+          status
+        ].join(',') + '\n';
+      });
+    
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `ประวัติการชำระเงิน_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    function viewPaymentDetails(payment) {
+      const paymentDate = new Date(payment.paymentDate || payment.createdAt);
+      const fmtDate = paymentDate.toLocaleDateString('th-TH');
+      const fmtTime = paymentDate.toLocaleTimeString('th-TH');
+    
+      $('#detailModal h3').text('รายละเอียดการชำระเงิน');
+      $('#modalContent').html(`
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium text-gray-600">เลขที่การชำระ</label>
+              <p class="text-gray-900 font-mono">${payment.paymentId || '-'}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">เลขที่สัญญา</label>
+              <p class="text-gray-900">${payment.contractNo || payment.contractNumber || '-'}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">ชื่อลูกค้า</label>
+              <p class="text-gray-900">${payment.customerName || payment.customer_name || '-'}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">เบอร์โทร</label>
+              <p class="text-gray-900">${payment.customerPhone || payment.customer_phone || '-'}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">งวดที่</label>
+              <p class="text-gray-900">งวดที่ ${payment.installmentNo || payment.installmentNumber || 1}</p>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium text-gray-600">วันที่ชำระ</label>
+              <p class="text-gray-900">${fmtDate} ${fmtTime}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">ยอดเงิน</label>
+              <p class="text-gray-900 text-lg font-semibold">${(payment.amount || 0).toLocaleString('th-TH')} บาท</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">วิธีการชำระ</label>
+              <p class="text-gray-900">${getPaymentMethodDisplay(payment.paymentMethod, payment)}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">สาขา</label>
+              <p class="text-gray-900">${payment.branchName || 'ไม่ระบุ'}</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">สถานะ</label>
+              <p class="text-gray-900">${getStatusDisplay(payment.status)}</p>
+            </div>
+          </div>
+        </div>
+        ${payment.transferDetails ? `
+          <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+            <h4 class="font-medium text-blue-900 mb-2">รายละเอียดการโอนเงิน</h4>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div>ธนาคาร: ${payment.transferDetails.bankName || '-'}</div>
+              <div>เลขอ้างอิง: ${payment.transferDetails.referenceNumber || '-'}</div>
+            </div>
+          </div>
+        ` : ''}
+        ${payment.mixedPayment ? `
+          <div class="mt-4 p-3 bg-green-50 rounded-lg">
+            <h4 class="font-medium text-green-900 mb-2">รายละเอียดการชำระแบบผสม</h4>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div>เงินสด: ${(payment.mixedPayment.cashAmount || 0).toLocaleString('th-TH')} บาท</div>
+              <div>โอนเงิน: ${(payment.mixedPayment.transferAmount || 0).toLocaleString('th-TH')} บาท</div>
+            </div>
+          </div>
+        ` : ''}
+      `);
+    
+      $('#detailModal').addClass('modal-open');
+    }
+
+    function printPaymentReceipt(paymentId) {
+      // ส่งไปยัง API สำหรับพิมพ์ใบเสร็จ
+      const printUrl = `${API_BASE}/installment/payment/${paymentId}/receipt`;
+      window.open(printUrl, '_blank');
+    }
+
+    // Note: Dark mode, sidebar toggle, and logout are handled by loan-sidebar.js
+
+    // ทำความสะอาด Lottie animation เมื่อหน้าเว็บถูกปิด
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+  </script>
+</body>
+</html>

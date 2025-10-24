@@ -1,0 +1,4764 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบผ่อนชำระและเครดิต</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="../js/activity-tracker.js"></script>
+  <script src="/js/branch-navigation.js"></script>
+  <script src="/views/pattani/sidebar/sidebar.js"></script>
+  <script src="/views/pattani/js/payment-form-handler.js"></script>
+
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="/views/pattani/sidebar/sidebar.css" />
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png" />
+
+  <!-- (1) โหลด Tailwind CSS ในโหมด Development -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+  <script>
+    // ซ่อน warning message สำหรับ development
+    if (typeof console !== 'undefined' && console.warn) {
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        const message = args[0];
+        if (message && typeof message === 'string' &&
+            (message.includes('tailwindcss.com should not be used in production') ||
+             message.includes('cdn.tailwindcss.com should not be used in production') ||
+             message.includes('should not be used in production'))) {
+          return; // ซ่อน warning นี้
+        }
+        originalWarn.apply(console, args);
+      };
+    }
+  </script>
+
+  <!-- (2) ประกาศ tailwind.config (ป้องกัน error "tailwind is not defined") -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+        },
+      },
+      daisyui: {
+        themes: ['light', 'dark', 'corporate'],
+      },
+    };
+  </script>
+
+  <!-- DaisyUI -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css"
+    rel="stylesheet"
+    type="text/css"
+  />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+  />
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Socket.io (ไฟล์โลคัล หรือ CDN ก็ได้) -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    // โหลดธีมที่บันทึกไว้
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      const isDark = savedTheme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+
+  <style>
+    /* Global reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html {
+      scroll-behavior: smooth;
+      height: 100%;
+    }
+    
+    body {
+      font-family: 'Prompt', sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    /* Animation สำหรับ fadeIn */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    /* Animation for pulse effect */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .animate-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    /* Animation for slide in from left */
+    @keyframes slideInLeft {
+      from {
+        transform: translateX(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    .slide-in-left {
+      animation: slideInLeft 0.3s ease-out;
+    }
+    
+    /* Animation for hover scale */
+    .hover-scale {
+      transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+
+    /* สไตล์สำหรับ Sidebar ที่ยุบ */
+    aside.collapsed {
+      width: 5rem; /* ลดความกว้างเมื่อยุบ */
+    }
+    /* ซ่อนข้อความในเมนู เมื่อ Sidebar ยุบ */
+    aside.collapsed .ml-3 {
+      display: none;
+    }
+    
+    /* Sticky Sidebar Styles */
+    #sidebar {
+      position: fixed !important;
+      position: -webkit-sticky;
+      z-index: 1000;
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 14rem;
+    }
+    
+    /* Enhanced sidebar scrolling */
+    #sidebar nav {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+    }
+    
+    #sidebar nav::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #sidebar nav::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    #sidebar nav::-webkit-scrollbar-thumb {
+      background-color: rgba(156, 163, 175, 0.3);
+      border-radius: 3px;
+    }
+    
+    #sidebar nav::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(156, 163, 175, 0.5);
+    }
+    
+    /* Responsive sticky behavior */
+    @media (max-width: 768px) {
+      #sidebar {
+        position: fixed !important;
+        z-index: 9999;
+        height: 100vh;
+      }
+      
+      #sidebar.translate-x-0 {
+        transform: translateX(0);
+      }
+      
+      #sidebar.-translate-x-full {
+        transform: translateX(-100%);
+      }
+      
+      /* Header responsive */
+      #mainHeader {
+        left: 0 !important;
+        right: 0 !important;
+        margin-left: 0 !important;
+      }
+      
+      /* Main content responsive */
+      main {
+        margin-left: 0 !important;
+        padding-top: 5rem !important;
+      }
+    }
+    
+    /* Ensure main content doesn't overlap */
+    @media (min-width: 769px) {
+      #sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+      }
+    }
+    
+    /* Header fixed positioning */
+    #mainHeader {
+      position: fixed !important;
+      top: 0 !important;
+      right: 0 !important;
+      left: 14rem !important; /* 56 in rem units */
+      z-index: 9998 !important;
+      margin: 0 !important;
+      height: 70px !important;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex !important;
+      align-items: center !important;
+    }
+    
+    /* Header sidebar collapsed state */
+    #mainHeader.sidebar-collapsed {
+      left: 0 !important;
+    }
+
+    /* Header title styling */
+    #pageTitle {
+      line-height: 1.2 !important;
+      margin-bottom: 0.25rem !important;
+    }
+
+    #branchInfo {
+      line-height: 1 !important;
+      margin: 0 !important;
+    }
+
+    /* Spinner สำหรับโหลดข้อมูล */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+        /* Custom modern scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(241, 241, 241, 0.2);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(136, 136, 136, 0.5);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(85, 85, 85, 0.7);
+    }
+
+    .Logo {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    /* Glass effect */
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.17);
+    }
+    
+    /* Dark mode glass effect */
+    .dark .glass-effect {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    /* Card hover effect */
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Status indicator */
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    
+    /* Customer card selected state */
+    .customer-card.selected {
+      border-left: 4px solid #3b82f6;
+    }
+    .dark .customer-card.selected {
+      border-left: 4px solid #60a5fa;
+    }
+
+    /* Toast notification styles */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .toast {
+      background-color: white;
+      color: #333;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      transform: translateX(120%);
+      transition: transform 0.3s ease;
+      max-width: 300px;
+    }
+    
+    .toast.show {
+      transform: translateX(0);
+    }
+    
+    .toast.success {
+      border-left: 4px solid #10B981;
+    }
+    
+    .toast.error {
+      border-left: 4px solid #EF4444;
+    }
+    
+    .toast.info {
+      border-left: 4px solid #3B82F6;
+    }
+    
+    .dark .toast {
+      background-color: #1F2937;
+      color: #F9FAFB;
+    }
+    
+    /* Theme transition effect */
+    .theme-transition {
+      transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+    }
+    
+    /* Keyboard shortcuts info */
+    .key-shortcut {
+      display: inline-block;
+      background-color: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: monospace;
+      font-size: 0.85em;
+      color: #374151;
+    }
+    
+    .dark .key-shortcut {
+      background-color: #374151;
+      border-color: #4B5563;
+      color: #E5E7EB;
+    }
+
+    /* เพิ่มเอฟเฟกต์โมเดิร์นเวลากดปุ่ม */
+    .btn {
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-primary {
+      background-image: linear-gradient(to right, #3b82f6, #2563eb);
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2), 0 2px 4px -1px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-primary:hover {
+      background-image: linear-gradient(to right, #2563eb, #1d4ed8);
+      box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25), 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+    }
+
+    /* ทำให้กรอบอินพุตสวยขึ้น */
+    .input, .select, .textarea {
+      transition: all 0.2s ease;
+      border-width: 1.5px;
+    }
+
+    .input:focus, .select:focus, .textarea:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      border-color: #3b82f6;
+    }
+
+    /* เพิ่มความสวยงามให้กับตาราง */
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table th {
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ปรับแต่ง Card ให้มีความโมเดิร์น */
+    .card-hover {
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    }
+    
+    .card-hover:hover {
+      box-shadow: 0 14px 28px rgba(0,0,0,0.15), 0 10px 10px rgba(0,0,0,0.12);
+    }
+
+    /* ปรับแต่ง Tabs ให้ดูดีขึ้น */
+    .tab-btn {
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn:after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background-color: transparent;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn.active:after {
+      background-color: #3b82f6;
+    }
+
+    /* เพิ่มเอฟเฟกต์รูปภาพโปรไฟล์ */
+    .profile-image-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+
+    .profile-image-container img {
+      transition: transform 0.3s ease;
+    }
+
+    .profile-image-container:hover img {
+      transform: scale(1.05);
+    }
+
+    /* ใบเสร็จที่สวยงาม */
+    #receiptContainer {
+      background-color: white;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .dark #receiptContainer {
+      background-color: #1f2937;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Stock status styles */
+    .stock-ready {
+      background-color: #10B981;
+      animation: pulse 2s infinite;
+    }
+
+    .stock-deducted {
+      background-color: #6B7280;
+    }
+
+    /* Badge pulse effect */
+    @keyframes badgePulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+      }
+    }
+
+    .badge-pulse {
+      animation: badgePulse 2s infinite;
+    }
+
+    /* Payment Method Selection Styles */
+    .payment-method-card {
+      display: block;
+      transition: all 0.3s ease;
+    }
+
+    .payment-method-option {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .payment-method-option:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .payment-method-radio:checked + .payment-method-option {
+      border-color: #3b82f6 !important;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1));
+      transform: scale(1.02);
+    }
+
+    .payment-method-radio:checked + .payment-method-option::before {
+      content: '✓';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      background: #3b82f6;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    /* Payment Section Transitions */
+    .payment-section {
+      transition: all 0.5s ease;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .payment-section:not(.hidden) {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Enhanced Input Styles */
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Installment Schedule Card Styles */
+    .installment-card {
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .installment-card:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .installment-card.selected {
+      border-color: #3b82f6;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.05));
+    }
+
+    .installment-card.paid {
+      border-color: #10b981;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+    }
+
+    .installment-card.overdue {
+      border-color: #ef4444;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+    }
+
+    /* Animation for payment form sections */
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-in {
+      animation: slideInUp 0.5s ease-out;
+    }
+  </style>
+
+  /* Loading overlay */
+    [data-theme="dark"]   .loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 0.25rem solid #e2e8f0;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  <!-- LoadingSystem v2.0.0 - Inline Version -->
+  <style>
+    /* LoadingSystem CSS - Inline Version */
+    .loading-system-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: all;
+    }
+
+    .loading-overlay.loading-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-overlay.loading-hiding {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.95);
+    }
+
+    .loading-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      min-width: 200px;
+      max-width: 400px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dark .loading-content {
+      background: rgba(31, 41, 55, 0.95);
+      color: white;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 1s ease-in-out infinite;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-dots {
+      width: 40px;
+      height: 40px;
+      position: relative;
+      margin: 0 auto 1rem;
+    }
+
+    .loading-dots::before,
+    .loading-dots::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3b82f6;
+      position: absolute;
+      animation: dot-flashing 1s infinite linear alternate;
+      animation-delay: 0.5s;
+    }
+
+    .loading-dots::before {
+      left: 8px;
+      animation-delay: 0s;
+    }
+
+    .loading-dots::after {
+      right: 8px;
+      animation-delay: 1s;
+    }
+
+    .loading-pulse {
+      width: 40px;
+      height: 40px;
+      background: #3b82f6;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      animation: pulse-animation 1.5s ease-in-out infinite;
+    }
+
+    .loading-message {
+      color: #374151;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .dark .loading-message {
+      color: #d1d5db;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+    }
+
+    .loading-progress {
+      width: 100%;
+      height: 4px;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .loading-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .loading-success {
+      border-left: 4px solid #10b981;
+    }
+
+    .loading-warning {
+      border-left: 4px solid #f59e0b;
+    }
+
+    .loading-error {
+      border-left: 4px solid #ef4444;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes dot-flashing {
+      0% {
+        background-color: #3b82f6;
+      }
+      50%, 100% {
+        background-color: rgba(59, 130, 246, 0.2);
+      }
+    }
+
+    @keyframes pulse-animation {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loading-spinner, .loading-dots, .loading-pulse {
+        animation: none;
+      }
+      .loading-overlay {
+        transition: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .loading-content {
+        margin: 1rem;
+        padding: 1.5rem;
+      }
+    }
+  </style>
+
+  <script>
+    /**
+     * LoadingSystem - ระบบแสดงสถานะการโหลดมาตรฐาน
+     * Version: 2.0.0-inline
+     */
+    (function(window) {
+      'use strict';
+
+      // ตัวแปรสำหรับเก็บ loading instances
+      let activeLoaders = new Map();
+      let loaderCounter = 0;
+      let defaultContainer = null;
+
+      // สร้าง container หลักสำหรับ loading overlays
+      function createDefaultContainer() {
+        if (defaultContainer && document.body.contains(defaultContainer)) {
+          return defaultContainer;
+        }
+
+        defaultContainer = document.createElement('div');
+        defaultContainer.id = 'loading-system-container';
+        defaultContainer.className = 'loading-system-container';
+        document.body.appendChild(defaultContainer);
+        return defaultContainer;
+      }
+
+      // สร้าง unique ID สำหรับ loader
+      function generateLoaderId() {
+        return 'loader-' + (++loaderCounter) + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      }
+
+      // สร้าง loading overlay element
+      function createLoadingOverlay(options) {
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+    
+        const content = document.createElement('div');
+        content.className = 'loading-content';
+    
+        if (options.variant) {
+          content.classList.add(`loading-${options.variant}`);
+        }
+
+        // สร้าง spinner ตามประเภทที่เลือก
+        let spinnerHtml = '';
+        switch (options.spinnerType) {
+          case 'dots':
+            spinnerHtml = '<div class="loading-dots"></div>';
+            break;
+          case 'pulse':
+            spinnerHtml = '<div class="loading-pulse"></div>';
+            break;
+          default:
+            spinnerHtml = '<div class="loading-spinner"></div>';
+        }
+
+        content.innerHTML = `
+          ${spinnerHtml}
+          ${options.message ? `<div class="loading-message">${options.message}</div>` : ''}
+          ${options.showProgress ? '<div class="loading-progress"><div class="loading-progress-bar"></div></div>' : ''}
+        `;
+
+        overlay.appendChild(content);
+        return overlay;
+      }
+
+      // แสดง loading
+      function show(options = {}) {
+        const loaderId = generateLoaderId();
+        const container = createDefaultContainer();
+    
+        const defaultOptions = {
+          message: 'กำลังโหลด...',
+          spinnerType: 'default',
+          showProgress: false,
+          autoProgress: false,
+          variant: null,
+          timeout: null
+        };
+
+        const finalOptions = { ...defaultOptions, ...options };
+        const overlay = createLoadingOverlay(finalOptions);
+    
+        overlay.id = loaderId;
+        container.appendChild(overlay);
+
+        // แสดง overlay ด้วย animation
+        requestAnimationFrame(() => {
+          overlay.classList.add('loading-visible');
+        });
+
+        // Auto progress
+        if (finalOptions.autoProgress && finalOptions.showProgress) {
+          startAutoProgress(loaderId);
+        }
+
+        // Auto timeout
+        if (finalOptions.timeout) {
+          setTimeout(() => {
+            hide(loaderId);
+          }, finalOptions.timeout);
+        }
+
+        // เก็บข้อมูล loader
+        activeLoaders.set(loaderId, {
+          overlay: overlay,
+          options: finalOptions,
+          startTime: Date.now()
+        });
+
+        return loaderId;
+      }
+
+      // ซ่อน loading
+      function hide(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const overlay = loaderData.overlay;
+    
+        overlay.classList.add('loading-hiding');
+        overlay.classList.remove('loading-visible');
+
+        setTimeout(() => {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+          }
+          activeLoaders.delete(loaderId);
+
+          // ลบ container ถ้าไม่มี loader เหลือ
+          if (activeLoaders.size === 0 && defaultContainer && defaultContainer.parentNode) {
+            defaultContainer.parentNode.removeChild(defaultContainer);
+            defaultContainer = null;
+          }
+        }, 300);
+
+        return true;
+      }
+
+      // ซ่อน loading ทั้งหมด
+      function hideAll() {
+        const loaderIds = Array.from(activeLoaders.keys());
+        loaderIds.forEach(id => hide(id));
+      }
+
+      // อัปเดตข้อความ
+      function updateMessage(loaderId, message) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const messageEl = loaderData.overlay.querySelector('.loading-message');
+        if (messageEl) {
+          messageEl.textContent = message;
+          return true;
+        }
+        return false;
+      }
+
+      // อัปเดต progress
+      function updateProgress(loaderId, percentage) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return false;
+
+        const progressBar = loaderData.overlay.querySelector('.loading-progress-bar');
+        if (progressBar) {
+          progressBar.style.width = Math.min(100, Math.max(0, percentage)) + '%';
+          return true;
+        }
+        return false;
+      }
+
+      // เริ่ม auto progress
+      function startAutoProgress(loaderId) {
+        const loaderData = activeLoaders.get(loaderId);
+        if (!loaderData) return;
+
+        let progress = 0;
+        const interval = setInterval(() => {
+          if (!activeLoaders.has(loaderId)) {
+            clearInterval(interval);
+            return;
+          }
+
+          progress += Math.random() * 15;
+          if (progress > 90) {
+            progress = 90;
+          }
+
+          updateProgress(loaderId, progress);
+
+          if (progress >= 90) {
+            clearInterval(interval);
+          }
+        }, 200);
+      }
+
+      // เสร็จสิ้น progress
+      function completeProgress(loaderId) {
+        updateProgress(loaderId, 100);
+        setTimeout(() => {
+          hide(loaderId);
+        }, 500);
+      }
+
+      // ตรวจสอบสถานะ loader
+      function isActive(loaderId) {
+        return activeLoaders.has(loaderId);
+      }
+
+      // ดึงข้อมูล loader ทั้งหมด
+      function getActiveLoaders() {
+        return Array.from(activeLoaders.keys());
+      }
+
+      // Export LoadingSystem
+      window.LoadingSystem = {
+        show,
+        hide,
+        hideAll,
+        updateMessage,
+        updateProgress,
+        completeProgress,
+        isActive,
+        getActiveLoaders,
+        version: '2.0.0-inline'
+      };
+
+      // Toast notification function
+      function showToast(message, type = 'info') {
+        if (typeof showNotification === 'function') {
+          return showNotification(message, type);
+        }
+        if (window.Swal) {
+          return Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+            title: message,
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+          });
+        }
+    
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: ${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#3b82f6'};
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          z-index: 10000;
+          max-width: 300px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-size: 14px;
+          opacity: 0;
+          transform: translateX(100%);
+          transition: all 0.3s ease;
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+    
+        setTimeout(() => {
+          toast.style.opacity = '1';
+          toast.style.transform = 'translateX(0)';
+        }, 10);
+    
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateX(100%)';
+          setTimeout(() => {
+            if (toast.parentNode) {
+              toast.parentNode.removeChild(toast);
+            }
+          }, 300);
+        }, 3000);
+    
+        console[type === 'error' ? 'error' : 'log'](`[${type.toUpperCase()}] ${message}`);
+      }
+
+      // Export showToast เพื่อใช้งานได้
+      window.showToast = showToast;
+
+    })(window);
+  </script>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCv4EBbKN8Kr4IMRqszJGBWTSoMihtYLo0',
+      authDomain: 'pheenongacc.firebaseapp.com',
+      databaseURL: 'https://pheenongacc-default-rtdb.asia-southeast1.firebasedatabase.app',
+      projectId: 'pheenongacc',
+      storageBucket: 'pheenongacc.appspot.com',
+      messagingSenderId: '880498281823',
+      appId: '1:880498281823:web:4b6b8d3f8b23c4a5c8e5d2'
+    };
+
+    // Initialize Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const database = firebase.database();
+
+    // Initialize Socket.IO with unique variable name
+    let paymentInstallmentsSocket = null;
+    
+    // Make socket globally accessible
+    window.paymentInstallmentsSocket = null;
+
+    // Socket.IO Integration for Payment Installments
+    function initializePaymentInstallmentsSocket() {
+      try {
+        paymentInstallmentsSocket = io({
+          transports: ['websocket', 'polling'],
+          upgrade: true,
+          rememberUpgrade: true
+        });
+
+        // Make globally accessible
+        window.paymentInstallmentsSocket = paymentInstallmentsSocket;
+
+        // Connection events
+        paymentInstallmentsSocket.on('connect', () => {
+          console.log('[PaymentInstallments] Socket.IO connected:', paymentInstallmentsSocket.id);
+    
+          // Join branch room
+          const branchCode = window.currentBranchCode || 'PATTANI';
+          paymentInstallmentsSocket.emit('join-branch', branchCode);
+    
+          // Update Firebase presence
+          updateFirebasePresence();
+    
+          if (typeof showToast === 'function') {
+            showToast('เชื่อมต่อระบบแล้ว', 'success');
+          }
+        });
+
+        paymentInstallmentsSocket.on('disconnect', (reason) => {
+          console.log('[PaymentInstallments] Socket.IO disconnected:', reason);
+          if (typeof showToast === 'function') {
+            showToast('การเชื่อมต่อขาดหาย', 'warning');
+          }
+        });
+
+        paymentInstallmentsSocket.on('connect_error', (error) => {
+          console.error('[PaymentInstallments] Socket.IO connection error:', error);
+          if (typeof showToast === 'function') {
+            showToast('ไม่สามารถเชื่อมต่อได้: ' + error.message, 'error');
+          }
+        });
+
+        // Payment installment events
+        paymentInstallmentsSocket.on('payment_recorded', (data) => {
+          console.log('[PaymentInstallments] Payment recorded:', data);
+          if (typeof showToast === 'function') {
+            showToast(`บันทึกการชำระสำเร็จ: สัญญา ${data.contractNo}`, 'success');
+          }
+    
+          // Refresh contracts data
+          if (typeof loadContracts === 'function') {
+            setTimeout(() => loadContracts(), 1000);
+          }
+        });
+
+        paymentInstallmentsSocket.on('contract_created', (data) => {
+          console.log('[PaymentInstallments] New contract created:', data);
+          if (typeof showToast === 'function') {
+            showToast(`สัญญาใหม่: ${data.contractNo} - ${data.customerName}`, 'info');
+          }
+    
+          // Refresh contracts data
+          if (typeof loadContracts === 'function') {
+            setTimeout(() => loadContracts(), 1000);
+          }
+        });
+
+        paymentInstallmentsSocket.on('contract_updated', (data) => {
+          console.log('[PaymentInstallments] Contract updated:', data);
+          if (typeof showToast === 'function') {
+            showToast(`อัปเดตสัญญา: ${data.contractNo}`, 'info');
+          }
+    
+          // Refresh contracts data
+          if (typeof loadContracts === 'function') {
+            setTimeout(() => loadContracts(), 1000);
+          }
+        });
+
+        paymentInstallmentsSocket.on('stock_deducted', (data) => {
+          console.log('[PaymentInstallments] Stock deducted:', data);
+          if (typeof showToast === 'function') {
+            showToast(`ตัดสต๊อกสำเร็จ: สัญญา ${data.contractNo}`, 'success');
+          }
+    
+          // Refresh contracts data
+          if (typeof loadContracts === 'function') {
+            setTimeout(() => loadContracts(), 1000);
+          }
+        });
+
+        // POS notification events
+        paymentInstallmentsSocket.on('pos_notification', (notification) => {
+          console.log('[PaymentInstallments] POS notification:', notification);
+    
+          if (notification.type === 'payment_installment') {
+            if (typeof showToast === 'function') {
+              showToast(notification.message, notification.status || 'info');
+            }
+          }
+        });
+
+        // System events
+        paymentInstallmentsSocket.on('system_notification', (notification) => {
+          console.log('[PaymentInstallments] System notification:', notification);
+          if (typeof showToast === 'function') {
+            showToast(notification.message, notification.type || 'info');
+          }
+        });
+
+        console.log('[PaymentInstallments] Socket.IO initialized successfully');
+    
+      } catch (error) {
+        console.error('[PaymentInstallments] Socket.IO initialization error:', error);
+        if (typeof showToast === 'function') {
+          showToast('ไม่สามารถเริ่มระบบแจ้งเตือนได้', 'error');
+        }
+      }
+    }
+
+    // Firebase Realtime Database Integration
+    function initializeFirebaseDatabase() {
+      try {
+        const branchCode = window.currentBranchCode || 'PATTANI';
+    
+        // Initialize Firebase references
+        window.firebaseRefs = {
+          pos: database.ref(`pos/${branchCode}`),
+          notifications: database.ref(`pos/${branchCode}/notifications`),
+          paymentInstallments: database.ref(`pos/${branchCode}/paymentInstallments`),
+          sessions: database.ref(`pos/${branchCode}/sessions`),
+          onlineUsers: database.ref(`pos/${branchCode}/onlineUsers`),
+          activityHistory: database.ref(`pos/${branchCode}/activityHistory`)
+        };
+
+        console.log('[PaymentInstallments] Firebase Database initialized for branch:', branchCode);
+
+        // Listen for new notifications
+        window.firebaseRefs.notifications.limitToLast(10).on('child_added', (snapshot) => {
+          const notification = snapshot.val();
+          if (notification && notification.type === 'payment_installment') {
+            console.log('[PaymentInstallments] New Firebase notification:', notification);
+    
+            if (typeof showToast === 'function') {
+              showToast(notification.message, notification.status || 'info');
+            }
+          }
+        });
+
+        // Listen for payment installment updates
+        window.firebaseRefs.paymentInstallments.on('child_changed', (snapshot) => {
+          const installmentData = snapshot.val();
+          console.log('[PaymentInstallments] Payment installment updated:', installmentData);
+    
+          // Refresh data if needed
+          if (typeof loadContracts === 'function') {
+            setTimeout(() => loadContracts(), 1000);
+          }
+        });
+
+        // Listen for new payment installments
+        window.firebaseRefs.paymentInstallments.on('child_added', (snapshot) => {
+          const installmentData = snapshot.val();
+          console.log('[PaymentInstallments] New payment installment:', installmentData);
+    
+          if (installmentData && installmentData.timestamp) {
+            const now = Date.now();
+            const dataTime = new Date(installmentData.timestamp).getTime();
+    
+            // Only show notification for recent data (last 30 seconds)
+            if (now - dataTime < 30000) {
+              if (typeof showToast === 'function') {
+                showToast(`ข้อมูลใหม่: สัญญา ${installmentData.contractNo}`, 'info');
+              }
+    
+              // Refresh data
+              if (typeof loadContracts === 'function') {
+                setTimeout(() => loadContracts(), 1000);
+              }
+            }
+          }
+        });
+
+      } catch (error) {
+        console.error('[PaymentInstallments] Firebase Database initialization error:', error);
+        if (typeof showToast === 'function') {
+          showToast('ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
+        }
+      }
+    }
+
+    // Update Firebase presence for online users
+    function updateFirebasePresence() {
+      try {
+        const branchCode = window.currentBranchCode || 'PATTANI';
+        const userId = localStorage.getItem('userId') || 'anonymous';
+        const userName = localStorage.getItem('userName') || 'ไม่ระบุชื่อ';
+    
+        const userPresenceRef = database.ref(`pos/${branchCode}/onlineUsers/${userId}`);
+    
+        userPresenceRef.set({
+          name: userName,
+          page: 'payment_installments',
+          timestamp: firebase.database.ServerValue.TIMESTAMP,
+          socketId: paymentInstallmentsSocket?.id || null
+        });
+
+        // Remove presence on disconnect
+        userPresenceRef.onDisconnect().remove();
+    
+        console.log('[PaymentInstallments] Firebase presence updated');
+    
+      } catch (error) {
+        console.error('[PaymentInstallments] Firebase presence error:', error);
+      }
+    }
+
+    // Log activity to Firebase
+    function logActivityToFirebase(activity, details = {}) {
+      try {
+        const branchCode = window.currentBranchCode || 'PATTANI';
+        const userId = localStorage.getItem('userId') || 'anonymous';
+        const userName = localStorage.getItem('userName') || 'ไม่ระบุชื่อ';
+    
+        window.firebaseRefs?.activityHistory.push({
+          userId: userId,
+          userName: userName,
+          activity: activity,
+          details: details,
+          page: 'payment_installments',
+          timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+    
+        console.log('[PaymentInstallments] Activity logged:', activity);
+    
+      } catch (error) {
+        console.error('[PaymentInstallments] Activity logging error:', error);
+      }
+    }
+
+    // Emit payment installment events via Socket.IO
+    function emitPaymentInstallmentEvent(eventType, data) {
+      try {
+        if (paymentInstallmentsSocket?.connected) {
+          paymentInstallmentsSocket.emit('payment_installment_event', {
+            type: eventType,
+            data: data,
+            branchCode: window.currentBranchCode || 'PATTANI',
+            timestamp: new Date().toISOString(),
+            userId: localStorage.getItem('userId') || 'anonymous'
+          });
+    
+          console.log('[PaymentInstallments] Event emitted:', eventType, data);
+        }
+      } catch (error) {
+        console.error('[PaymentInstallments] Event emission error:', error);
+      }
+    }
+
+    // Save payment installment to Firebase
+    function savePaymentInstallmentToFirebase(installmentData) {
+      try {
+        const branchCode = window.currentBranchCode || 'PATTANI';
+    
+        window.firebaseRefs?.paymentInstallments.push({
+          ...installmentData,
+          branchCode: branchCode,
+          timestamp: firebase.database.ServerValue.TIMESTAMP,
+          userId: localStorage.getItem('userId') || 'anonymous',
+          userName: localStorage.getItem('userName') || 'ไม่ระบุชื่อ'
+        });
+    
+        console.log('[PaymentInstallments] Data saved to Firebase:', installmentData);
+    
+      } catch (error) {
+        console.error('[PaymentInstallments] Firebase save error:', error);
+      }
+    }
+
+    // Send notification via Firebase
+    function sendFirebaseNotification(message, type = 'info', additionalData = {}) {
+      try {
+        const branchCode = window.currentBranchCode || 'PATTANI';
+    
+        window.firebaseRefs?.notifications.push({
+          message: message,
+          type: 'payment_installment',
+          status: type,
+          data: additionalData,
+          timestamp: firebase.database.ServerValue.TIMESTAMP,
+          userId: localStorage.getItem('userId') || 'anonymous',
+          userName: localStorage.getItem('userName') || 'ไม่ระบุชื่อ'
+        });
+    
+        console.log('[PaymentInstallments] Notification sent:', message);
+    
+      } catch (error) {
+        console.error('[PaymentInstallments] Notification error:', error);
+      }
+    }
+
+    // Test functions for debugging
+    function testPaymentInstallmentsConnection() {
+      console.log('=== Payment Installments Connection Test ===');
+      console.log('Socket.IO Status:', paymentInstallmentsSocket?.connected ? 'Connected' : 'Disconnected');
+      console.log('Socket.IO ID:', paymentInstallmentsSocket?.id);
+      console.log('Firebase Config:', firebase.app().options);
+      console.log('Current Branch:', window.currentBranchCode);
+    
+      // Test Socket.IO
+      if (paymentInstallmentsSocket?.connected) {
+        paymentInstallmentsSocket.emit('test_connection', {
+          source: 'payment_installments',
+          timestamp: new Date().toISOString()
+        });
+      }
+    
+      // Test Firebase
+      try {
+        window.firebaseRefs?.pos.once('value', (snapshot) => {
+          console.log('Firebase Test - POS Data:', snapshot.exists());
+        });
+      } catch (error) {
+        console.error('Firebase Test Error:', error);
+      }
+    }
+
+    // Make test function globally accessible
+    window.testPaymentInstallmentsConnection = testPaymentInstallmentsConnection;
+
+    // Auto-initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize Firebase first, then Socket.IO
+      setTimeout(() => {
+        initializeFirebaseDatabase();
+        initializePaymentInstallmentsSocket();
+    
+        // Initialize new payment form
+        if (typeof initializeNewPaymentForm === 'function') {
+          initializeNewPaymentForm();
+        }
+      }, 1000);
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+      try {
+        if (paymentInstallmentsSocket?.connected) {
+          paymentInstallmentsSocket.disconnect();
+        }
+    
+        // Log page leave activity
+        logActivityToFirebase('page_leave', {
+          page: 'payment_installments'
+        });
+    
+      } catch (error) {
+        console.error('[PaymentInstallments] Cleanup error:', error);
+      }
+    });
+  </script>
+
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeOut" style="display: none;">
+    <div class="text-center">
+      <div id="lottieContainer" class="w-96 h-96 mx-auto flex items-center justify-center"></div>
+    </div>
+  </div>
+
+    </div>
+
+<!-- Sidebar Container -->
+<div id="sidebarContainer"></div>
+
+<!-- Header -->
+<header class="fixed top-0 right-0 left-56 z-40 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all duration-300"
+                 id="mainHeader">
+  <div class="flex-1">
+    <h1 class="text-lg md:text-xl font-bold text-gray-800 dark:text-gray-100" id="pageTitle">
+      <i class="bi bi-credit-card-2-front text-green-500 mr-2"></i>
+      <span class="hidden md:inline">ระบบผ่อนชำระและเครดิต</span>
+      <span class="md:hidden">ผ่อนชำระ</span>
+    </h1>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="branchInfo">
+      กำลังโหลดสาขา...
+    </p>
+  </div>
+</header>
+
+<!-- Menu Overlay สำหรับปิด sidebar เมื่อคลิกนอกพื้นที่ -->
+<div id="menuOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-30"></div>
+
+<!-- Layout Container -->
+<div class="flex">
+  <!-- Main Content -->
+  <main class="flex-1 ml-0 md:ml-56 px-4 py-6 min-h-screen overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-all duration-300" style="margin-top: 0; padding-top: 6rem;">
+
+      <!-- Tab Navigation -->
+      <div class="mb-6">
+        <div class="tabs tabs-boxed bg-white dark:bg-gray-800 p-1">
+          <a id="tab-down-payment" class="tab tab-active">สำหรับจ่ายค่างวด ของ ดาวน์</a>
+          <a id="tab-pay-as-you-go" class="tab">สำหรับ ผ่อนไปใช้ไป</a>
+          <a id="tab-pay-in-full" class="tab">สำหรับ ผ่อนหมดรับของ</a>
+          <a id="tab-payment-form" class="tab hidden">ชำระค่างวด</a>
+        </div>
+      </div>
+      
+      <!-- Search and Filter Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 animate-fadeIn">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-800 dark:text-white">ค้นหาและกรองข้อมูล</h3>
+          <div class="flex gap-2">
+            <button onclick="loadContracts(1)" class="btn btn-outline btn-sm">
+              <i class="bi bi-arrow-clockwise mr-1"></i>รีเฟรช
+            </button>
+            <button onclick="debugDatabase()" class="btn btn-outline btn-sm">
+              <i class="bi bi-bug mr-1"></i>Debug
+            </button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">ค้นหา</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="searchInput" placeholder="ค้นหาชื่อลูกค้า, เลขสัญญา..." 
+                     class="input input-bordered w-full pl-10" />
+              <i class="bi bi-search absolute top-3 left-3 text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">สถานะการชำระงวด</span>
+            </label>
+            <select id="paymentStatusFilter" class="select select-bordered w-full">
+              <option value="">ทั้งหมด</option>
+              <option value="current">งวดปัจจุบัน</option>
+              <option value="overdue">เกินกำหนด</option>
+              <option value="completed">ชำระครบแล้ว</option>
+              <option value="early">ชำระล่วงหน้า</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="label">
+              <span class="label-text text-gray-700 dark:text-gray-300">ช่วงวันที่</span>
+            </label>
+            <div class="flex gap-2">
+              <input type="text" id="dateFrom" class="input input-bordered w-1/2" placeholder="จากวันที่" />
+              <input type="text" id="dateTo" class="input input-bordered w-1/2" placeholder="ถึงวันที่" />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stats Cards Section -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="statsCards">
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn">
+          <div class="stat-figure text-primary">
+            <i class="bi bi-people-fill text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">สัญญาทั้งหมด</div>
+          <div class="stat-value text-primary" id="totalContracts">
+            <div class="spinner inline-block"></div>
+          </div>
+          <div class="stat-desc" id="contractsGrowth">กำลังโหลด...</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.1s">
+          <div class="stat-figure text-success">
+            <i class="bi bi-cash-stack text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">ยอดรับชำระเดือนนี้</div>
+          <div class="stat-value text-success" id="monthlyPayments">
+            <div class="spinner inline-block"></div>
+          </div>
+          <div class="stat-desc" id="paymentsGrowth">กำลังโหลด...</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.2s">
+          <div class="stat-figure text-warning">
+            <i class="bi bi-clock-history text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">เกินกำหนด</div>
+          <div class="stat-value text-warning" id="overdueContracts">
+            <div class="spinner inline-block"></div>
+          </div>
+          <div class="stat-desc">งวดที่เกินกำหนดชำระ</div>
+        </div>
+        
+        <div class="stat bg-white dark:bg-gray-800 shadow rounded-lg animate-fadeIn" style="animation-delay: 0.3s">
+          <div class="stat-figure text-info">
+            <i class="bi bi-percent text-3xl"></i>
+          </div>
+          <div class="stat-title text-gray-600 dark:text-gray-400">อัตราชำระตรงเวลา</div>
+          <div class="stat-value text-info" id="onTimeRate">
+            <div class="spinner inline-block"></div>
+          </div>
+          <div class="stat-desc">ชำระตามกำหนดเวลา</div>
+        </div>
+      </div>
+
+      <!-- Customers List Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden animate-fadeIn">
+        <div class="overflow-x-auto">
+          <table class="table w-full table-compact">
+            <thead>
+              <tr class="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                <th class="py-3">#</th>
+                <th class="py-3">เลขสัญญา</th>
+                <th class="py-3">ชื่อลูกค้า</th>
+                <th class="py-3">รายละเอียดสินค้า</th>
+                <th class="py-3" id="column-header-5">ชำระแล้ว/ทั้งหมด</th>
+                <th class="py-3" id="column-header-6">ยอดรวม</th>
+                <th class="py-3" id="column-header-7">ประเภท/วันครบกำหนด</th>
+                <th class="py-3">สถานะ</th>
+                <th class="py-3">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="customerTableBody">
+              <!-- Dynamic content will be loaded here -->
+              <tr>
+                <td colspan="9" class="text-center py-8">
+                  <div class="flex flex-col items-center">
+                    <div class="spinner mb-4"></div>
+                    <p class="text-gray-500 dark:text-gray-400">กำลังโหลดข้อมูล...</p>
+                  </div>
+                </td>
+              </tr>
+              
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="p-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-700">
+          <div class="text-sm text-gray-600 dark:text-gray-400" id="paginationInfo">
+            แสดง 1-20 จาก 116 รายการ
+          </div>
+          <div class="btn-group" id="paginationButtons">
+            <button class="btn btn-sm btn-outline" onclick="goToPage(currentPage - 1)" id="prevBtn">«</button>
+            <button class="btn btn-sm btn-active" onclick="goToPage(1)" id="page1">1</button>
+            <button class="btn btn-sm btn-outline" onclick="goToPage(2)" id="page2">2</button>
+            <button class="btn btn-sm btn-outline" onclick="goToPage(3)" id="page3">3</button>
+            <button class="btn btn-sm btn-outline" onclick="goToPage(4)" id="page4">4</button>
+            <button class="btn btn-sm btn-outline" onclick="goToPage(5)" id="page5">5</button>
+            <button class="btn btn-sm btn-outline" onclick="goToPage(6)" id="page6">6</button>
+            <button class="btn btn-sm btn-outline" onclick="goToPage(currentPage + 1)" id="nextBtn">»</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Form Section (แทนที่ Modal) -->
+      <div id="paymentFormSection" class="hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <i class="bi bi-credit-card-2-front text-2xl"></i>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-bold">บันทึกการชำระค่างวด</h2>
+                  <p class="text-blue-100 mt-1">ระบบชำระค่างวดอัตโนมัติ</p>
+                </div>
+              </div>
+              <button id="closePaymentForm" class="btn btn-ghost btn-circle text-white hover:bg-white/20">
+                <i class="bi bi-x-lg text-xl"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Customer Info Card -->
+          <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4">
+              <div class="flex items-center gap-4">
+                <div class="avatar placeholder">
+                  <div class="bg-blue-500 text-white rounded-full w-16 h-16">
+                    <span id="payment-customer-avatar" class="text-xl font-bold">นภ</span>
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <h3 class="text-xl font-bold text-gray-800 dark:text-white" id="payment-customer-name">นภัสวรรณ มงคล</h3>
+                  <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    <div class="flex items-center gap-1">
+                      <i class="bi bi-file-earmark-text"></i>
+                      <span>สัญญา: <span id="payment-contract-no" class="font-medium">INST256806001</span></span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <i class="bi bi-telephone"></i>
+                      <span>โทร: <span id="payment-customer-phone" class="font-medium">096-187-7322</span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">สถานะสัญญา</div>
+                    <div id="payment-contract-status" class="badge badge-success">กำลังผ่อน</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Content -->
+          <div class="p-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              <!-- Left Column: Installment Schedule -->
+              <div class="lg:col-span-1">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                  <h4 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <i class="bi bi-calendar-check text-blue-500"></i>
+                    ตารางการชำระ
+                  </h4>
+                  <div class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar" id="installmentSchedule">
+                    <!-- จะถูกโหลดด้วย JavaScript -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Payment Form -->
+              <div class="lg:col-span-2">
+                <form id="newPaymentForm" class="space-y-6">
+                  
+                  <!-- Selected Installment Info -->
+                  <div id="selectedInstallmentInfo" class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 hidden">
+                    <h5 class="font-bold text-lg mb-3 text-blue-800 dark:text-blue-200">
+                      <i class="bi bi-check-circle-fill mr-2"></i>
+                      งวดที่เลือก
+                    </h5>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">งวดที่</div>
+                        <div id="selected-installment-number" class="text-xl font-bold text-blue-600">-</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">วันครบกำหนด</div>
+                        <div id="selected-due-date" class="text-sm font-medium">-</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">ยอดงวด</div>
+                        <div id="selected-amount" class="text-xl font-bold text-green-600">฿0</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">สถานะ</div>
+                        <div id="selected-status" class="badge badge-warning">รอชำระ</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Payment Method Selection -->
+                  <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                    <h5 class="font-bold text-lg mb-4 flex items-center gap-2">
+                      <i class="bi bi-wallet2 text-green-500"></i>
+                      วิธีการชำระเงิน
+                    </h5>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <!-- Cash Payment -->
+                      <label class="payment-method-card cursor-pointer">
+                        <input type="radio" name="paymentMethod" value="cash" class="hidden payment-method-radio">
+                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-xl p-4 hover:border-green-400 transition-all duration-300 payment-method-option">
+                          <div class="text-center">
+                            <div class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <i class="bi bi-cash-stack text-2xl text-green-600"></i>
+                            </div>
+                            <h6 class="font-bold text-gray-800 dark:text-white">เงินสด</h6>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">ชำระด้วยเงินสดเท่านั้น</p>
+                          </div>
+                        </div>
+                      </label>
+
+                      <!-- Transfer Payment -->
+                      <label class="payment-method-card cursor-pointer">
+                        <input type="radio" name="paymentMethod" value="transfer" class="hidden payment-method-radio">
+                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-xl p-4 hover:border-blue-400 transition-all duration-300 payment-method-option">
+                          <div class="text-center">
+                            <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <i class="bi bi-bank text-2xl text-blue-600"></i>
+                            </div>
+                            <h6 class="font-bold text-gray-800 dark:text-white">โอนเงิน</h6>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">โอนผ่านธนาคาร</p>
+                          </div>
+                        </div>
+                      </label>
+
+                      <!-- Mixed Payment -->
+                      <label class="payment-method-card cursor-pointer">
+                        <input type="radio" name="paymentMethod" value="mixed" class="hidden payment-method-radio">
+                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-xl p-4 hover:border-purple-400 transition-all duration-300 payment-method-option">
+                          <div class="text-center">
+                            <div class="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <i class="bi bi-coin text-2xl text-purple-600"></i>
+                            </div>
+                            <h6 class="font-bold text-gray-800 dark:text-white">ผสม</h6>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">เงินสด + โอนเงิน</p>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+
+                    <!-- Payment Details Form -->
+                    <div class="space-y-6">
+                      
+                      <!-- Basic Payment Info -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-control">
+                          <label class="label">
+                            <span class="label-text font-medium">วันที่ชำระ</span>
+                          </label>
+                          <input type="date" id="paymentDate" class="input input-bordered" required>
+                        </div>
+                        <div class="form-control">
+                          <label class="label">
+                            <span class="label-text font-medium">ยอดเงินที่รับทั้งหมด</span>
+                          </label>
+                          <div class="relative">
+                            <input type="number" id="totalReceivedAmount" class="input input-bordered pr-12" 
+                                   placeholder="0.00" step="0.01" min="0" required>
+                            <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">บาท</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Cash Payment Section -->
+                      <div id="cashPaymentSection" class="payment-section hidden">
+                        <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-200 dark:border-green-700">
+                          <h6 class="font-bold text-green-800 dark:text-green-200 mb-3">
+                            <i class="bi bi-cash-stack mr-2"></i>การชำระด้วยเงินสด
+                          </h6>
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">จำนวนเงินสดที่รับ</span>
+                              </label>
+                              <div class="relative">
+                                <input type="number" id="cashAmount" class="input input-bordered pr-12" 
+                                       placeholder="0.00" step="0.01" min="0">
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">บาท</span>
+                              </div>
+                            </div>
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">เงินทอน</span>
+                              </label>
+                              <div class="relative">
+                                <input type="number" id="changeAmount" class="input input-bordered pr-12" 
+                                       placeholder="0.00" readonly>
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">บาท</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Transfer Payment Section -->
+                      <div id="transferPaymentSection" class="payment-section hidden">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700">
+                          <h6 class="font-bold text-blue-800 dark:text-blue-200 mb-4">
+                            <i class="bi bi-bank mr-2"></i>การโอนเงินผ่านธนาคาร
+                          </h6>
+                          
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">ธนาคาร</span>
+                              </label>
+                              <select id="bankSelect" class="select select-bordered">
+                                <option value="">เลือกธนาคาร</option>
+                                <option value="kbank">กสิกรไทย</option>
+                                <option value="scb">ไทยพาณิชย์</option>
+                                <option value="bbl">กรุงเทพ</option>
+                                <option value="ktb">กรุงไทย</option>
+                                <option value="tmb">ทหารไทยธนชาต</option>
+                                <option value="bay">กรุงศรีอยุธยา</option>
+                                <option value="gsb">ออมสิน</option>
+                                <option value="other">อื่นๆ</option>
+                              </select>
+                            </div>
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">เลขบัญชีปลายทาง</span>
+                              </label>
+                              <input type="text" id="accountNumber" class="input input-bordered" 
+                                     placeholder="xxx-x-xxxxx-x">
+                            </div>
+                          </div>
+
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">เวลาโอนเงิน</span>
+                              </label>
+                              <input type="datetime-local" id="transferTime" class="input input-bordered">
+                            </div>
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">หมายเลขอ้างอิง</span>
+                              </label>
+                              <input type="text" id="referenceNumber" class="input input-bordered" 
+                                     placeholder="หมายเลขอ้างอิงจากธนาคาร">
+                            </div>
+                          </div>
+
+                          <!-- Slip Upload -->
+                          <div class="form-control">
+                            <label class="label">
+                              <span class="label-text">อัปโหลดสลิปโอนเงิน</span>
+                            </label>
+                            <div class="flex items-center gap-4">
+                              <input type="file" id="paymentSlip" class="file-input file-input-bordered flex-1" 
+                                     accept="image/*" onchange="previewSlip()">
+                              <div id="slipPreview" class="hidden">
+                                <img id="slipImage" class="w-20 h-20 object-cover rounded-lg border-2 border-blue-300" 
+                                     alt="สลิปโอนเงิน">
+                              </div>
+                            </div>
+                            <div class="label">
+                              <span class="label-text-alt text-gray-500">รองรับไฟล์ .jpg, .png, .gif (ขนาดไม่เกิน 5MB)</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Mixed Payment Section -->
+                      <div id="mixedPaymentSection" class="payment-section hidden">
+                        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-700">
+                          <h6 class="font-bold text-purple-800 dark:text-purple-200 mb-4">
+                            <i class="bi bi-coin mr-2"></i>การชำระแบบผสม
+                          </h6>
+                          
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">จำนวนเงินสด</span>
+                              </label>
+                              <div class="relative">
+                                <input type="number" id="mixedCashAmount" class="input input-bordered pr-12" 
+                                       placeholder="0.00" step="0.01" min="0" onchange="calculateMixedTotal()">
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">บาท</span>
+                              </div>
+                            </div>
+                            <div class="form-control">
+                              <label class="label">
+                                <span class="label-text">จำนวนโอนเงิน</span>
+                              </label>
+                              <div class="relative">
+                                <input type="number" id="mixedTransferAmount" class="input input-bordered pr-12" 
+                                       placeholder="0.00" step="0.01" min="0" onchange="calculateMixedTotal()">
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">บาท</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Mixed Total Display -->
+                          <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-purple-200 dark:border-purple-600">
+                            <div class="flex justify-between items-center">
+                              <span class="font-medium">รวมทั้งสิ้น:</span>
+                              <span id="mixedTotalDisplay" class="text-xl font-bold text-purple-600">฿0.00</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                              เงินสด: <span id="mixedCashDisplay">฿0.00</span> + โอนเงิน: <span id="mixedTransferDisplay">฿0.00</span>
+                            </div>
+                          </div>
+
+                          <!-- Transfer Details for Mixed Payment -->
+                          <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-600">
+                            <h6 class="font-medium text-blue-800 dark:text-blue-200 mb-3">รายละเอียดการโอนเงิน</h6>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div class="form-control">
+                                <label class="label">
+                                  <span class="label-text text-sm">ธนาคาร</span>
+                                </label>
+                                <select id="mixedBankSelect" class="select select-bordered select-sm">
+                                  <option value="">เลือกธนาคาร</option>
+                                  <option value="kbank">กสิกรไทย</option>
+                                  <option value="scb">ไทยพาณิชย์</option>
+                                  <option value="bbl">กรุงเทพ</option>
+                                  <option value="ktb">กรุงไทย</option>
+                                  <option value="tmb">ทหารไทยธนชาต</option>
+                                  <option value="bay">กรุงศรีอยุธยา</option>
+                                  <option value="gsb">ออมสิน</option>
+                                </select>
+                              </div>
+                              <div class="form-control">
+                                <label class="label">
+                                  <span class="label-text text-sm">หมายเลขอ้างอิง</span>
+                                </label>
+                                <input type="text" id="mixedReferenceNumber" class="input input-bordered input-sm" 
+                                       placeholder="หมายเลขอ้างอิง">
+                              </div>
+                            </div>
+                            
+                            <!-- Mixed Payment Slip Upload -->
+                            <div class="form-control mt-3">
+                              <label class="label">
+                                <span class="label-text text-sm">สลิปโอนเงิน</span>
+                              </label>
+                              <div class="flex items-center gap-3">
+                                <input type="file" id="mixedPaymentSlip" class="file-input file-input-bordered file-input-sm flex-1" 
+                                       accept="image/*" onchange="previewMixedSlip()">
+                                <div id="mixedSlipPreview" class="hidden">
+                                  <img id="mixedSlipImage" class="w-16 h-16 object-cover rounded-lg border-2 border-purple-300" 
+                                       alt="สลิปโอนเงิน">
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Additional Details -->
+                      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                        <h6 class="font-bold text-gray-800 dark:text-white mb-3">
+                          <i class="bi bi-chat-text mr-2"></i>รายละเอียดเพิ่มเติม
+                        </h6>
+                        <div class="form-control">
+                          <label class="label">
+                            <span class="label-text">หมายเหตุ</span>
+                          </label>
+                          <textarea id="paymentNotes" class="textarea textarea-bordered" 
+                                    placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)" rows="3"></textarea>
+                        </div>
+                      </div>
+
+                      <!-- Payment Summary -->
+                      <div id="paymentSummary" class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-700 hidden">
+                        <h6 class="font-bold text-green-800 dark:text-green-200 mb-3">
+                          <i class="bi bi-calculator mr-2"></i>สรุปการชำระ
+                        </h6>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div class="text-center">
+                            <div class="text-xs text-gray-600 dark:text-gray-400">ยอดงวด</div>
+                            <div id="summary-installment-amount" class="text-lg font-bold text-gray-800 dark:text-white">฿0</div>
+                          </div>
+                          <div class="text-center">
+                            <div class="text-xs text-gray-600 dark:text-gray-400">ยอดที่รับ</div>
+                            <div id="summary-received-amount" class="text-lg font-bold text-blue-600">฿0</div>
+                          </div>
+                          <div class="text-center">
+                            <div class="text-xs text-gray-600 dark:text-gray-400">ส่วนต่าง</div>
+                            <div id="summary-difference" class="text-lg font-bold">฿0</div>
+                          </div>
+                          <div class="text-center">
+                            <div class="text-xs text-gray-600 dark:text-gray-400">สถานะ</div>
+                            <div id="summary-status" class="badge badge-success">ครบถ้วน</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Action Buttons -->
+                      <div class="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button type="button" id="cancelPaymentForm" class="btn btn-outline btn-lg flex-1">
+                          <i class="bi bi-x-circle mr-2"></i>ยกเลิก
+                        </button>
+                        <button type="submit" id="submitPaymentForm" class="btn btn-success btn-lg flex-1" disabled>
+                          <i class="bi bi-check-circle mr-2"></i>บันทึกการชำระ
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+</div>
+<!-- End Layout Container -->
+
+  <!-- STOCK DEDUCTION CONFIRMATION MODAL -->
+  <div id="stockDeductionModal" class="modal">
+    <div class="modal-box max-w-2xl">
+      <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+        <i class="bi bi-box-seam text-emerald-500"></i>
+        ตรวจสอบและตัดสต๊อก
+      </h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" onclick="closeStockModal()">✕</button>
+      
+      <!-- Customer Summary -->
+      <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="avatar placeholder">
+            <div class="bg-blue-100 text-blue-600 rounded-full w-12">
+              <span id="stock-customer-avatar">นภ</span>
+            </div>
+          </div>
+          <div>
+            <p class="font-semibold" id="stock-customer-name">นภัสวรรณ มงคล</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">เลขสัญญา: <span id="stock-contract-no">INST256806001</span> | โทร: <span id="stock-customer-phone">096-187-7322</span></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stock Check List -->
+      <div class="space-y-3 mb-6">
+        <h4 class="font-medium text-gray-700 dark:text-gray-300">รายการสินค้าและสต๊อก</h4>
+        
+        <div id="stock-check-items">
+          <!-- จะถูก populate ด้วย JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Branch Stock Summary -->
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
+        <h4 class="font-medium mb-3">สรุปสต๊อกสาขา <span id="stock-branch-name">ปัตตานี</span></h4>
+        <div id="stock-summary">
+          <!-- จะถูก populate ด้วย JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Confirmation -->
+      <div class="alert alert-info mb-6">
+        <i class="bi bi-info-circle"></i>
+        <span>ยืนยันการตัดสต๊อกและส่งมอบสินค้าให้ลูกค้า</span>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeStockModal()">ยกเลิก</button>
+        <button id="btnConfirmStockDeduction" class="btn btn-success" onclick="confirmStockDeduction()">
+          <i class="bi bi-check-circle"></i> ยืนยันตัดสต๊อก
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ADD NEW INSTALLMENT MODAL -->
+  <div id="addInstallmentModal" class="modal">
+    <div class="modal-box w-11/12 max-w-5xl">
+      <h3 class="font-bold text-xl mb-4">เพิ่มสัญญาผ่อนชำระใหม่</h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" onclick="closeAddModal()">✕</button>
+      
+      <form id="installmentForm" class="space-y-4">
+        <!-- Form Tabs -->
+        <div class="tabs tabs-boxed">
+          <a class="tab tab-active" data-tab="customer">1. ข้อมูลลูกค้า</a>
+          <a class="tab" data-tab="product">2. สินค้า</a>
+          <a class="tab" data-tab="payment">3. เงื่อนไขการชำระ</a>
+          <a class="tab" data-tab="summary">4. สรุปสัญญา</a>
+        </div>
+        
+        <!-- Customer Data Tab -->
+        <div class="tab-content" id="customer-tab">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label">ค้นหาลูกค้าเดิม</label>
+              <div class="input-group">
+                <input type="text" placeholder="ค้นหาด้วยชื่อ หรือเบอร์โทร..." class="input input-bordered w-full" />
+                <button class="btn btn-primary"><i class="bi bi-search"></i></button>
+              </div>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ประเภทการผ่อน</label>
+              <select class="select select-bordered w-full">
+                <option disabled selected>เลือกประเภท</option>
+                <option value="pay-as-you-go">ผ่อนไปใช้ไป (รับสินค้าทันที)</option>
+                <option value="pay-in-full">ผ่อนหมดรับของ (ผ่อนครบจึงรับสินค้า)</option>
+              </select>
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ชื่อ-นามสกุล</label>
+              <input type="text" placeholder="ชื่อ-นามสกุลลูกค้า" class="input input-bordered w-full" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">เบอร์โทรศัพท์</label>
+              <input type="text" placeholder="เบอร์โทรศัพท์" class="input input-bordered w-full" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">เลขบัตรประชาชน</label>
+              <input type="text" placeholder="เลขบัตรประชาชน 13 หลัก" class="input input-bordered w-full" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ที่อยู่</label>
+              <textarea class="textarea textarea-bordered w-full" placeholder="ที่อยู่ปัจจุบัน"></textarea>
+            </div>
+          </div>
+          
+          <div class="mt-4 flex justify-end">
+            <button type="button" class="btn btn-primary" onclick="nextTab('product')">ถัดไป</button>
+          </div>
+        </div>
+        
+        <!-- Products Tab -->
+        <div class="tab-content hidden" id="product-tab">
+          <div class="overflow-x-auto mb-4">
+            <table class="table w-full">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>สินค้า</th>
+                  <th>รุ่น/รายละเอียด</th>
+                  <th>จำนวน</th>
+                  <th>ราคาต่อหน่วย</th>
+                  <th>ราคารวม</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="productTableBody">
+                <tr>
+                  <td>1</td>
+                  <td>
+                    <select class="select select-bordered w-full">
+                      <option disabled selected>เลือกสินค้า</option>
+                      <option>iPhone 15 Pro Max</option>
+                      <option>MacBook Pro M3</option>
+                      <option>iPad Pro</option>
+                      <option>Samsung S24 Ultra</option>
+                    </select>
+                  </td>
+                  <td><input type="text" class="input input-bordered w-full" placeholder="รายละเอียด" /></td>
+                  <td><input type="number" class="input input-bordered w-full" value="1" min="1" /></td>
+                  <td><input type="number" class="input input-bordered w-full" placeholder="ราคา" /></td>
+                  <td><span class="font-medium">0.00</span></td>
+                  <td><button type="button" class="btn btn-sm btn-square btn-error"><i class="bi bi-trash"></i></button></td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="7" class="text-right">
+                    <button type="button" class="btn btn-sm btn-outline btn-primary"><i class="bi bi-plus"></i> เพิ่มสินค้า</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="5" class="text-right font-medium">รวมทั้งสิ้น:</td>
+                  <td class="font-medium">0.00</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          
+          <div class="flex justify-between">
+            <button type="button" class="btn btn-outline" onclick="prevTab('customer')">ย้อนกลับ</button>
+            <button type="button" class="btn btn-primary" onclick="nextTab('payment')">ถัดไป</button>
+          </div>
+        </div>
+        
+        <!-- Payment Terms Tab -->
+        <div class="tab-content hidden" id="payment-tab">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label">ยอดรวมทั้งสิ้น</label>
+              <input type="text" class="input input-bordered w-full" readonly value="0.00" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">เงินดาวน์</label>
+              <input type="number" class="input input-bordered w-full" placeholder="เงินดาวน์ (ถ้ามี)" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">จำนวนงวด</label>
+              <input type="number" class="input input-bordered w-full" min="1" value="12" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">ยอดผ่อนต่องวด</label>
+              <input type="text" class="input input-bordered w-full" readonly value="0.00" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">วันที่เริ่มต้นสัญญา</label>
+              <input type="text" id="startDate" class="input input-bordered w-full datepicker" placeholder="เลือกวันที่" />
+            </div>
+            
+            <div class="form-control">
+              <label class="label">อัตราดอกเบี้ย (% ต่อปี)</label>
+              <input type="number" class="input input-bordered w-full" placeholder="ดอกเบี้ย" value="0" />
+            </div>
+          </div>
+          
+          <div class="mt-4 flex justify-between">
+            <button type="button" class="btn btn-outline" onclick="prevTab('product')">ย้อนกลับ</button>
+            <button type="button" class="btn btn-primary" onclick="nextTab('summary')">ถัดไป</button>
+          </div>
+        </div>
+        
+        <!-- Summary Tab -->
+        <div class="tab-content hidden" id="summary-tab">
+          <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+            <h3 class="text-lg font-medium mb-4">สรุปรายละเอียดสัญญา</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p class="font-medium">ข้อมูลลูกค้า</p>
+                <p>ชื่อ-นามสกุล: <span id="summary-name">-</span></p>
+                <p>เบอร์โทร: <span id="summary-phone">-</span></p>
+                <p>เลขบัตร ปชช.: <span id="summary-id-card">-</span></p>
+              </div>
+              
+              <div>
+                <p class="font-medium">รายละเอียดการผ่อน</p>
+                <p>ประเภท: <span id="summary-type">-</span></p>
+                <p>จำนวนงวด: <span id="summary-term">-</span> งวด</p>
+                <p>ยอดผ่อนต่องวด: <span id="summary-monthly">-</span> บาท</p>
+              </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div>
+              <p class="font-medium">รายการสินค้า</p>
+              <ul class="list-disc list-inside ml-4" id="summary-products">
+                <li>- รายการสินค้าจะแสดงที่นี่ -</li>
+              </ul>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p>ยอดรวมทั้งสิ้น: <span id="summary-total" class="font-medium">-</span> บาท</p>
+                <p>เงินดาวน์: <span id="summary-down-payment" class="font-medium">-</span> บาท</p>
+                <p>ยอดรวมที่ต้องผ่อนชำระ: <span id="summary-finance-amount" class="font-medium">-</span> บาท</p>
+              </div>
+              
+              <div>
+                <p>วันที่เริ่มสัญญา: <span id="summary-start-date" class="font-medium">-</span></p>
+                <p>วันที่สิ้นสุดสัญญา: <span id="summary-end-date" class="font-medium">-</span></p>
+                <p>เลขที่สัญญา: <span id="summary-contract-no" class="font-medium text-blue-600">INST256806XXX</span></p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-4 flex justify-between">
+            <button type="button" class="btn btn-outline" onclick="prevTab('payment')">ย้อนกลับ</button>
+            <div>
+              <button type="button" class="btn btn-outline btn-success mr-2">พิมพ์สัญญา</button>
+              <button type="submit" class="btn btn-primary">บันทึกสัญญา</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+
+
+  <!-- VIEW DETAILS MODAL -->
+  <div id="detailsModal" class="modal">
+    <div class="modal-box w-11/12 max-w-5xl">
+      <h3 class="font-bold text-xl mb-2">รายละเอียดสัญญา <span id="details-contract-no" class="text-blue-600">INST256806001</span></h3>
+      <button class="btn btn-sm btn-circle absolute right-2 top-2" onclick="closeDetailsModal()">✕</button>
+      
+      <!-- Customer and Contract Details -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-person-circle mr-2 text-blue-500"></i> ข้อมูลลูกค้า
+          </h4>
+          <div class="space-y-2">
+            <p><span class="font-medium">ชื่อ-นามสกุล:</span> <span id="detail-customer-name">นภัสวรรณ มงคล</span></p>
+            <p><span class="font-medium">เบอร์โทร:</span> <span id="detail-customer-phone">096-187-7322</span></p>
+            <p><span class="font-medium">เลขบัตร ปชช.:</span> <span id="detail-customer-id">1-1234-56789-00-1</span></p>
+            <p><span class="font-medium">ที่อยู่:</span> <span id="detail-customer-address">123/45 ถ.สุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพฯ 10110</span></p>
+          </div>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-file-earmark-text mr-2 text-green-500"></i> ข้อมูลสัญญา
+          </h4>
+          <div class="space-y-2">
+            <p><span class="font-medium">ประเภทสัญญา:</span> <span id="detail-contract-type" class="badge badge-info">ผ่อนไปใช้ไป</span></p>
+            <p><span class="font-medium">วันที่เริ่มสัญญา:</span> <span id="detail-start-date">01/06/2568</span></p>
+            <p><span class="font-medium">วันที่สิ้นสุด:</span> <span id="detail-end-date">01/06/2569</span></p>
+            <p><span class="font-medium">สถานะการชำระ:</span> <span id="detail-payment-status" class="badge badge-success">ชำระตามกำหนด</span></p>
+            <p id="stock-status-row" class="hidden"><span class="font-medium">สถานะสต๊อก:</span> <span id="detail-stock-status" class="badge badge-ghost">-</span></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Product and Payment Details -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-box-seam mr-2 text-purple-500"></i> รายละเอียดสินค้า
+          </h4>
+          <div class="overflow-x-auto">
+            <table class="table table-compact w-full">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>รายการ</th>
+                  <th>รายละเอียด</th>
+                  <th class="text-right">ราคา</th>
+                </tr>
+              </thead>
+              <tbody id="detail-products">
+                <tr>
+                  <td>1</td>
+                  <td>iPhone 15 Pro Max</td>
+                  <td>256GB สีทอง</td>
+                  <td class="text-right">48,900</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="text-right font-medium">รวมทั้งสิ้น</td>
+                  <td class="text-right font-medium" id="detail-total">48,900</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <h4 class="font-medium text-lg mb-2 flex items-center">
+            <i class="bi bi-cash-coin mr-2 text-amber-500"></i> รายละเอียดการชำระ
+          </h4>
+          <div class="space-y-2">
+            <p><span class="font-medium">ยอดรวม:</span> <span id="detail-total-amount">48,900</span> บาท</p>
+            <p><span class="font-medium">เงินดาวน์:</span> <span id="detail-down-payment">4,900</span> บาท</p>
+            <p><span class="font-medium">ยอดที่ต้องผ่อน:</span> <span id="detail-finance-amount">44,000</span> บาท</p>
+            <p><span class="font-medium">จำนวนงวด:</span> <span id="detail-installments">12</span> งวด</p>
+            <p><span class="font-medium">ยอดผ่อนต่องวด:</span> <span id="detail-monthly">3,667</span> บาท</p>
+            <p><span class="font-medium">ชำระแล้ว:</span> <span id="detail-paid">3</span> งวด (<span id="detail-paid-amount">11,000</span> บาท)</p>
+            <p><span class="font-medium">คงเหลือ:</span> <span id="detail-remaining">9</span> งวด (<span id="detail-remaining-amount">33,000</span> บาท)</p>
+            
+            <div class="w-full h-2 mt-2 bg-gray-200 rounded-full overflow-hidden">
+              <div id="detail-progress-bar" class="bg-blue-500 h-full" style="width:25%"></div>
+            </div>
+            <p class="text-sm text-gray-500">ความคืบหน้าการชำระ: <span id="detail-progress-percent">25</span>%</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Payment History -->
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6">
+        <h4 class="font-medium text-lg mb-4 flex items-center">
+          <i class="bi bi-clock-history mr-2 text-indigo-500"></i> ประวัติการชำระ
+        </h4>
+        <div class="overflow-x-auto">
+          <table class="table table-compact w-full">
+            <thead>
+              <tr>
+                <th>งวดที่</th>
+                <th>วันที่ครบกำหนด</th>
+                <th>วันที่ชำระ</th>
+                <th>ยอดชำระ</th>
+                <th>วิธีการชำระ</th>
+                <th>สถานะ</th>
+                <th>หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="detail-payment-history">
+              <!-- Payment history will be populated dynamically from database -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap justify-end gap-2">
+        <button class="btn btn-outline btn-success gap-1">
+          <i class="bi bi-printer"></i> พิมพ์สัญญา
+        </button>
+        <button id="btnPaymentFromDetail" class="btn btn-primary gap-1">
+          <i class="bi bi-cash-coin"></i> บันทึกการชำระ
+        </button>
+        <button id="btnStockDeductFromDetail" class="btn btn-success gap-1 hidden">
+          <i class="bi bi-box-arrow-down"></i> ตัดสต๊อก
+        </button>
+        <button class="btn btn-warning gap-1">
+          <i class="bi bi-pencil"></i> แก้ไขสัญญา
+        </button>
+        <button class="btn btn-outline btn-error gap-1">
+          <i class="bi bi-trash"></i> ลบสัญญา
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STOCK DEDUCTION MODAL -->
+  <div id="stockDeductionModal" class="modal">
+    <div class="modal-box max-w-2xl">
+      <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+        <i class="bi bi-box-seam text-emerald-500"></i>
+        ตรวจสอบและตัดสต๊อก
+      </h3>
+      
+      <!-- Customer Summary -->
+      <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="avatar placeholder">
+            <div class="bg-blue-100 text-blue-600 rounded-full w-12">
+              <span id="stock-customer-avatar">นภ</span>
+            </div>
+          </div>
+          <div>
+            <p class="font-semibold" id="stock-customer-name">นภัสวรรณ มงคล</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">เลขสัญญา: <span id="stock-contract-no">INST256806001</span> | โทร: <span id="stock-customer-phone">096-187-7322</span></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stock Check List -->
+      <div class="space-y-3 mb-6">
+        <h4 class="font-medium text-gray-700 dark:text-gray-300">รายการสินค้าและสต๊อก</h4>
+        
+        <div id="stock-check-items">
+          <!-- จะถูก populate ด้วย JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Branch Stock Summary -->
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
+        <h4 class="font-medium mb-3">สรุปสต๊อกสาขา <span id="stock-branch-name">ปัตตานี</span></h4>
+        <div id="stock-summary">
+          <!-- จะถูก populate ด้วย JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Confirmation -->
+      <div class="alert alert-info mb-6">
+        <i class="bi bi-info-circle"></i>
+        <span>ยืนยันการตัดสต๊อกและส่งมอบสินค้าให้ลูกค้า</span>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeStockModal()">ยกเลิก</button>
+        <button id="btnConfirmStockDeduction" class="btn btn-success" onclick="confirmStockDeduction()">
+          <i class="bi bi-check-circle"></i> ยืนยันตัดสต๊อก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Record page start time for performance measurement
+    window.pageStartTime = Date.now();
+    
+    // Get branch code from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    let BRANCH_CODE = urlParams.get('branch') || localStorage.getItem('activeBranch');
+    
+    if (!BRANCH_CODE) {
+      console.warn("Branch code not specified, defaulting to 'PATTANI'");
+      BRANCH_CODE = 'PATTANI';
+    }
+    window.currentBranchCode = BRANCH_CODE;
+    console.log(`[payment_installments_Pattani] Using branch code: ${BRANCH_CODE}`);
+    
+    // Global variables
+    let currentActiveTab = 'down-payment';
+    let currentContractId = null;
+    let allContracts = [];
+    let filteredContracts = [];
+    
+    // Pagination variables
+    let currentPage = 1;
+    let itemsPerPage = 20;
+    let totalPages = 1;
+    let totalItems = 0;
+    
+    // Initialize page - Combined DOMContentLoaded handler
+    document.addEventListener('DOMContentLoaded', async function() {
+      try {
+        let pageLoaderId = null;
+    
+        // Simple LoadingSystem call
+        try {
+          if (typeof LoadingSystem.show === 'function') {
+            pageLoaderId = LoadingSystem.show({
+              message: 'กำลังโหลดหน้าเว็บ...',
+              showProgress: true,
+              autoProgress: true,
+              spinnerType: 'default'
+            });
+            console.log('Page loader started with ID:', pageLoaderId);
+          }
+        } catch (loadingError) {
+          console.error('Failed to start page loader:', loadingError);
+          pageLoaderId = null;
+        }
+    
+        // Update title based on branch name
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchName = urlParams.get('name');
+        if (branchName) {
+          document.title = `ระบบผ่อนชำระและเครดิต - ${decodeURIComponent(branchName)}`;
+        }
+    
+        // Initialize page components
+        initializePage();
+        setupEventListeners();
+        setupHeaderToggle();
+    
+        // Load data
+        await loadInitialData();
+    
+        // Check URL parameters for actions
+        checkUrlParams();
+    
+        // Log page load activity (after Firebase is initialized)
+        setTimeout(() => {
+          logActivityToFirebase('page_loaded', {
+            page: 'payment_installments',
+            branchCode: BRANCH_CODE,
+            loadTime: Date.now() - (window.pageStartTime || Date.now())
+          });
+        }, 2000);
+    
+        // Complete loading
+        try {
+          if (pageLoaderId && typeof LoadingSystem.hide === 'function') {
+            LoadingSystem.hide(pageLoaderId);
+            console.log('Page loader hidden with ID:', pageLoaderId);
+          }
+          console.log('Page loading completed successfully');
+    
+          // Send initial notification
+          setTimeout(() => {
+            sendFirebaseNotification(
+              `เข้าสู่ระบบผ่อนชำระ - ${BRANCH_CODE}`,
+              'info',
+              { page: 'payment_installments', branch: BRANCH_CODE }
+            );
+          }, 3000);
+    
+        } catch (loadingError) {
+          console.error('Failed to complete page loading:', loadingError);
+        }
+      } catch (error) {
+        console.error('Page loading error:', error);
+        if (typeof showToast === 'function') {
+          showToast('เกิดข้อผิดพลาดในการโหลดหน้าเว็บ: ' + error.message, 'error');
+        }
+      }
+    });
+
+    // Setup header toggle to work with sidebar
+    function setupHeaderToggle() {
+      // Override the global toggleSidebar function if it exists
+      if (typeof window.toggleSidebar === 'function') {
+        const originalToggleSidebar = window.toggleSidebar;
+        window.toggleSidebar = function() {
+          // Call original function
+          originalToggleSidebar();
+    
+          // Handle header adjustment
+          const sidebar = document.getElementById('sidebar');
+          const mainHeader = document.getElementById('mainHeader');
+    
+          if (sidebar && mainHeader) {
+            if (sidebar.classList.contains('-translate-x-full')) {
+              mainHeader.classList.add('sidebar-collapsed');
+            } else {
+              mainHeader.classList.remove('sidebar-collapsed');
+            }
+          }
+        };
+      }
+    
+      // Also listen for sidebar state changes
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            const sidebar = document.getElementById('sidebar');
+            const mainHeader = document.getElementById('mainHeader');
+    
+            if (sidebar && mainHeader) {
+              if (sidebar.classList.contains('-translate-x-full')) {
+                mainHeader.classList.add('sidebar-collapsed');
+              } else {
+                mainHeader.classList.remove('sidebar-collapsed');
+              }
+            }
+          }
+        });
+      });
+    
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+      }
+    }
+
+    // Initialize page components
+    function initializePage() {
+      setupTabSwitching();
+      setupSearch();
+      loadBranchInfo();
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+      // Tab switching with null safety
+      const tabDownPayment = document.getElementById('tab-down-payment');
+      const tabPayAsYouGo = document.getElementById('tab-pay-as-you-go');
+      const tabPayInFull = document.getElementById('tab-pay-in-full');
+    
+      if (tabDownPayment) {
+        tabDownPayment.addEventListener('click', () => switchTab('down-payment'));
+      }
+      if (tabPayAsYouGo) {
+        tabPayAsYouGo.addEventListener('click', () => switchTab('pay-as-you-go'));
+      }
+      if (tabPayInFull) {
+        tabPayInFull.addEventListener('click', () => switchTab('pay-in-full'));
+      }
+    
+      // Search functionality with null safety
+      const searchInput = document.getElementById('searchInput');
+      const paymentStatusFilter = document.getElementById('paymentStatusFilter');
+    
+      if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
+      }
+      if (paymentStatusFilter) {
+        paymentStatusFilter.addEventListener('change', handleSearch);
+      }
+    
+      // Date filters with null safety
+      const dateFrom = document.getElementById('dateFrom');
+      const dateTo = document.getElementById('dateTo');
+    
+      if (dateFrom) {
+        dateFrom.addEventListener('change', handleSearch);
+      }
+      if (dateTo) {
+        dateTo.addEventListener('change', handleSearch);
+      }
+    }
+
+    // Load initial data
+    async function loadInitialData() {
+      try {
+        await Promise.all([
+          loadDashboardStats(),
+          loadContracts(),
+          loadUserInfo()
+        ]);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        showToast('ไม่สามารถโหลดข้อมูลได้', 'error');
+      }
+    }
+
+    // Load user information
+    async function loadUserInfo() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const response = await fetch('/api/users/me', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            console.log('✅ User info loaded:', data.data.name);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user info:', error);
+      }
+    }
+
+    // Load dashboard statistics
+    async function loadDashboardStats() {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const response = await fetch('/api/installment/reports/repayment-stats', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load stats');
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          updateStatsCards(data.data);
+        }
+      } catch (error) {
+        console.error('Error loading stats:', error);
+        // Fallback to show loading state
+        document.getElementById('totalContracts').innerHTML = '<span class="text-gray-400">ไม่สามารถโหลดได้</span>';
+        document.getElementById('monthlyPayments').innerHTML = '<span class="text-gray-400">ไม่สามารถโหลดได้</span>';
+        document.getElementById('overdueContracts').innerHTML = '<span class="text-gray-400">ไม่สามารถโหลดได้</span>';
+        document.getElementById('onTimeRate').innerHTML = '<span class="text-gray-400">ไม่สามารถโหลดได้</span>';
+    
+        document.getElementById('contractsGrowth').textContent = 'ไม่สามารถโหลดข้อมูลได้';
+        document.getElementById('paymentsGrowth').textContent = 'ไม่สามารถโหลดข้อมูลได้';
+      }
+    }
+
+    // Calculate stats from contracts data
+    function calculateStatsFromContracts(contracts) {
+      if (!contracts || contracts.length === 0) {
+        return {
+          totalContracts: 0,
+          monthlyPayments: 0,
+          overdueContracts: 0,
+          onTimeRate: 0,
+          contractsGrowth: 0,
+          paymentsGrowth: 0
+        };
+      }
+
+      const totalContracts = contracts.length;
+      const activeContracts = contracts.filter(c => c.status === 'active' || c.status === 'ACTIVE');
+      const overdueContracts = contracts.filter(c => c.status === 'overdue' || c.status === 'OVERDUE');
+      const completedContracts = contracts.filter(c => c.status === 'completed' || c.status === 'COMPLETED');
+    
+      // คำนวณยอดรับชำระรวม
+      const totalPayments = contracts.reduce((sum, contract) => {
+        return sum + (contract.monthlyPayment || contract.totalAmount || 0);
+      }, 0);
+
+      // คำนวณอัตราการชำระตรงเวลา
+      const onTimeRate = totalContracts > 0 ?
+        Math.round(((totalContracts - overdueContracts.length) / totalContracts) * 100) : 100;
+
+      return {
+        totalContracts,
+        monthlyPayments: totalPayments,
+        overdueContracts: overdueContracts.length,
+        onTimeRate,
+        contractsGrowth: 5, // Mock data - ในอนาคตอาจคำนวณจากข้อมูลเดือนที่แล้ว
+        paymentsGrowth: 3   // Mock data - ในอนาคตอาจคำนวณจากข้อมูลเดือนที่แล้ว
+      };
+    }
+
+    // Update stats cards with real data
+    function updateStatsCards(stats) {
+      document.getElementById('totalContracts').textContent = stats.totalContracts?.toLocaleString() || '0';
+      document.getElementById('monthlyPayments').textContent = `฿${stats.monthlyPayments?.toLocaleString() || '0'}`;
+      document.getElementById('overdueContracts').textContent = stats.overdueContracts?.toLocaleString() || '0';
+      document.getElementById('onTimeRate').textContent = `${stats.onTimeRate || 0}%`;
+    
+      document.getElementById('contractsGrowth').textContent = `${stats.contractsGrowth > 0 ? 'เพิ่มขึ้น' : 'ลดลง'} ${Math.abs(stats.contractsGrowth || 0)}% จากเดือนที่แล้ว`;
+      document.getElementById('paymentsGrowth').textContent = `${stats.paymentsGrowth > 0 ? 'เพิ่มขึ้น' : 'ลดลง'} ${Math.abs(stats.paymentsGrowth || 0)}% จากเดือนที่แล้ว`;
+    }
+
+    // Load contracts from API using the correct endpoint with pagination
+    async function loadContracts(page = 1) {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          console.warn('⚠️ No auth token found');
+          showErrorInTable('กรุณาเข้าสู่ระบบก่อนใช้งาน');
+          return;
+        }
+
+        console.log(`🔄 Loading contracts from API... Page: ${page}`);
+        console.log(`🏢 Using branch code: ${BRANCH_CODE}`);
+    
+        // ใช้ endpoint ที่สร้างใหม่
+        const response = await fetch(`/api/installment-payment/orders?page=${page}&limit=${itemsPerPage}&branchCode=${BRANCH_CODE}`, {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('📡 API Response status:', response.status);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('📥 API Response data:', data);
+        console.log('📊 API Response structure:', {
+          success: data.success,
+          hasData: !!data.data,
+          dataType: typeof data.data,
+          dataLength: Array.isArray(data.data) ? data.data.length : 'not array',
+          firstItem: data.data?.[0]
+        });
+
+        if (data.success) {
+          // ตรวจสอบโครงสร้างข้อมูลที่ได้รับ
+          let contractsData = [];
+    
+          if (Array.isArray(data.data)) {
+            contractsData = data.data;
+          } else if (data.data && Array.isArray(data.data.contracts)) {
+            contractsData = data.data.contracts;
+          } else if (data.data && Array.isArray(data.data.orders)) {
+            contractsData = data.data.orders;
+          } else {
+            console.warn('⚠️ Unexpected data structure from API:', data);
+            contractsData = [];
+          }
+    
+          console.log(`📋 Processed contracts data:`, {
+            length: contractsData.length,
+            sample: contractsData[0]
+          });
+    
+          allContracts = contractsData;
+          filteredContracts = [...allContracts];
+    
+          // Update pagination info
+          if (data.pagination) {
+            currentPage = data.pagination.currentPage;
+            totalPages = data.pagination.totalPages;
+            totalItems = data.pagination.totalDocs;
+            itemsPerPage = data.pagination.limit;
+          }
+    
+          console.log(`✅ Loaded ${allContracts.length} contracts (Page ${currentPage}/${totalPages})`);
+          renderContracts();
+          updatePaginationUI();
+    
+          // สร้างข้อมูล stats จากข้อมูลสัญญาที่โหลดได้
+          const stats = calculateStatsFromContracts(allContracts);
+          updateStatsCards(stats);
+        } else {
+          console.warn('⚠️ API returned unsuccessful response:', data);
+          allContracts = [];
+          filteredContracts = [];
+          renderContracts();
+          updatePaginationUI();
+    
+          const stats = calculateStatsFromContracts([]);
+          updateStatsCards(stats);
+    
+          showErrorInTable(data.message || 'ไม่พบข้อมูลสัญญาในระบบ');
+        }
+      } catch (error) {
+        console.error('❌ Error loading contracts:', error);
+        allContracts = [];
+        filteredContracts = [];
+        renderContracts();
+    
+        const stats = calculateStatsFromContracts([]);
+        updateStatsCards(stats);
+    
+        showErrorInTable(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}`);
+      }
+    }
+
+    // Show error message in table
+    function showErrorInTable(message) {
+      const tableBody = document.getElementById('customerTableBody');
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="9" class="text-center py-8">
+            <div class="flex flex-col items-center">
+              <i class="bi bi-exclamation-triangle text-4xl text-yellow-500 mb-2"></i>
+              <p class="text-gray-500 dark:text-gray-400">${message}</p>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // Pagination functions
+    function goToPage(page) {
+      if (page < 1 || page > totalPages) return;
+      if (page === currentPage) return;
+    
+      console.log(`📄 Going to page ${page}`);
+      loadContracts(page);
+    }
+
+    function updatePaginationUI() {
+      // Update pagination info text
+      const startItem = (currentPage - 1) * itemsPerPage + 1;
+      const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+      document.getElementById('paginationInfo').textContent =
+        `แสดง ${startItem}-${endItem} จาก ${totalItems} รายการ`;
+
+      // Update pagination buttons
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+    
+      // Enable/disable prev/next buttons
+      if (prevBtn) {
+        prevBtn.disabled = currentPage <= 1;
+        prevBtn.classList.toggle('btn-disabled', currentPage <= 1);
+      }
+    
+      if (nextBtn) {
+        nextBtn.disabled = currentPage >= totalPages;
+        nextBtn.classList.toggle('btn-disabled', currentPage >= totalPages);
+      }
+
+      // Update page number buttons
+      for (let i = 1; i <= 6; i++) {
+        const pageBtn = document.getElementById(`page${i}`);
+        if (pageBtn) {
+          const pageNumber = i;
+          if (pageNumber <= totalPages) {
+            pageBtn.style.display = 'inline-flex';
+            pageBtn.textContent = pageNumber;
+            pageBtn.onclick = () => goToPage(pageNumber);
+    
+            // Update active state
+            if (pageNumber === currentPage) {
+              pageBtn.classList.remove('btn-outline');
+              pageBtn.classList.add('btn-active');
+            } else {
+              pageBtn.classList.remove('btn-active');
+              pageBtn.classList.add('btn-outline');
+            }
+          } else {
+            pageBtn.style.display = 'none';
+          }
+        }
+      }
+    }
+
+    // Render contracts in table
+    function renderContracts() {
+      const tableBody = document.getElementById('customerTableBody');
+    
+      console.log('🎨 Rendering contracts:', {
+        allContracts: allContracts?.length || 0,
+        filteredContracts: filteredContracts?.length || 0,
+        sampleData: filteredContracts?.[0]
+      });
+    
+      if (!filteredContracts || filteredContracts.length === 0) {
+        console.log('📭 No contracts to display');
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="9" class="text-center py-12">
+              <div class="flex flex-col items-center">
+                <div class="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                  <i class="bi bi-inbox text-4xl text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">ไม่พบข้อมูลสัญญาผ่อน</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-center max-w-md">
+                  ยังไม่มีสัญญาผ่อนในสาขา ${BRANCH_CODE}<br>
+                  กรุณาสร้างสัญญาผ่อนจากระบบขายผ่อนก่อน
+                </p>
+                <div class="mt-4 space-x-2">
+                  <a href="/views/pattani/installment/step1/step1.html?branch=${BRANCH_CODE}" 
+                     class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle mr-2"></i>สร้างสัญญาผ่อนใหม่
+                  </a>
+                  <button onclick="debugDatabase()" class="btn btn-outline btn-sm">
+                    <i class="bi bi-bug mr-2"></i>ตรวจสอบข้อมูล
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      let rowIndex = 1;
+      let shownContracts = 0;
+
+      filteredContracts.forEach(contract => {
+        const shouldShow = shouldShowContract(contract);
+        console.log(`🔍 Contract ${contract._id}: shouldShow = ${shouldShow}`, {
+          contractType: contract.type,
+          installmentType: contract.installmentType,
+          currentTab: currentActiveTab
+        });
+    
+        if (shouldShow) {
+          html += generateContractRow(contract, rowIndex);
+          rowIndex++;
+          shownContracts++;
+        }
+      });
+    
+      console.log(`📊 Filtered results: ${shownContracts}/${filteredContracts.length} contracts shown`);
+
+      if (!html) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="9" class="text-center py-8">
+              <div class="flex flex-col items-center">
+                <i class="bi bi-funnel text-4xl text-gray-400 mb-2"></i>
+                <h3 class="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">ไม่พบข้อมูลในแท็บนี้</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-center">
+                  มีสัญญาทั้งหมด ${filteredContracts.length} รายการ แต่ไม่ตรงกับประเภท "${getCurrentTabName()}"<br>
+                  <small class="text-gray-400">ลองเปลี่ยนแท็บหรือตรวจสอบข้อมูลสัญญา</small>
+                </p>
+                <div class="mt-3">
+                  <button onclick="switchTab('down-payment')" class="btn btn-outline btn-sm mr-2">
+                    <i class="bi bi-list mr-1"></i>ดูทั้งหมด
+                  </button>
+                  <button onclick="debugDatabase()" class="btn btn-outline btn-sm">
+                    <i class="bi bi-bug mr-1"></i>ตรวจสอบข้อมูล
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+      } else {
+        tableBody.innerHTML = html;
+      }
+    }
+
+    // Check if contract should be shown based on current tab
+    function shouldShowContract(contract) {
+      console.log('🔍 Checking contract:', {
+        contractId: contract._id,
+        contractType: contract.type,
+        contractStatus: contract.status,
+        installmentType: contract.installmentType,
+        currentTab: currentActiveTab
+      });
+    
+      // แสดงทั้งหมดใน tab "สำหรับจ่ายค่างวด ของ ดาวน์" (down-payment)
+      if (currentActiveTab === 'down-payment') {
+        return true; // แสดงสัญญาทั้งหมดที่มีการผ่อนชำระ
+      }
+    
+      // สำหรับ tab อื่นๆ ให้กรองตาม installmentType
+      switch (currentActiveTab) {
+        case 'pay-as-you-go':
+          return contract.installmentType === 'pay-as-you-go' ||
+                 contract.type === 'SAVINGS' ||
+                 (!contract.installmentType && !contract.type); // รวมข้อมูลที่ไม่มี type
+        case 'pay-in-full':
+          return contract.installmentType === 'pay-in-full' ||
+                 contract.type === 'PAYOFF' ||
+                 (!contract.installmentType && !contract.type); // รวมข้อมูลที่ไม่มี type
+        default:
+          console.log('✅ Default tab - showing all contracts');
+          return true;
+      }
+    }
+
+    // Generate contract row HTML with correct API data mapping
+    function generateContractRow(contract, index) {
+      console.log('🎨 Generating row for contract:', {
+        id: contract._id,
+        contractNumber: contract.contractNo,
+        customerName: contract.customerName,
+        customerPhone: contract.customerPhone,
+        items: contract.items,
+        contractFields: Object.keys(contract)
+      });
+    
+      // ข้อมูลลูกค้าจาก API endpoint ใหม่
+      const customerName = contract.customerName && contract.customerName !== 'ไม่ระบุ' ?
+        contract.customerName : 'ลูกค้า (ไม่ระบุชื่อ)';
+      const customerPhone = contract.customerPhone && contract.customerPhone !== 'ไม่ระบุ' ?
+        contract.customerPhone : 'ไม่ระบุเบอร์โทร';
+    
+      // ข้อมูลสินค้าจาก items array
+      let productInfo = 'ไม่ระบุสินค้า';
+      let totalPrice = 0;
+    
+      if (contract.items && contract.items.length > 0) {
+        const item = contract.items[0]; // สินค้าตัวแรก
+        productInfo = item.name || 'ไม่ระบุสินค้า';
+        totalPrice = item.pricePayOff || contract.finalTotalAmount || contract.totalAmount || 0;
+      } else {
+        totalPrice = contract.finalTotalAmount || contract.totalAmount || 0;
+      }
+    
+      // ข้อมูลการชำระ - ใช้ข้อมูลจริงจาก API เท่านั้น
+      const downPayment = contract.downPayment || 0;
+      const totalAmount = contract.totalAmount || contract.finalTotalAmount || 0;
+      const monthlyPayment = contract.monthlyPayment || 0;
+      const totalInstallments = contract.installmentCount || 0;
+      const paidAmount = contract.paidAmount || 0;
+    
+      // คำนวณยอดที่ต้องผ่อน (ไม่รวมเงินดาวน์)
+      const financeAmount = totalAmount - downPayment;
+    
+      // คำนวณยอดงวดที่ชำระแล้ว (ลบเงินดาวน์ออก)
+      const installmentPaidAmount = Math.max(0, paidAmount - downPayment);
+    
+      // คำนวณจำนวนงวดที่ชำระแล้ว
+      let paidInstallments = 0;
+      if (monthlyPayment > 0 && installmentPaidAmount > 0) {
+        paidInstallments = Math.floor(installmentPaidAmount / monthlyPayment);
+      }
+    
+      // คำนวณ progress จากยอดผ่อน (ไม่นับเงินดาวน์)
+      const installmentProgress = financeAmount > 0 ? Math.round((installmentPaidAmount / financeAmount) * 100) : 0;
+    
+      const avatar = getCustomerAvatar(customerName);
+      const statusBadge = getStatusBadge(contract);
+      const progressBar = getProgressBar(contract, installmentProgress);
+      const actionButtons = getActionButtons(contract);
+
+      return `
+        <tr class="tab-content tab-${currentActiveTab} hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 ${getRowBgClass(contract)}" 
+            data-contract-id="${contract._id}">
+          <td class="py-3">${index}</td>
+          <td class="py-3">${contract.contractNo || contract._id}</td>
+          <td class="py-3">
+            <div class="flex items-center space-x-3">
+              <div class="avatar placeholder">
+                <div class="bg-blue-100 text-blue-600 w-10 h-10 rounded-full">
+                  <span>${avatar}</span>
+                </div>
+              </div>
+              <div>
+                <div class="font-medium ${customerName.includes('ไม่ระบุ') ? 'text-gray-400 italic' : ''}">${customerName}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  <i class="bi bi-telephone mr-1"></i>${customerPhone}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="py-3">
+            <div class="font-medium">${productInfo}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">IMEI: ${contract.items?.[0]?.imei || 'ไม่ระบุ'}</div>
+          </td>
+          <td class="py-3">${progressBar}</td>
+          <td class="py-3">฿${totalPrice.toLocaleString()}</td>
+          <td class="py-3">
+            <div class="text-sm">
+              <div class="font-medium">${getContractTypeDisplay(contract)}</div>
+              <div class="text-gray-500">${getNextDueDate(contract)}</div>
+            </div>
+          </td>
+          <td class="py-3">${statusBadge}</td>
+          <td class="py-3">${actionButtons}</td>
+        </tr>
+      `;
+    }
+
+    // Get customer avatar initials
+    function getCustomerAvatar(customerName) {
+      if (!customerName || customerName === 'ไม่ระบุ' || customerName.includes('ไม่ระบุ')) {
+        return '👤';
+      }
+    
+      const cleanName = customerName.trim();
+      const names = cleanName.split(' ').filter(name => name.length > 0);
+    
+      if (names.length >= 2) {
+        // ใช้ตัวแรกของชื่อและนามสกุล
+        return names[0].charAt(0) + names[names.length - 1].charAt(0);
+      } else if (names.length === 1) {
+        // ใช้ 2 ตัวแรกของชื่อเดียว
+        return cleanName.charAt(0) + (cleanName.charAt(1) || '');
+      }
+    
+      return '👤';
+    }
+
+    // Get status badge with new data structure
+    function getStatusBadge(contract) {
+      const status = contract.status || 'ongoing';
+    
+      switch (status.toLowerCase()) {
+        case 'ongoing':
+        case 'active':
+        case 'approved':
+          return '<span class="badge badge-info badge-sm">กำลังผ่อน</span>';
+        case 'completed':
+        case 'paid':
+        case 'finished':
+          return '<span class="badge badge-success badge-sm">ชำระครบแล้ว</span>';
+        case 'overdue':
+        case 'late':
+          return '<span class="badge badge-error badge-sm">เกินกำหนด</span>';
+        case 'cancelled':
+        case 'canceled':
+          return '<span class="badge badge-error badge-sm">ยกเลิก</span>';
+        case 'pending':
+        case 'draft':
+          return '<span class="badge badge-warning badge-sm">รอดำเนินการ</span>';
+        default:
+          return `<span class="badge badge-secondary badge-sm">${status}</span>`;
+      }
+    }
+
+    // Get progress bar with corrected calculation
+    function getProgressBar(contract, installmentProgress = 0) {
+      const totalInstallments = contract.installmentCount || 0;
+      const monthlyPayment = contract.monthlyPayment || 0;
+      const downPayment = contract.downPayment || 0;
+      const paidAmount = contract.paidAmount || 0;
+    
+      // คำนวณยอดงวดที่ชำระแล้ว (ไม่นับเงินดาวน์)
+      const installmentPaidAmount = Math.max(0, paidAmount - downPayment);
+    
+      // คำนวณงวดที่ชำระแล้วจากยอดงวด
+      let paidInstallments = 0;
+      if (monthlyPayment > 0 && installmentPaidAmount > 0) {
+        paidInstallments = Math.floor(installmentPaidAmount / monthlyPayment);
+      }
+    
+      // คำนวณ progress จากจำนวนงวด
+      const progressFromInstallments = totalInstallments > 0 ?
+        Math.round((paidInstallments / totalInstallments) * 100) : 0;
+    
+      if (totalInstallments > 0) {
+        return `
+          <div class="space-y-1">
+            <div class="text-sm font-medium">งวด ${paidInstallments}/${totalInstallments}</div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${progressFromInstallments}%"></div>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">${progressFromInstallments}%</div>
+          </div>
+        `;
+      } else {
+        // สำหรับสัญญาที่ไม่มีงวด
+        const totalAmount = contract.finalTotalAmount || contract.totalAmount || 0;
+        const progress = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+    
+        return `
+          <div class="space-y-1">
+            <div class="text-sm font-medium">${progress}%</div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="bg-purple-600 h-2 rounded-full transition-all duration-300" style="width: ${progress}%"></div>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">฿${paidAmount.toLocaleString()}</div>
+          </div>
+        `;
+      }
+    }
+
+    // Get row background class
+    function getRowBgClass(contract) {
+      if (contract.status === 'overdue') {
+        return 'bg-red-50 dark:bg-red-900/20';
+      } else if (contract.status === 'completed') {
+        return 'bg-green-50 dark:bg-green-900/20';
+      } else if (contract.type === 'INSTALLMENT') {
+        return 'bg-blue-50 dark:bg-blue-900/20';
+      }
+      return '';
+    }
+
+    // Get action buttons
+    function getActionButtons(contract) {
+      return `
+        <div class="dropdown dropdown-end">
+          <label tabindex="0" class="btn btn-sm btn-ghost hover:bg-gray-200 dark:hover:bg-gray-700">
+            <i class="bi bi-three-dots-vertical"></i>
+          </label>
+          <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm p-2 shadow-lg bg-white dark:bg-gray-800 rounded-box w-52">
+            <li><a class="text-blue-600 dark:text-blue-400" onclick="openDetailsModal('${contract._id}')">
+              <i class="bi bi-info-circle"></i> ดูรายละเอียด
+            </a></li>
+            <li><a class="text-green-600 dark:text-green-400" onclick="openNewPaymentForm('${contract._id}')">
+              <i class="bi bi-cash"></i> บันทึกการชำระ
+            </a></li>
+            ${contract.type === 'PAYOFF' && contract.status === 'completed' ? `
+              <li><a class="text-emerald-600 dark:text-emerald-400" onclick="handleStockDeduction('${contract._id}')">
+                <i class="bi bi-box-seam"></i> ตัดสต๊อกและส่งมอบ
+              </a></li>
+            ` : ''}
+            <li><a class="text-amber-600 dark:text-amber-400">
+              <i class="bi bi-pencil"></i> แก้ไขสัญญา
+            </a></li>
+          </ul>
+        </div>
+      `;
+    }
+
+    // Format date - ปรับปรุงให้รองรับทั้ง string และ Date object
+    function formatDate(dateInput) {
+      if (!dateInput) return 'ไม่ระบุ';
+    
+      let date;
+      if (typeof dateInput === 'string') {
+        date = new Date(dateInput);
+      } else if (dateInput instanceof Date) {
+        date = dateInput;
+      } else {
+        return 'ไม่ระบุ';
+      }
+    
+      if (isNaN(date.getTime())) return 'ไม่ระบุ';
+    
+      const options = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Bangkok'
+      };
+    
+      return date.toLocaleDateString('th-TH', options);
+    }
+
+    // Format Thai date properly
+    function formatThaiDate(date) {
+      if (!date || isNaN(date.getTime())) return 'ไม่ระบุ';
+    
+      const options = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Bangkok'
+      };
+    
+      return date.toLocaleDateString('th-TH', options);
+    }
+
+    // Calculate end date from start date and installment count
+    function calculateEndDate(startDate, installmentCount) {
+      if (!startDate || !installmentCount) return null;
+    
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + installmentCount);
+      return endDate;
+    }
+
+    // Enhanced getFullContractData function with proper database field mapping
+    async function getFullContractData(contractId) {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('ไม่พบ token');
+
+        console.log(`🔍 Loading contract details for ID: ${contractId}`);
+
+        const response = await fetch(`/api/installment-payment/contract/${contractId}`, {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load contract data');
+        }
+
+        const data = await response.json();
+        console.log('📋 Raw API response:', data);
+
+        if (data.success && data.data) {
+          let contract = data.data;
+          console.log('📊 Contract fields found:', Object.keys(contract));
+    
+          // Map data from the actual database structure
+          const enhancedContract = {
+            _id: contract._id || contractId,
+            contractNumber: contract.contractNo || contractId,
+    
+            // Customer information from actual database fields
+            customerName: contract.customer_info ?
+                         `${contract.customer_info.prefix || ''} ${contract.customer_info.firstName || ''} ${contract.customer_info.lastName || ''}`.trim() :
+                         contract.displayCustomerName || 'ไม่ระบุ',
+            customerPhone: contract.customer_info?.phone || 'ไม่ระบุ',
+            customerIdCard: contract.customer_info?.taxId || 'ไม่ระบุ',
+            customerEmail: contract.customer_info?.email || 'ไม่ระบุ',
+            customerAddress: contract.customer_info?.address ?
+                            `${contract.customer_info.address.houseNo || ''} หมู่ ${contract.customer_info.address.moo || ''} ตำบล${contract.customer_info.address.subDistrict || ''} อำเภอ${contract.customer_info.address.district || ''} จังหวัด${contract.customer_info.address.province || ''} ${contract.customer_info.address.zipcode || ''}`.trim() :
+                            'ไม่ระบุ',
+    
+            // Contract details with proper date handling - เก็บวันที่ดิบไว้
+            type: contract.installmentType || contract.planType || 'ผ่อนหมดรับของ',
+            startDate: contract.createdAt || null, // เก็บวันที่ดิบ
+            endDate: contract.createdAt && contract.installmentCount ?
+                    calculateEndDate(new Date(contract.createdAt), contract.installmentCount) : null, // เก็บวันที่ดิบ
+            status: contract.status || 'ongoing',
+    
+            // Financial details from direct database fields
+            totalAmount: parseFloat(contract.totalAmount || contract.finalTotalAmount || 0),
+            downPayment: parseFloat(contract.downPayment || 0),
+            financeAmount: 0, // Will be calculated below
+            monthlyAmount: parseFloat(contract.monthlyPayment || contract.amountPerInstallment || 0),
+            totalInstallments: parseInt(contract.installmentCount || contract.term || 0),
+            paidInstallments: 0, // Will be calculated from payments
+            paidAmount: parseFloat(contract.paidAmount || 0),
+            remainingAmount: parseFloat(contract.remainingAmount || 0),
+    
+            // Products from items array
+            products: (contract.items || []).map(item => ({
+              name: item.name || contract.productName || 'ไม่ระบุสินค้า',
+              description: `IMEI: ${item.imei || 'ไม่ระบุ'}`,
+              price: parseFloat(item.pricePayOff || contract.totalPrice || 0),
+              quantity: parseInt(item.qty || 1),
+              imei: item.imei || ''
+            })),
+    
+            // Payment history
+            payments: contract.payments || []
+          };
+    
+          // Calculate missing values properly - use monthly payment calculation if totalAmount is 0
+          if (enhancedContract.totalAmount === 0 && enhancedContract.monthlyAmount > 0 && enhancedContract.totalInstallments > 0) {
+            // Calculate total from monthly payment and installments
+            enhancedContract.financeAmount = enhancedContract.monthlyAmount * enhancedContract.totalInstallments;
+            enhancedContract.totalAmount = enhancedContract.financeAmount + enhancedContract.downPayment;
+          } else if (enhancedContract.totalAmount === 0 && enhancedContract.products.length > 0) {
+            // Fallback to product prices
+            enhancedContract.totalAmount = enhancedContract.products.reduce((sum, product) =>
+              sum + (product.price * product.quantity), 0);
+            enhancedContract.financeAmount = enhancedContract.totalAmount - enhancedContract.downPayment;
+          } else {
+            // Calculate finance amount normally
+            enhancedContract.financeAmount = enhancedContract.totalAmount - enhancedContract.downPayment;
+          }
+    
+          // Calculate remaining amount correctly
+          enhancedContract.remainingAmount = enhancedContract.financeAmount - enhancedContract.paidAmount;
+    
+          // Calculate paid installments from amount and monthly payment
+          if (enhancedContract.monthlyAmount > 0) {
+            enhancedContract.paidInstallments = Math.floor(enhancedContract.paidAmount / enhancedContract.monthlyAmount);
+          }
+    
+          // Load real payment history from API
+          try {
+            console.log('🔍 Loading payment history from API for contract:', contractId);
+            const paymentResponse = await fetch(`/api/installment-payment/history/${contractId}`, {
+              headers: {
+                'Authorization': 'Bearer ' + token
+              }
+            });
+    
+            if (paymentResponse.ok) {
+              const paymentData = await paymentResponse.json();
+              if (paymentData.success && paymentData.data) {
+                console.log('✅ Found payment history:', paymentData.data);
+                enhancedContract.payments = paymentData.data.map(payment => ({
+                  installmentNumber: payment.installmentNumber,
+                  dueDate: formatDate(payment.dueDate),
+                  paidDate: payment.paymentDate ? formatDate(payment.paymentDate) : null,
+                  amount: payment.amountPaid || payment.amountDue,
+                  method: payment.paymentMethod || '-',
+                  status: payment.status === 'PAID' ? 'ชำระแล้ว' :
+                         payment.status === 'OVERDUE' ? 'เกินกำหนด' : 'รอชำระ',
+                  note: payment.notes || payment.note || '-'
+                }));
+    
+                // Update paid installments count from real data
+                enhancedContract.paidInstallments = enhancedContract.payments.filter(p =>
+                  p.status === 'ชำระแล้ว' || p.status === 'ชำระล่าช้า').length;
+              } else {
+                console.log('❌ No payment history found, creating empty array');
+                enhancedContract.payments = [];
+              }
+            } else {
+              console.log('❌ Payment API failed, creating empty array');
+              enhancedContract.payments = [];
+            }
+          } catch (paymentError) {
+            console.error('❌ Error loading payment history:', paymentError);
+            enhancedContract.payments = [];
+          }
+    
+          console.log('✅ Enhanced contract data with real DB fields:', enhancedContract);
+          return enhancedContract;
+    
+        } else {
+          throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลสัญญาได้');
+        }
+      } catch (error) {
+        console.error('❌ Error loading contract data:', error);
+    
+        // Return mock data for testing if API fails
+        console.log('🔄 Using mock data for contract:', contractId);
+        return {
+          _id: contractId,
+          contractNumber: contractId,
+          customerName: 'อารีฟีน กาซอ',
+          customerPhone: '0622070097',
+          customerIdCard: '1234567890123',
+          customerAddress: '123 ถนนตัวอย่าง ตำบลในเมือง อำเภอเมือง จังหวัดปัตตานี 94000',
+          type: 'INSTALLMENT',
+          startDate: '2024-07-01',
+          endDate: '2024-10-01',
+          status: 'ACTIVE',
+          totalAmount: 48900,
+          downPayment: 12000,
+          financeAmount: 36900,
+          monthlyAmount: 3667,
+          totalInstallments: 10,
+          paidInstallments: 3,
+          paidAmount: 11001,
+          remainingAmount: 25899,
+          products: [
+            {
+              name: 'iPhone 15 Pro Max',
+              description: '256GB สีทอง',
+              price: 48900,
+              quantity: 1
+            }
+          ],
+          payments: [
+            {
+              installmentNumber: 1,
+              dueDate: '2024-07-01',
+              paidDate: '2024-06-30',
+              amount: 3667,
+              method: 'เงินสด',
+              status: 'PAID',
+              note: '-'
+            },
+            {
+              installmentNumber: 2,
+              dueDate: '2024-08-01',
+              paidDate: '2024-08-01',
+              amount: 3667,
+              method: 'โอนเงิน',
+              status: 'PAID',
+              note: '-'
+            },
+            {
+              installmentNumber: 3,
+              dueDate: '2024-09-01',
+              paidDate: '2024-09-05',
+              amount: 3666,
+              method: 'QR Code',
+              status: 'LATE',
+              note: 'ชำระล่าช้า 4 วัน'
+            },
+            {
+              installmentNumber: 4,
+              dueDate: '2024-10-01',
+              paidDate: null,
+              amount: 3667,
+              method: '-',
+              status: 'PENDING',
+              note: '-'
+            }
+          ]
+        };
+      }
+    }
+
+    // Tab switching
+    function switchTab(tabName) {
+      // Special handling for payment form tab
+      if (tabName === 'payment-form') {
+        switchToPaymentTab();
+        return;
+      }
+    
+      // Hide payment form if switching away from it
+      if (currentActiveTab === 'payment-form') {
+        document.getElementById('paymentFormSection').classList.add('hidden');
+        document.getElementById('tab-payment-form').classList.add('hidden');
+    
+        // Show other sections
+        document.querySelectorAll('[class*="bg-white dark:bg-gray-800 rounded-lg shadow-md"]').forEach(section => {
+          if (!section.closest('#paymentFormSection')) {
+            section.style.display = 'block';
+          }
+        });
+      }
+    
+      // Update active tab
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
+      document.getElementById(`tab-${tabName}`).classList.add('tab-active');
+    
+      currentActiveTab = tabName;
+    
+      // Update column headers based on tab
+      updateColumnHeaders(tabName);
+    
+      // Re-render contracts
+      renderContracts();
+    }
+
+    // Update column headers based on active tab
+    function updateColumnHeaders(tabName) {
+      const header5 = document.getElementById('column-header-5');
+      const header6 = document.getElementById('column-header-6');
+      const header7 = document.getElementById('column-header-7');
+    
+      switch (tabName) {
+        case 'down-payment':
+          header5.textContent = 'ชำระแล้ว/ทั้งหมด';
+          header6.textContent = 'ยอดงวด';
+          header7.textContent = 'วันครบกำหนด';
+          break;
+        case 'pay-as-you-go':
+          header5.textContent = 'ออมแล้ว/เป้าหมาย';
+          header6.textContent = 'ยอดรวม';
+          header7.textContent = 'ประเภท';
+          break;
+        case 'pay-in-full':
+          header5.textContent = 'ความคืบหน้า';
+          header6.textContent = 'ยอดรวม';
+          header7.textContent = 'ประเภท';
+          break;
+      }
+    }
+
+    // Search functionality
+    function handleSearch() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const statusFilter = document.getElementById('paymentStatusFilter').value;
+      const dateFrom = document.getElementById('dateFrom').value;
+      const dateTo = document.getElementById('dateTo').value;
+    
+      filteredContracts = allContracts.filter(contract => {
+        // Text search with null checks
+        const matchesSearch = !searchTerm ||
+          (contract.customerName && contract.customerName.toLowerCase().includes(searchTerm)) ||
+          (contract.contractNumber && contract.contractNumber.toLowerCase().includes(searchTerm)) ||
+          (contract.customerPhone && contract.customerPhone.includes(searchTerm));
+    
+        // Status filter
+        const matchesStatus = !statusFilter || contract.status === statusFilter;
+    
+        // Date filter
+        let matchesDate = true;
+        if (dateFrom && contract.dueDate) {
+          matchesDate = matchesDate && new Date(contract.dueDate) >= new Date(dateFrom);
+        }
+        if (dateTo && contract.dueDate) {
+          matchesDate = matchesDate && new Date(contract.dueDate) <= new Date(dateTo);
+        }
+    
+        return matchesSearch && matchesStatus && matchesDate;
+      });
+    
+      renderContracts();
+    }
+
+
+
+
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'แจ้งเตือน',
+          text: message,
+          icon: type,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        });
+      } else {
+        alert(message);
+      }
+    }
+
+    // Modal functions
+    function openDetailsModal(contractId) {
+      currentContractId = contractId;
+      loadContractDetails(contractId);
+      document.getElementById('detailsModal').classList.add('modal-open');
+    }
+
+    function closeDetailsModal() {
+      document.getElementById('detailsModal').classList.remove('modal-open');
+      currentContractId = null;
+    }
+
+    // Legacy functions - redirect to new payment form
+    function openPaymentModal(contractId) {
+      // Redirect to new payment form
+      openNewPaymentForm(contractId);
+    }
+
+    function closePaymentModal() {
+      // Redirect to close new payment form
+      closePaymentForm();
+    }
+
+    function handleStockDeduction(contractId) {
+      currentContractId = contractId;
+      loadStockDeductionModal(contractId);
+      document.getElementById('stockDeductionModal').classList.add('modal-open');
+    }
+
+    function closeStockModal() {
+      document.getElementById('stockDeductionModal').classList.remove('modal-open');
+      currentContractId = null;
+    }
+
+    // Load contract details for modal
+    async function loadContractDetails(contractId) {
+      try {
+        const contract = await getFullContractData(contractId);
+    
+        // Populate details modal
+        document.getElementById('details-contract-no').textContent = contract.contractNumber || contractId;
+        document.getElementById('detail-customer-name').textContent = contract.customerName || 'ไม่ระบุ';
+        document.getElementById('detail-customer-phone').textContent = contract.customerPhone || 'ไม่ระบุ';
+        document.getElementById('detail-customer-id').textContent = contract.customerIdCard || 'ไม่ระบุ';
+        document.getElementById('detail-customer-address').textContent = contract.customerAddress || 'ไม่ระบุ';
+    
+        // Update contract details
+        const contractType = contract.type === 'INSTALLMENT' ? 'ผ่อนไปใช้ไป' :
+                           contract.type === 'SAVINGS' ? 'ผ่อนไปใช้ไป' : 'ผ่อนหมดรับของ';
+        document.getElementById('detail-contract-type').innerHTML = `<span class="badge badge-info">${contractType}</span>`;
+    
+        document.getElementById('detail-start-date').textContent = formatDate(contract.startDate);
+        document.getElementById('detail-end-date').textContent = formatDate(contract.endDate);
+    
+        // Set payment status
+        const statusBadge = getStatusBadge(contract);
+        document.getElementById('detail-payment-status').innerHTML = statusBadge;
+    
+        // Set amounts
+        document.getElementById('detail-total').textContent = (contract.totalAmount || 0).toLocaleString();
+        document.getElementById('detail-total-amount').textContent = (contract.totalAmount || 0).toLocaleString();
+        document.getElementById('detail-down-payment').textContent = (contract.downPayment || 0).toLocaleString();
+        document.getElementById('detail-finance-amount').textContent = (contract.financeAmount || 0).toLocaleString();
+        document.getElementById('detail-installments').textContent = contract.totalInstallments || 0;
+        document.getElementById('detail-monthly').textContent = (contract.monthlyAmount || 0).toLocaleString();
+        document.getElementById('detail-paid').textContent = contract.paidInstallments || 0;
+        document.getElementById('detail-paid-amount').textContent = (contract.paidAmount || 0).toLocaleString();
+        document.getElementById('detail-remaining').textContent = (contract.totalInstallments - contract.paidInstallments) || 0;
+        document.getElementById('detail-remaining-amount').textContent = (contract.remainingAmount || 0).toLocaleString();
+    
+        // Progress bar
+        const progress = Math.round((contract.paidInstallments / contract.totalInstallments) * 100) || 0;
+        document.getElementById('detail-progress-bar').style.width = `${progress}%`;
+        document.getElementById('detail-progress-percent').textContent = progress;
+    
+      } catch (error) {
+        console.error('Error loading contract details:', error);
+        showToast('ไม่สามารถโหลดรายละเอียดสัญญาได้', 'error');
+      }
+    }
+
+    // Setup tabs
+    function setupTabSwitching() {
+      // Tab switching functionality is handled by event listeners
+    }
+
+    // Setup search
+    function setupSearch() {
+      // Date picker setup (if available)
+      if (typeof flatpickr !== 'undefined') {
+        const dateFromEl = document.querySelector('#dateFrom');
+        const dateToEl = document.querySelector('#dateTo');
+    
+        if (dateFromEl) {
+          flatpickr('#dateFrom', {
+            dateFormat: 'Y-m-d',
+            locale: 'th'
+          });
+        }
+    
+        if (dateToEl) {
+          flatpickr('#dateTo', {
+            dateFormat: 'Y-m-d',
+            locale: 'th'
+          });
+        }
+      }
+    }
+
+    // Check URL parameters for actions
+    function checkUrlParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const action = urlParams.get('action');
+      const contractId = urlParams.get('contract');
+    
+      if (action === 'details' && contractId) {
+        setTimeout(() => {
+          openDetailsModal(contractId);
+        }, 1000);
+      }
+    }
+
+    // ปฏิเสธสัญญา
+    async function rejectContract(approvalId) {
+      const { value: formValues } = await Swal.fire({
+        title: 'ปฏิเสธสัญญาผ่อนหมดรับของ',
+        html: `
+          <div class="text-left">
+            <label class="block text-sm font-medium mb-2">เหตุผลในการปฏิเสธ *</label>
+            <textarea id="rejectionReason" class="swal2-textarea" placeholder="กรุณาระบุเหตุผล" required></textarea>
+            <label class="block text-sm font-medium mb-2 mt-3">หมายเหตุเพิ่มเติม</label>
+            <textarea id="rejectionNotes" class="swal2-textarea" placeholder="หมายเหตุ (ไม่บังคับ)"></textarea>
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'ปฏิเสธ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#ef4444',
+        preConfirm: () => {
+          const reason = document.getElementById('rejectionReason').value;
+          const notes = document.getElementById('rejectionNotes').value;
+    
+          if (!reason.trim()) {
+            Swal.showValidationMessage('กรุณาระบุเหตุผลในการปฏิเสธ');
+            return false;
+          }
+    
+          return { reason: reason.trim(), notes: notes.trim() };
+        }
+      });
+
+      if (formValues) {
+        try {
+          const token = localStorage.getItem('authToken');
+          const res = await fetch(`/api/payoff-approval/reject/${approvalId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+              rejectionReason: formValues.reason,
+              notes: formValues.notes
+            })
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'ปฏิเสธสำเร็จ!',
+              text: 'ปฏิเสธสัญญาผ่อนหมดรับของเรียบร้อย',
+              timer: 2000,
+              showConfirmButton: false
+            });
+
+            // รีโหลดหน้าเพื่อแสดงสถานะใหม่
+            setTimeout(() => {
+              location.reload();
+            }, 2000);
+          } else {
+            throw new Error(data.error);
+          }
+        } catch (error) {
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: error.message
+          });
+        }
+      }
+    }
+
+    // ตรวจสอบสต๊อก Boxset
+    async function checkBoxsetStock(contractNo) {
+      try {
+        Swal.fire({
+          title: 'กำลังตรวจสอบสต๊อก...',
+          allowOutsideClick: false,
+          didOpen: () => {
+            const loaderId = LoadingSystem.show({
+              message: 'กำลังโหลด...',
+              showProgress: true,
+              autoProgress: true
+            });
+          }
+        });
+
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/branch-stock/check-boxset', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            contractNo: contractNo,
+            branchCode: BranchNavigation?.getBranchCode() || localStorage.getItem('branchCode') || '00000'
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          const stockData = data.data;
+    
+          let resultHtml = `
+            <div class="text-left">
+              <h4 class="font-semibold mb-3">ผลการตรวจสอบสต๊อก Boxset</h4>
+              <p class="mb-2"><strong>สัญญา:</strong> ${stockData.contractNo}</p>
+              <p class="mb-4"><strong>สถานะ:</strong> 
+                <span class="${stockData.allSufficient ? 'text-green-600' : 'text-red-600'}">
+                  ${stockData.allSufficient ? 'สต๊อกเพียงพอ' : 'สต๊อกไม่เพียงพอ'}
+                </span>
+              </p>
+              
+              <div class="max-h-60 overflow-y-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b">
+                      <th class="text-left py-2">สินค้า</th>
+                      <th class="text-center py-2">ต้องการ</th>
+                      <th class="text-center py-2">มีอยู่</th>
+                      <th class="text-center py-2">สถานะ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${stockData.items.map(item => `
+                      <tr class="border-b">
+                        <td class="py-2">${item.name}</td>
+                        <td class="text-center">${item.required}</td>
+                        <td class="text-center">${item.available}</td>
+                        <td class="text-center">
+                          ${item.sufficient ?
+                            '<span class="text-green-600">✓</span>' :
+                            '<span class="text-red-600">✗</span>'
+                          }
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div class="mt-4 text-sm text-gray-600">
+                <p><strong>สรุป:</strong> ${stockData.summary.availableItems}/${stockData.summary.totalItems} รายการ</p>
+              </div>
+            </div>
+          `;
+
+          await Swal.fire({
+            title: 'ผลการตรวจสอบสต๊อก',
+            html: resultHtml,
+            icon: stockData.allSufficient ? 'success' : 'warning',
+            width: '600px',
+            confirmButtonText: stockData.allSufficient ? 'ตัดสต๊อกและส่งมอบ' : 'ปิด',
+            showCancelButton: stockData.allSufficient,
+            cancelButtonText: 'ปิด'
+          }).then((result) => {
+            if (result.isConfirmed && stockData.allSufficient) {
+              deductBoxsetStock(contractNo);
+            }
+          });
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: error.message
+        });
+      }
+    }
+
+    // ตัดสต๊อก Boxset
+    async function deductBoxsetStock(contractNo) {
+      try {
+        const result = await Swal.fire({
+          title: 'ยืนยันการตัดสต๊อก',
+          text: 'ต้องการตัดสต๊อกและส่งมอบสินค้าใน Boxset หรือไม่?',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'ยืนยัน',
+          cancelButtonText: 'ยกเลิก'
+        });
+
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: 'กำลังตัดสต๊อก...',
+            allowOutsideClick: false,
+            didOpen: () => {
+              const loaderId = LoadingSystem.show({
+                message: 'กำลังโหลด...',
+                showProgress: true,
+                autoProgress: true
+              });
+            }
+          });
+
+          const token = localStorage.getItem('authToken');
+          const res = await fetch('/api/branch-stock/deduct-boxset', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+              contractNo: contractNo,
+              branchCode: BranchNavigation?.getBranchCode() || localStorage.getItem('branchCode') || '00000',
+              performedBy: null // จะใช้ user จาก token
+            })
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'ตัดสต๊อกสำเร็จ!',
+              text: `ตัดสต๊อกสำเร็จ ${data.data.deductedItems}/${data.data.totalItems} รายการ`,
+              timer: 3000,
+              showConfirmButton: false
+            });
+
+            // อัปเดตสถานะสัญญาเป็น delivered
+            setTimeout(() => {
+              window.open('/views/loan/stock_deduction.html', '_blank');
+            }, 3000);
+          } else {
+            throw new Error(data.error);
+          }
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: error.message
+        });
+      }
+    }
+
+    // Legacy payment modal functions - now redirect to new form
+    async function loadPaymentModal(contractId) {
+      // Redirect to new payment form
+      return openNewPaymentForm(contractId);
+    }
+
+    function selectInstallment(index) {
+      // This function is now handled by selectInstallmentForPayment
+      console.log('Legacy selectInstallment called, use selectInstallmentForPayment instead');
+    }
+
+    function hidePaymentForm() {
+      // Redirect to close new payment form
+      closePaymentForm();
+    }
+
+    // Stock deduction modal functions
+    async function loadStockDeductionModal(contractId) {
+      try {
+        const contract = await getFullContractData(contractId);
+    
+        // Update stock modal with contract data
+        document.getElementById('stock-customer-avatar').textContent = getCustomerAvatar(contract.customerName);
+        document.getElementById('stock-customer-name').textContent = contract.customerName || 'ไม่ระบุ';
+        document.getElementById('stock-contract-no').textContent = contract.contractNumber || contractId;
+        document.getElementById('stock-customer-phone').textContent = contract.customerPhone || 'ไม่ระบุ';
+    
+      } catch (error) {
+        console.error('Error loading stock modal:', error);
+        showToast('ไม่สามารถโหลดข้อมูลสต๊อกได้', 'error');
+      }
+    }
+
+    function confirmStockDeduction() {
+      if (!currentContractId) return;
+    
+      Swal.fire({
+        title: 'ยืนยันการตัดสต๊อก',
+        text: 'ต้องการตัดสต๊อกและส่งมอบสินค้าหรือไม่?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยัน',
+        cancelButtonText: 'ยกเลิก'
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const loaderId = LoadingSystem.show({
+            message: 'กำลังตัดสต๊อก...',
+            showProgress: true,
+            autoProgress: true
+          });
+    
+          try {
+            // Find contract data
+            const contract = allContracts.find(c => c._id === currentContractId);
+    
+            // Log activity
+            logActivityToFirebase('stock_deduction_confirmed', {
+              contractId: currentContractId,
+              contractNo: contract?.contractNumber
+            });
+    
+            // Save to Firebase
+            savePaymentInstallmentToFirebase({
+              action: 'stock_deduction',
+              contractId: currentContractId,
+              contractNo: contract?.contractNumber,
+              customerName: contract?.customerName,
+              status: 'completed'
+            });
+    
+            // Emit Socket.IO event
+            emitPaymentInstallmentEvent('stock_deducted', {
+              contractId: currentContractId,
+              contractNo: contract?.contractNumber,
+              customerName: contract?.customerName
+            });
+    
+            // Send notification
+            sendFirebaseNotification(
+              `ตัดสต๊อกสำเร็จ: สัญญา ${contract?.contractNumber}`,
+              'success',
+              { contractId: currentContractId }
+            );
+    
+            LoadingSystem.hide(loaderId);
+          Swal.fire('สำเร็จ!', 'ตัดสต๊อกและส่งมอบสินค้าเรียบร้อย', 'success');
+          closeStockModal();
+          loadContracts(); // Refresh data
+    
+          } catch (error) {
+            LoadingSystem.hide(loaderId);
+            console.error('Stock deduction error:', error);
+            logActivityToFirebase('stock_deduction_error', {
+              contractId: currentContractId,
+              error: error.message
+            });
+            Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถตัดสต๊อกได้', 'error');
+          }
+        }
+      });
+    }
+
+    // Note: URL parameter checking moved to main DOMContentLoaded handler above
+    
+    // เพิ่มฟังก์ชัน loadBranchInfo
+    async function loadBranchInfo() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchCode = urlParams.get('branch') || localStorage.getItem('branchCode') || '00000';
+        const token = localStorage.getItem('authToken') || '';
+    
+        // เรียก /api/branch เพื่อดึง list สาขา
+        const res = await fetch(`/api/branch`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const js = await res.json();
+        if (res.ok && js.success) {
+          // หา record ที่ตรงกับ branch_code
+          const branch = js.data.find(b => b.branch_code === branchCode);
+          if (branch) {
+            document.getElementById('branchInfo').textContent =
+              `${branch.name} — ${branch.address}`;
+            // อัพเดท title ของหน้าด้วยชื่อสาขาจริง
+            document.title = `ระบบผ่อนชำระ - ${branch.name}`;
+            document.getElementById('pageTitle').textContent = `ระบบผ่อนชำระ - ${branch.name}`;
+            return;
+          }
+        }
+        throw new Error('ไม่พบข้อมูลสาขา');
+      } catch (err) {
+        console.warn('loadBranchInfo error:', err);
+        document.getElementById('branchInfo').textContent =
+          'สาขา: (ไม่พบข้อมูล)';
+      }
+    }
+
+    // Function to show/hide loading overlay
+    // Note: Enhanced Page Initialization moved to main DOMContentLoaded handler above
+
+    // Add loading to loadPaymentInstallments function
+    async function loadPaymentInstallments() {
+      const loaderId = LoadingSystem.show({
+        message: 'กำลังโหลด...',
+        showProgress: true,
+        autoProgress: true
+      });
+      try {
+        await Promise.all([
+          loadDashboardStats(),
+          loadContracts(),
+          loadUserInfo()
+        ]);
+      } catch (error) {
+        console.error('Load payment installments error:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลผ่อนชำระ', 'error');
+      } finally {
+        LoadingSystem.hide(loaderId);
+      }
+    }
+
+    // Legacy payment form handler - now handled by new system
+    function handlePaymentFormSubmit() {
+      console.log('Legacy handlePaymentFormSubmit called - using new payment form system');
+    }
+
+    // Upload slip preview function
+    function previewSlip() {
+      const input = document.getElementById('paymentSlip');
+      const preview = document.getElementById('slipPreview');
+      const image = document.getElementById('slipImage');
+    
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+    
+        reader.onload = function(e) {
+          image.src = e.target.result;
+          preview.classList.remove('hidden');
+        };
+    
+        reader.readAsDataURL(input.files[0]);
+    
+        // Log activity
+        logActivityToFirebase('payment_slip_uploaded', {
+          contractId: currentContractId,
+          fileName: input.files[0].name,
+          fileSize: input.files[0].size
+        });
+      }
+    }
+
+    // Toggle payment method sections
+    function togglePaymentMethod() {
+      const paymentMethod = document.getElementById('paymentMethod').value;
+      const slipUploadSection = document.getElementById('slipUploadSection');
+      const mixedPaymentSection = document.getElementById('mixedPaymentSection');
+      const receivedAmountField = document.getElementById('receivedAmount');
+    
+      // Hide all sections first
+      slipUploadSection.classList.add('hidden');
+      mixedPaymentSection.classList.add('hidden');
+      document.getElementById('slipPreview').classList.add('hidden');
+    
+      // Reset fields
+      document.getElementById('cashAmount').value = '';
+      document.getElementById('transferAmount').value = '';
+      document.getElementById('mixedTotal').textContent = '0.00';
+    
+      switch (paymentMethod) {
+        case 'cash':
+          // เงินสดเท่านั้น - ไม่ต้องแสดงอะไรเพิ่ม
+          receivedAmountField.disabled = false;
+          break;
+    
+        case 'transfer':
+          // โอนเงินเท่านั้น - แสดงส่วนอัปโหลดสลิป
+          slipUploadSection.classList.remove('hidden');
+          receivedAmountField.disabled = false;
+          break;
+    
+        case 'mixed':
+          // การชำระแบบผสม - แสดงทั้งสองส่วน
+          mixedPaymentSection.classList.remove('hidden');
+          slipUploadSection.classList.remove('hidden');
+          receivedAmountField.disabled = true; // ปิดการใช้งานเพราะจะคำนวณจากยอดผสม
+          break;
+    
+        default:
+          receivedAmountField.disabled = false;
+      }
+    }
+    
+    // คำนวณยอดรวมการชำระแบบผสม
+    function calculateMixedPayment() {
+      const cashAmount = parseFloat(document.getElementById('cashAmount').value) || 0;
+      const transferAmount = parseFloat(document.getElementById('transferAmount').value) || 0;
+      const total = cashAmount + transferAmount;
+    
+      document.getElementById('mixedTotal').textContent = total.toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    
+      // อัปเดตยอดเงินที่รับ
+      document.getElementById('receivedAmount').value = total;
+    }
+
+    // Enhanced contract details modal
+    function openDetailsModal(contractId) {
+      currentContractId = contractId;
+    
+      // Log activity
+      logActivityToFirebase('contract_details_viewed', {
+        contractId: contractId
+      });
+    
+      // Emit event
+      emitPaymentInstallmentEvent('contract_details_opened', {
+        contractId: contractId
+      });
+    
+      loadContractDetails(contractId);
+      document.getElementById('detailsModal').classList.add('modal-open');
+    }
+
+    // Enhanced modal close functions
+    function closeDetailsModal() {
+      document.getElementById('detailsModal').classList.remove('modal-open');
+    
+      if (currentContractId) {
+        logActivityToFirebase('contract_details_closed', {
+          contractId: currentContractId
+        });
+      }
+    
+      currentContractId = null;
+    }
+
+    function closePaymentModal() {
+      document.getElementById('paymentModal').classList.remove('modal-open');
+    
+      if (currentContractId) {
+        logActivityToFirebase('payment_modal_closed', {
+          contractId: currentContractId
+        });
+      }
+    
+      currentContractId = null;
+    }
+
+    function closeStockModal() {
+      document.getElementById('stockDeductionModal').classList.remove('modal-open');
+    
+      if (currentContractId) {
+        logActivityToFirebase('stock_modal_closed', {
+          contractId: currentContractId
+        });
+      }
+    
+      currentContractId = null;
+    }
+
+    // ===== UTILITY FUNCTIONS =====
+    
+    // Get current tab name for display
+    function getCurrentTabName() {
+      switch (currentActiveTab) {
+        case 'down-payment':
+          return 'จ่ายค่างวด ของ ดาวน์';
+        case 'pay-as-you-go':
+          return 'ผ่อนไปใช้ไป';
+        case 'pay-in-full':
+          return 'ผ่อนหมดรับของ';
+        default:
+          return 'ไม่ทราบ';
+      }
+    }
+
+    // Get contract type display
+    function getContractTypeDisplay(contract) {
+      const installmentType = contract.installmentType || contract.planType || contract.type;
+    
+      switch (installmentType) {
+        case 'pay-as-you-go':
+        case 'SAVINGS':
+          return 'ผ่อนไปใช้ไป';
+        case 'pay-in-full':
+        case 'PAYOFF':
+          return 'ผ่อนหมดรับของ';
+        case 'down-payment':
+        case 'INSTALLMENT':
+          return 'ผ่อนดาวน์';
+        case 'plan1':
+          return 'แผน 1';
+        case 'plan2':
+          return 'แผน 2';
+        case 'plan3':
+          return 'แผน 3';
+        case 'manual':
+          return 'กำหนดเอง';
+        default:
+          return installmentType || 'ไม่ระบุประเภท';
+      }
+    }
+
+    // Get next due date for contract
+    function getNextDueDate(contract) {
+      try {
+        // หาจำนวนงวดที่ชำระแล้ว
+        const downPayment = contract.downPayment || 0;
+        const paidAmount = contract.paidAmount || 0;
+        const monthlyPayment = contract.monthlyPayment || 0;
+    
+        // คำนวณยอดงวดที่ชำระแล้ว (ลบเงินดาวน์ออก)
+        const installmentPaidAmount = Math.max(0, paidAmount - downPayment);
+    
+        // คำนวณจำนวนงวดที่ชำระแล้ว
+        let paidInstallments = 0;
+        if (monthlyPayment > 0 && installmentPaidAmount > 0) {
+          paidInstallments = Math.floor(installmentPaidAmount / monthlyPayment);
+        }
+    
+        // ตรวจสอบว่าชำระครบแล้วหรือไม่
+        const totalInstallments = contract.installmentCount || 0;
+        if (paidInstallments >= totalInstallments) {
+          return 'ชำระครบแล้ว';
+        }
+    
+        // คำนวณวันครบกำหนดของงวดถัดไป
+        const contractDate = new Date(contract.createdAt);
+        const nextInstallmentNumber = paidInstallments + 1;
+    
+        // เพิ่มเดือนตามจำนวนงวดถัดไป
+        const nextDueDate = new Date(contractDate);
+        nextDueDate.setMonth(contractDate.getMonth() + nextInstallmentNumber);
+    
+        // Format เป็นรูปแบบไทย โดยใช้ฟังก์ชันที่มีอยู่แล้ว
+        return formatDate(nextDueDate);
+    
+      } catch (error) {
+        console.error('Error calculating next due date:', error);
+        return 'ไม่สามารถคำนวณได้';
+      }
+    }
+
+    // ===== DEBUG FUNCTIONS =====
+    
+    // Debug database function
+    async function debugDatabase() {
+      try {
+        const loaderId = LoadingSystem.show({
+          message: 'กำลังตรวจสอบข้อมูลในฐานข้อมูล...',
+          showProgress: true
+        });
+    
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/installment-payment/debug', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+    
+        const data = await response.json();
+        LoadingSystem.hide(loaderId);
+    
+        if (data.success) {
+          const debug = data.debug;
+    
+          let debugMessage = `
+            <div class="text-left space-y-4">
+              <h4 class="font-bold text-lg">ข้อมูลในฐานข้อมูล</h4>
+              
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <h5 class="font-semibold mb-2">📊 สถิติข้อมูล</h5>
+                <ul class="space-y-1 text-sm">
+                  <li>• สัญญาผ่อนทั้งหมด: <strong>${debug.database.totalOrders}</strong> รายการ</li>
+                  <li>• การชำระทั้งหมด: <strong>${debug.database.totalPayments}</strong> รายการ</li>
+                  <li>• รหัสสาขาที่มี (branchCode): <strong>${debug.database.availableBranchCodes.join(', ') || 'ไม่มี'}</strong></li>
+                  <li>• รหัสสาขาที่มี (branch_code): <strong>${debug.database.availableBranch_codes.join(', ') || 'ไม่มี'}</strong></li>
+                </ul>
+              </div>
+              
+              ${debug.sampleOrder ? `
+                <div class="bg-green-50 p-4 rounded-lg">
+                  <h5 class="font-semibold mb-2">📋 ตัวอย่างสัญญา</h5>
+                  <ul class="space-y-1 text-sm">
+                    <li>• ID: ${debug.sampleOrder._id}</li>
+                    <li>• เลขสัญญา: ${debug.sampleOrder.contractNumber || 'ไม่มี'}</li>
+                    <li>• ลูกค้า: ${debug.sampleOrder.customerName || 'ไม่มี'}</li>
+                    <li>• ข้อมูลลูกค้า (customer_info): ${debug.sampleOrder.customer_info ? 'มี' : 'ไม่มี'}</li>
+                    <li>• ข้อมูลลูกค้า (customer): ${debug.sampleOrder.customer ? 'มี' : 'ไม่มี'}</li>
+                    <li>• สาขา: ${debug.sampleOrder.branchCode || debug.sampleOrder.branch_code || 'ไม่มี'}</li>
+                    <li>• ประเภท: ${debug.sampleOrder.installmentType || debug.sampleOrder.planType || 'ไม่มี'}</li>
+                    <li>• สถานะ: ${debug.sampleOrder.status || 'ไม่มี'}</li>
+                  </ul>
+                </div>
+              ` : '<div class="bg-red-50 p-4 rounded-lg"><p class="text-red-600">ไม่พบตัวอย่างสัญญาในฐานข้อมูล</p></div>'}
+              
+              <div class="bg-yellow-50 p-4 rounded-lg">
+                <h5 class="font-semibold mb-2">🔍 การค้นหาปัจจุบัน</h5>
+                <ul class="space-y-1 text-sm">
+                  <li>• สาขาที่ค้นหา: <strong>${BRANCH_CODE}</strong></li>
+                  <li>• API Endpoint: <strong>/api/installment-payment/orders</strong></li>
+                </ul>
+              </div>
+            </div>
+          `;
+    
+          Swal.fire({
+            title: 'ข้อมูลการ Debug',
+            html: debugMessage,
+            icon: 'info',
+            width: '600px',
+            confirmButtonText: 'ปิด'
+          });
+        } else {
+          throw new Error(data.message || 'ไม่สามารถ debug ได้');
+        }
+    
+      } catch (error) {
+        console.error('Debug error:', error);
+        LoadingSystem.hide(loaderId);
+    
+        Swal.fire({
+          title: 'เกิดข้อผิดพลาด',
+          text: `ไม่สามารถตรวจสอบข้อมูลได้: ${error.message}`,
+          icon: 'error'
+        });
+      }
+    }
+
+    // ===== NEW PAYMENT FORM FUNCTIONS =====
+    
+    // Open new payment form (แทนที่ modal)
+    async function openNewPaymentForm(contractId) {
+      try {
+        currentContractId = contractId;
+    
+        // Log activity
+        logActivityToFirebase('payment_form_opened', { contractId });
+    
+        // Show payment form section
+        document.getElementById('paymentFormSection').classList.remove('hidden');
+        document.getElementById('paymentFormSection').classList.add('animate-slide-in');
+    
+        // Show payment tab
+        document.getElementById('tab-payment-form').classList.remove('hidden');
+        switchToPaymentTab();
+    
+        // Load contract data
+        const contract = await getFullContractData(contractId);
+    
+        // Populate payment form with contract data
+        populatePaymentForm(contract);
+    
+        // Scroll to payment form
+        document.getElementById('paymentFormSection').scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+    
+      } catch (error) {
+        console.error('Error opening payment form:', error);
+        showToast('ไม่สามารถเปิดฟอร์มชำระเงินได้', 'error');
+      }
+    }
+
+    // Show/Hide Loading with Lottie animation
+    let lottieAnimation = null;
+    function showLoading(show) {
+      const loader = document.getElementById('loadingOverlay');
+      if (show) {
+        loader.style.display = 'flex';
+        loader.classList.remove('animate__fadeOut');
+        loader.classList.add('animate__fadeIn');
+
+        if (!lottieAnimation) {
+          console.log('🔄 Loading Lottie animation from /Loading/Loading.json');
+          fetch('/Loading/Loading.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(animationData => {
+              lottieAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottieContainer'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                animationData: animationData
+              });
+              console.log('✅ Lottie animation loaded successfully');
+            })
+            .catch(error => {
+              console.error('❌ Error loading Lottie animation:', error);
+              document.getElementById('lottieContainer').innerHTML = '<div class="loading loading-spinner loading-lg"></div>';
+            });
+        } else {
+          lottieAnimation.play();
+        }
+      } else {
+        if (lottieAnimation) {
+          lottieAnimation.pause();
+        }
+        loader.classList.remove('animate__fadeIn');
+        loader.classList.add('animate__fadeOut');
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      showLoading(true);
+      // existing code...
+      setTimeout(() => showLoading(false), 800);
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (lottieAnimation) {
+        lottieAnimation.destroy();
+        lottieAnimation = null;
+      }
+    });
+
+</script>
+</body>
+</html>
