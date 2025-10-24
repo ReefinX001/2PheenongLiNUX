@@ -7,14 +7,14 @@
   // Template HTML ของเมนูระบบบัญชี
   const menuTemplate = `
     <div class="flex justify-center">
-      <ul class="menu menu-horizontal p-0 bg-white dark:bg-gray-800 rounded-lg shadow-md space-x-2">
+      <ul class="menu menu-horizontal p-0 bg-base-100 rounded-lg shadow-md space-x-2">
         <!-- ซื้อ -->
         <li tabindex="0" class="dropdown">
-          <a class="flex justify-between items-center px-4 py-2">
+          <a class="flex justify-between items-center px-4 py-2 text-gray-800">
             <i class="bi bi-cart-fill text-green-600 mr-2"></i> ซื้อ
             <i class="bi bi-caret-down-fill text-green-600 ml-1"></i>
           </a>
-          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg space-y-1">
+          <ul class="p-2 bg-base-100 shadow-lg rounded-lg space-y-1">
             <li class="submenu-item">
               <a href="purchase_order">
                 <i class="bi bi-file-earmark-text text-green-500 mr-2"></i> ใบสั่งซื้อ
@@ -70,11 +70,11 @@
 
         <!-- ขาย -->
         <li tabindex="0" class="dropdown">
-          <a class="flex justify-between items-center px-4 py-2">
+          <a class="flex justify-between items-center px-4 py-2 text-gray-800">
             <i class="bi bi-shop text-red-600 mr-2"></i> ขาย
             <i class="bi bi-caret-down-fill text-red-600 ml-1"></i>
           </a>
-          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+          <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
             <li class="submenu-item">
               <a href="quotation">
                 <i class="bi bi-file-earmark-text text-red-500 mr-2"></i> ใบเสนอราคา
@@ -125,11 +125,11 @@
 
         <!-- บัญชี -->
         <li tabindex="0" class="dropdown">
-          <a class="flex justify-between items-center px-4 py-2">
+          <a class="flex justify-between items-center px-4 py-2 text-gray-800">
             <i class="bi bi-bank text-blue-600 mr-2"></i> บัญชี
             <i class="bi bi-caret-down-fill text-blue-600 ml-1"></i>
           </a>
-          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+          <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
             <li class="submenu-item">
               <a href="chart_of_accounts">
                 <i class="bi bi-diagram-3-fill text-blue-500 mr-2"></i> ผังบัญชี
@@ -137,11 +137,11 @@
             </li>
             <!-- ลงประจำวัน (Nested Dropdown) -->
             <li tabindex="0" class="submenu-item dropdown">
-              <a href="javascript:void(0);" class="flex justify-between items-center w-full">
+              <a href="javascript:void(0);" class="flex justify-between items-center w-full text-gray-700">
                 <i class="bi bi-journal-text text-blue-500 mr-2"></i> ลงประจำวัน
                 <i class="bi bi-caret-right-fill text-blue-500 ml-auto"></i>
               </a>
-              <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+              <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
                 <li class="submenu-item">
                   <a href="journal_general">
                     <i class="bi bi-journal-text text-blue-500 mr-2"></i> สมุดรายวันทั่วไป
@@ -194,11 +194,11 @@
 
         <!-- การเงิน -->
         <li tabindex="0" class="dropdown">
-          <a class="flex justify-between items-center px-4 py-2">
+          <a class="flex justify-between items-center px-4 py-2 text-gray-800">
             <i class="bi bi-currency-exchange text-teal-600 mr-2"></i> การเงิน
             <i class="bi bi-caret-down-fill text-teal-600 ml-1"></i>
           </a>
-          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+          <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
             <li class="submenu-item">
               <a href="cash_management">
                 <i class="bi bi-wallet2 text-teal-500 mr-2"></i> การจัดการเงินสด
@@ -249,11 +249,11 @@
 
         <!-- สินค้า -->
         <li tabindex="0" class="dropdown">
-          <a class="flex justify-between items-center px-4 py-2">
+          <a class="flex justify-between items-center px-4 py-2 text-gray-800">
             <i class="bi bi-box-seam text-amber-600 mr-2"></i> สินค้า
             <i class="bi bi-caret-down-fill text-amber-600 ml-1"></i>
           </a>
-          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+          <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
             <li class="submenu-item">
               <a href="product_details">
                 <i class="bi bi-info-circle text-amber-500 mr-2"></i> รายละเอียดสินค้า
@@ -284,11 +284,11 @@
 
         <!-- รายงาน -->
         <li tabindex="0" class="dropdown">
-          <a class="flex justify-between items-center px-4 py-2">
+          <a class="flex justify-between items-center px-4 py-2 text-gray-800">
             <i class="bi bi-folder2 text-cyan-600 mr-2"></i> รายงาน
             <i class="bi bi-caret-down-fill text-cyan-600 ml-1"></i>
           </a>
-          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+          <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
             <li class="submenu-item">
               <a href="inventory_report">
                 <i class="bi bi-box-seam text-cyan-500 mr-2"></i> รายงานสินค้าคงเหลือ
@@ -339,18 +339,18 @@
             </li>
             <!-- รายงานภาษี (Nested Dropdown) -->
             <li tabindex="0" class="submenu-item dropdown">
-              <a href="javascript:void(0);" class="flex justify-between items-center w-full">
+              <a href="javascript:void(0);" class="flex justify-between items-center w-full text-gray-700">
                 <i class="bi bi-receipt text-cyan-500 mr-2"></i> รายงานภาษี
                 <i class="bi bi-caret-right-fill text-cyan-500 ml-auto"></i>
               </a>
-              <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+              <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
                 <!-- ภาษีมูลค่าเพิ่ม (Deeper Nested Dropdown) -->
                 <li tabindex="0" class="submenu-item dropdown">
-                  <a href="javascript:void(0);" class="flex justify-between items-center w-full">
+                  <a href="javascript:void(0);" class="flex justify-between items-center w-full text-gray-700">
                     ภาษีมูลค่าเพิ่ม
                     <i class="bi bi-caret-right-fill text-cyan-500 ml-auto"></i>
                   </a>
-                  <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+                  <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
                     <li class="submenu-item">
                       <a href="vat_purchase_report">
                         <i class="bi bi-arrow-down-circle text-cyan-500 mr-2"></i> ภาษีซื้อ
@@ -381,11 +381,11 @@
 
         <!-- ตั้งค่า -->
         <li tabindex="0" class="dropdown">
-          <a class="flex justify-between items-center px-4 py-2">
+          <a class="flex justify-between items-center px-4 py-2 text-gray-800">
             <i class="bi bi-gear-fill text-slate-600 mr-2"></i> ตั้งค่า
             <i class="bi bi-caret-down-fill text-slate-600 ml-1"></i>
           </a>
-          <ul class="p-2 bg-base-100 dark:bg-gray-700 shadow-lg rounded-lg">
+          <ul class="p-2 bg-base-100 shadow-lg rounded-lg">
             <li class="submenu-item"><a href="organization_settings"><i class="bi bi-building text-slate-500 mr-2"></i> ตั้งค่าองค์กร</a></li>
             <li class="submenu-item"><a href="user_settings"><i class="bi bi-person-gear text-slate-500 mr-2"></i> ตั้งค่าผู้ใช้งาน</a></li>
             <li class="submenu-item"><a href="addBranch"><i class="bi bi-person-gear text-slate-500 mr-2"></i> เพิ่มสาขา</a></li>
