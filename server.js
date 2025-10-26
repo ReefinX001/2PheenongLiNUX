@@ -350,6 +350,7 @@ const quotationController = require('./controllers/quotationController');
 const quotationApiRoutes = require('./routes/api/quotation');
 const depositReceiptApiRoutes = require('./routes/depositReceiptRoutes');
 const depositReceiptPdfRoutes = require('./routes/depositReceiptPdfRoutes');
+const goodsReceiptRoutes = require('./routes/goodsReceiptRoutes');
 const badDebtRoutes = require('./routes/badDebtRoutes');
 const productRoutes = require('./routes/productRoutes');
 const receiptsRoutes = require('./routes/receipts');
@@ -1352,6 +1353,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/quotation', quotationApiRoutes);
 app.use('/api/deposit-receipts', depositReceiptApiRoutes);
 app.use('/api/deposit-receipt-pdf', depositReceiptPdfRoutes);
+app.use('/api/goods-receipts', goodsReceiptRoutes);
 // app.use("/api/credit-note", creditNoteRoutes); // Use /api/pos/credit-note instead
 app.use('/api/product', productRoutes);
 app.use('/api/products', productRoutes); // Alias for deposits.html compatibility

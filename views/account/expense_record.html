@@ -3,7 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>บันทึกค่าใช้จ่าย</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="ระบบบัญชี - บันทึกค่าใช้จ่าย | ระบบจัดการบัญชีและบันทึกค่าใช้จ่ายออนไลน์">
+  <meta name="keywords" content="บันทึกค่าใช้จ่าย, ระบบบัญชี, บัญชีออนไลน์, expense">
+  <meta name="author" content="Accounting System">
+
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content="ระบบบัญชี - บันทึกค่าใช้จ่าย">
+  <meta property="og:description" content="ระบบจัดการบัญชีและบันทึกค่าใช้จ่ายออนไลน์">
+  <meta property="og:type" content="website">
+
+  <!-- PWA Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ระบบบัญชี">
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+
+  <title>ระบบบัญชี - บันทึกค่าใช้จ่าย</title>
+
+  <!-- Preconnect for Performance -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
 
   <!-- Google Font -->
   <link rel="preconnect" href="https://fonts.gstatic.com" />
@@ -12,38 +39,157 @@
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
 
-  <!-- Required Libraries for Export -->
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+  <!-- XLSX Library for Excel Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- html2pdf for PDF Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- DayJS with Thai Locale -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/locale/th.js"></script>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <!-- Add Thai calendar locale -->
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/dayjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.7/locale/th.js"></script>
-
   <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Prompt', 'sans-serif']
-          },
-          colors: {
-            primary: {
-              50: '#f0f9ff',
-              100: '#e0f2fe',
-              500: '#0ea5e9',
-              600: '#0284c7'
-            }
+    // Tailwind Configuration with auto-retry
+    (function configureTailwind() {
+      const maxRetries = 3;
+      let retryCount = 0;
+
+      function tryConfig() {
+        try {
+          if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+              theme: {
+                extend: {
+                  fontFamily: {
+                    sans: ['Prompt', 'sans-serif']
+                  },
+                  colors: {
+                    primary: {
+                      50: '#f0f9ff',
+                      100: '#e0f2fe',
+                      500: '#0ea5e9',
+                      600: '#0284c7'
+                    }
+                  }
+                }
+              }
+            };
+          } else if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(tryConfig, 100);
           }
+        } catch (error) {
+          console.error('Tailwind configuration error:', error);
         }
       }
-    };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryConfig);
+      } else {
+        tryConfig();
+      }
+    })();
+  </script>
+
+  <!-- API and User Management Scripts -->
+  <script>
+    // Authentication token management
+    function getAuthToken() {
+      return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    }
+
+    // Photo URL resolver with fallback
+    function resolvePhotoUrl(photoPath) {
+      if (!photoPath) return '/uploads/default-avatar.png';
+      if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) return photoPath;
+      if (photoPath.startsWith('/')) return photoPath;
+      return `/uploads/${photoPath}`;
+    }
+
+    // Fetch user profile from API
+    async function fetchUserProfile() {
+      const token = getAuthToken();
+      if (!token) {
+        console.log('No authentication token found, using fallback data');
+        loadFallbackUserData();
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/profile', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data = await response.json();
+        updateUserInterface(data);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        loadFallbackUserData();
+      }
+    }
+
+    // Update UI with user data
+    function updateUserInterface(userData) {
+      const employeeNameEl = document.getElementById('employeeName');
+      const employeePhotoEl = document.getElementById('employeePhoto');
+
+      if (employeeNameEl && userData.name) {
+        employeeNameEl.textContent = userData.name;
+      }
+
+      if (employeePhotoEl && userData.photo) {
+        employeePhotoEl.src = resolvePhotoUrl(userData.photo);
+        employeePhotoEl.onerror = () => {
+          employeePhotoEl.src = '/uploads/default-avatar.png';
+        };
+      }
+    }
+
+    // Fallback user data
+    function loadFallbackUserData() {
+      const employeeNameEl = document.getElementById('employeeName');
+      const employeePhotoEl = document.getElementById('employeePhoto');
+
+      if (employeeNameEl) employeeNameEl.textContent = 'ผู้ใช้งาน';
+      if (employeePhotoEl) employeePhotoEl.src = '/uploads/default-avatar.png';
+    }
+
+    // Handle authentication errors
+    function handleAuthError() {
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+
+    // Initialize user profile on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fetchUserProfile);
+    } else {
+      fetchUserProfile();
+    }
   </script>
 
   <style>
@@ -67,10 +213,6 @@
       background-color: #f8f9fa;
     }
     
-      background-color: #1a202c;
-      color: #f8f9fa;
-    }
-    
     .breadcrumb-item {
       color: #6c757d;
     }
@@ -89,21 +231,12 @@
       border-radius: 4px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
-    
-      background-color: #2d3748;
-      border-color: #4a5568;
-    }
-    
+
     .form-control {
       border: 1px solid #ddd;
       border-radius: 4px;
       padding: 8px 12px;
       width: 100%;
-    }
-    
-      background-color: #2d3748;
-      border-color: #4a5568;
-      color: #f8f9fa;
     }
     
     .btn {
@@ -126,14 +259,6 @@
       background-color: #f0f9ff;
     }
     
-      color: #38bdf8;
-      border-color: #38bdf8;
-      background-color: transparent;
-    }
-    
-      background-color: rgba(56, 189, 248, 0.1);
-    }
-    
     .table {
       width: 100%;
       border-collapse: collapse;
@@ -148,19 +273,10 @@
       border-bottom: 1px solid #eee;
     }
     
-      background-color: #2d3748;
-      color: #d1d5db;
-      border-bottom-color: #4a5568;
-    }
-    
     .table td {
       padding: 10px;
       border-bottom: 1px solid #eee;
       color: #333;
-    }
-    
-      border-bottom-color: #4a5568;
-      color: #f8f9fa;
     }
     
     .text-right {
@@ -179,15 +295,8 @@
       margin: 0 2px;
     }
     
-      border-color: #4a5568;
-      color: #d1d5db;
-    }
-    
     .page-link:hover {
       background-color: #f9f9fb;
-    }
-    
-      background-color: #374151;
     }
     
     .page-link.active {
@@ -195,7 +304,8 @@
       color: white;
       border-color: #0ea5e9;
     }
-    
+
+    .account-list {
       list-style: none;
       padding: 0;
       margin: 0;
@@ -209,24 +319,14 @@
       cursor: pointer;
     }
     
-      border-bottom-color: #4a5568;
-    }
-    
     .account-list li:hover {
       background-color: #f9f9fb;
-    }
-    
-      background-color: #374151;
     }
     
     .account-list li.active {
       background-color: #f0f9ff;
       color: #0ea5e9;
       font-weight: 500;
-    }
-    
-      background-color: #1a4971;
-      color: #38bdf8;
     }
     
     .date-range {
@@ -240,11 +340,6 @@
       gap: 8px;
     }
     
-      background-color: #2d3748;
-      border-color: #4a5568;
-      color: #f8f9fa;
-    }
-    
     .date-range:focus {
       border-color: #0ea5e9;
       outline: none;
@@ -253,17 +348,14 @@
     .negative-value {
       color: #ef4444;
     }
-    
-      color: #f87171;
-    }
-    
-    .5rem 1rem;
+
+    .navbar {
+      padding: 0.5rem 1rem;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       position: sticky;
       top: 0;
-      z-index: 30; /* Lowered z-index for navbar if menu dropdowns need to be higher */
-    }
-    
+      z-index: 30;
+      margin-bottom: 0;
     }
     
     .flex-1 {
@@ -273,78 +365,7 @@
     .flex-none {
       flex: none;
     }
-    
-    .01%);
-      background-repeat: no-repeat;
-      background-position: 50%;
-      transform: scale(10, 10);
-      opacity: 0;
-      transition: transform 0.5s, opacity 1s;
-    }
-    
-    .3;
-      transition: 0s;
-    }
-    
-    /* Dropdown menu styling */
-    .5rem 1rem; /* Adjust as needed */
-      cursor: pointer;
-      align-items: center; /* Vertically align icon and text */
-    }
-    
-    /* First Level Dropdown Panel */
-    .1); /* From Tailwind: shadow-lg */
-      border-radius: 0.375rem; /* From Tailwind: rounded-lg */
-      min-width: 220px;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(10px);
-      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
-      z-index: 40; /* Ensure dropdown is above other content but below higher-level modals if any */
-      padding: 0.5rem; /* From Tailwind: p-2 */
-    }
-    
-      left: 100%;
-      /* Inherit background, shadow, radius, min-width, padding from first-level or define specifically */
-      background: white; 
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-      border-radius: 0.375rem;
-      min-width: 220px; /* Or adjust as needed */
-      opacity: 0;
-      visibility: hidden;
-      transform: translateX(10px); /* Fly-out from right */
-      transition: opacity 0.2s ease-out, visibility 0.2s ease-out, transform 0.2s ease-out;
-      z-index: 45; /* Higher than first-level dropdown */
-      padding: 0.5rem;
-    }
-    
-      color: #374151; /* Tailwind: text-gray-700 */
-      text-decoration: none;
-      border-radius: 0.25rem; /* Tailwind: rounded-md */
-      white-space: nowrap; /* Prevent text wrapping in menu items */
-    }
-    
-      border-left: 3px solid transparent;
-      margin-bottom: 2px; /* Spacing between items */
-    }
-    
-    .25rem; */ /* Original style, can be kept or removed */
-    }
-    
-    /* User badge */
-    .1);
-      border-radius: 30px;
-    }
-    
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #0ea5e9;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      animation: spin 1s linear infinite;
-      display: inline-block;
-    }
-    
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -356,16 +377,13 @@
     }
     
     .expense-voucher::before {
-      content: '';'
+      content: '';
       position: absolute;
       left: -15px;
       top: 50%;
       width: 10px;
       height: 1px;
       background-color: #cbd5e0;
-    }
-    
-      background-color: #4a5568;
     }
     
     /* Income Statement specific styles */
@@ -379,9 +397,6 @@
       padding: 10px 16px;
       vertical-align: middle;
       border-bottom: 1px solid #e5e7eb;
-    }
-    
-      border-bottom-color: #374151;
     }
     
     .fin-statement-table .item-title {
@@ -398,17 +413,10 @@
       color: #111827;
     }
     
-      color: #f9fafb;
-    }
-    
     .fin-statement-table .section-total {
       font-weight: 600;
       color: #1e40af;
       background-color: #f0f9ff;
-    }
-    
-      color: #93c5fd;
-      background-color: #1e3a8a;
     }
     
     .fin-statement-table .grand-total {
@@ -416,10 +424,6 @@
       color: #0284c7;
       background-color: #e0f2fe;
       font-size: 1.05rem;
-    }
-    
-      color: #38bdf8;
-      background-color: #075985;
     }
     
     .fin-statement-table .indent-1 {
@@ -438,9 +442,6 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
     
-      background-color: #1e293b;
-    }
-    
     .overview-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -453,16 +454,10 @@
       margin-bottom: 0.5rem;
     }
     
-      color: #9ca3af;
-    }
-    
     .metric-value {
       font-size: 1.5rem;
       font-weight: 600;
       color: #111827;
-    }
-    
-      color: #f9fafb;
     }
     
     .trend-up {
@@ -471,12 +466,6 @@
     
     .trend-down {
       color: #ef4444;
-    }
-    
-      color: #34d399;
-    }
-    
-      color: #f87171;
     }
     
     .chart-container {
@@ -490,9 +479,6 @@
       background-color: #f3f4f6;
       border-radius: 0.5rem;
       margin-bottom: 1.5rem;
-    }
-    
-      background-color: #374151;
     }
     
     .view-option {
@@ -511,10 +497,6 @@
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
     
-      background-color: #1f2937;
-      color: #38bdf8;
-    }
-    
     .action-button {
       display: inline-flex;
       align-items: center;
@@ -529,18 +511,9 @@
       transition: all 0.2s;
     }
     
-      background-color: #1f2937;
-      border-color: #4b5563;
-      color: #e5e7eb;
-    }
-    
     .action-button:hover {
       background-color: #f9fafb;
       border-color: #d1d5db;
-    }
-    
-      background-color: #374151;
-      border-color: #6b7280;
     }
     
     .period-selector {
@@ -551,11 +524,6 @@
       font-size: 0.875rem;
       color: #374151;
       outline: none;
-    }
-    
-      background-color: #1f2937;
-      border-color: #4b5563;
-      color: #e5e7eb;
     }
     
     /* Dashboard Card Styles */
@@ -574,9 +542,6 @@
       transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     }
     
-      background-color: #1e293b;
-    }
-    
     .dashboard-card:hover {
       transform: translateY(-5px);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -589,17 +554,11 @@
       margin-bottom: 0.5rem;
     }
     
-      color: #9ca3af;
-    }
-    
     .card-value {
       font-size: 1.5rem;
       font-weight: 600;
       color: #111827;
       margin-bottom: 0.5rem;
-    }
-    
-      color: #f9fafb;
     }
     
     .comparison-value {
@@ -617,33 +576,6 @@
       color: #ef4444;
     }
     
-      color: #34d399;
-    }
-    
-      color: #f87171;
-    }
-    
-    /* Menu bar styles */
-    .5rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      margin-bottom: 1.5rem;
-      overflow-x: auto;
-    }
-    
-      white-space: nowrap;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-    }
-    
-      border-bottom-color: #0ea5e9;
-      color: #0ea5e9;
-      font-weight: 500;
-    }
-    
     .month-selector {
       border: 1px solid #e5e7eb;
       border-radius: 0.375rem;
@@ -653,11 +585,6 @@
       outline: none;
     }
     
-      background-color: #1f2937;
-      border-color: #4b5563;
-      color: #e5e7eb;
-    }
-    
     /* Display toggle */
     .display-toggle {
       display: flex;
@@ -665,9 +592,6 @@
       border-radius: 0.5rem;
       margin-bottom: 1.5rem;
       padding: 0.25rem;
-    }
-    
-      background-color: #334155;
     }
     
     .toggle-btn {
@@ -689,9 +613,6 @@
       color: #0ea5e9;
     }
     
-      background-color: #1f2937;
-    }
-    
     /* Financial table */
     .view-container {
       background-color: white;
@@ -699,9 +620,6 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       padding: 1.5rem;
       margin-bottom: 1.5rem;
-    }
-    
-      background-color: #1e293b;
     }
     
     .hidden {
@@ -723,17 +641,9 @@
       border-bottom: 1px solid #e5e7eb;
     }
     
-      background-color: #1f2937;
-      color: #d1d5db;
-      border-bottom-color: #4b5563;
-    }
-    
     .financial-table td {
       padding: 0.75rem 1rem;
       border-bottom: 1px solid #e5e7eb;
-    }
-    
-      border-bottom-color: #4b5563;
     }
     
     .financial-table .section-header {
@@ -743,19 +653,11 @@
       padding: 0.75rem 1rem;
     }
     
-      background-color: #374151;
-      color: #f3f4f6;
-    }
-    
     .financial-table .subsection-header {
       font-weight: 500;
       color: #4b5563;
       padding: 0.75rem 1rem;
       background-color: #f9fafb;
-    }
-    
-      background-color: #1f2937;
-      color: #e5e7eb;
     }
     
     .financial-table .amount {
@@ -774,9 +676,6 @@
     .financial-table .total-row {
       background-color: #e0f2fe;
       font-weight: 600;
-    }
-    
-      background-color: #0c4a6e;
     }
     
     .comparison-value {
@@ -837,11 +736,6 @@
       min-width: 220px;
     }
     
-      background-color: #1f2937;
-      border-color: #4b5563;
-      color: #e5e7eb;
-    }
-    
     .thai-calendar {
       position: absolute;
       top: 100%;
@@ -854,10 +748,6 @@
       z-index: 50;
       width: 280px;
       display: none;
-    }
-    
-      background-color: #1e293b;
-      border-color: #4b5563;
     }
     
     .calendar-header {
@@ -886,9 +776,6 @@
       height: 28px;
     }
     
-      color: #9ca3af;
-    }
-    
     .calendar-days {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -901,9 +788,6 @@
       color: #6b7280;
       font-size: 0.85rem;
       padding: 4px 0;
-    }
-    
-      color: #9ca3af;
     }
     
     .calendar-dates {
@@ -928,16 +812,10 @@
       border-radius: 50%;
     }
     
-      background-color: #374151;
-    }
-    
     .date-cell.disabled {
       color: #d1d5db;
       cursor: default;
       opacity: 0.4;
-    }
-    
-      color: #6b7280;
     }
     
     .date-cell.selected {
@@ -950,9 +828,6 @@
       border: 2px solid #0ea5e9;
       border-radius: 50%;
       font-weight: 500;
-    }
-    
-      border-color: #38bdf8;
     }
     
     /* เพิ่มในส่วน <style> */
@@ -996,18 +871,32 @@
     opacity: 0;
     transition: all 0.3s ease;
   }
-  
+
   .notification.show {
     transform: translateY(0);
     opacity: 1;
   }
-  </style>
-  
-   <!-- Template สำหรับเมนู -->
 
-  <!-- Loading System -->
-  <link rel="stylesheet" href="/css/loading-components.css">
-  <script src="/js/loading-system.js"></script>
+  /* Loading Overlay Styles - Minimal CSS, use Tailwind classes in HTML */
+  .loading-overlay {
+    transition: opacity 0.5s ease-out, visibility 0.5s ease-out !important;
+  }
+
+  .loading-overlay.animate__fadeOut {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .loading-overlay.hidden,
+  .loading-overlay[style*="display: none"] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
+  </style>
+
+   <!-- Template สำหรับเมนู -->
 
   <!-- Account Menu Styles -->
   <link rel="stylesheet" href="/css/account-menu.css?v=light-v3">
@@ -1021,19 +910,23 @@
     localStorage.removeItem('darkMode');
     localStorage.setItem('theme', 'light');
   </script>
-  <!-- Loading Spinner -->
-<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-  <div class="loader"></div>
-</div>
-  <div id="mainContent" class="container mx-auto px-4 py-6">
-    <!-- Navbar -->
-    <!-- Account System Navbar Template -->
-<div class="navbar bg-white shadow-md sticky top-0">
+
+  <!-- Loading Overlay with Lottie Animation -->
+  <div id="loadingOverlay"
+       class="loading-overlay fixed inset-0 w-screen h-screen flex items-center justify-center z-[999999] bg-white/98 backdrop-blur-xl"
+       style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;">
+    <div class="flex items-center justify-center flex-col">
+      <div id="lottieContainer" class="w-[300px] h-[300px] mx-auto"></div>
+    </div>
+  </div>
+
+<!-- Account System Navbar Template -->
+<div class="navbar bg-white shadow-md sticky top-0 z-30 px-4 py-2">
   <div class="flex-1 flex items-center space-x-6">
     <img src="/uploads/Logo2.png"
          alt="Logo"
-         class="rounded-full shadow-lg"
-         style="width: 40px; height: 40px;" />
+         class="w-10 h-10 rounded-full shadow-lg"
+         loading="lazy" />
     <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี</span>
     <!-- Menu Container -->
     <div id="mainMenuContainer" class="ml-auto"></div>
@@ -1044,7 +937,8 @@
       <img id="employeePhoto"
            alt="Profile"
            class="w-10 h-10 rounded-full border-2 border-gray-300"
-           src="/img/default-avatar.svg">
+           src="/img/default-avatar.svg"
+           loading="lazy">
       <span id="employeeName" class="text-sm font-medium text-gray-700">Loading...</span>
     </div>
 
@@ -1055,8 +949,8 @@
     </button>
   </div>
 </div>
-</div>
 
+<div id="mainContent" class="container mx-auto px-4">
 <!-- ส่วนค้นหาและตัวกรอง -->
     <div class="p-4 flex justify-between items-center flex-wrap gap-4 bg-gray-50 border-b border-gray-200">
       <div class="flex items-center gap-3">
@@ -1699,20 +1593,6 @@
 <script>
   // JavaScript code for handling modals and other interactive elements
   document.addEventListener('DOMContentLoaded', function () {
-    try {
-      const pageLoaderId = LoadingSystem.show({
-        message: 'กำลังโหลดหน้าเว็บ...',
-        showProgress: true,
-        autoProgress: true,
-        spinnerType: 'default'
-      });
-  
-      } catch (error) {
-        console.error('Page loading error:', error);
-      } finally {
-        LoadingSystem.completeProgress();
-      }
-  
       try {
       // Clone the main menu from the template
       const menuTemplate = document.getElementById('mainMenuTemplate');
@@ -1792,22 +1672,7 @@
           });
         }
       }
-  
-      // Toggle dark/light mode
-  
-        // Check for saved theme preference or respect OS preference
-        if (localStorage.theme === 'dark' ||
-            (!('theme' in localStorage) &&
-             window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          themeIcon.classList.remove('bi-moon-stars-fill');
-          themeIcon.classList.add('bi-sun-fill');
-        } else {
-          themeIcon.classList.remove('bi-sun-fill');
-          themeIcon.classList.add('bi-moon-stars-fill');
-        }
-  
-      }
-  
+
       // Add supplier dropdown functionality
       const supplierName = document.getElementById('supplierName');
       const supplierDropdown = document.getElementById('supplierDropdown');
@@ -1843,7 +1708,67 @@
 </script>
 <!-- Ensure backend API endpoints are functional -->
 <!-- Verify GET /api/expenses, POST /api/expenses, GET /api/expenses/:id, DELETE /api/expenses/:id -->
+
+  <!-- Animation Control Script -->
+  <script>
+    // Initialize Lottie Animation for Page Loading
+    const lottieContainer = document.getElementById('lottieContainer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    let lottieAnimation;
+
+    // Function to show page loading overlay
+    window.showPageLoading = function() {
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+        loadingOverlay.style.opacity = '1';
+        loadingOverlay.style.visibility = 'visible';
+      }
+    };
+
+    // Function to hide page loading overlay
+    window.hidePageLoading = function() {
+      if (loadingOverlay) {
+        loadingOverlay.style.opacity = '0';
+        setTimeout(function() {
+          loadingOverlay.style.display = 'none';
+          loadingOverlay.style.visibility = 'hidden';
+        }, 500);
+      }
+    };
+
+    if (lottieContainer && typeof lottie !== 'undefined') {
+      try {
+        // Load Lottie animation
+        lottieAnimation = lottie.loadAnimation({
+          container: lottieContainer,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/Loading/Loading.json'
+        });
+
+        // Hide loading overlay after page loads
+        window.addEventListener('load', function() {
+          setTimeout(hidePageLoading, 800);
+        });
+      } catch (error) {
+        console.error('Error loading Lottie animation:', error);
+        loadingOverlay.style.display = 'none';
+      }
+    } else {
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+    }
+
+    // Show loading before page navigation
+    window.addEventListener('beforeunload', function() {
+      showPageLoading();
+    });
+  </script>
+
   <!-- Account Menu Script -->
   <script src="/js/account-menu.js?v=light-v2"></script>
+
+  <!-- Bootstrap JS Bundle (includes Popper) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
