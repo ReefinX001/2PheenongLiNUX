@@ -226,6 +226,7 @@ const newTaxInvoiceRoutes = require('./routes/api/taxinvoice');
 const newReceiptRoutes = require('./routes/api/receipt');
 // Legacy routes (keeping for backward compatibility)
 const taxInvoiceRoutes = require('./routes/taxInvoice');
+const purchaseTaxInvoiceRoutes = require('./routes/purchaseTaxInvoiceRoutes');
 const receiptRoutes = require('./routes/receipt');
 const receiptPdfRoutes = require('./routes/receiptPdfRoutes');
 const receiptValidationRoutes = require('./routes/receiptValidationRoutes');
@@ -350,6 +351,7 @@ const quotationController = require('./controllers/quotationController');
 const quotationApiRoutes = require('./routes/api/quotation');
 const depositReceiptApiRoutes = require('./routes/depositReceiptRoutes');
 const depositReceiptPdfRoutes = require('./routes/depositReceiptPdfRoutes');
+const depositPaymentRoutes = require('./routes/depositPaymentRoutes');
 const goodsReceiptRoutes = require('./routes/goodsReceiptRoutes');
 const badDebtRoutes = require('./routes/badDebtRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -1353,6 +1355,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/quotation', quotationApiRoutes);
 app.use('/api/deposit-receipts', depositReceiptApiRoutes);
 app.use('/api/deposit-receipt-pdf', depositReceiptPdfRoutes);
+app.use('/api/deposit-payments', depositPaymentRoutes);
 app.use('/api/goods-receipts', goodsReceiptRoutes);
 // app.use("/api/credit-note", creditNoteRoutes); // Use /api/pos/credit-note instead
 app.use('/api/product', productRoutes);
@@ -1366,6 +1369,8 @@ app.use('/api/taxinvoice', newTaxInvoiceRoutes);
 app.use('/api/receipt', newReceiptRoutes);
 // Legacy Tax Invoice API endpoint (keeping for backward compatibility)
 app.use('/api/tax-invoice', taxInvoiceRoutes);
+// Purchase Tax Invoice API endpoint
+app.use('/api/purchase-tax-invoice', purchaseTaxInvoiceRoutes);
 app.use('/api/product-variant', productVariantRoutes);
 // app.use('/api/refund', refundRoutes); // Route doesn't exist
 app.use('/api/sale', saleRoutes);
@@ -1605,7 +1610,7 @@ const salesDebitNoteRoutes = require('./routes/salesDebitNoteRoutes');
 // เพิ่ม Fingerprint API routes สำหรับ ZK9500
 const fingerprintRoutes = require('./routes/api/fingerprint');
 const salesCreditNoteRoutes = require('./routes/salesCreditNoteRoutes');
-app.use('/api/sales-debit-notes', salesDebitNoteRoutes);
+app.use('/api/debit-note', salesDebitNoteRoutes);
 app.use('/api/sales-credit-notes', salesCreditNoteRoutes);
 
 // เพิ่มระบบ repayment สำหรับ repayment.html

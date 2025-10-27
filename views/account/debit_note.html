@@ -111,12 +111,13 @@
   <script>
     // Authentication token management
     function getAuthToken() {
-      return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+      return localStorage.getItem('authToken') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
     }
 
-    // Photo URL resolver with fallback
+    // Photo URL resolver with fallback (inline SVG)
     function resolvePhotoUrl(photoPath) {
-      if (!photoPath) return '/uploads/default-avatar.png';
+      const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMGUwZTAiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxNSIgZmlsbD0iIzk5OSIvPjxwYXRoIGQ9Ik0yNSA4MCBRMjUgNjAgNTAgNjAgUTc1IDYwIDc1IDgwIiBmaWxsPSIjOTk5Ii8+PC9zdmc+';
+      if (!photoPath) return defaultAvatar;
       if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) return photoPath;
       if (photoPath.startsWith('/')) return photoPath;
       return `/uploads/${photoPath}`;
@@ -132,7 +133,7 @@
       }
 
       try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch('/api/users/me', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -143,8 +144,24 @@
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-        const data = await response.json();
-        updateUserInterface(data);
+        const result = await response.json();
+
+        // Check if response has success property
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to load profile');
+        }
+
+        const userData = result.data || {};
+        const userName = (userData.name || userData.username || 'ผู้ใช้').trim();
+        const photoUrl = userData.photoUrl || (userData.employee && userData.employee.imageUrl) || null;
+
+        console.log('✅ User data received:', {
+          name: userName,
+          email: userData.email || 'N/A',
+          photoUrl: photoUrl
+        });
+
+        updateUserInterface(userName, photoUrl);
       } catch (error) {
         console.error('Error fetching user profile:', error);
         loadFallbackUserData();
@@ -152,29 +169,36 @@
     }
 
     // Update UI with user data
-    function updateUserInterface(userData) {
-      const employeeNameEl = document.getElementById('employeeName');
-      const employeePhotoEl = document.getElementById('employeePhoto');
+    function updateUserInterface(userName, photoUrl) {
+      try {
+        const employeeNameEl = document.getElementById('employeeName');
+        const employeePhotoEl = document.getElementById('employeePhoto');
 
-      if (employeeNameEl && userData.name) {
-        employeeNameEl.textContent = userData.name;
-      }
+        if (employeeNameEl) {
+          employeeNameEl.textContent = userName;
+        }
 
-      if (employeePhotoEl && userData.photo) {
-        employeePhotoEl.src = resolvePhotoUrl(userData.photo);
-        employeePhotoEl.onerror = () => {
-          employeePhotoEl.src = '/uploads/default-avatar.png';
-        };
+        if (employeePhotoEl) {
+          employeePhotoEl.src = resolvePhotoUrl(photoUrl);
+          employeePhotoEl.alt = `รูปโปรไฟล์ของ ${userName}`;
+          employeePhotoEl.onerror = function() {
+            this.src = resolvePhotoUrl(null);
+          };
+        }
+      } catch (error) {
+        console.error('Error updating user interface:', error);
       }
     }
 
     // Fallback user data
     function loadFallbackUserData() {
-      const employeeNameEl = document.getElementById('employeeName');
-      const employeePhotoEl = document.getElementById('employeePhoto');
-
-      if (employeeNameEl) employeeNameEl.textContent = 'ผู้ใช้งาน';
-      if (employeePhotoEl) employeePhotoEl.src = '/uploads/default-avatar.png';
+      try {
+        const fallbackName = localStorage.getItem('userName') || 'ผู้ใช้';
+        const fallbackPhoto = localStorage.getItem('userPhoto');
+        updateUserInterface(fallbackName, fallbackPhoto);
+      } catch (error) {
+        console.error('Error loading fallback data:', error);
+      }
     }
 
     // Handle authentication errors
@@ -1073,32 +1097,19 @@
       border-color: #38bdf8;
     }
 
-    /* Loading Overlay Styles - Enhanced with backdrop blur */
-    .loading-overlay {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      background: rgba(255, 255, 255, 0.95) !important;
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      z-index: 999999 !important;
-      backdrop-filter: blur(12px) !important;
-      -webkit-backdrop-filter: blur(12px) !important;
-      transition: opacity 0.5s ease-out !important;
-      pointer-events: auto !important;
+    /* Loader fallback for Lottie */
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0ea5e9;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      animation: spin 1s linear infinite;
     }
 
-    .loading-overlay.animate__fadeOut {
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-
-    #lottieContainer {
-      width: 300px !important;
-      height: 300px !important;
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 
@@ -1117,9 +1128,17 @@
     localStorage.setItem('theme', 'light');
   </script>
 
-  <!-- Loading Overlay with Lottie Animation -->
-  <div id="loadingOverlay" class="loading-overlay animate__animated">
-    <div id="lottieContainer"></div>
+  <!-- Page Loading Overlay with Lottie Animation -->
+  <div id="loadingOverlay"
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+              width: 100vw; height: 100vh;
+              display: flex; justify-content: center; align-items: center;
+              z-index: 999999; background: rgba(255, 255, 255, 0.98);
+              backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+              transition: opacity 0.5s ease-out, visibility 0.5s ease-out;">
+    <div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+      <div id="lottieContainer" style="width: 300px; height: 300px; margin: 0 auto;"></div>
+    </div>
   </div>
 
 <!-- Account System Navbar Template -->
@@ -1186,7 +1205,7 @@
       <div class="flex items-center gap-3">
         <div class="relative">
           <i class="bi bi-search search-icon text-gray-400"></i>
-          <input type="text" placeholder="ค้นหาใบเพิ่มหนี้, ชื่อผู้ขาย, หรือเลขที่ใบเพิ่มหนี้" 
+          <input type="text" id="searchInput" placeholder="ค้นหาใบเพิ่มหนี้, ชื่อผู้ขาย, หรือเลขที่ใบเพิ่มหนี้"
                  class="pl-9 pr-4 py-1.5 rounded-lg bg-white border border-gray-300 w-64 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50 text-sm" />
         </div>
         <div class="relative">
@@ -1203,6 +1222,38 @@
       </div>
     </div>
 
+    <!-- Create Button -->
+    <div class="flex justify-end mb-4 px-4">
+      <button id="btnCreateDebitNote" class="btn btn-primary btn-rounded">
+        <i class="bi bi-plus-circle mr-1"></i> สร้างใบเพิ่มหนี้ใหม่
+      </button>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div id="paginationContainer" class="flex justify-between items-center mb-4 px-4">
+      <div class="text-sm text-gray-600">
+        แสดง <span id="recordCount">0</span> รายการ
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="prevPageBtn" class="btn btn-sm btn-outline" disabled>
+          <i class="bi bi-chevron-left"></i> ก่อนหน้า
+        </button>
+        <span id="pageInfo" class="text-sm text-gray-600">หน้า 1</span>
+        <button id="nextPageBtn" class="btn btn-sm btn-outline">
+          ถัดไป <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600">แสดง:</label>
+        <select id="limitSelect" class="form-control w-20 text-sm">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </div>
+
     <!-- ตาราง -->
     <div class="quotation-table-container overflow-x-auto">
       <table class="table w-full table-custom">
@@ -1213,48 +1264,19 @@
             <th><div class="flex items-center">วันที่</div></th>
             <th><div class="flex items-center">สถานะ</div></th>
             <th><div class="flex items-center">เลขที่ใบเพิ่มหนี้</div></th>
-            <th><div class="flex items-center">Supplier</div></th>
-            <th><div class="flex items-center">สินค้า</div></th>
+            <th><div class="flex items-center">ลูกค้า</div></th>
             <th class="text-right"><div class="flex items-center justify-end">ยอดใบเพิ่มหนี้</div></th>
-            <th class="text-right"><div class="flex items-center justify-end">ยอดคงเหลือ</div></th>
+            <th class="text-center"><div class="flex items-center justify-center">จัดการ</div></th>
           </tr>
         </thead>
-        <tbody>
-          <!-- Row 1 -->
-          <tr class="hover:bg-gray-50">
-            <td><input type="checkbox" class="rounded border-gray-300" /></td>
-            <td>DN-680327001</td>
-            <td>27/03/68</td>
-            <td><span class="badge badge-success">อนุมัติ</span></td>
-            <td>00312517</td>
-            <td>บริษัท เวลล์ที อีทีเอส (ประเทศไทย) จำกัด</td>
-            <td>ค่าบริการเพิ่มเติม</td>
-            <td class="text-right">฿12,322.77</td>
-            <td class="text-right">฿12,322.77</td>
-          </tr>
-          <!-- Row 2 -->
-          <tr class="hover:bg-gray-50">
-            <td><input type="checkbox" class="rounded border-gray-300" /></td>
-            <td>DN-680324001</td>
-            <td>24/03/68</td>
-            <td><span class="badge badge-warning">รอดำเนินการ</span></td>
-            <td>00312451</td>
-            <td>บริษัท เวลล์ที อีทีเอส (ประเทศไทย) จำกัด</td>
-            <td>ปรับปรุงราคาสินค้า</td>
-            <td class="text-right">฿5,559.99</td>
-            <td class="text-right">฿5,559.99</td>
-          </tr>
-          <!-- Row 3 -->
-          <tr class="hover:bg-gray-50">
-            <td><input type="checkbox" class="rounded border-gray-300" /></td>
-            <td>DN-680301001</td>
-            <td>01/03/68</td>
-            <td><span class="badge badge-danger">ปฏิเสธ</span></td>
-            <td>DN20250201411</td>
-            <td>บริษัท เจเอเอส แอสเซ็ท จำกัด (มหาชน)</td>
-            <td>ค่าเช่าพื้นที่เพิ่มเติม</td>
-            <td class="text-right">฿8,591.36</td>
-            <td class="text-right">฿8,591.36</td>
+        <tbody id="debitNoteTableBody">
+          <!-- Data will be loaded dynamically from API -->
+          <tr>
+            <td colspan="8" class="text-center py-10 text-gray-500">
+              <i class="bi bi-file-earmark-text text-4xl mb-2 block"></i>
+              <p class="font-medium">กำลังโหลดข้อมูลใบเพิ่มหนี้...</p>
+              <p class="text-sm">กรุณารอสักครู่</p>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -1289,7 +1311,345 @@
       </form>
     </div>
   </div>
-  
+
+  <!-- Modal สำหรับสร้างใบเพิ่มหนี้ -->
+  <div id="createDebitNoteModal" class="fixed inset-0 flex items-center justify-center bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-3/4 max-h-[90vh] overflow-y-auto shadow-lg">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-primary-600">
+          <i class="bi bi-file-earmark-plus"></i> สร้างใบเพิ่มหนี้ใหม่
+        </h3>
+        <button id="closeCreateModal" class="text-gray-500 hover:text-gray-700">
+          <i class="bi bi-x-lg text-xl"></i>
+        </button>
+      </div>
+      <form id="createDebitNoteForm">
+        <!-- ข้อมูลทั่วไป -->
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-info-circle"></i> ข้อมูลทั่วไป
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">เลขที่ใบเพิ่มหนี้</label>
+              <input type="text" id="createDebitNoteNumber" class="form-control" placeholder="DN-YYYYMMDD-XXX" readonly />
+              <small class="text-gray-500">ระบบจะสร้างเลขที่อัตโนมัติ</small>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">วันที่ออกใบเพิ่มหนี้ *</label>
+              <input type="date" id="createIssueDate" class="form-control" required />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">เอกสารอ้างอิง</label>
+              <input type="text" id="createReferenceDocument" class="form-control" placeholder="เช่น INV-20250426-001" />
+              <small class="text-gray-500">ใบแจ้งหนี้/ใบกำกับภาษีเดิม</small>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">ประเภทเอกสารอ้างอิง</label>
+              <select id="createReferenceType" class="form-control">
+                <option value="">ไม่ระบุ</option>
+                <option value="invoice">ใบแจ้งหนี้</option>
+                <option value="tax_invoice">ใบกำกับภาษี</option>
+                <option value="receipt">ใบเสร็จรับเงิน</option>
+                <option value="other">อื่นๆ</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ข้อมูลลูกค้า -->
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-person-circle"></i> ข้อมูลลูกค้า
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+              <label class="block text-sm font-medium mb-1 text-gray-700">ค้นหาลูกค้า *</label>
+              <div class="relative">
+                <input type="text" id="createCustomerSearch" class="form-control" placeholder="พิมพ์ชื่อลูกค้าหรือเลขประจำตัวผู้เสียภาษี..." autocomplete="off" />
+                <div id="createCustomerDropdown" class="absolute inset-x-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg hidden z-50 max-h-60 overflow-y-auto">
+                  <ul class="list-none p-2" id="createCustomerList">
+                    <li class="py-2 px-4 text-gray-500 text-center">พิมพ์เพื่อค้นหา...</li>
+                  </ul>
+                </div>
+              </div>
+              <input type="hidden" id="createCustomerId" required />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">ชื่อลูกค้า</label>
+              <input type="text" id="createCustomerName" class="form-control bg-gray-50" readonly />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">เลขประจำตัวผู้เสียภาษี</label>
+              <input type="text" id="createCustomerTaxId" class="form-control bg-gray-50" readonly />
+            </div>
+          </div>
+        </div>
+
+        <!-- เหตุผลในการเพิ่มหนี้ -->
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-chat-left-text"></i> เหตุผลในการเพิ่มหนี้
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+              <label class="block text-sm font-medium mb-1 text-gray-700">หมวดหมู่ *</label>
+              <select id="createReasonCategory" class="form-control" required>
+                <option value="">เลือกหมวดหมู่</option>
+                <option value="price_adjustment">ปรับปรุงราคา</option>
+                <option value="additional_service">ค่าบริการเพิ่มเติม</option>
+                <option value="late_fee">ค่าปรับล่าช้า</option>
+                <option value="interest">ดอกเบี้ยค้างชำระ</option>
+                <option value="other">อื่นๆ</option>
+              </select>
+            </div>
+            <div class="col-span-2">
+              <label class="block text-sm font-medium mb-1 text-gray-700">รายละเอียดเหตุผล *</label>
+              <textarea id="createReason" class="form-control" rows="3" placeholder="กรุณาระบุเหตุผลในการเพิ่มหนี้..." required></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- รายการสินค้า/บริการ -->
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-cart3"></i> รายการสินค้า/บริการ
+          </h4>
+          <table class="table w-full border border-gray-300 rounded-lg">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="py-2 px-4">รายการ</th>
+                <th class="py-2 px-4 text-center">จำนวน</th>
+                <th class="py-2 px-4 text-right">ราคา/หน่วย</th>
+                <th class="py-2 px-4 text-right">ยอดรวม</th>
+                <th class="py-2 px-4 text-center">ลบ</th>
+              </tr>
+            </thead>
+            <tbody id="createItemsTableBody">
+              <tr>
+                <td>
+                  <input type="text" class="form-control item-description" placeholder="ชื่อสินค้า/บริการ" />
+                  <textarea class="form-control mt-2 item-details" placeholder="รายละเอียดเพิ่มเติม" rows="2"></textarea>
+                </td>
+                <td>
+                  <input type="number" class="form-control item-quantity text-center" value="1" min="0.01" step="0.01" />
+                </td>
+                <td>
+                  <input type="number" class="form-control item-price text-right" value="0.00" min="0.00" step="0.01" />
+                </td>
+                <td class="text-right item-total font-medium">0.00</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline text-red-600 btn-remove-item">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="mt-4">
+            <button type="button" id="createAddItemBtn" class="btn btn-outline btn-sm">
+              <i class="bi bi-plus-circle"></i> เพิ่มรายการ
+            </button>
+          </div>
+        </div>
+
+        <!-- สรุปยอดเงิน -->
+        <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+          <h4 class="text-md font-semibold mb-3 text-gray-700">
+            <i class="bi bi-calculator"></i> สรุปยอดเงิน
+          </h4>
+          <div class="space-y-2">
+            <div class="flex justify-between">
+              <span class="text-gray-700">ยอดรวม</span>
+              <span class="font-medium" id="createSubtotal">0.00 บาท</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <label class="text-gray-700">ภาษีมูลค่าเพิ่ม (VAT)</label>
+              <div class="flex items-center gap-2">
+                <select id="createVatRate" class="form-control w-24 text-sm">
+                  <option value="0">0%</option>
+                  <option value="7" selected>7%</option>
+                </select>
+                <span class="font-medium w-32 text-right" id="createVatAmount">0.00 บาท</span>
+              </div>
+            </div>
+            <div class="flex justify-between border-t pt-2">
+              <span class="text-lg font-semibold text-gray-900">ยอดเงินรวมทั้งสิ้น</span>
+              <span class="text-lg font-bold text-primary-600" id="createTotalAmount">0.00 บาท</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- หมายเหตุ -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-1 text-gray-700">หมายเหตุ</label>
+          <textarea id="createNotes" class="form-control" rows="3" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)..."></textarea>
+        </div>
+
+        <!-- ปุ่มบันทึก -->
+        <div class="flex justify-end gap-2 mt-4 border-t pt-4">
+          <button type="button" id="cancelCreateDebitNote" class="btn btn-outline">
+            <i class="bi bi-x-circle"></i> ยกเลิก
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> บันทึกใบเพิ่มหนี้
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal สำหรับแก้ไขใบเพิ่มหนี้ -->
+  <div id="editDebitNoteModal" class="fixed inset-0 flex items-center justify-center bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-3/4 max-h-[90vh] overflow-y-auto shadow-lg">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-primary-600">
+          <i class="bi bi-pencil-square"></i> แก้ไขใบเพิ่มหนี้
+        </h3>
+        <button id="closeEditDebitNoteModal" class="text-gray-500 hover:text-gray-700">
+          <i class="bi bi-x-lg text-xl"></i>
+        </button>
+      </div>
+      <form id="editDebitNoteForm">
+        <input type="hidden" id="editDebitNoteId" />
+        <!-- เนื้อหาเหมือน create form แต่ใช้ prefix edit แทน create -->
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-info-circle"></i> ข้อมูลทั่วไป
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">เลขที่ใบเพิ่มหนี้</label>
+              <input type="text" id="editDebitNoteNumber" class="form-control bg-gray-50" readonly />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">วันที่ออกใบเพิ่มหนี้ *</label>
+              <input type="date" id="editIssueDate" class="form-control" required />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">เอกสารอ้างอิง</label>
+              <input type="text" id="editReferenceDocument" class="form-control" placeholder="เช่น INV-20250426-001" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">สถานะ</label>
+              <input type="text" id="editStatus" class="form-control bg-gray-50" readonly />
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-person-circle"></i> ข้อมูลลูกค้า
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">ชื่อลูกค้า</label>
+              <input type="text" id="editCustomerName" class="form-control bg-gray-50" readonly />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1 text-gray-700">เลขประจำตัวผู้เสียภาษี</label>
+              <input type="text" id="editCustomerTaxId" class="form-control bg-gray-50" readonly />
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-chat-left-text"></i> เหตุผลในการเพิ่มหนี้
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+              <label class="block text-sm font-medium mb-1 text-gray-700">รายละเอียดเหตุผล *</label>
+              <textarea id="editReason" class="form-control" rows="3" required></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h4 class="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
+            <i class="bi bi-cart3"></i> รายการสินค้า/บริการ
+          </h4>
+          <table class="table w-full border border-gray-300 rounded-lg">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="py-2 px-4">รายการ</th>
+                <th class="py-2 px-4 text-center">จำนวน</th>
+                <th class="py-2 px-4 text-right">ราคา/หน่วย</th>
+                <th class="py-2 px-4 text-right">ยอดรวม</th>
+              </tr>
+            </thead>
+            <tbody id="editItemsTableBody">
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+          <h4 class="text-md font-semibold mb-3 text-gray-700">
+            <i class="bi bi-calculator"></i> สรุปยอดเงิน
+          </h4>
+          <div class="space-y-2">
+            <div class="flex justify-between">
+              <span class="text-gray-700">ยอดรวม</span>
+              <span class="font-medium" id="editSubtotal">0.00 บาท</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-700">ภาษีมูลค่าเพิ่ม (VAT 7%)</span>
+              <span class="font-medium" id="editVatAmount">0.00 บาท</span>
+            </div>
+            <div class="flex justify-between border-t pt-2">
+              <span class="text-lg font-semibold text-gray-900">ยอดเงินรวมทั้งสิ้น</span>
+              <span class="text-lg font-bold text-primary-600" id="editTotalAmount">0.00 บาท</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-1 text-gray-700">หมายเหตุ</label>
+          <textarea id="editNotes" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-4 border-t pt-4">
+          <button type="button" id="cancelEditDebitNote" class="btn btn-outline">
+            <i class="bi bi-x-circle"></i> ยกเลิก
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> บันทึกการแก้ไข
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal สำหรับดูรายละเอียด -->
+  <div id="viewDebitNoteModal" class="fixed inset-0 flex items-center justify-center bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-3/4 max-h-[90vh] overflow-y-auto shadow-lg">
+      <div class="flex justify-between items-center mb-4 border-b pb-4">
+        <h3 class="text-xl font-bold text-gray-900">
+          <i class="bi bi-file-earmark-text"></i> รายละเอียดใบเพิ่มหนี้
+        </h3>
+        <button id="closeViewDebitNoteModal" class="text-gray-500 hover:text-gray-700">
+          <i class="bi bi-x-lg text-xl"></i>
+        </button>
+      </div>
+
+      <div id="viewDebitNoteContent">
+        <!-- Content will be populated dynamically -->
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6 border-t pt-4">
+        <button id="btnPrintDebitNote" class="btn btn-outline">
+          <i class="bi bi-printer"></i> พิมพ์
+        </button>
+        <button id="btnExportPDFDebitNote" class="btn btn-outline">
+          <i class="bi bi-file-pdf"></i> ดาวน์โหลด PDF
+        </button>
+        <button id="closeViewModalBtn" class="btn btn-primary">
+          <i class="bi bi-x-circle"></i> ปิด
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // JavaScript code for handling modals and other interactive elements
     document.addEventListener('DOMContentLoaded', function () {
@@ -1325,52 +1685,136 @@
       const btnLogout = document.getElementById('btnLogout');
       if (btnLogout) {
         btnLogout.addEventListener('click', function () {
-          // Perform logout action here
-          alert('ออกจากระบบเรียบร้อยแล้ว');
+          localStorage.removeItem('token');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userName');
+          localStorage.removeItem('userPhoto');
+          sessionStorage.clear();
+          window.location.href = '/login.html';
         });
       }
-    
-      // Open display settings modal (guard in case element is missing)
-      const btnDisplaySettings = document.getElementById('btnDisplaySettings');
-      if (btnDisplaySettings) {
-        btnDisplaySettings.addEventListener('click', function () {
-          document.getElementById('displaySettingsModal').classList.remove('hidden');
+
+      // Date Picker Functionality
+      const datePickerTrigger = document.getElementById('datePickerTrigger');
+      const datePickerMenu = document.getElementById('datePickerMenu');
+      const cancelDatePicker = document.getElementById('cancelDatePicker');
+      const applyDatePicker = document.getElementById('applyDatePicker');
+      const startDateInput = document.getElementById('startDate');
+      const endDateInput = document.getElementById('endDate');
+      const selectedDateRange = document.getElementById('selectedDateRange');
+
+      if (datePickerTrigger && datePickerMenu) {
+        datePickerTrigger.addEventListener('click', function(e) {
+          e.stopPropagation();
+          datePickerMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', function(e) {
+          if (!datePickerMenu.contains(e.target) && !datePickerTrigger.contains(e.target)) {
+            datePickerMenu.classList.add('hidden');
+          }
+        });
+
+        if (cancelDatePicker) {
+          cancelDatePicker.addEventListener('click', function() {
+            datePickerMenu.classList.add('hidden');
+          });
+        }
+
+        if (applyDatePicker) {
+          applyDatePicker.addEventListener('click', function() {
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+
+            if (startDate && endDate) {
+              const startFormatted = new Date(startDate).toLocaleDateString('th-TH', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              });
+              const endFormatted = new Date(endDate).toLocaleDateString('th-TH', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              });
+
+              selectedDateRange.textContent = `${startFormatted} - ${endFormatted}`;
+              datePickerMenu.classList.add('hidden');
+              console.log(`📅 Date range selected: ${startDate} to ${endDate}`);
+            }
+          });
+        }
+      }
+
+      // Search functionality
+      const searchInput = document.querySelector('input[placeholder*="ค้นหาใบเพิ่มหนี้"]');
+      if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function(e) {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            const searchTerm = e.target.value.trim();
+            console.log(`🔍 Searching for: ${searchTerm || 'all'}`);
+            // TODO: Implement search with API
+          }, 500);
         });
       }
-    
-      // Close display settings modal
-      document.getElementById('closeDisplaySettingsModal')?.addEventListener('click', function () {
-        document.getElementById('displaySettingsModal').classList.add('hidden');
-      });
-    
-      // Open print report modal (guard in case element is missing)
-      const btnPrintReport = document.getElementById('btnPrintReport');
-      if (btnPrintReport) {
-        btnPrintReport.addEventListener('click', function () {
-          document.getElementById('printReportModal').classList.remove('hidden');
+
+      // Status filter functionality
+      const statusFilter = document.getElementById('statusFilter');
+      if (statusFilter) {
+        statusFilter.addEventListener('change', function(e) {
+          const selectedStatus = e.target.value;
+          console.log(`🏷️ Filter by status: ${selectedStatus}`);
+          // TODO: Implement status filtering with API
         });
       }
-    
-      // Close print report modal
-      document.getElementById('closePrintReportModal')?.addEventListener('click', function () {
-        document.getElementById('printReportModal').classList.add('hidden');
+
+      // Pagination functionality
+      const paginationButtons = document.querySelectorAll('.btn-xs.btn-outline');
+      paginationButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+          if (!this.disabled) {
+            e.preventDefault();
+            const icon = this.querySelector('i');
+            if (icon && icon.classList.contains('bi-chevron-left')) {
+              console.log('⬅️ Previous page');
+              // TODO: Implement previous page
+            } else if (icon && icon.classList.contains('bi-chevron-right')) {
+              console.log('➡️ Next page');
+              // TODO: Implement next page
+            }
+          }
+        });
       });
-    
-      // Print report button in modal
-      document.getElementById('printReportModal')?.addEventListener('submit', function (e) {
-        e.preventDefault();
-        // Perform print action here
-        alert('กำลังพิมพ์รายงาน...');
-        document.getElementById('printReportModal').classList.add('hidden');
-      });
-    
-      // Display settings form submission
-      document.getElementById('displaySettingsModal')?.addEventListener('submit', function (e) {
-        e.preventDefault();
-        // Perform settings save action here
-        alert('บันทึกการตั้งค่าเรียบร้อยแล้ว');
-        document.getElementById('displaySettingsModal').classList.add('hidden');
-      });
+
+      // Dropdown toggle for items per page
+      const dropdownBtn = document.querySelector('.btn-xs.btn-outline.no-animation');
+      const dropdownMenu = document.querySelector('.dropdown-content.menu');
+      if (dropdownBtn && dropdownMenu) {
+        dropdownBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          dropdownMenu.classList.toggle('hidden');
+        });
+
+        const dropdownItems = dropdownMenu.querySelectorAll('li a');
+        dropdownItems.forEach(item => {
+          item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const itemsPerPage = this.textContent.trim();
+            dropdownBtn.childNodes[0].textContent = itemsPerPage + ' ';
+            dropdownMenu.classList.add('hidden');
+            console.log(`📄 Items per page: ${itemsPerPage}`);
+            // TODO: Reload data with new page size
+          });
+        });
+
+        document.addEventListener('click', function(e) {
+          if (!dropdownMenu.contains(e.target) && !dropdownBtn.contains(e.target)) {
+            dropdownMenu.classList.add('hidden');
+          }
+        });
+      }
   });
   </script>
 
@@ -1391,51 +1835,72 @@
     }
   </script>
 
-  <!-- Animation Control Script -->
+  <!-- Page Loading Control Script -->
   <script>
     let lottieAnimation = null;
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const lottieContainer = document.getElementById('lottieContainer');
 
-    // Enhanced Loading Animation Control with Error Handling
-    function showLoading(show) {
-      const loader = document.getElementById('loadingOverlay');
-      if (show) {
-        loader.style.display = 'flex';
-        loader.classList.remove('animate__fadeOut');
-        loader.classList.add('animate__fadeIn');
+    // Show Page Loading
+    window.showPageLoading = function() {
+      loadingOverlay.style.display = 'flex';
+      loadingOverlay.style.opacity = '1';
+      loadingOverlay.style.visibility = 'visible';
 
-        if (!lottieAnimation) {
-          fetch('/Loading/Loading.json')
-            .then(response => response.json())
-            .then(animationData => {
-              lottieAnimation = lottie.loadAnimation({
-                container: document.getElementById('lottieContainer'),
-                renderer: 'svg',
-                loop: true,
-                autoplay: true,
-                animationData: animationData
-              });
-            })
-            .catch(error => {
-              console.error('Error loading Lottie animation:', error);
-              // Fallback to CSS spinner if Lottie fails
-              document.getElementById('lottieContainer').innerHTML = `
-                <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-              `;
-            });
-        } else {
-          lottieAnimation.play();
-        }
-      } else {
-        if (lottieAnimation) {
-          lottieAnimation.pause();
-        }
-        loader.classList.remove('animate__fadeIn');
-        loader.classList.add('animate__fadeOut');
-        setTimeout(() => {
-          loader.style.display = 'none';
-        }, 600);
+      if (lottieAnimation) {
+        lottieAnimation.play();
       }
-    }
+    };
+
+    // Hide Page Loading
+    window.hidePageLoading = function() {
+      loadingOverlay.style.opacity = '0';
+
+      if (lottieAnimation) {
+        lottieAnimation.pause();
+      }
+
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        loadingOverlay.style.visibility = 'hidden';
+      }, 500);
+    };
+
+    // Initialize Lottie Animation
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show loading initially
+      showPageLoading();
+
+      // Load Lottie animation
+      try {
+        lottieAnimation = lottie.loadAnimation({
+          container: lottieContainer,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/Loading/Loading.json'
+        });
+
+        lottieAnimation.addEventListener('DOMLoaded', function() {
+          console.log('✅ Lottie animation loaded successfully');
+        });
+
+        lottieAnimation.addEventListener('error', function(error) {
+          console.error('❌ Lottie animation error:', error);
+          lottieContainer.innerHTML = '<div class="loader"></div>';
+        });
+      } catch (error) {
+        console.error('Error initializing Lottie:', error);
+        lottieContainer.innerHTML = '<div class="loader"></div>';
+      }
+
+      // Hide loading after page is fully loaded
+      window.addEventListener('load', function() {
+        setTimeout(() => {
+          hidePageLoading();
+        }, 500);
+      });
+    });
 
     // Memory Management - Cleanup on page unload
     window.addEventListener('beforeunload', () => {
@@ -1448,18 +1913,1169 @@
         console.error('Error cleaning up Lottie animation:', error);
       }
     });
+  </script>
 
-    // Initialize Lottie animation on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      // Show loading initially
-      showLoading(true);
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[99999] flex flex-col gap-2" style="pointer-events: none;"></div>
 
-      // Hide loading after page is fully loaded
-      window.addEventListener('load', function() {
-        setTimeout(() => {
-          showLoading(false);
-        }, 500);
+  <!-- Debit Note API Integration -->
+  <script>
+    // API Configuration
+    const API_BASE = '/api';
+    const API_ENDPOINT = '/api/sales-debit-notes';
+
+    // Global state
+    let currentDebitNotes = [];
+    let currentPage = 1;
+    let currentLimit = 10;
+
+    // Toast notification function with UI
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.style.pointerEvents = 'auto';
+
+      const iconMap = {
+        success: { icon: 'bi-check-circle-fill', bg: 'bg-green-500' },
+        error: { icon: 'bi-x-circle-fill', bg: 'bg-red-500' },
+        warning: { icon: 'bi-exclamation-triangle-fill', bg: 'bg-yellow-500' },
+        info: { icon: 'bi-info-circle-fill', bg: 'bg-blue-500' }
+      };
+
+      const config = iconMap[type] || iconMap.info;
+
+      toast.className = `${config.bg} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] transform transition-all duration-300 translate-x-[400px] opacity-0`;
+      toast.innerHTML = `
+        <i class="bi ${config.icon} text-xl"></i>
+        <span class="flex-1">${message}</span>
+        <button onclick="this.parentElement.remove()" class="hover:bg-white/20 rounded p-1">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      }, 10);
+
+      setTimeout(() => {
+        toast.style.transform = 'translateX(400px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // Format date to Thai format
+    function formatDateThai(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
+    }
+
+    // Format currency
+    function formatCurrency(amount) {
+      if (!amount && amount !== 0) return '฿0.00';
+      return '฿' + parseFloat(amount).toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    // Get status badge HTML
+    function getStatusBadge(status) {
+      const statusConfig = {
+        'approved': { class: 'bg-green-100 text-green-800', icon: 'bi-check-circle', text: 'อนุมัติ' },
+        'pending': { class: 'bg-yellow-100 text-yellow-800', icon: 'bi-clock', text: 'รอดำเนินการ' },
+        'rejected': { class: 'bg-red-100 text-red-800', icon: 'bi-x-circle', text: 'ปฏิเสธ' },
+        'cancelled': { class: 'bg-gray-100 text-gray-800', icon: 'bi-slash-circle', text: 'ยกเลิก' }
+      };
+
+      const config = statusConfig[status] || statusConfig['pending'];
+      return `<span class="px-2 py-1 rounded-full text-xs font-medium ${config.class}">
+        <i class="bi ${config.icon}"></i> ${config.text}
+      </span>`;
+    }
+
+    // Load debit notes from API
+    async function loadDebitNotes() {
+      try {
+        showPageLoading();
+
+        const token = getAuthToken();
+        const startDate = document.getElementById('startDate')?.value;
+        const endDate = document.getElementById('endDate')?.value;
+        const searchQuery = document.getElementById('searchInput')?.value;
+        const statusFilter = document.getElementById('statusFilter')?.value;
+
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: currentLimit
+        });
+
+        if (startDate) params.append('dateFrom', startDate);
+        if (endDate) params.append('dateTo', endDate);
+        if (searchQuery) params.append('search', searchQuery);
+        if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+
+        const url = `${API_ENDPOINT}?${params.toString()}`;
+        console.log('📡 Loading debit notes from:', url);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to load debit notes');
+        }
+
+        currentDebitNotes = data.data || [];
+        console.log('✅ Loaded debit notes:', currentDebitNotes.length);
+
+        displayDebitNoteData(currentDebitNotes);
+        updatePaginationUI(data.pagination || {});
+
+        if (currentDebitNotes.length === 0) {
+          showToast('ไม่พบข้อมูลใบเพิ่มหนี้', 'info');
+        }
+
+      } catch (error) {
+        console.error('❌ Error loading debit notes:', error);
+
+        const tableBody = document.getElementById('debitNoteTableBody');
+        if (tableBody) {
+          tableBody.innerHTML = `
+            <tr>
+              <td colspan="8" class="text-center py-10">
+                <i class="bi bi-exclamation-triangle text-4xl text-red-500 mb-2 block"></i>
+                <p class="text-gray-600">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+                <p class="text-sm text-gray-400">${error.message}</p>
+                <button onclick="loadDebitNotes()" class="btn btn-primary btn-sm mt-3">
+                  <i class="bi bi-arrow-clockwise"></i> ลองใหม่
+                </button>
+              </td>
+            </tr>
+          `;
+        }
+
+        showToast('ไม่สามารถโหลดข้อมูลได้: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Display debit note data in table
+    function displayDebitNoteData(notes) {
+      const tableBody = document.getElementById('debitNoteTableBody');
+
+      if (!tableBody) {
+        console.error('❌ Table body not found');
+        return;
+      }
+
+      if (!notes || notes.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-10 text-gray-500">
+              <i class="bi bi-inbox text-4xl mb-2 block"></i>
+              <p>ไม่พบข้อมูลใบเพิ่มหนี้</p>
+              <button onclick="createDebitNote()" class="btn btn-primary btn-sm mt-3">
+                <i class="bi bi-plus-circle"></i> สร้างรายการแรก
+              </button>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = notes.map((note, index) => `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="text-center">
+            <input type="checkbox" class="rounded border-gray-300" value="${note._id}" />
+          </td>
+          <td>
+            <div class="font-medium text-gray-900">${note.debitNoteNumber || '-'}</div>
+          </td>
+          <td>
+            <div class="text-sm">${formatDateThai(note.issueDate)}</div>
+          </td>
+          <td>
+            ${getStatusBadge(note.status)}
+          </td>
+          <td>
+            <div class="text-sm">${note.referenceDocument || '-'}</div>
+          </td>
+          <td>
+            <div class="font-medium">${note.customer?.displayName || note.customer?.corporate?.companyName || note.customer?.individual?.firstName || '-'}</div>
+          </td>
+          <td class="text-right">
+            <div class="font-medium text-primary-600">${formatCurrency(note.totalAmount)}</div>
+          </td>
+          <td class="text-center">
+            <div class="flex items-center justify-center gap-2">
+              <button onclick="viewDebitNote('${note._id}')" class="btn btn-sm btn-outline text-blue-600 hover:bg-blue-50" title="ดูรายละเอียด">
+                <i class="bi bi-eye"></i>
+              </button>
+              ${note.status === 'pending' ? `
+                <button onclick="openEditDebitNoteModal('${note._id}')" class="btn btn-sm btn-outline text-purple-600 hover:bg-purple-50" title="แก้ไข">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
+                <button onclick="approveDebitNote('${note._id}')" class="btn btn-sm btn-outline text-green-600 hover:bg-green-50" title="อนุมัติ">
+                  <i class="bi bi-check-circle"></i>
+                </button>
+                <button onclick="rejectDebitNote('${note._id}')" class="btn btn-sm btn-outline text-orange-600 hover:bg-orange-50" title="ปฏิเสธ">
+                  <i class="bi bi-x-circle"></i>
+                </button>
+              ` : ''}
+              <button onclick="cancelDebitNote('${note._id}')" class="btn btn-sm btn-outline text-red-600 hover:bg-red-50" title="ยกเลิก">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      console.log('✅ Displayed', notes.length, 'debit notes');
+    }
+
+    // Update pagination UI
+    function updatePaginationUI(pagination) {
+      const recordCount = document.getElementById('recordCount');
+      const pageInfo = document.getElementById('pageInfo');
+      const prevBtn = document.getElementById('prevPageBtn');
+      const nextBtn = document.getElementById('nextPageBtn');
+
+      if (recordCount) {
+        const total = pagination.total || currentDebitNotes.length;
+        recordCount.textContent = total;
+      }
+
+      if (pageInfo) {
+        const totalPages = pagination.totalPages || Math.ceil(currentDebitNotes.length / currentLimit);
+        pageInfo.textContent = `หน้า ${currentPage} / ${totalPages || 1}`;
+      }
+
+      if (prevBtn) {
+        prevBtn.disabled = currentPage <= 1;
+      }
+
+      if (nextBtn) {
+        const totalPages = pagination.totalPages || Math.ceil(currentDebitNotes.length / currentLimit);
+        nextBtn.disabled = currentPage >= totalPages;
+      }
+    }
+
+    // Pagination functions
+    function nextPage() {
+      currentPage++;
+      loadDebitNotes();
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        loadDebitNotes();
+      }
+    }
+
+    function changeLimit(newLimit) {
+      currentLimit = parseInt(newLimit);
+      currentPage = 1;
+      loadDebitNotes();
+    }
+
+    // Approve debit note
+    async function approveDebitNote(id) {
+      if (!confirm('คุณต้องการอนุมัติใบเพิ่มหนี้นี้หรือไม่?')) return;
+
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+
+        const response = await fetch(`${API_ENDPOINT}/${id}/approve`, {
+          method: 'POST',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Failed to approve debit note');
+        }
+
+        showToast('อนุมัติใบเพิ่มหนี้สำเร็จ', 'success');
+        await loadDebitNotes();
+
+      } catch (error) {
+        console.error('❌ Error approving debit note:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Reject debit note
+    async function rejectDebitNote(id) {
+      if (!confirm('คุณต้องการปฏิเสธใบเพิ่มหนี้นี้หรือไม่?')) return;
+
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+
+        const response = await fetch(`${API_ENDPOINT}/${id}/reject`, {
+          method: 'POST',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Failed to reject debit note');
+        }
+
+        showToast('ปฏิเสธใบเพิ่มหนี้สำเร็จ', 'success');
+        await loadDebitNotes();
+
+      } catch (error) {
+        console.error('❌ Error rejecting debit note:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Cancel debit note
+    async function cancelDebitNote(id) {
+      if (!confirm('คุณต้องการยกเลิกใบเพิ่มหนี้นี้หรือไม่?')) return;
+
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+
+        const response = await fetch(`${API_ENDPOINT}/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Failed to cancel debit note');
+        }
+
+        showToast('ยกเลิกใบเพิ่มหนี้สำเร็จ', 'success');
+        await loadDebitNotes();
+
+      } catch (error) {
+        console.error('❌ Error cancelling debit note:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // View debit note detail
+    function viewDebitNote(id) {
+      const note = currentDebitNotes.find(n => n._id === id);
+      if (note) {
+        const details = `
+ข้อมูลใบเพิ่มหนี้
+
+เลขที่: ${note.debitNoteNumber || '-'}
+วันที่: ${formatDateThai(note.issueDate)}
+เอกสารอ้างอิง: ${note.referenceDocument || '-'}
+ลูกค้า: ${note.customer?.displayName || '-'}
+
+ยอดเงิน: ${formatCurrency(note.totalAmount)}
+สถานะ: ${note.status}
+
+หมายเหตุ: ${note.notes || '-'}
+        `;
+        showToast('กำลังแสดงรายละเอียด...', 'info');
+        setTimeout(() => alert(details), 300);
+      }
+    }
+
+    // ============================================
+    // MODAL MANAGEMENT
+    // ============================================
+
+    // Create Modal Functions
+    function openCreateDebitNoteModal() {
+      const modal = document.getElementById('createDebitNoteModal');
+      if (modal) {
+        // Set default date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('createIssueDate').value = today;
+
+        // Reset form
+        document.getElementById('createDebitNoteForm').reset();
+        document.getElementById('createCustomerId').value = '';
+        document.getElementById('createCustomerName').value = '';
+        document.getElementById('createCustomerTaxId').value = '';
+
+        // Reset items table (keep one row)
+        const tbody = document.getElementById('createItemsTableBody');
+        tbody.innerHTML = `
+          <tr>
+            <td>
+              <input type="text" class="form-control item-description" placeholder="ชื่อสินค้า/บริการ" />
+              <textarea class="form-control mt-2 item-details" placeholder="รายละเอียดเพิ่มเติม" rows="2"></textarea>
+            </td>
+            <td>
+              <input type="number" class="form-control item-quantity text-center" value="1" min="0.01" step="0.01" />
+            </td>
+            <td>
+              <input type="number" class="form-control item-price text-right" value="0.00" min="0.00" step="0.01" />
+            </td>
+            <td class="text-right item-total font-medium">0.00</td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-outline text-red-600 btn-remove-item">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+
+        calculateCreateTotals();
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeCreateDebitNoteModal() {
+      const modal = document.getElementById('createDebitNoteModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    }
+
+    // Edit Modal Functions
+    function openEditDebitNoteModal(id) {
+      const note = currentDebitNotes.find(n => n._id === id);
+      if (!note) {
+        showToast('ไม่พบข้อมูลใบเพิ่มหนี้', 'error');
+        return;
+      }
+
+      // Populate form fields
+      document.getElementById('editDebitNoteId').value = note._id;
+      document.getElementById('editDebitNoteNumber').value = note.debitNoteNumber || '';
+      document.getElementById('editIssueDate').value = note.issueDate ? note.issueDate.split('T')[0] : '';
+      document.getElementById('editReferenceDocument').value = note.referenceDocument || '';
+      document.getElementById('editStatus').value = note.status || '';
+      document.getElementById('editCustomerName').value = note.customer?.displayName || note.customer?.corporate?.companyName || '';
+      document.getElementById('editCustomerTaxId').value = note.customer?.taxId || '';
+      document.getElementById('editReason').value = note.reason || '';
+      document.getElementById('editNotes').value = note.notes || '';
+
+      // Populate items
+      const tbody = document.getElementById('editItemsTableBody');
+      if (note.items && note.items.length > 0) {
+        tbody.innerHTML = note.items.map(item => `
+          <tr>
+            <td>
+              <div class="font-medium">${item.description || '-'}</div>
+              ${item.details ? `<div class="text-sm text-gray-600 mt-1">${item.details}</div>` : ''}
+            </td>
+            <td class="text-center">${item.quantity || 0}</td>
+            <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+            <td class="text-right font-medium">${formatCurrency(item.amount)}</td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500">ไม่มีรายการสินค้า/บริการ</td></tr>';
+      }
+
+      // Calculate totals
+      const subtotal = note.subtotal || 0;
+      const vatAmount = note.vatAmount || 0;
+      const totalAmount = note.totalAmount || 0;
+
+      document.getElementById('editSubtotal').textContent = formatCurrency(subtotal).replace('฿', '') + ' บาท';
+      document.getElementById('editVatAmount').textContent = formatCurrency(vatAmount).replace('฿', '') + ' บาท';
+      document.getElementById('editTotalAmount').textContent = formatCurrency(totalAmount).replace('฿', '') + ' บาท';
+
+      // Show modal
+      const modal = document.getElementById('editDebitNoteModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeEditDebitNoteModal() {
+      const modal = document.getElementById('editDebitNoteModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    }
+
+    // View Modal Functions
+    function openViewDebitNoteModal(id) {
+      const note = currentDebitNotes.find(n => n._id === id);
+      if (!note) {
+        showToast('ไม่พบข้อมูลใบเพิ่มหนี้', 'error');
+        return;
+      }
+
+      const content = document.getElementById('viewDebitNoteContent');
+      if (!content) return;
+
+      content.innerHTML = `
+        <div class="grid grid-cols-2 gap-6">
+          <!-- ข้อมูลทั่วไป -->
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-semibold text-gray-800 mb-3 border-b pb-2">
+              <i class="bi bi-info-circle"></i> ข้อมูลทั่วไป
+            </h4>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span class="text-gray-600">เลขที่ใบเพิ่มหนี้:</span>
+                <span class="font-medium">${note.debitNoteNumber || '-'}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">วันที่ออก:</span>
+                <span class="font-medium">${formatDateThai(note.issueDate)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">เอกสารอ้างอิง:</span>
+                <span class="font-medium">${note.referenceDocument || '-'}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">สถานะ:</span>
+                <span>${getStatusBadge(note.status)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ข้อมูลลูกค้า -->
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-semibold text-gray-800 mb-3 border-b pb-2">
+              <i class="bi bi-person-circle"></i> ข้อมูลลูกค้า
+            </h4>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span class="text-gray-600">ชื่อลูกค้า:</span>
+                <span class="font-medium">${note.customer?.displayName || note.customer?.corporate?.companyName || '-'}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">เลขประจำตัวผู้เสียภาษี:</span>
+                <span class="font-medium">${note.customer?.taxId || '-'}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">ที่อยู่:</span>
+                <span class="font-medium text-right text-sm">${note.customer?.address || '-'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- เหตุผล -->
+          <div class="col-span-2 bg-blue-50 p-4 rounded-lg">
+            <h4 class="font-semibold text-gray-800 mb-3 border-b pb-2">
+              <i class="bi bi-chat-left-text"></i> เหตุผลในการเพิ่มหนี้
+            </h4>
+            <p class="text-gray-700">${note.reason || '-'}</p>
+          </div>
+
+          <!-- รายการสินค้า/บริการ -->
+          <div class="col-span-2">
+            <h4 class="font-semibold text-gray-800 mb-3 border-b pb-2">
+              <i class="bi bi-cart3"></i> รายการสินค้า/บริการ
+            </h4>
+            <table class="table w-full border border-gray-300 rounded-lg">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="py-2 px-4">รายการ</th>
+                  <th class="py-2 px-4 text-center">จำนวน</th>
+                  <th class="py-2 px-4 text-right">ราคา/หน่วย</th>
+                  <th class="py-2 px-4 text-right">ยอดรวม</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${note.items && note.items.length > 0 ? note.items.map(item => `
+                  <tr>
+                    <td>
+                      <div class="font-medium">${item.description || '-'}</div>
+                      ${item.details ? `<div class="text-sm text-gray-600 mt-1">${item.details}</div>` : ''}
+                    </td>
+                    <td class="text-center">${item.quantity || 0}</td>
+                    <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+                    <td class="text-right font-medium text-primary-600">${formatCurrency(item.amount)}</td>
+                  </tr>
+                `).join('') : '<tr><td colspan="4" class="text-center text-gray-500 py-4">ไม่มีรายการสินค้า/บริการ</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- สรุปยอดเงิน -->
+          <div class="col-span-2 bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg">
+            <h4 class="font-semibold text-gray-800 mb-4 border-b pb-2">
+              <i class="bi bi-calculator"></i> สรุปยอดเงิน
+            </h4>
+            <div class="space-y-3">
+              <div class="flex justify-between text-lg">
+                <span class="text-gray-700">ยอดรวม:</span>
+                <span class="font-medium">${formatCurrency(note.subtotal || 0)}</span>
+              </div>
+              <div class="flex justify-between text-lg">
+                <span class="text-gray-700">ภาษีมูลค่าเพิ่ม (VAT ${note.vatRate || 7}%):</span>
+                <span class="font-medium">${formatCurrency(note.vatAmount || 0)}</span>
+              </div>
+              <div class="flex justify-between text-xl border-t-2 pt-3">
+                <span class="font-bold text-gray-900">ยอดเงินรวมทั้งสิ้น:</span>
+                <span class="font-bold text-primary-600">${formatCurrency(note.totalAmount || 0)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- หมายเหตุ -->
+          ${note.notes ? `
+          <div class="col-span-2 bg-yellow-50 p-4 rounded-lg">
+            <h4 class="font-semibold text-gray-800 mb-3 border-b pb-2">
+              <i class="bi bi-sticky"></i> หมายเหตุ
+            </h4>
+            <p class="text-gray-700">${note.notes}</p>
+          </div>
+          ` : ''}
+        </div>
+      `;
+
+      const modal = document.getElementById('viewDebitNoteModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeViewDebitNoteModal() {
+      const modal = document.getElementById('viewDebitNoteModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    }
+
+    // Update viewDebitNote to use modal instead of alert
+    function viewDebitNote(id) {
+      openViewDebitNoteModal(id);
+    }
+
+    // Create debit note - open modal
+    function createDebitNote() {
+      openCreateDebitNoteModal();
+    }
+
+    // ============================================
+    // CUSTOMER SEARCH
+    // ============================================
+
+    let customerSearchTimeout;
+    let allCustomers = [];
+
+    async function searchCustomers(query) {
+      if (!query || query.length < 2) {
+        document.getElementById('createCustomerDropdown').classList.add('hidden');
+        return;
+      }
+
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`/api/contacts?search=${encodeURIComponent(query)}&limit=10`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to search customers');
+
+        const data = await response.json();
+        allCustomers = data.data || data || [];
+
+        displayCustomerResults(allCustomers);
+      } catch (error) {
+        console.error('Error searching customers:', error);
+        showToast('ไม่สามารถค้นหาลูกค้าได้', 'error');
+      }
+    }
+
+    function displayCustomerResults(customers) {
+      const list = document.getElementById('createCustomerList');
+      const dropdown = document.getElementById('createCustomerDropdown');
+
+      if (!customers || customers.length === 0) {
+        list.innerHTML = '<li class="py-2 px-4 text-gray-500 text-center">ไม่พบข้อมูลลูกค้า</li>';
+      } else {
+        list.innerHTML = customers.map(customer => {
+          const displayName = customer.displayName || customer.corporate?.companyName || customer.individual?.firstName || 'ไม่ระบุชื่อ';
+          const taxId = customer.taxId || '-';
+
+          return `
+            <li class="py-2 px-4 hover:bg-blue-50 cursor-pointer border-b last:border-0" onclick="selectCustomer('${customer._id}')">
+              <div class="font-medium text-gray-900">${displayName}</div>
+              <div class="text-sm text-gray-600">เลขประจำตัวผู้เสียภาษี: ${taxId}</div>
+            </li>
+          `;
+        }).join('');
+      }
+
+      dropdown.classList.remove('hidden');
+    }
+
+    function selectCustomer(customerId) {
+      const customer = allCustomers.find(c => c._id === customerId);
+      if (!customer) return;
+
+      document.getElementById('createCustomerId').value = customer._id;
+      document.getElementById('createCustomerName').value = customer.displayName || customer.corporate?.companyName || customer.individual?.firstName || '';
+      document.getElementById('createCustomerTaxId').value = customer.taxId || '';
+      document.getElementById('createCustomerSearch').value = customer.displayName || customer.corporate?.companyName || customer.individual?.firstName || '';
+      document.getElementById('createCustomerDropdown').classList.add('hidden');
+
+      showToast('เลือกลูกค้าเรียบร้อยแล้ว', 'success');
+    }
+
+    // ============================================
+    // LINE ITEMS CALCULATION
+    // ============================================
+
+    function calculateCreateTotals() {
+      const tbody = document.getElementById('createItemsTableBody');
+      if (!tbody) return;
+
+      let subtotal = 0;
+
+      // Calculate each row
+      tbody.querySelectorAll('tr').forEach(row => {
+        const quantity = parseFloat(row.querySelector('.item-quantity')?.value || 0);
+        const price = parseFloat(row.querySelector('.item-price')?.value || 0);
+        const itemTotal = quantity * price;
+
+        const totalCell = row.querySelector('.item-total');
+        if (totalCell) {
+          totalCell.textContent = itemTotal.toFixed(2);
+        }
+
+        subtotal += itemTotal;
+      });
+
+      // Calculate VAT
+      const vatRate = parseFloat(document.getElementById('createVatRate')?.value || 0);
+      const vatAmount = (subtotal * vatRate) / 100;
+      const totalAmount = subtotal + vatAmount;
+
+      // Update display
+      document.getElementById('createSubtotal').textContent = subtotal.toFixed(2) + ' บาท';
+      document.getElementById('createVatAmount').textContent = vatAmount.toFixed(2) + ' บาท';
+      document.getElementById('createTotalAmount').textContent = totalAmount.toFixed(2) + ' บาท';
+    }
+
+    function addCreateItem() {
+      const tbody = document.getElementById('createItemsTableBody');
+      if (!tbody) return;
+
+      const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td>
+          <input type="text" class="form-control item-description" placeholder="ชื่อสินค้า/บริการ" />
+          <textarea class="form-control mt-2 item-details" placeholder="รายละเอียดเพิ่มเติม" rows="2"></textarea>
+        </td>
+        <td>
+          <input type="number" class="form-control item-quantity text-center" value="1" min="0.01" step="0.01" />
+        </td>
+        <td>
+          <input type="number" class="form-control item-price text-right" value="0.00" min="0.00" step="0.01" />
+        </td>
+        <td class="text-right item-total font-medium">0.00</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-sm btn-outline text-red-600 btn-remove-item">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(newRow);
+
+      // Add event listeners to new row
+      newRow.querySelector('.item-quantity').addEventListener('input', calculateCreateTotals);
+      newRow.querySelector('.item-price').addEventListener('input', calculateCreateTotals);
+      newRow.querySelector('.btn-remove-item').addEventListener('click', function() {
+        if (tbody.querySelectorAll('tr').length > 1) {
+          newRow.remove();
+          calculateCreateTotals();
+        } else {
+          showToast('ต้องมีอย่างน้อย 1 รายการ', 'warning');
+        }
+      });
+    }
+
+    // ============================================
+    // CREATE & UPDATE API
+    // ============================================
+
+    async function handleCreateDebitNote(event) {
+      event.preventDefault();
+
+      try {
+        showPageLoading();
+
+        // Validate customer
+        const customerId = document.getElementById('createCustomerId').value;
+        if (!customerId) {
+          showToast('กรุณาเลือกลูกค้า', 'warning');
+          hidePageLoading();
+          return;
+        }
+
+        // Collect items
+        const tbody = document.getElementById('createItemsTableBody');
+        const items = [];
+
+        tbody.querySelectorAll('tr').forEach(row => {
+          const description = row.querySelector('.item-description')?.value;
+          const details = row.querySelector('.item-details')?.value;
+          const quantity = parseFloat(row.querySelector('.item-quantity')?.value || 0);
+          const unitPrice = parseFloat(row.querySelector('.item-price')?.value || 0);
+
+          if (description && quantity > 0) {
+            items.push({
+              description,
+              details,
+              quantity,
+              unitPrice,
+              amount: quantity * unitPrice
+            });
+          }
+        });
+
+        if (items.length === 0) {
+          showToast('กรุณาเพิ่มรายการสินค้า/บริการอย่างน้อย 1 รายการ', 'warning');
+          hidePageLoading();
+          return;
+        }
+
+        // Calculate totals
+        const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+        const vatRate = parseFloat(document.getElementById('createVatRate')?.value || 0);
+        const vatAmount = (subtotal * vatRate) / 100;
+        const totalAmount = subtotal + vatAmount;
+
+        // Prepare form data
+        const formData = {
+          customer: customerId,
+          issueDate: document.getElementById('createIssueDate')?.value,
+          referenceDocument: document.getElementById('createReferenceDocument')?.value,
+          referenceType: document.getElementById('createReferenceType')?.value,
+          reason: document.getElementById('createReason')?.value,
+          reasonCategory: document.getElementById('createReasonCategory')?.value,
+          items: items,
+          subtotal: subtotal,
+          vatRate: vatRate,
+          vatAmount: vatAmount,
+          totalAmount: totalAmount,
+          notes: document.getElementById('createNotes')?.value,
+          status: 'pending'
+        };
+
+        console.log('Creating debit note with data:', formData);
+
+        const token = getAuthToken();
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Failed to create debit note');
+        }
+
+        showToast('สร้างใบเพิ่มหนี้สำเร็จ', 'success');
+        closeCreateDebitNoteModal();
+        await loadDebitNotes();
+
+      } catch (error) {
+        console.error('❌ Error creating debit note:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    async function handleUpdateDebitNote(event) {
+      event.preventDefault();
+
+      try {
+        showPageLoading();
+
+        const id = document.getElementById('editDebitNoteId').value;
+        if (!id) {
+          throw new Error('ไม่พบ ID ของใบเพิ่มหนี้');
+        }
+
+        const formData = {
+          issueDate: document.getElementById('editIssueDate')?.value,
+          referenceDocument: document.getElementById('editReferenceDocument')?.value,
+          reason: document.getElementById('editReason')?.value,
+          notes: document.getElementById('editNotes')?.value
+        };
+
+        console.log('Updating debit note:', id, formData);
+
+        const token = getAuthToken();
+        const response = await fetch(`${API_ENDPOINT}/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Failed to update debit note');
+        }
+
+        showToast('แก้ไขใบเพิ่มหนี้สำเร็จ', 'success');
+        closeEditDebitNoteModal();
+        await loadDebitNotes();
+
+      } catch (error) {
+        console.error('❌ Error updating debit note:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🚀 Initializing Debit Note page...');
+
+      // Load initial data
+      setTimeout(() => {
+        loadDebitNotes();
+      }, 500);
+
+      // Create button
+      const btnCreate = document.getElementById('btnCreateDebitNote');
+      if (btnCreate) {
+        btnCreate.addEventListener('click', createDebitNote);
+      }
+
+      // Search input with debounce
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            currentPage = 1;
+            loadDebitNotes();
+          }, 500);
+        });
+      }
+
+      // Status filter
+      const statusFilter = document.getElementById('statusFilter');
+      if (statusFilter) {
+        statusFilter.addEventListener('change', function() {
+          currentPage = 1;
+          loadDebitNotes();
+        });
+      }
+
+      // Date picker
+      const applyDateBtn = document.getElementById('applyDatePicker');
+      if (applyDateBtn) {
+        applyDateBtn.addEventListener('click', function() {
+          loadDebitNotes();
+        });
+      }
+
+      // Pagination
+      const prevBtn = document.getElementById('prevPageBtn');
+      if (prevBtn) {
+        prevBtn.addEventListener('click', prevPage);
+      }
+
+      const nextBtn = document.getElementById('nextPageBtn');
+      if (nextBtn) {
+        nextBtn.addEventListener('click', nextPage);
+      }
+
+      const limitSelect = document.getElementById('limitSelect');
+      if (limitSelect) {
+        limitSelect.addEventListener('change', function() {
+          changeLimit(this.value);
+        });
+      }
+
+      // ============================================
+      // MODAL EVENT LISTENERS
+      // ============================================
+
+      // Create Modal
+      const closeCreateModalBtn = document.getElementById('closeCreateModal');
+      if (closeCreateModalBtn) {
+        closeCreateModalBtn.addEventListener('click', closeCreateDebitNoteModal);
+      }
+
+      const cancelCreateBtn = document.getElementById('cancelCreateDebitNote');
+      if (cancelCreateBtn) {
+        cancelCreateBtn.addEventListener('click', closeCreateDebitNoteModal);
+      }
+
+      const createForm = document.getElementById('createDebitNoteForm');
+      if (createForm) {
+        createForm.addEventListener('submit', handleCreateDebitNote);
+      }
+
+      // Customer search
+      const customerSearchInput = document.getElementById('createCustomerSearch');
+      if (customerSearchInput) {
+        customerSearchInput.addEventListener('input', function(e) {
+          clearTimeout(customerSearchTimeout);
+          customerSearchTimeout = setTimeout(() => {
+            searchCustomers(e.target.value);
+          }, 300);
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+          const dropdown = document.getElementById('createCustomerDropdown');
+          if (dropdown && !customerSearchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+          }
+        });
+      }
+
+      // Add item button
+      const addItemBtn = document.getElementById('createAddItemBtn');
+      if (addItemBtn) {
+        addItemBtn.addEventListener('click', addCreateItem);
+      }
+
+      // VAT rate change
+      const vatRateSelect = document.getElementById('createVatRate');
+      if (vatRateSelect) {
+        vatRateSelect.addEventListener('change', calculateCreateTotals);
+      }
+
+      // Initial row event listeners
+      const createItemsBody = document.getElementById('createItemsTableBody');
+      if (createItemsBody) {
+        createItemsBody.addEventListener('input', function(e) {
+          if (e.target.classList.contains('item-quantity') ||
+              e.target.classList.contains('item-price')) {
+            calculateCreateTotals();
+          }
+        });
+
+        createItemsBody.addEventListener('click', function(e) {
+          if (e.target.closest('.btn-remove-item')) {
+            const row = e.target.closest('tr');
+            if (createItemsBody.querySelectorAll('tr').length > 1) {
+              row.remove();
+              calculateCreateTotals();
+            } else {
+              showToast('ต้องมีอย่างน้อย 1 รายการ', 'warning');
+            }
+          }
+        });
+      }
+
+      // Edit Modal
+      const closeEditModalBtn = document.getElementById('closeEditDebitNoteModal');
+      if (closeEditModalBtn) {
+        closeEditModalBtn.addEventListener('click', closeEditDebitNoteModal);
+      }
+
+      const cancelEditBtn = document.getElementById('cancelEditDebitNote');
+      if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', closeEditDebitNoteModal);
+      }
+
+      const editForm = document.getElementById('editDebitNoteForm');
+      if (editForm) {
+        editForm.addEventListener('submit', handleUpdateDebitNote);
+      }
+
+      // View Modal
+      const closeViewModalBtn1 = document.getElementById('closeViewDebitNoteModal');
+      if (closeViewModalBtn1) {
+        closeViewModalBtn1.addEventListener('click', closeViewDebitNoteModal);
+      }
+
+      const closeViewModalBtn2 = document.getElementById('closeViewModalBtn');
+      if (closeViewModalBtn2) {
+        closeViewModalBtn2.addEventListener('click', closeViewDebitNoteModal);
+      }
+
+      // Print button
+      const btnPrint = document.getElementById('btnPrintDebitNote');
+      if (btnPrint) {
+        btnPrint.addEventListener('click', function() {
+          showToast('ฟีเจอร์พิมพ์ กำลังพัฒนา', 'info');
+        });
+      }
+
+      // Export PDF button
+      const btnExportPDF = document.getElementById('btnExportPDFDebitNote');
+      if (btnExportPDF) {
+        btnExportPDF.addEventListener('click', function() {
+          showToast('ฟีเจอร์ดาวน์โหลด PDF กำลังพัฒนา', 'info');
+        });
+      }
+
+      // Add edit button to table rows
+      document.addEventListener('click', function(e) {
+        // Check if clicked edit button in table
+        if (e.target.closest('.btn-edit-debit-note')) {
+          const id = e.target.closest('.btn-edit-debit-note').dataset.id;
+          if (id) openEditDebitNoteModal(id);
+        }
+      });
+
+      console.log('✅ Debit Note page initialized');
+      console.log('✅ All event listeners attached');
     });
   </script>
 

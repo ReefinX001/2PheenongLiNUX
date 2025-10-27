@@ -961,70 +961,78 @@ router.post('/checkout', auth, async (req, res) => {
   }
 });
 
-// GET /api/taxinvoice/:id - ดูใบกำกับภาษี
-router.get('/:id', auth, async (req, res) => {
+// GET /api/taxinvoice/statistics - Get statistics (must be before /:id route!)
+router.get('/statistics', auth, async (req, res) => {
   try {
-    const taxInvoice = await TaxInvoice.findById(req.params.id);
+    const { branchCode, startDate, endDate } = req.query;
 
-    if (!taxInvoice) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tax Invoice not found'
-      });
+    const filter = {};
+    if (branchCode) filter.branchCode = branchCode;
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDateObj;
+      }
     }
+
+    const stats = await TaxInvoice.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+          totalAmount: { $sum: '$summary.total' }
+        }
+      }
+    ]);
+
+    // Group by status
+    const byStatus = await TaxInvoice.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$summary.total' }
+        }
+      }
+    ]);
+
+    const statusMap = byStatus.reduce((acc, item) => {
+      acc[item._id] = item.totalAmount || 0;
+      return acc;
+    }, {});
+
+    const overallStats = stats[0] || {
+      totalCount: 0,
+      totalAmount: 0
+    };
 
     res.json({
       success: true,
-      data: taxInvoice
-    });
-  } catch (error) {
-    console.error('Error fetching tax invoice:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch tax invoice'
-    });
-  }
-});
-
-// GET /api/taxinvoice/branch/:branchCode - ดูใบกำกับภาษีตามสาขา
-// GET /api/tax-invoice/check-duplicate - ตรวจสอบใบกำกับภาษีซ้ำ
-// GET /api/taxinvoice - รายการใบกำกับภาษีทั้งหมด
-router.get('/', auth, async (req, res) => {
-  try {
-    const { limit = 50, page = 1, branchCode } = req.query;
-
-    const query = {};
-    if (branchCode) {
-      query.branchCode = branchCode;
-    }
-
-    const taxInvoices = await TaxInvoice.find(query)
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
-
-    const totalCount = await TaxInvoice.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: taxInvoices,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount / parseInt(limit)),
-        totalItems: totalCount
+      data: {
+        totalTaxInvoices: overallStats.totalCount,
+        totalAmount: overallStats.totalAmount,
+        paidAmount: statusMap.paid || 0,
+        pendingAmount: statusMap.pending || 0,
+        byStatus
       }
     });
 
   } catch (error) {
-    console.error('❌ Error fetching tax invoices:', error);
+    console.error('❌ Error fetching tax invoice statistics:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      details: error.message
+      error: 'Internal Server Error',
+      message: error.message
     });
   }
 });
 
+// GET /api/taxinvoice/check-duplicate - ตรวจสอบใบกำกับภาษีซ้ำ (specific route before /)
 router.get('/check-duplicate', auth, async (req, res) => {
   try {
     const { contractNo } = req.query;
@@ -1063,6 +1071,7 @@ router.get('/check-duplicate', auth, async (req, res) => {
   }
 });
 
+// GET /api/taxinvoice/branch/:branchCode - ดูใบกำกับภาษีตามสาขา
 router.get('/branch/:branchCode', auth, async (req, res) => {
   try {
     const { page = 1, limit = 20, startDate, endDate, saleType } = req.query;
@@ -1102,6 +1111,112 @@ router.get('/branch/:branchCode', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch tax invoices'
+    });
+  }
+});
+
+// GET /api/taxinvoice - รายการใบกำกับภาษีทั้งหมด (with enhanced search and filter)
+router.get('/', auth, async (req, res) => {
+  try {
+    const {
+      limit = 20,
+      page = 1,
+      branchCode,
+      search,
+      status,
+      startDate,
+      endDate,
+      saleType
+    } = req.query;
+
+    const query = {};
+
+    // Filter by branch
+    if (branchCode) {
+      query.branchCode = branchCode;
+    }
+
+    // Filter by status
+    if (status) {
+      query.status = status;
+    }
+
+    // Filter by saleType
+    if (saleType) {
+      query.saleType = saleType;
+    }
+
+    // Search by tax invoice number or customer name
+    if (search && search.trim()) {
+      query.$or = [
+        { taxInvoiceNumber: { $regex: search.trim(), $options: 'i' } },
+        { 'customer.name': { $regex: search.trim(), $options: 'i' } },
+        { 'customer.fullName': { $regex: search.trim(), $options: 'i' } }
+      ];
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = endDateObj;
+      }
+    }
+
+    const taxInvoices = await TaxInvoice.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const totalCount = await TaxInvoice.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: taxInvoices,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(totalCount / parseInt(limit)),
+        count: taxInvoices.length,
+        totalRecords: totalCount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching tax invoices:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/taxinvoice/:id - ดูใบกำกับภาษี (MUST BE LAST!)
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const taxInvoice = await TaxInvoice.findById(req.params.id);
+
+    if (!taxInvoice) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tax Invoice not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: taxInvoice
+    });
+  } catch (error) {
+    console.error('Error fetching tax invoice:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tax invoice'
     });
   }
 });

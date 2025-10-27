@@ -29,11 +29,12 @@ const validateIncome = [
 // Apply auth middleware to all routes
 router.use(authMiddleware);
 
-// Routes
-router.get('/', otherIncomeController.getAllOtherIncome);
+// Routes (specific routes first!)
+router.get('/statistics', otherIncomeController.getStatistics);
 router.get('/categories', otherIncomeController.getCategories);
 router.get('/summary/by-category', otherIncomeController.getSummaryByCategory);
 router.get('/export', otherIncomeController.exportToExcel);
+router.get('/', otherIncomeController.getAllOtherIncome);
 router.get('/:id', otherIncomeController.getOtherIncomeById);
 router.post('/', validateIncome, otherIncomeController.createOtherIncome);
 router.put('/:id', validateIncome, otherIncomeController.updateOtherIncome);

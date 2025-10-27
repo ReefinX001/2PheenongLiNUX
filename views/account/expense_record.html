@@ -111,12 +111,13 @@
   <script>
     // Authentication token management
     function getAuthToken() {
-      return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+      return localStorage.getItem('authToken') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
     }
 
-    // Photo URL resolver with fallback
+    // Photo URL resolver with fallback (inline SVG)
     function resolvePhotoUrl(photoPath) {
-      if (!photoPath) return '/uploads/default-avatar.png';
+      const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMGUwZTAiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxNSIgZmlsbD0iIzk5OSIvPjxwYXRoIGQ9Ik0yNSA4MCBRMjUgNjAgNTAgNjAgUTc1IDYwIDc1IDgwIiBmaWxsPSIjOTk5Ii8+PC9zdmc+';
+      if (!photoPath) return defaultAvatar;
       if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) return photoPath;
       if (photoPath.startsWith('/')) return photoPath;
       return `/uploads/${photoPath}`;
@@ -132,7 +133,7 @@
       }
 
       try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch('/api/users/me', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -143,8 +144,24 @@
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-        const data = await response.json();
-        updateUserInterface(data);
+        const result = await response.json();
+
+        // Check if response has success property
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to load profile');
+        }
+
+        const userData = result.data || {};
+        const userName = (userData.name || userData.username || 'ผู้ใช้').trim();
+        const photoUrl = userData.photoUrl || (userData.employee && userData.employee.imageUrl) || null;
+
+        console.log('✅ User data received:', {
+          name: userName,
+          email: userData.email || 'N/A',
+          photoUrl: photoUrl
+        });
+
+        updateUserInterface(userName, photoUrl);
       } catch (error) {
         console.error('Error fetching user profile:', error);
         loadFallbackUserData();
@@ -152,29 +169,36 @@
     }
 
     // Update UI with user data
-    function updateUserInterface(userData) {
-      const employeeNameEl = document.getElementById('employeeName');
-      const employeePhotoEl = document.getElementById('employeePhoto');
+    function updateUserInterface(userName, photoUrl) {
+      try {
+        const employeeNameEl = document.getElementById('employeeName');
+        const employeePhotoEl = document.getElementById('employeePhoto');
 
-      if (employeeNameEl && userData.name) {
-        employeeNameEl.textContent = userData.name;
-      }
+        if (employeeNameEl) {
+          employeeNameEl.textContent = userName;
+        }
 
-      if (employeePhotoEl && userData.photo) {
-        employeePhotoEl.src = resolvePhotoUrl(userData.photo);
-        employeePhotoEl.onerror = () => {
-          employeePhotoEl.src = '/uploads/default-avatar.png';
-        };
+        if (employeePhotoEl) {
+          employeePhotoEl.src = resolvePhotoUrl(photoUrl);
+          employeePhotoEl.alt = `รูปโปรไฟล์ของ ${userName}`;
+          employeePhotoEl.onerror = function() {
+            this.src = resolvePhotoUrl(null);
+          };
+        }
+      } catch (error) {
+        console.error('Error updating user interface:', error);
       }
     }
 
     // Fallback user data
     function loadFallbackUserData() {
-      const employeeNameEl = document.getElementById('employeeName');
-      const employeePhotoEl = document.getElementById('employeePhoto');
-
-      if (employeeNameEl) employeeNameEl.textContent = 'ผู้ใช้งาน';
-      if (employeePhotoEl) employeePhotoEl.src = '/uploads/default-avatar.png';
+      try {
+        const fallbackName = localStorage.getItem('userName') || 'ผู้ใช้';
+        const fallbackPhoto = localStorage.getItem('userPhoto');
+        updateUserInterface(fallbackName, fallbackPhoto);
+      } catch (error) {
+        console.error('Error loading fallback data:', error);
+      }
     }
 
     // Handle authentication errors
@@ -877,22 +901,19 @@
     opacity: 1;
   }
 
-  /* Loading Overlay Styles - Minimal CSS, use Tailwind classes in HTML */
-  .loading-overlay {
-    transition: opacity 0.5s ease-out, visibility 0.5s ease-out !important;
+  /* Loader fallback for Lottie */
+  .loader {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #0ea5e9;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    animation: spin 1s linear infinite;
   }
 
-  .loading-overlay.animate__fadeOut {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
-
-  .loading-overlay.hidden,
-  .loading-overlay[style*="display: none"] {
-    display: none !important;
-    pointer-events: none !important;
-    visibility: hidden !important;
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
   </style>
 
@@ -911,12 +932,16 @@
     localStorage.setItem('theme', 'light');
   </script>
 
-  <!-- Loading Overlay with Lottie Animation -->
+  <!-- Page Loading Overlay with Lottie Animation -->
   <div id="loadingOverlay"
-       class="loading-overlay fixed inset-0 w-screen h-screen flex items-center justify-center z-[999999] bg-white/98 backdrop-blur-xl"
-       style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;">
-    <div class="flex items-center justify-center flex-col">
-      <div id="lottieContainer" class="w-[300px] h-[300px] mx-auto"></div>
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+              width: 100vw; height: 100vh;
+              display: flex; justify-content: center; align-items: center;
+              z-index: 999999; background: rgba(255, 255, 255, 0.98);
+              backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+              transition: opacity 0.5s ease-out, visibility 0.5s ease-out;">
+    <div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+      <div id="lottieContainer" style="width: 300px; height: 300px; margin: 0 auto;"></div>
     </div>
   </div>
 
@@ -983,7 +1008,7 @@
       <div class="flex items-center gap-3">
         <div class="relative">
           <i class="bi bi-search search-icon text-gray-400"></i>
-          <input type="text" placeholder="ค้นหาด้วยชื่อ, เลขที่ใบกำกับภาษี" 
+          <input type="text" id="searchInput" placeholder="ค้นหาด้วยชื่อ, เลขที่ใบกำกับภาษี"
                 class="pl-9 pr-4 py-1.5 rounded-lg bg-white border border-gray-300 w-64 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50 text-sm" />
         </div>
         <div class="relative">
@@ -1008,6 +1033,31 @@
       </button>
     </div>
 
+    <!-- Pagination Controls -->
+    <div id="paginationContainer" class="flex justify-between items-center mb-4 px-4">
+      <div class="text-sm text-gray-600">
+        แสดง <span id="recordCount">0</span> รายการ
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="prevPageBtn" class="btn btn-sm btn-outline" disabled>
+          <i class="bi bi-chevron-left"></i> ก่อนหน้า
+        </button>
+        <span id="pageInfo" class="text-sm text-gray-600">หน้า 1</span>
+        <button id="nextPageBtn" class="btn btn-sm btn-outline">
+          ถัดไป <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600">แสดง:</label>
+        <select id="limitSelect" class="form-control w-20 text-sm">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </div>
+
     <!-- ตาราง -->
     <div class="quotation-table-container overflow-x-auto">
       <div class="overflow-x-auto">
@@ -1026,12 +1076,13 @@
         <th class="text-right"><div class="flex items-center justify-end">ยอดเงินรวม</div></th>
         <th class="text-right"><div class="flex items-center justify-end">ยอดสุทธิ</div></th>
         <th><div class="flex items-center">สถานะ</div></th>
+        <th class="text-center"><div class="flex items-center justify-center">จัดการ</div></th>
       </tr>
     </thead>
     <tbody id="expenseTableBody">
       <!-- Data will be loaded dynamically -->
       <tr>
-        <td colspan="8" class="text-center py-10 text-gray-500">
+        <td colspan="9" class="text-center py-10 text-gray-500">
           <i class="bi bi-receipt text-4xl mb-2"></i>
           <p>ไม่มีข้อมูลค่าใช้จ่าย</p>
           <p class="text-sm">กรุณาเพิ่มรายการค่าใช้จ่ายใหม่</p>
@@ -1688,6 +1739,89 @@
           }
         });
       }
+
+      // Logout button functionality
+      const btnLogout = document.getElementById('btnLogout');
+      if (btnLogout) {
+        btnLogout.addEventListener('click', function () {
+          localStorage.removeItem('token');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userName');
+          localStorage.removeItem('userPhoto');
+          sessionStorage.clear();
+          window.location.href = '/login.html';
+        });
+      }
+
+      // Search functionality
+      const searchInput = document.querySelector('input[placeholder*="ค้นหา"]');
+      if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function(e) {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            const searchTerm = e.target.value.trim();
+            console.log(`🔍 Searching for: ${searchTerm || 'all'}`);
+            // TODO: Implement search with API
+          }, 500);
+        });
+      }
+
+      // Status filter functionality
+      const statusFilter = document.getElementById('statusFilter');
+      if (statusFilter) {
+        statusFilter.addEventListener('change', function(e) {
+          const selectedStatus = e.target.value;
+          console.log(`🏷️ Filter by status: ${selectedStatus}`);
+          // TODO: Implement status filtering with API
+        });
+      }
+
+      // Pagination functionality
+      const paginationButtons = document.querySelectorAll('.btn-xs.btn-outline');
+      paginationButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+          if (!this.disabled) {
+            e.preventDefault();
+            const icon = this.querySelector('i');
+            if (icon && icon.classList.contains('bi-chevron-left')) {
+              console.log('⬅️ Previous page');
+              // TODO: Implement previous page
+            } else if (icon && icon.classList.contains('bi-chevron-right')) {
+              console.log('➡️ Next page');
+              // TODO: Implement next page
+            }
+          }
+        });
+      });
+
+      // Dropdown toggle for items per page
+      const dropdownBtn = document.querySelector('.btn-xs.btn-outline.no-animation');
+      const dropdownMenu = document.querySelector('.dropdown-content.menu');
+      if (dropdownBtn && dropdownMenu) {
+        dropdownBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          dropdownMenu.classList.toggle('hidden');
+        });
+
+        const dropdownItems = dropdownMenu.querySelectorAll('li a');
+        dropdownItems.forEach(item => {
+          item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const itemsPerPage = this.textContent.trim();
+            dropdownBtn.childNodes[0].textContent = itemsPerPage + ' ';
+            dropdownMenu.classList.add('hidden');
+            console.log(`📄 Items per page: ${itemsPerPage}`);
+            // TODO: Reload data with new page size
+          });
+        });
+
+        document.addEventListener('click', function(e) {
+          if (!dropdownMenu.contains(e.target) && !dropdownBtn.contains(e.target)) {
+            dropdownMenu.classList.add('hidden');
+          }
+        });
+      }
     } catch (error) {
       console.error('Initialization error:', error);
     }
@@ -1709,36 +1843,44 @@
 <!-- Ensure backend API endpoints are functional -->
 <!-- Verify GET /api/expenses, POST /api/expenses, GET /api/expenses/:id, DELETE /api/expenses/:id -->
 
-  <!-- Animation Control Script -->
+  <!-- Page Loading Control Script -->
   <script>
-    // Initialize Lottie Animation for Page Loading
-    const lottieContainer = document.getElementById('lottieContainer');
+    let lottieAnimation = null;
     const loadingOverlay = document.getElementById('loadingOverlay');
-    let lottieAnimation;
+    const lottieContainer = document.getElementById('lottieContainer');
 
-    // Function to show page loading overlay
+    // Show Page Loading
     window.showPageLoading = function() {
-      if (loadingOverlay) {
-        loadingOverlay.style.display = 'flex';
-        loadingOverlay.style.opacity = '1';
-        loadingOverlay.style.visibility = 'visible';
+      loadingOverlay.style.display = 'flex';
+      loadingOverlay.style.opacity = '1';
+      loadingOverlay.style.visibility = 'visible';
+
+      if (lottieAnimation) {
+        lottieAnimation.play();
       }
     };
 
-    // Function to hide page loading overlay
+    // Hide Page Loading
     window.hidePageLoading = function() {
-      if (loadingOverlay) {
-        loadingOverlay.style.opacity = '0';
-        setTimeout(function() {
-          loadingOverlay.style.display = 'none';
-          loadingOverlay.style.visibility = 'hidden';
-        }, 500);
+      loadingOverlay.style.opacity = '0';
+
+      if (lottieAnimation) {
+        lottieAnimation.pause();
       }
+
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        loadingOverlay.style.visibility = 'hidden';
+      }, 500);
     };
 
-    if (lottieContainer && typeof lottie !== 'undefined') {
+    // Initialize Lottie Animation
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show loading initially
+      showPageLoading();
+
+      // Load Lottie animation
       try {
-        // Load Lottie animation
         lottieAnimation = lottie.loadAnimation({
           container: lottieContainer,
           renderer: 'svg',
@@ -1747,21 +1889,672 @@
           path: '/Loading/Loading.json'
         });
 
-        // Hide loading overlay after page loads
-        window.addEventListener('load', function() {
-          setTimeout(hidePageLoading, 800);
+        lottieAnimation.addEventListener('DOMLoaded', function() {
+          console.log('✅ Lottie animation loaded successfully');
+        });
+
+        lottieAnimation.addEventListener('error', function(error) {
+          console.error('❌ Lottie animation error:', error);
+          lottieContainer.innerHTML = '<div class="loader"></div>';
         });
       } catch (error) {
-        console.error('Error loading Lottie animation:', error);
-        loadingOverlay.style.display = 'none';
+        console.error('Error initializing Lottie:', error);
+        lottieContainer.innerHTML = '<div class="loader"></div>';
       }
-    } else {
-      if (loadingOverlay) loadingOverlay.style.display = 'none';
+
+      // Hide loading after page is fully loaded
+      window.addEventListener('load', function() {
+        setTimeout(() => {
+          hidePageLoading();
+        }, 500);
+      });
+    });
+
+    // Memory Management - Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      try {
+        if (lottieAnimation) {
+          lottieAnimation.destroy();
+          lottieAnimation = null;
+        }
+      } catch (error) {
+        console.error('Error cleaning up Lottie animation:', error);
+      }
+    });
+  </script>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[99999] flex flex-col gap-2" style="pointer-events: none;"></div>
+
+  <!-- Expense Record API Integration -->
+  <script>
+    // API Configuration
+    const API_BASE = '/api';
+    const API_ENDPOINT = '/api/expense-records';
+
+    // Global state
+    let currentExpenseRecords = [];
+    let currentPage = 1;
+    let currentLimit = 10;
+    let currentFilters = {};
+    let editingRecordId = null;
+
+    // Toast notification function with UI
+    function showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.style.pointerEvents = 'auto';
+
+      const iconMap = {
+        success: { icon: 'bi-check-circle-fill', bg: 'bg-green-500' },
+        error: { icon: 'bi-x-circle-fill', bg: 'bg-red-500' },
+        warning: { icon: 'bi-exclamation-triangle-fill', bg: 'bg-yellow-500' },
+        info: { icon: 'bi-info-circle-fill', bg: 'bg-blue-500' }
+      };
+
+      const config = iconMap[type] || iconMap.info;
+
+      toast.className = `${config.bg} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] transform transition-all duration-300 translate-x-[400px] opacity-0`;
+      toast.innerHTML = `
+        <i class="bi ${config.icon} text-xl"></i>
+        <span class="flex-1">${message}</span>
+        <button onclick="this.parentElement.remove()" class="hover:bg-white/20 rounded p-1">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      `;
+
+      container.appendChild(toast);
+
+      // Animate in
+      setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      }, 10);
+
+      // Auto remove after 4 seconds
+      setTimeout(() => {
+        toast.style.transform = 'translateX(400px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
     }
 
-    // Show loading before page navigation
-    window.addEventListener('beforeunload', function() {
-      showPageLoading();
+    // Format date to Thai format
+    function formatDateThai(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
+    // Format currency
+    function formatCurrency(amount) {
+      if (!amount && amount !== 0) return '฿0.00';
+      return '฿' + parseFloat(amount).toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    // Get status badge HTML
+    function getStatusBadge(status) {
+      const statusConfig = {
+        'รออนุมัติ': { class: 'bg-yellow-100 text-yellow-800', icon: 'bi-clock' },
+        'อนุมัติแล้ว': { class: 'bg-green-100 text-green-800', icon: 'bi-check-circle' },
+        'ถูกปฏิเสธ': { class: 'bg-red-100 text-red-800', icon: 'bi-x-circle' },
+        'ยกเลิก': { class: 'bg-gray-100 text-gray-800', icon: 'bi-slash-circle' }
+      };
+
+      const config = statusConfig[status] || statusConfig['รออนุมัติ'];
+      return `<span class="px-2 py-1 rounded-full text-xs font-medium ${config.class}">
+        <i class="bi ${config.icon}"></i> ${status}
+      </span>`;
+    }
+
+    // Load expense records from API
+    async function loadExpenseRecords() {
+      try {
+        showPageLoading();
+
+        const token = getAuthToken();
+        const startDate = document.getElementById('startDate')?.value;
+        const endDate = document.getElementById('endDate')?.value;
+        const searchQuery = document.getElementById('searchInput')?.value;
+        const branchFilter = document.getElementById('branchFilter')?.value;
+
+        // Build query parameters
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: currentLimit
+        });
+
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (searchQuery) params.append('search', searchQuery);
+        if (branchFilter && branchFilter !== 'all') params.append('branch', branchFilter);
+
+        const url = `${API_ENDPOINT}?${params.toString()}`;
+        console.log('📡 Loading expense records from:', url);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to load expense records');
+        }
+
+        currentExpenseRecords = data.data || [];
+        console.log('✅ Loaded expense records:', currentExpenseRecords.length);
+
+        displayExpenseData(currentExpenseRecords);
+        updatePaginationUI(data.pagination || {});
+
+        if (currentExpenseRecords.length === 0) {
+          showToast('ไม่พบข้อมูลบันทึกค่าใช้จ่าย', 'info');
+        }
+
+      } catch (error) {
+        console.error('❌ Error loading expense records:', error);
+
+        const tableBody = document.getElementById('expenseTableBody');
+        if (tableBody) {
+          tableBody.innerHTML = `
+            <tr>
+              <td colspan="9" class="text-center py-10">
+                <i class="bi bi-exclamation-triangle text-4xl text-red-500 mb-2 block"></i>
+                <p class="text-gray-600">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+                <p class="text-sm text-gray-400">${error.message}</p>
+                <button onclick="loadExpenseRecords()" class="btn btn-primary btn-sm mt-3">
+                  <i class="bi bi-arrow-clockwise"></i> ลองใหม่
+                </button>
+              </td>
+            </tr>
+          `;
+        }
+
+        showToast('ไม่สามารถโหลดข้อมูลได้: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Display expense data in table
+    function displayExpenseData(records) {
+      const tableBody = document.getElementById('expenseTableBody');
+
+      if (!tableBody) {
+        console.error('❌ Table body not found');
+        return;
+      }
+
+      if (!records || records.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="9" class="text-center py-10 text-gray-500">
+              <i class="bi bi-inbox text-4xl mb-2 block"></i>
+              <p>ไม่พบข้อมูลบันทึกค่าใช้จ่าย</p>
+              <button onclick="openCreateModal()" class="btn btn-primary btn-sm mt-3">
+                <i class="bi bi-plus-circle"></i> สร้างรายการแรก
+              </button>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = records.map((record, index) => `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="text-center">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" value="${record._id}" />
+          </td>
+          <td>
+            <div class="font-medium text-gray-900">${record.recordId || '-'}</div>
+            <div class="text-xs text-gray-500">${record.expenseType || '-'}</div>
+          </td>
+          <td>
+            <div class="text-sm">${formatDateThai(record.recordDate)}</div>
+          </td>
+          <td>
+            <div class="font-medium">${record.payee || '-'}</div>
+            <div class="text-xs text-gray-500">${record.paymentMethod || '-'}</div>
+          </td>
+          <td>
+            <div class="text-sm text-gray-700">${record.description ? (record.description.substring(0, 30) + (record.description.length > 30 ? '...' : '')) : '-'}</div>
+          </td>
+          <td class="text-right">
+            <div class="font-medium">${formatCurrency(record.amount)}</div>
+          </td>
+          <td class="text-right">
+            <div class="font-medium text-primary-600">${formatCurrency(record.netAmount)}</div>
+          </td>
+          <td>
+            ${getStatusBadge(record.status)}
+          </td>
+          <td class="text-center">
+            <div class="flex items-center justify-center gap-2">
+              <button onclick="viewExpenseDetail('${record._id}')" class="btn btn-sm btn-outline text-blue-600 hover:bg-blue-50" title="ดูรายละเอียด">
+                <i class="bi bi-eye"></i>
+              </button>
+              <button onclick="openEditModal('${record._id}')" class="btn btn-sm btn-outline text-green-600 hover:bg-green-50" title="แก้ไข">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button onclick="deleteExpenseRecord('${record._id}')" class="btn btn-sm btn-outline text-red-600 hover:bg-red-50" title="ลบ">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      console.log('✅ Displayed', records.length, 'expense records');
+    }
+
+    // Update pagination UI
+    function updatePaginationUI(pagination) {
+      const recordCount = document.getElementById('recordCount');
+      const pageInfo = document.getElementById('pageInfo');
+      const prevBtn = document.getElementById('prevPageBtn');
+      const nextBtn = document.getElementById('nextPageBtn');
+
+      if (recordCount) {
+        const total = pagination.total || currentExpenseRecords.length;
+        recordCount.textContent = total;
+      }
+
+      if (pageInfo) {
+        const totalPages = pagination.totalPages || Math.ceil(currentExpenseRecords.length / currentLimit);
+        pageInfo.textContent = `หน้า ${currentPage} / ${totalPages || 1}`;
+      }
+
+      if (prevBtn) {
+        prevBtn.disabled = currentPage <= 1;
+      }
+
+      if (nextBtn) {
+        const totalPages = pagination.totalPages || Math.ceil(currentExpenseRecords.length / currentLimit);
+        nextBtn.disabled = currentPage >= totalPages;
+      }
+    }
+
+    // Pagination functions
+    function goToPage(page) {
+      currentPage = page;
+      loadExpenseRecords();
+    }
+
+    function nextPage() {
+      currentPage++;
+      loadExpenseRecords();
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        loadExpenseRecords();
+      }
+    }
+
+    function changeLimit(newLimit) {
+      currentLimit = parseInt(newLimit);
+      currentPage = 1; // Reset to first page
+      loadExpenseRecords();
+    }
+
+    // Create new expense record
+    async function createExpenseRecord(formData) {
+      try {
+        showPageLoading();
+
+        const token = getAuthToken();
+
+        console.log('📤 Creating expense record:', formData);
+
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to create expense record');
+        }
+
+        console.log('✅ Expense record created:', data.data);
+        showToast('สร้างบันทึกค่าใช้จ่ายสำเร็จ', 'success');
+
+        // Close modal and reload data
+        closeCreateModal();
+        await loadExpenseRecords();
+
+      } catch (error) {
+        console.error('❌ Error creating expense record:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Update expense record
+    async function updateExpenseRecord(id, formData) {
+      try {
+        showPageLoading();
+
+        const token = getAuthToken();
+
+        console.log('📤 Updating expense record:', id, formData);
+
+        const response = await fetch(`${API_ENDPOINT}/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to update expense record');
+        }
+
+        console.log('✅ Expense record updated:', data.data);
+        showToast('แก้ไขบันทึกค่าใช้จ่ายสำเร็จ', 'success');
+
+        // Close modal and reload data
+        closeEditModal();
+        await loadExpenseRecords();
+
+      } catch (error) {
+        console.error('❌ Error updating expense record:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Delete expense record
+    async function deleteExpenseRecord(id) {
+      if (!confirm('คุณต้องการลบบันทึกค่าใช้จ่ายนี้หรือไม่?')) {
+        return;
+      }
+
+      try {
+        showPageLoading();
+
+        const token = getAuthToken();
+
+        const response = await fetch(`${API_ENDPOINT}/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to delete expense record');
+        }
+
+        console.log('✅ Expense record deleted');
+        showToast('ลบบันทึกค่าใช้จ่ายสำเร็จ', 'success');
+
+        await loadExpenseRecords();
+
+      } catch (error) {
+        console.error('❌ Error deleting expense record:', error);
+        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Modal functions
+    function openCreateModal() {
+      const modal = document.getElementById('createExpenseModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeCreateModal() {
+      const modal = document.getElementById('createExpenseModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        const form = document.getElementById('createExpenseForm');
+        if (form) form.reset();
+      }
+    }
+
+    function openEditModal(id) {
+      const record = currentExpenseRecords.find(r => r._id === id);
+      if (!record) {
+        showToast('ไม่พบข้อมูลบันทึกค่าใช้จ่าย', 'error');
+        return;
+      }
+
+      editingRecordId = id;
+      const modal = document.getElementById('editExpenseModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+
+        // Populate form fields (simplified - adjust based on your actual edit form structure)
+        // You would need to add proper field mapping here
+        showToast('เปิดหน้าแก้ไข: ' + record.recordId, 'info');
+      }
+    }
+
+    function closeEditModal() {
+      const modal = document.getElementById('editExpenseModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        editingRecordId = null;
+      }
+    }
+
+    // View expense detail
+    function viewExpenseDetail(id) {
+      const record = currentExpenseRecords.find(r => r._id === id);
+      if (record) {
+        const details = `
+ข้อมูลบันทึกค่าใช้จ่าย
+
+เลขที่: ${record.recordId || '-'}
+วันที่: ${formatDateThai(record.recordDate)}
+ประเภท: ${record.expenseType || '-'}
+ผู้ขาย: ${record.payee || '-'}
+รายละเอียด: ${record.description || '-'}
+
+จำนวนเงิน: ${formatCurrency(record.amount)}
+VAT: ${formatCurrency(record.vat || 0)}
+หัก ณ ที่จ่าย: ${formatCurrency(record.withHoldingTax || 0)}
+ยอดสุทธิ: ${formatCurrency(record.netAmount)}
+
+วิธีชำระ: ${record.paymentMethod || '-'}
+หมวดหมู่: ${record.accountCategory || '-'}
+สถานะ: ${record.status}
+        `;
+        showToast('กำลังแสดงรายละเอียด...', 'info');
+        setTimeout(() => alert(details), 300);
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🚀 Initializing Expense Record page...');
+
+      // Load initial data
+      setTimeout(() => {
+        loadExpenseRecords();
+      }, 500);
+
+      // Create button
+      const btnCreate = document.getElementById('btnCreateExpense');
+      if (btnCreate) {
+        btnCreate.addEventListener('click', openCreateModal);
+      }
+
+      // Create form submit
+      const createForm = document.getElementById('createExpenseForm');
+      if (createForm) {
+        createForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+
+          // Collect form data with proper field mapping
+          const formData = {
+            recordDate: document.getElementById('issueDate')?.value || new Date().toISOString().split('T')[0],
+            expenseType: 'ค่าใช้จ่ายทั่วไป',
+            description: document.querySelector('#createExpenseForm textarea')?.value || document.getElementById('supplierName')?.value || 'บันทึกค่าใช้จ่าย',
+            amount: 0,
+            paymentMethod: 'เงินสด',
+            payee: document.getElementById('supplierName')?.value || '',
+            accountCategory: 'ค่าใช้จ่ายในการดำเนินงาน',
+            status: 'รออนุมัติ',
+            vat: 0,
+            withHoldingTax: 0,
+            netAmount: 0
+          };
+
+          // Calculate amounts from product table
+          const productRows = document.querySelectorAll('#productTableBody tr');
+          let totalAmount = 0;
+          let totalVat = 0;
+          let totalWithholding = 0;
+
+          productRows.forEach(row => {
+            const quantity = parseFloat(row.querySelector('input[type="number"]')?.value || 0);
+            const unitPrice = parseFloat(row.querySelectorAll('input[type="number"]')[1]?.value || 0);
+            const discount = parseFloat(row.querySelectorAll('input[type="number"]')[2]?.value || 0);
+
+            const lineTotal = (quantity * unitPrice) - discount;
+            totalAmount += lineTotal;
+          });
+
+          const vatRate = parseFloat(document.getElementById('vatRate')?.value || 0);
+          totalVat = (totalAmount * vatRate) / 100;
+
+          formData.amount = totalAmount;
+          formData.vat = totalVat;
+          formData.netAmount = totalAmount + totalVat - totalWithholding;
+
+          // Validate required fields
+          if (!formData.payee) {
+            showToast('กรุณาระบุชื่อผู้ขาย', 'error');
+            return;
+          }
+
+          await createExpenseRecord(formData);
+        });
+      }
+
+      // Date picker apply button
+      const applyDateBtn = document.getElementById('applyDatePicker');
+      if (applyDateBtn) {
+        applyDateBtn.addEventListener('click', function() {
+          loadExpenseRecords();
+        });
+      }
+
+      // Cancel buttons
+      const cancelCreateBtn = document.getElementById('cancelCreateExpense');
+      if (cancelCreateBtn) {
+        cancelCreateBtn.addEventListener('click', closeCreateModal);
+      }
+
+      const cancelEditBtn = document.getElementById('cancelEditExpense');
+      if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', function() {
+          const modal = document.getElementById('editExpenseModal');
+          if (modal) modal.classList.add('hidden');
+        });
+      }
+
+      // Close modals on background click
+      const createModal = document.getElementById('createExpenseModal');
+      if (createModal) {
+        createModal.addEventListener('click', function(e) {
+          if (e.target === this) closeCreateModal();
+        });
+      }
+
+      const editModal = document.getElementById('editExpenseModal');
+      if (editModal) {
+        editModal.addEventListener('click', function(e) {
+          if (e.target === this) this.classList.add('hidden');
+        });
+      }
+
+      // Search input with debounce
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            currentPage = 1; // Reset to first page on search
+            loadExpenseRecords();
+          }, 500); // 500ms debounce
+        });
+      }
+
+      // Branch filter
+      const branchFilter = document.getElementById('branchFilter');
+      if (branchFilter) {
+        branchFilter.addEventListener('change', function() {
+          currentPage = 1;
+          loadExpenseRecords();
+        });
+      }
+
+      // Pagination controls
+      const prevBtn = document.getElementById('prevPageBtn');
+      if (prevBtn) {
+        prevBtn.addEventListener('click', prevPage);
+      }
+
+      const nextBtn = document.getElementById('nextPageBtn');
+      if (nextBtn) {
+        nextBtn.addEventListener('click', nextPage);
+      }
+
+      const limitSelect = document.getElementById('limitSelect');
+      if (limitSelect) {
+        limitSelect.addEventListener('change', function() {
+          changeLimit(this.value);
+        });
+      }
+
+      console.log('✅ Expense Record page initialized');
     });
   </script>
 

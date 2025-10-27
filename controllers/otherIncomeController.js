@@ -373,6 +373,86 @@ exports.deleteOtherIncome = async (req, res) => {
   }
 };
 
+// Get statistics
+exports.getStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate, branch } = req.query;
+
+    const filter = { status: 'confirmed' };
+
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) filter.date.$gte = new Date(startDate);
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        filter.date.$lte = endDateObj;
+      }
+    }
+
+    if (branch) {
+      filter.branch = mongoose.Types.ObjectId(branch);
+    }
+
+    // Overall statistics
+    const stats = await OtherIncome.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+          totalAmount: { $sum: '$totalAmount' },
+          totalVatAmount: { $sum: '$vatAmount' },
+          totalNetAmount: { $sum: '$netAmount' }
+        }
+      }
+    ]);
+
+    // By status statistics
+    const byStatus = await OtherIncome.aggregate([
+      { $match: { ...filter } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$totalAmount' }
+        }
+      }
+    ]);
+
+    const overallStats = stats[0] || {
+      totalCount: 0,
+      totalAmount: 0,
+      totalVatAmount: 0,
+      totalNetAmount: 0
+    };
+
+    const statusMap = byStatus.reduce((acc, item) => {
+      acc[item._id] = item.totalAmount || 0;
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: {
+        totalRecords: overallStats.totalCount,
+        totalAmount: overallStats.totalAmount,
+        totalVatAmount: overallStats.totalVatAmount,
+        totalNetAmount: overallStats.totalNetAmount,
+        confirmedAmount: statusMap.confirmed || 0,
+        draftAmount: statusMap.draft || 0,
+        byStatus
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการดึงสถิติ'
+    });
+  }
+};
+
 // Get categories
 exports.getCategories = async (req, res) => {
   try {

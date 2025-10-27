@@ -189,6 +189,11 @@ const taxInvoiceSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  status: {
+    type: String,
+    enum: ['paid', 'pending', 'cancelled'],
+    default: 'paid'
+  },
 
   // Company Information
   company: {

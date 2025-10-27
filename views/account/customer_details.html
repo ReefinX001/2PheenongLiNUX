@@ -12,8 +12,15 @@
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap CSS 5.3.2 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -755,36 +762,21 @@
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
-      right: 0 !important;
-      bottom: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
-      background: rgba(255, 255, 255, 0.98) !important;
+      background: rgba(255, 255, 255, 0.95) !important;
       display: flex !important;
-      flex-direction: column !important;
       justify-content: center !important;
       align-items: center !important;
       z-index: 999999 !important;
       backdrop-filter: blur(12px) !important;
       -webkit-backdrop-filter: blur(12px) !important;
-      transition: opacity 0.5s ease-out, visibility 0.5s ease-out !important;
+      transition: opacity 0.5s ease-out !important;
       pointer-events: auto !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      opacity: 1 !important;
-      visibility: visible !important;
-    }
-
-    .loading-overlay > div {
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      flex-direction: column !important;
     }
 
     .loading-overlay.animate__fadeOut {
-      opacity: 0 !important;
-      visibility: hidden !important;
+      opacity: 0;
       pointer-events: none !important;
     }
 
@@ -792,13 +784,701 @@
     .loading-overlay[style*="display: none"] {
       display: none !important;
       pointer-events: none !important;
-      visibility: hidden !important;
     }
 
     #lottieContainer {
-      width: 300px !important;
-      height: 300px !important;
-      margin: 0 auto !important;
-      display: block !important;
+      width: 300px;
+      height: 300px;
     }
   </style>
+</head>
+<body>
+  <!-- Loading Overlay with Lottie Animation -->
+  <div id="loadingOverlay" class="loading-overlay animate__animated animate__fadeIn" style="display: flex;">
+    <div class="text-center">
+      <div id="lottieContainer" style="width: 300px; height: 300px;"></div>
+    </div>
+  </div>
+
+  <!-- Navbar -->
+  <div class="navbar bg-white shadow-md sticky top-0">
+    <div class="flex-1 flex items-center space-x-6">
+      <img src="/uploads/Logo2.png"
+           alt="Logo"
+           class="rounded-full shadow-lg"
+           style="width: 40px; height: 40px;"
+           loading="lazy" />
+      <span class="text-lg font-semibold" id="pageTitle">ระบบบัญชี - รายละเอียดลูกหนี้</span>
+      <!-- Menu Container -->
+      <div id="mainMenuContainer" class="ml-auto"></div>
+    </div>
+    <div class="flex-none flex items-center space-x-2">
+      <!-- User Profile Section -->
+      <div class="flex items-center space-x-3 mr-4">
+        <img id="employeePhoto"
+             alt="Profile"
+             class="w-10 h-10 rounded-full border-2 border-gray-300"
+             src="/img/default-avatar.svg"
+             loading="lazy">
+        <span id="employeeName" class="text-sm font-medium text-gray-700">Loading...</span>
+      </div>
+
+      <!-- Logout Button -->
+      <button onclick="logout()" class="btn btn-outline btn-primary btn-sm btn-rounded btn-fancy">
+        <i class="bi bi-box-arrow-right mr-1"></i> ออกจากระบบ
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container-fluid px-4 py-4" id="mainContent">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-3">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/account/accounting_dashboard.html">หน้าหลัก</a></li>
+            <li class="breadcrumb-item active">รายละเอียดลูกหนี้</li>
+          </ol>
+        </nav>
+
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="mb-1 fw-bold text-gray-800">รายละเอียดลูกหนี้</h4>
+            <p class="text-muted mb-0">จัดการข้อมูลลูกค้าและประวัติการซื้อ</p>
+          </div>
+          <button class="btn btn-primary" onclick="createNewCustomer()">
+            <i class="bi bi-plus-circle me-2"></i>เพิ่มลูกค้าใหม่
+          </button>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="dashboard-cards mb-4">
+          <div class="dashboard-card">
+            <div class="card-title">ลูกค้าทั้งหมด</div>
+            <div class="card-value" id="totalCustomers">-</div>
+            <div class="comparison-value">
+              <i class="bi bi-people-fill"></i>
+              <span>จำนวนลูกค้าทั้งหมด</span>
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="card-title">ลูกค้าบุคคลธรรมดา</div>
+            <div class="card-value" id="individualCustomers">-</div>
+            <div class="comparison-value">
+              <i class="bi bi-person"></i>
+              <span>Individual</span>
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="card-title">ลูกค้านิติบุคคล</div>
+            <div class="card-value" id="corporateCustomers">-</div>
+            <div class="comparison-value">
+              <i class="bi bi-building"></i>
+              <span>Corporate</span>
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="card-title">ลูกค้าใหม่เดือนนี้</div>
+            <div class="card-value comparison-up" id="newCustomers">-</div>
+            <div class="comparison-value comparison-up">
+              <i class="bi bi-arrow-up-circle-fill"></i>
+              <span>เพิ่มใหม่</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="card mb-4">
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-medium">ค้นหา</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white">
+                    <i class="bi bi-search"></i>
+                  </span>
+                  <input type="text" class="form-control" id="searchInput"
+                         placeholder="ชื่อ, เลขบัตร, เลขผู้เสียภาษี, เบอร์โทร...">
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label fw-medium">ประเภทลูกค้า</label>
+                <select class="form-select" id="customerTypeFilter">
+                  <option value="">ทั้งหมด</option>
+                  <option value="individual">บุคคลธรรมดา</option>
+                  <option value="corporate">นิติบุคคล</option>
+                </select>
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label fw-medium">สถานะ</label>
+                <select class="form-select" id="statusFilter">
+                  <option value="">ทั้งหมด</option>
+                  <option value="active">ใช้งาน</option>
+                  <option value="inactive">ไม่ใช้งาน</option>
+                </select>
+              </div>
+
+              <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                  <i class="bi bi-arrow-clockwise me-2"></i>รีเซ็ต
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer List -->
+        <div class="card">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 50px">#</th>
+                    <th>รหัสลูกค้า</th>
+                    <th>ชื่อลูกค้า</th>
+                    <th>ประเภท</th>
+                    <th>เลขประจำตัว</th>
+                    <th>เบอร์โทร</th>
+                    <th>สถานะ</th>
+                    <th style="width: 150px" class="text-center">การกระทำ</th>
+                  </tr>
+                </thead>
+                <tbody id="customerTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center py-5">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </div>
+                      <p class="text-muted mt-2">กำลังโหลดข้อมูล...</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div class="text-muted">
+                แสดง <span id="showingFrom">0</span> - <span id="showingTo">0</span>
+                จาก <span id="totalRecords">0</span> รายการ
+              </div>
+              <nav>
+                <ul class="pagination mb-0" id="pagination"></ul>
+              </nav>
+            </div>
+          </div>
+        </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Account Menu -->
+  <link rel="stylesheet" href="/css/account-menu.css">
+  <script src="/js/account-menu.js"></script>
+
+  <script>
+    // Global variables
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimeout = null;
+    let customers = [];
+
+    // Auth token handler
+    function getAuthToken() {
+      return localStorage.getItem('authToken') ||
+             localStorage.getItem('token') ||
+             sessionStorage.getItem('authToken') ||
+             sessionStorage.getItem('token');
+    }
+
+    // User profile functions
+    function resolvePhotoUrl(raw) {
+      const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxOCIgZmlsbD0iIzljYTNhZiIvPgogIDxlbGxpcHNlIGN4PSI1MCIgY3k9Ijc1IiByeD0iMzAiIHJ5PSIyMCIgZmlsbD0iIzljYTNhZiIvPgo8L3N2Zz4=';
+
+      if (!raw || typeof raw !== 'string' || raw.trim() === '') {
+        return defaultAvatar;
+      }
+
+      const trimmed = raw.trim();
+
+      if (trimmed.startsWith('data:image/')) {
+        return trimmed;
+      }
+
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return trimmed;
+      }
+
+      if (trimmed.startsWith('/uploads/employees/')) {
+        return trimmed;
+      }
+
+      if (trimmed.startsWith('/uploads/')) {
+        return trimmed;
+      }
+
+      if (!trimmed.startsWith('/')) {
+        return '/uploads/employees/' + trimmed;
+      }
+
+      return trimmed;
+    }
+
+    function updateUserInterface(userName, photoUrl) {
+      const nameElement = document.getElementById('employeeName');
+      const photoElement = document.getElementById('employeePhoto');
+
+      if (nameElement) {
+        nameElement.textContent = userName;
+      }
+
+      if (photoElement) {
+        photoElement.src = resolvePhotoUrl(photoUrl);
+        photoElement.onerror = function() {
+          this.src = resolvePhotoUrl(null);
+        };
+      }
+    }
+
+    function loadFallbackUserData() {
+      const fallbackName = localStorage.getItem('userName') || 'ผู้ใช้';
+      const fallbackPhoto = localStorage.getItem('userPhoto');
+      updateUserInterface(fallbackName, fallbackPhoto);
+    }
+
+    async function loadUserProfile() {
+      const token = getAuthToken();
+
+      if (!token) {
+        loadFallbackUserData();
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Cache-Control': 'no-cache'
+          }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.user) {
+            const displayName = data.user.fullname || data.user.name || 'ผู้ใช้';
+            const photo = data.user.photo || data.user.profileImage;
+
+            localStorage.setItem('userName', displayName);
+            if (photo) {
+              localStorage.setItem('userPhoto', photo);
+            }
+
+            updateUserInterface(displayName, photo);
+          }
+        } else {
+          loadFallbackUserData();
+        }
+      } catch (err) {
+        console.error('Error loading user profile:', err);
+        loadFallbackUserData();
+      }
+    }
+
+    // Statistics functions
+    async function loadStatistics() {
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+
+        const response = await fetch('/api/customers?page=1&limit=1000', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to load statistics');
+
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          const allCustomers = data.data;
+
+          // Calculate statistics
+          const total = allCustomers.length;
+          const individual = allCustomers.filter(c => c.customerType === 'individual').length;
+          const corporate = allCustomers.filter(c => c.customerType === 'corporate').length;
+
+          // New customers this month
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const newThisMonth = allCustomers.filter(c => {
+            const created = new Date(c.createdAt);
+            return created >= startOfMonth;
+          }).length;
+
+          // Update UI
+          document.getElementById('totalCustomers').textContent = total.toLocaleString('th-TH');
+          document.getElementById('individualCustomers').textContent = individual.toLocaleString('th-TH');
+          document.getElementById('corporateCustomers').textContent = corporate.toLocaleString('th-TH');
+          document.getElementById('newCustomers').textContent = '+' + newThisMonth.toLocaleString('th-TH');
+        }
+      } catch (error) {
+        console.error('Error loading statistics:', error);
+      }
+    }
+
+    // Customer list functions
+    async function loadCustomers() {
+      try {
+        const token = getAuthToken();
+        if (!token) {
+          showLoadingAndRedirect('/login.html');
+          return;
+        }
+
+        const searchTerm = document.getElementById('searchInput').value.trim();
+        const customerType = document.getElementById('customerTypeFilter').value;
+        const status = document.getElementById('statusFilter').value;
+
+        let url = `/api/customers?page=${currentPage}&limit=20`;
+
+        if (searchTerm) {
+          url += `&search=${encodeURIComponent(searchTerm)}`;
+        }
+        if (customerType) {
+          url += `&customerType=${customerType}`;
+        }
+        if (status) {
+          url += `&status=${status}`;
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to load customers');
+
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          customers = data.data;
+          totalPages = data.pagination?.totalPages || 1;
+
+          renderCustomerTable();
+          renderPagination();
+          updateRecordInfo(data.pagination);
+        }
+      } catch (error) {
+        console.error('Error loading customers:', error);
+        showError('ไม่สามารถโหลดข้อมูลลูกค้าได้');
+      }
+    }
+
+    function renderCustomerTable() {
+      const tbody = document.getElementById('customerTableBody');
+
+      if (customers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-5">
+              <i class="bi bi-inbox fs-1 text-muted"></i>
+              <p class="text-muted mt-2">ไม่พบข้อมูลลูกค้า</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const startIndex = (currentPage - 1) * 20;
+
+      tbody.innerHTML = customers.map((customer, index) => {
+        const customerName = customer.customerType === 'individual'
+          ? customer.individual?.fullName || '-'
+          : customer.corporate?.companyName || '-';
+
+        const identifier = customer.customerType === 'individual'
+          ? customer.individual?.idCard || '-'
+          : customer.corporate?.taxId || '-';
+
+        const phone = customer.customerType === 'individual'
+          ? customer.individual?.phone || '-'
+          : customer.corporate?.phone || '-';
+
+        const customerTypeText = customer.customerType === 'individual' ? 'บุคคลธรรมดา' : 'นิติบุคคล';
+        const customerTypeClass = customer.customerType === 'individual' ? 'primary' : 'info';
+
+        const statusBadge = customer.status === 'active'
+          ? '<span class="badge bg-success">ใช้งาน</span>'
+          : '<span class="badge bg-secondary">ไม่ใช้งาน</span>';
+
+        return `
+          <tr>
+            <td>${startIndex + index + 1}</td>
+            <td><span class="fw-medium">${customer.customerId || '-'}</span></td>
+            <td>${customerName}</td>
+            <td><span class="badge bg-${customerTypeClass}">${customerTypeText}</span></td>
+            <td><code>${identifier}</code></td>
+            <td>${phone}</td>
+            <td>${statusBadge}</td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm" role="group">
+                <button class="btn btn-outline-primary" onclick="viewCustomer('${customer._id}')" title="ดูรายละเอียด">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-outline-warning" onclick="editCustomer('${customer._id}')" title="แก้ไข">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-outline-danger" onclick="deleteCustomer('${customer._id}')" title="ลบ">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderPagination() {
+      const pagination = document.getElementById('pagination');
+      let html = '';
+
+      // Previous button
+      html += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+      `;
+
+      // Page numbers
+      const maxVisible = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+      if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        html += `
+          <li class="page-item ${i === currentPage ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+          </li>
+        `;
+      }
+
+      // Next button
+      html += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      `;
+
+      pagination.innerHTML = html;
+    }
+
+    function updateRecordInfo(pagination) {
+      if (!pagination) return;
+
+      document.getElementById('showingFrom').textContent = pagination.currentPage > 0
+        ? ((pagination.currentPage - 1) * pagination.limit + 1).toLocaleString('th-TH')
+        : '0';
+
+      document.getElementById('showingTo').textContent = Math.min(
+        pagination.currentPage * pagination.limit,
+        pagination.total
+      ).toLocaleString('th-TH');
+
+      document.getElementById('totalRecords').textContent = pagination.total.toLocaleString('th-TH');
+    }
+
+    function changePage(page) {
+      if (page < 1 || page > totalPages || page === currentPage) return;
+      currentPage = page;
+      loadCustomers();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Action functions
+    function createNewCustomer() {
+      showLoadingAndRedirect('/account/customer_form.html');
+    }
+
+    function viewCustomer(id) {
+      showLoadingAndRedirect(`/account/customer_view.html?id=${id}`);
+    }
+
+    function editCustomer(id) {
+      showLoadingAndRedirect(`/account/customer_form.html?id=${id}`);
+    }
+
+    async function deleteCustomer(id) {
+      if (!confirm('คุณต้องการลบลูกค้านี้หรือไม่?')) return;
+
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`/api/customers/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to delete customer');
+
+        showSuccess('ลบลูกค้าเรียบร้อยแล้ว');
+        loadCustomers();
+        loadStatistics();
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        showError('ไม่สามารถลบลูกค้าได้');
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('customerTypeFilter').value = '';
+      document.getElementById('statusFilter').value = '';
+      currentPage = 1;
+      loadCustomers();
+    }
+
+    // Search with debounce
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          currentPage = 1;
+          loadCustomers();
+        }, 500);
+      });
+
+      document.getElementById('customerTypeFilter').addEventListener('change', () => {
+        currentPage = 1;
+        loadCustomers();
+      });
+
+      document.getElementById('statusFilter').addEventListener('change', () => {
+        currentPage = 1;
+        loadCustomers();
+      });
+    });
+
+    // Utility functions
+    function showSuccess(message) {
+      alert(message);
+    }
+
+    function showError(message) {
+      alert(message);
+    }
+
+    // Helper to show loading before redirect
+    function showLoadingAndRedirect(url) {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.classList.remove('animate__fadeOut');
+        overlay.classList.add('animate__fadeIn');
+      }
+      setTimeout(function() {
+        window.location.href = url;
+      }, 300);
+    }
+
+    // Logout function
+    function logout() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('token');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userPhoto');
+      showLoadingAndRedirect('/login.html');
+    }
+
+    // Initialize Lottie Animation for Loading
+    const lottieContainer = document.getElementById('lottieContainer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    let lottieAnimation;
+
+    // Function to show page loading overlay
+    window.showPageLoading = function() {
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+        loadingOverlay.classList.remove('animate__fadeOut');
+        loadingOverlay.classList.add('animate__fadeIn');
+      }
+    };
+
+    // Function to hide page loading overlay
+    window.hidePageLoading = function() {
+      if (loadingOverlay) {
+        loadingOverlay.classList.remove('animate__fadeIn');
+        loadingOverlay.classList.add('animate__fadeOut');
+        setTimeout(function() {
+          loadingOverlay.style.display = 'none';
+        }, 500);
+      }
+    };
+
+    // Initialize Lottie animation and load data
+    if (lottieContainer && typeof lottie !== 'undefined') {
+      try {
+        lottieAnimation = lottie.loadAnimation({
+          container: lottieContainer,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/Loading/Loading.json'
+        });
+
+        // Wait for animation to load
+        lottieAnimation.addEventListener('DOMLoaded', function() {
+          // Load user profile and data
+          loadFallbackUserData();
+          loadUserProfile();
+          loadStatistics();
+          loadCustomers();
+
+          // Hide loading overlay after delay
+          setTimeout(function() {
+            hidePageLoading();
+          }, 1500);
+        });
+      } catch (error) {
+        console.error('Error loading Lottie animation:', error);
+        loadingOverlay.style.display = 'none';
+      }
+    } else {
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+      loadFallbackUserData();
+      loadUserProfile();
+      loadStatistics();
+      loadCustomers();
+    }
+
+    // Show loading before page navigation
+    window.addEventListener('beforeunload', function() {
+      showPageLoading();
+    });
+  </script>
+</body>
+</html>

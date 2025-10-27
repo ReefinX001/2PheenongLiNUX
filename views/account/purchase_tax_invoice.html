@@ -111,12 +111,12 @@
   <script>
     // Authentication token management
     function getAuthToken() {
-      return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+      return localStorage.getItem('authToken') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
     }
 
     // Photo URL resolver with fallback
     function resolvePhotoUrl(photoPath) {
-      if (!photoPath) return '/uploads/default-avatar.png';
+      if (!photoPath) return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMGUwZTAiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIxNSIgZmlsbD0iIzk5OSIvPjxwYXRoIGQ9Ik0yNSA4MCBRMjUgNjAgNTAgNjAgUTc1IDYwIDc1IDgwIiBmaWxsPSIjOTk5Ii8+PC9zdmc+';
       if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) return photoPath;
       if (photoPath.startsWith('/')) return photoPath;
       return `/uploads/${photoPath}`;
@@ -132,7 +132,7 @@
       }
 
       try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch('/api/users/me', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -143,8 +143,24 @@
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-        const data = await response.json();
-        updateUserInterface(data);
+        const result = await response.json();
+
+        // Check if response has success property
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to load profile');
+        }
+
+        const userData = result.data || {};
+        const userName = (userData.name || userData.username || 'ผู้ใช้').trim();
+        const photoUrl = userData.photoUrl || (userData.employee && userData.employee.imageUrl) || null;
+
+        console.log('✅ User data received:', {
+          name: userName,
+          email: userData.email || 'N/A',
+          photoUrl: photoUrl
+        });
+
+        updateUserInterface(userName, photoUrl);
       } catch (error) {
         console.error('Error fetching user profile:', error);
         loadFallbackUserData();
@@ -152,29 +168,36 @@
     }
 
     // Update UI with user data
-    function updateUserInterface(userData) {
-      const employeeNameEl = document.getElementById('employeeName');
-      const employeePhotoEl = document.getElementById('employeePhoto');
+    function updateUserInterface(userName, photoUrl) {
+      try {
+        const employeeNameEl = document.getElementById('employeeName');
+        const employeePhotoEl = document.getElementById('employeePhoto');
 
-      if (employeeNameEl && userData.name) {
-        employeeNameEl.textContent = userData.name;
-      }
+        if (employeeNameEl) {
+          employeeNameEl.textContent = userName;
+        }
 
-      if (employeePhotoEl && userData.photo) {
-        employeePhotoEl.src = resolvePhotoUrl(userData.photo);
-        employeePhotoEl.onerror = () => {
-          employeePhotoEl.src = '/uploads/default-avatar.png';
-        };
+        if (employeePhotoEl) {
+          employeePhotoEl.src = resolvePhotoUrl(photoUrl);
+          employeePhotoEl.alt = `รูปโปรไฟล์ของ ${userName}`;
+          employeePhotoEl.onerror = function() {
+            this.src = resolvePhotoUrl(null);
+          };
+        }
+      } catch (error) {
+        console.error('Error updating user interface:', error);
       }
     }
 
     // Fallback user data
     function loadFallbackUserData() {
-      const employeeNameEl = document.getElementById('employeeName');
-      const employeePhotoEl = document.getElementById('employeePhoto');
-
-      if (employeeNameEl) employeeNameEl.textContent = 'ผู้ใช้งาน';
-      if (employeePhotoEl) employeePhotoEl.src = '/uploads/default-avatar.png';
+      try {
+        const fallbackName = localStorage.getItem('userName') || 'ผู้ใช้';
+        const fallbackPhoto = localStorage.getItem('userPhoto');
+        updateUserInterface(fallbackName, fallbackPhoto);
+      } catch (error) {
+        console.error('Error loading fallback data:', error);
+      }
     }
 
     // Handle authentication errors
@@ -1088,9 +1111,17 @@
     localStorage.setItem('theme', 'light');
   </script>
 
-  <!-- Loading Overlay with Lottie Animation -->
-  <div id="loadingOverlay" class="loading-overlay animate__animated">
-    <div id="lottieContainer"></div>
+  <!-- Page Loading Overlay with Lottie Animation -->
+  <div id="loadingOverlay" class="loading-overlay"
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+              width: 100vw; height: 100vh;
+              display: flex; justify-content: center; align-items: center;
+              z-index: 999999; background: rgba(255, 255, 255, 0.98);
+              backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+              transition: opacity 0.5s ease-out, visibility 0.5s ease-out;">
+    <div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+      <div id="lottieContainer" style="width: 300px; height: 300px; margin: 0 auto;"></div>
+    </div>
   </div>
 
 <!-- Account System Navbar Template -->
@@ -1184,411 +1215,1091 @@
       </div>
     </div>
 
+    <!-- ปุ่มสร้างใบกำกับภาษีซื้อใหม่ -->
+    <div class="flex justify-end mb-4 px-4">
+      <button id="btnCreatePurchaseTaxInvoice" class="btn btn-primary btn-rounded">
+        <i class="bi bi-plus-circle mr-1"></i> สร้างใบกำกับภาษีซื้อใหม่
+      </button>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div id="paginationContainer" class="flex justify-between items-center mb-4 px-4">
+      <div class="text-sm text-gray-600">
+        แสดง <span id="recordCount">0</span> รายการ
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="prevPageBtn" class="btn btn-sm btn-outline" disabled>
+          <i class="bi bi-chevron-left"></i> ก่อนหน้า
+        </button>
+        <span id="pageInfo" class="text-sm text-gray-600">หน้า 1</span>
+        <button id="nextPageBtn" class="btn btn-sm btn-outline">
+          ถัดไป <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600">แสดง:</label>
+        <select id="limitSelect" class="form-control w-20 text-sm">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </div>
+
     <!-- ตาราง -->
     <div class="quotation-table-container overflow-x-auto">
       <table class="table w-full table-custom">
         <thead class="bg-gray-100">
           <tr>
-            <th class="w-12">#</th>
-            <th>วันที่</th>
-            <th>ใบกำกับภาษี</th>
-            <th>ใบสำคัญจ่าย</th>
-            <th>ชื่อผู้ขายสินค้า/บริการ</th>
-            <th>เลขผู้เสียภาษี</th>
-            <th>รายละเอียด</th>
-            <th class="text-right">ราคาสินค้า/บริการ</th>
-            <th class="text-right">ยกเว้น/0%</th>
-            <th class="text-right">ภาษี</th>
+            <th class="text-center w-12">
+              <input type="checkbox" id="selectAll" class="rounded border-gray-300" />
+            </th>
+            <th><div class="flex items-center">เลขที่</div></th>
+            <th><div class="flex items-center">วันที่</div></th>
+            <th><div class="flex items-center">สถานะ</div></th>
+            <th><div class="flex items-center">ผู้ขาย</div></th>
+            <th><div class="flex items-center">เลขผู้เสียภาษี</div></th>
+            <th class="text-right"><div class="flex items-center justify-end">ยอดรวม</div></th>
+            <th class="text-center"><div class="flex items-center justify-center">จัดการ</div></th>
           </tr>
         </thead>
         <tbody id="purchaseInvoiceTableBody">
-          <!-- Dynamic purchase invoice data will be loaded here -->
+          <!-- Data will be loaded dynamically from API -->
           <tr>
-            <td colspan="10" class="text-center py-8 text-gray-500">
-              <i class="bi bi-inbox text-3xl mb-2 block"></i>
-              ไม่พบข้อมูลใบกำกับภาษีซื้อ
+            <td colspan="8" class="text-center py-10 text-gray-500">
+              <i class="bi bi-file-earmark-text text-4xl mb-2 block"></i>
+              <p class="font-medium">กำลังโหลดข้อมูลใบกำกับภาษีซื้อ...</p>
+              <p class="text-sm">กรุณารอสักครู่</p>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-      <!-- Pagination -->
-      <div class="px-4 py-3 border-t border-gray-200 flex justify-between items-center flex-wrap gap-2">
-        <div class="flex items-center gap-2">
-          <span class="text-gray-600 text-sm">แสดง</span>
-          <div class="dropdown relative">
-            <button tabindex="0" class="btn btn-xs btn-outline no-animation flex items-center gap-2 bg-white border border-gray-300 px-2 py-1 rounded text-sm">
-              10 <i class="bi bi-chevron-down text-primary-500"></i>
-            </button>
-            <ul tabindex="0" class="dropdown-content menu shadow bg-base-100 rounded-md w-16 border border-gray-200 text-sm hidden absolute top-full left-0 mt-1 z-50 bg-white">
-              <li><a class="block px-4 py-2 hover:bg-gray-100">10</a></li>
-              <li><a class="block px-4 py-2 hover:bg-gray-100">20</a></li>
-              <li><a class="block px-4 py-2 hover:bg-gray-100">50</a></li>
-            </ul>
-          </div>
-          <span class="text-gray-600 text-sm">รายการ</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="btn btn-xs btn-outline border border-gray-300 px-2 py-1 rounded bg-white disabled:opacity-50" disabled><i class="bi bi-chevron-left text-gray-400"></i></button>
-          <span class="text-sm">หน้า</span>
-          <input type="text" value="1" class="input input-xs input-bordered w-12 text-center bg-white border border-gray-300 rounded px-2 py-1" />
-          <button class="btn btn-xs btn-outline border border-gray-300 px-2 py-1 rounded bg-white"><i class="bi bi-chevron-right text-blue-500"></i></button>
-        </div>
-      </div>
-    </div>
   </div>
 
-  <!-- Modal for creating a new deposit receipt -->
-  <div id="newDepositReceiptModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-4xl p-6 modal-container">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold">สร้างใบรับเงินมัดจำ</h2>
-        <div class="flex items-center gap-2">
-          <label for="receiptDate" class="text-sm font-medium text-gray-700">วันที่และเวลา:</label>
-          <input
-            type="datetime-local"
-            id="receiptDate"
-            readonly
-            class="block w-60 bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 cursor-not-allowed"
-          />
-        </div>
-        <button id="closeDepositReceiptModal" class="text-gray-500 hover:text-gray-700">
-          <i class="bi bi-x-lg"></i>
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[99999] flex flex-col gap-2" style="pointer-events: none;"></div>
+
+  <!-- Create Purchase Tax Invoice Modal -->
+  <div id="createPurchaseTaxInvoiceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" style="display: none;">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+      <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-gray-800">
+          <i class="bi bi-file-earmark-plus text-primary-600"></i> สร้างใบกำกับภาษีซื้อใหม่
+        </h2>
+        <button id="closeCreateModal" class="text-gray-400 hover:text-gray-600">
+          <i class="bi bi-x-lg text-2xl"></i>
         </button>
       </div>
-      <div class="overflow-y-auto">
-        <form id="depositReceiptForm">
-          <!-- Salesperson Section -->
-          <div class="mb-6">
-            <h3 class="text-lg font-medium text-gray-700 mb-4">พนักงานขาย / ตัวแทนขาย</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">พนักงานขาย</label>
-                <div class="relative">
-                  <select class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 pr-10 focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none">
-                    <option disabled selected>เลือกพนักงานขาย</option>
-                  </select>
-                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-600">
-                    <i class="bi bi-chevron-down"></i>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">ตัวแทนขาย</label>
-                <div class="relative">
-                  <select class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 pr-10 focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none">
-                    <option disabled selected>เลือกตัวแทนขาย</option>
-                  </select>
-                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-600">
-                    <i class="bi bi-chevron-down"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Customer Section -->
-          <div class="mb-6">
-            <h3 class="text-lg font-medium text-gray-700 mb-4">ลูกค้า</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">ชื่อลูกค้า</label>
-                <div class="relative mt-1 flex gap-2">
-                  <input type="text" id="customerSearch" placeholder="ชื่อลูกค้า" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                  <button type="button" class="bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-600">
-                    <i class="bi bi-search"></i> ข้อมูลการเสาะหา
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">ที่อยู่</label>
-                <textarea id="customerAddress" placeholder="รายละเอียดที่อยู่" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
-              </div>
-            </div>
-                  <div>
-                <label class="block text-sm font-medium text-gray-700">เลขประจำตัวผู้เสียภาษี</label>
-                <input id="customerTaxId" type="text" maxlength="13" placeholder="กรอกเลขประจำตัวผู้เสียภาษี (13 หลัก)" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-              </div>
-            </div>
+      <form id="createPurchaseTaxInvoiceForm" class="p-6">
+        <!-- ข้อมูลทั่วไป -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              เลขที่ใบกำกับภาษีซื้อ <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="createInvoiceNumber" class="form-control" placeholder="กรอกเลขที่ใบกำกับภาษี" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              วันที่ออกใบกำกับ <span class="text-red-500">*</span>
+            </label>
+            <input type="date" id="createIssueDate" class="form-control" required />
+          </div>
+        </div>
 
-          <!-- Transaction Section -->
-          <div class="mb-6">
-            <h3 class="text-lg font-medium text-gray-700 mb-4">รายละเอียดรายการ</h3>
+        <!-- ข้อมูลผู้ขาย -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+            <i class="bi bi-building text-primary-600 mr-2"></i> ข้อมูลผู้ขาย
+          </h3>
+          <div class="grid grid-cols-1 gap-4">
+            <div class="relative">
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                ค้นหาผู้ขาย <span class="text-red-500">*</span>
+              </label>
+              <input type="text" id="createSupplierSearch" class="form-control" placeholder="ค้นหาชื่อผู้ขาย..." autocomplete="off" />
+              <div id="createSupplierResults" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto hidden"></div>
+              <input type="hidden" id="createSupplierId" required />
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700">ชื่อรายการเงินเข้า-ออก</label>
-                <div class="flex gap-2">
-                  <select class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    <option value="" disabled selected>เลือกประเภทรายการ</option>
-                    <option value="deposit">เงินมัดจำสินค้า</option>
-                    <option value="reservation">เงินจองสินค้า</option>
-                    <option value="partial">เงินชำระบางส่วน</option>
-                    <option value="other">อื่นๆ</option>
-                  </select>
-                  <button type="button" class="mt-1 flex-shrink-0 bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-600">
-                    <i class="bi bi-search"></i>
-                  </button>
-                </div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ขาย</label>
+                <input type="text" id="createSupplierName" class="form-control bg-gray-50" readonly />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">รหัสอ้างอิง</label>
-                <input type="text" placeholder="รหัสอ้างอิงเอกสาร" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                <label class="block text-sm font-medium text-gray-700 mb-1">เลขผู้เสียภาษี</label>
+                <input type="text" id="createSupplierTaxId" class="form-control bg-gray-50" readonly />
               </div>
             </div>
           </div>
-          
-          <!-- Amount Section -->
-          <div class="mb-6 border p-4 rounded-lg border-gray-200 bg-gray-50">
-            <h3 class="text-lg font-medium text-gray-700 mb-4">รายละเอียดการชำระเงิน</h3>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">ยอดรวมก่อนภาษี</label>
-                <div class="mt-1 relative">
-                  <input type="number" id="subtotalAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-right" />
-                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
-                    บาท
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">ส่วนลด</label>
-                <div class="mt-1 relative">
-                  <input type="number" id="discountAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-right" />
-                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
-                    บาท
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">ภาษีมูลค่าเพิ่ม (7.00%)</label>
-                <div class="mt-1 relative">
-                  <input type="number" id="vatAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-right" readonly />
-                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
-                    บาท
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 font-semibold">ยอดเงินที่ต้องชำระ</label>
-                <div class="mt-1 relative">
-                  <input type="number" id="totalAmount" value="0.00" step="0.01" min="0" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 pl-3 pr-12 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-right font-bold bg-blue-50" readonly />
-                  <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
-                    บาท
-                  </div>
-                </div>
-              </div>
-            </div>
+        </div>
+
+        <!-- รายการสินค้า/บริการ -->
+        <div class="mb-6">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+              <i class="bi bi-list-ul text-primary-600 mr-2"></i> รายการสินค้า/บริการ
+            </h3>
+            <button type="button" id="createAddItemBtn" class="btn btn-sm btn-outline text-primary-600">
+              <i class="bi bi-plus-circle mr-1"></i> เพิ่มรายการ
+            </button>
           </div>
-          
-          <!-- Payment Method Section -->
-          <div class="mb-4">
-            <h3 class="text-lg font-medium text-gray-700 mb-2">รูปแบบการชำระเงิน</h3>
-            <div class="flex gap-4">
-              <label class="inline-flex items-center">
-                <input type="radio" name="paymentType" value="cash" checked class="form-radio h-5 w-5 text-blue-600">
-                <span class="ml-2 text-gray-700">เงินสด</span>
-              </label>
-              <label class="inline-flex items-center">
-                <input type="radio" name="paymentType" value="transfer" class="form-radio h-5 w-5 text-blue-600">
-                <span class="ml-2 text-gray-700">โอนเงิน</span>
-              </label>
-              <label class="inline-flex items-center">
-                <input type="radio" name="paymentType" value="check" class="form-radio h-5 w-5 text-blue-600">
-                <span class="ml-2 text-gray-700">เช็คธนาคาร</span>
-              </label>
-            </div>
-            
-            <!-- Bank Check Fields (Initially Hidden) -->
-            <div id="bankCheckFields" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">ธนาคารที่ออกเช็ค</label>
-                <div class="relative mt-1">
-                  <select class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none pr-10">
-                    <option value="" disabled selected>เลือกธนาคาร</option>
-                    <option value="SCB" class="flex items-center">
-                      <div class="flex items-center">
-                        <i class="bi bi-bank text-purple-600 w-5 h-5 mr-2"></i> ธนาคารไทยพาณิชย์
-                      </div>
-                    </option>
-                    <option value="KBANK">
-                      <i class="bi bi-bank text-green-600 w-5 h-5 mr-2"></i> ธนาคารกสิกรไทย
-                    </option>
-                    <option value="BBL">
-                      <i class="bi bi-bank text-blue-700 w-5 h-5 mr-2"></i> ธนาคารกรุงเทพ
-                    </option>
-                    <option value="KTB">
-                      <i class="bi bi-bank text-blue-800 w-5 h-5 mr-2"></i> ธนาคารกรุงไทย
-                    </option>
-                    <option value="BAY">
-                      <i class="bi bi-bank text-yellow-500 w-5 h-5 mr-2"></i> ธนาคารกรุงศรีอยุธยา
-                    </option>
-                    <option value="TMB">
-                      <i class="bi bi-bank text-teal-500 w-5 h-5 mr-2"></i> ธนาคารทหารไทยธนชาต
-                    </option>
-                  </select>
-                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <i class="bi bi-chevron-down"></i>
-                  </div>
-                </div>
-                <!-- Note: Add actual bank logo images to your project -->
-                <div class="text-xs text-gray-500 mt-1">
-                  <i class="bi bi-info-circle"></i> กรุณาเพิ่มโลโก้ธนาคารในโฟลเดอร์ /static/images/banks/
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">เลขที่เช็ค</label>
-                <input type="text" placeholder="เลขที่เช็ค" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-              </div>
-            </div>
+          <div class="overflow-x-auto">
+            <table class="table w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left">รายการ</th>
+                  <th class="text-center w-24">จำนวน</th>
+                  <th class="text-right w-32">ราคา/หน่วย</th>
+                  <th class="text-right w-32">รวม</th>
+                  <th class="text-center w-20"></th>
+                </tr>
+              </thead>
+              <tbody id="createItemsBody">
+                <tr>
+                  <td>
+                    <input type="text" class="form-control item-description" placeholder="รายละเอียด..." />
+                  </td>
+                  <td>
+                    <input type="number" class="form-control text-center item-quantity" value="1" min="0" step="0.01" />
+                  </td>
+                  <td>
+                    <input type="number" class="form-control text-right item-price" value="0" min="0" step="0.01" />
+                  </td>
+                  <td class="text-right font-medium item-amount">0.00</td>
+                  <td class="text-center">
+                    <button type="button" class="text-red-500 hover:text-red-700 remove-item-btn">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          
-          <!-- Account Selection -->
-          <div class="mb-4">
-            <label for="bankAccount" class="block text-sm font-medium text-gray-700">เข้าบัญชี</label>
-            <div class="relative mt-1">
-              <select id="bankAccount" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none pr-10">
-                <option>อุ๊บ รวมทุน</option>
-              </select>
-              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <i class="bi bi-chevron-down"></i>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Amount and Date -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        </div>
+
+        <!-- สรุปยอด -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700">ยอดชำระเงิน</label>
-              <input type="number" value="0" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">หมายเหตุ</label>
+              <textarea id="createNotes" class="form-control" rows="3" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">วันที่รับเงิน</label>
-              <div class="relative">
-                <input type="date" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                  <i class="bi bi-calendar"></i>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">ยอดรวมก่อน VAT:</span>
+                <span id="createSubtotal" class="font-medium">0.00</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">VAT:</span>
+                <div class="flex items-center gap-2">
+                  <select id="createVatRate" class="form-control w-20 text-sm">
+                    <option value="0">0%</option>
+                    <option value="7" selected>7%</option>
+                  </select>
+                  <span id="createVatAmount" class="font-medium">0.00</span>
                 </div>
+              </div>
+              <div class="flex justify-between items-center pt-2 border-t border-gray-300">
+                <span class="text-lg font-semibold">ยอดรวมทั้งสิ้น:</span>
+                <span id="createTotalAmount" class="text-xl font-bold text-primary-600">0.00</span>
               </div>
             </div>
           </div>
-          
-          <!-- Evidence Section -->
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700">หลักฐานการชำระ</label>
-            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-              <div class="space-y-1 text-center">
-                <i class="bi bi-cloud-arrow-up mx-auto text-gray-400 text-3xl"></i>
-                <div class="text-sm text-gray-600">
-                  <label for="file-upload" class="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
-                    <span>อัพโหลดไฟล์</span>
-                    <input id="file-upload" name="file-upload" type="file" class="sr-only">
-                  </label>
-                </div>
-                <p class="text-xs text-gray-500">PNG, JPG, GIF ขนาดไม่เกิน 10MB</p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Notes -->
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700">หมายเหตุ</label>
-            <textarea placeholder="เพิ่มข้อมูล" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
-          </div>
+        </div>
 
-          <!-- Action Buttons -->
-          <div class="mt-6 flex justify-end gap-3">
-            <button type="button" id="cancelDepositReceipt" class="btn btn-outline btn-sm px-4 py-2 border border-gray-300 hover:bg-gray-100 rounded-md text-gray-700">ยกเลิก</button>
-            <button type="submit" class="btn btn-primary btn-sm px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md">บันทึก</button>
-          </div>
-        </form>
-      </div>
+        <!-- ปุ่มบันทึก -->
+        <div class="flex justify-end gap-2">
+          <button type="button" id="cancelCreateBtn" class="btn btn-outline">
+            <i class="bi bi-x-circle mr-1"></i> ยกเลิก
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle mr-1"></i> บันทึก
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
+  <!-- Edit Purchase Tax Invoice Modal -->
+  <div id="editPurchaseTaxInvoiceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" style="display: none;">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+      <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-gray-800">
+          <i class="bi bi-pencil-square text-primary-600"></i> แก้ไขใบกำกับภาษีซื้อ
+        </h2>
+        <button id="closeEditModal" class="text-gray-400 hover:text-gray-600">
+          <i class="bi bi-x-lg text-2xl"></i>
+        </button>
+      </div>
+
+      <form id="editPurchaseTaxInvoiceForm" class="p-6">
+        <input type="hidden" id="editInvoiceId" />
+
+        <!-- Similar structure to create modal -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">เลขที่ใบกำกับภาษีซื้อ</label>
+            <input type="text" id="editInvoiceNumber" class="form-control bg-gray-50" readonly />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">วันที่ออกใบกำกับ</label>
+            <input type="date" id="editIssueDate" class="form-control" />
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">ข้อมูลผู้ขาย</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ขาย</label>
+              <input type="text" id="editSupplierName" class="form-control bg-gray-50" readonly />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">เลขผู้เสียภาษี</label>
+              <input type="text" id="editSupplierTaxId" class="form-control bg-gray-50" readonly />
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-1">หมายเหตุ</label>
+          <textarea id="editNotes" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div id="editItemsDisplay" class="mb-6">
+          <!-- Items display (read-only) -->
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <button type="button" id="cancelEditBtn" class="btn btn-outline">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+        </div>
       </form>
+    </div>
+  </div>
+
+  <!-- View Purchase Tax Invoice Modal -->
+  <div id="viewPurchaseTaxInvoiceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" style="display: none;">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+      <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-gray-800">
+          <i class="bi bi-eye text-primary-600"></i> รายละเอียดใบกำกับภาษีซื้อ
+        </h2>
+        <button id="closeViewModal" class="text-gray-400 hover:text-gray-600">
+          <i class="bi bi-x-lg text-2xl"></i>
+        </button>
+      </div>
+
+      <div id="viewModalContent" class="p-6">
+        <!-- Content will be dynamically populated -->
+      </div>
+
+      <div class="sticky bottom-0 bg-gray-50 px-6 py-4 flex justify-between items-center border-t border-gray-200">
+        <div class="flex gap-2">
+          <button id="printInvoiceBtn" class="btn btn-outline">
+            <i class="bi bi-printer mr-1"></i> พิมพ์
+          </button>
+          <button id="exportPdfBtn" class="btn btn-outline">
+            <i class="bi bi-file-pdf mr-1"></i> Export PDF
+          </button>
+        </div>
+        <button id="closeViewBtn" class="btn btn-primary">ปิด</button>
+      </div>
     </div>
   </div>
   
   <script>
-    // JavaScript code for handling modals and other interactive elements
-    document.addEventListener('DOMContentLoaded', function () {
-      try {
-      // เก็บรายการสินค้า
-      let branchProducts = [];
-    
-      // โหลดรายการสินค้าจาก API สาขา 00000
-      async function loadBranchProducts() {
-        try {
-          const res = await fetch('/api/branch-stock?branch_code=00000');
-          const body = await res.json();
-          if (body.success) branchProducts = body.data;
-          else console.error('Load products failed:', body.error);
-        } catch (err) {
-          console.error('Fetch error:', err);
-        }
-      }
-    
-      // helper สร้าง <option>
-      function createProductOptions() {
-        let html = '<option disabled selected>เลือกสินค้า/บริการ</option>';
-        branchProducts.forEach(p => {
-          html += `<option value="${p._id}">${p.name}</option>`;
-        });
-        return html;
-      }
-    
-      // โหลดตอนเริ่มหน้า
-      loadBranchProducts();
+    // API Configuration
+    const API_BASE = '/api';
+    const API_ENDPOINT = '/api/purchase-tax-invoice';
 
-      // Logout button functionality
-      document.getElementById('btnLogout').addEventListener('click', function () {
-        // Perform logout action here
-        alert('ออกจากระบบเรียบร้อยแล้ว');
+    // Global State
+    let currentInvoices = [];
+    let currentPage = 1;
+    let currentLimit = 10;
+    let totalPages = 1;
+    let searchQuery = '';
+    let statusFilter = '';
+    let startDate = '';
+    let endDate = '';
+    let supplierSearchTimeout;
+    let allSuppliers = [];
+    let searchTimeout;
+
+    // ========== UTILITY FUNCTIONS ==========
+
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+      const toastContainer = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const icons = {
+        success: 'bi-check-circle-fill',
+        error: 'bi-x-circle-fill',
+        warning: 'bi-exclamation-triangle-fill',
+        info: 'bi-info-circle-fill'
+      };
+      const colors = {
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        warning: 'bg-orange-500',
+        info: 'bg-blue-500'
+      };
+
+      toast.className = `flex items-center gap-3 ${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg mb-2 animate__animated animate__slideInRight`;
+      toast.style.pointerEvents = 'auto';
+      toast.innerHTML = `
+        <i class="bi ${icons[type]} text-xl"></i>
+        <span class="font-medium">${message}</span>
+        <button onclick="this.parentElement.remove()" class="ml-2 hover:bg-white/20 rounded p-1">
+          <i class="bi bi-x text-xl"></i>
+        </button>
+      `;
+
+      toastContainer.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('animate__slideInRight');
+        toast.classList.add('animate__slideOutRight');
+        setTimeout(() => toast.remove(), 500);
+      }, 4000);
+    }
+
+    // Format Date to Thai
+    function formatDateThai(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
       });
-    
-      // Open display settings modal (guard in case element is missing)
-      const btnDisplaySettings = document.getElementById('btnDisplaySettings');
-      if (btnDisplaySettings) {
-        btnDisplaySettings.addEventListener('click', function () {
-          document.getElementById('displaySettingsModal').classList.remove('hidden');
+    }
+
+    // Format Currency
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB',
+        minimumFractionDigits: 2
+      }).format(amount || 0);
+    }
+
+    // Get Status Badge HTML
+    function getStatusBadge(status) {
+      const badges = {
+        'draft': '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">แบบร่าง</span>',
+        'pending': '<span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">รออนุมัติ</span>',
+        'approved': '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">อนุมัติแล้ว</span>',
+        'cancelled': '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">ยกเลิก</span>'
+      };
+      return badges[status] || '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">-</span>';
+    }
+
+    // ========== API FUNCTIONS ==========
+
+    // Load Purchase Tax Invoices
+    async function loadPurchaseTaxInvoices() {
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+
+        if (!token) {
+          console.warn('⚠️ No authentication token found');
+          displayInvoiceData([]);
+          hidePageLoading();
+          return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: currentLimit,
+          sortBy: 'issueDate',
+          sortOrder: 'desc'
         });
-      }
-    
-      // Close display settings modal
-      document.getElementById('closeDisplaySettingsModal')?.addEventListener('click', function () {
-        document.getElementById('displaySettingsModal').classList.add('hidden');
-      });
-    
-      // Open print report modal (guard in case element is missing)
-      const btnPrintReport = document.getElementById('btnPrintReport');
-      if (btnPrintReport) {
-        btnPrintReport.addEventListener('click', function () {
-          document.getElementById('printReportModal').classList.remove('hidden');
+
+        if (searchQuery) params.append('search', searchQuery);
+        if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+        if (startDate) params.append('dateFrom', startDate);
+        if (endDate) params.append('dateTo', endDate);
+
+        const response = await fetch(`${API_ENDPOINT}?${params.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
+
+        if (response.status === 401) {
+          showToast('กรุณาเข้าสู่ระบบใหม่', 'error');
+          setTimeout(() => window.location.href = '/login', 2000);
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+          currentInvoices = result.data || [];
+          displayInvoiceData(currentInvoices);
+          updatePaginationUI(result.pagination || {});
+        } else {
+          throw new Error(result.message || 'Failed to load purchase tax invoices');
+        }
+      } catch (error) {
+        console.error('Error loading purchase tax invoices:', error);
+        if (error.name === 'AbortError') {
+          showToast('หมดเวลาในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง', 'error');
+        } else {
+          showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+        }
+        displayInvoiceData([]);
+      } finally {
+        hidePageLoading();
       }
-    
-      // Close print report modal
-      document.getElementById('closePrintReportModal')?.addEventListener('click', function () {
-        document.getElementById('printReportModal').classList.add('hidden');
+    }
+
+    // Display Invoice Data in Table
+    function displayInvoiceData(invoices) {
+      const tbody = document.getElementById('purchaseInvoiceTableBody');
+
+      if (!invoices || invoices.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-10 text-gray-500">
+              <i class="bi bi-inbox text-4xl mb-2 block"></i>
+              <p class="font-medium">ไม่พบข้อมูลใบกำกับภาษีซื้อ</p>
+              <p class="text-sm">ลองค้นหาหรือสร้างใบกำกับภาษีซื้อใหม่</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = invoices.map((invoice, index) => {
+        const actionButtons = invoice.status === 'pending' ? `
+          <button onclick="openEditPurchaseTaxInvoiceModal('${invoice._id}')" class="btn btn-sm btn-outline text-purple-600" title="แก้ไข">
+            <i class="bi bi-pencil-square"></i>
+          </button>
+          <button onclick="approvePurchaseTaxInvoice('${invoice._id}')" class="btn btn-sm btn-outline text-green-600" title="อนุมัติ">
+            <i class="bi bi-check-circle"></i>
+          </button>
+        ` : '';
+
+        return `
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="text-center">
+              <input type="checkbox" class="rounded border-gray-300" value="${invoice._id}" />
+            </td>
+            <td><div class="font-medium text-gray-900">${invoice.invoiceNumber || '-'}</div></td>
+            <td><div class="text-sm">${formatDateThai(invoice.issueDate)}</div></td>
+            <td>${getStatusBadge(invoice.status)}</td>
+            <td><div class="font-medium">${invoice.supplier?.name || '-'}</div></td>
+            <td><div class="text-sm text-gray-600">${invoice.supplier?.taxId || '-'}</div></td>
+            <td class="text-right"><div class="font-medium text-primary-600">${formatCurrency(invoice.summary?.totalAmount || 0)}</div></td>
+            <td class="text-center">
+              <div class="flex items-center justify-center gap-2">
+                <button onclick="viewPurchaseTaxInvoice('${invoice._id}')" class="btn btn-sm btn-outline text-blue-600" title="ดูรายละเอียด">
+                  <i class="bi bi-eye"></i>
+                </button>
+                ${actionButtons}
+                <button onclick="cancelPurchaseTaxInvoice('${invoice._id}')" class="btn btn-sm btn-outline text-red-600" title="ยกเลิก">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Update Pagination UI
+    function updatePaginationUI(pagination) {
+      const recordCount = document.getElementById('recordCount');
+      const pageInfo = document.getElementById('pageInfo');
+      const prevBtn = document.getElementById('prevPageBtn');
+      const nextBtn = document.getElementById('nextPageBtn');
+
+      const total = pagination.total || 0;
+      totalPages = pagination.totalPages || 1;
+      currentPage = pagination.currentPage || 1;
+
+      recordCount.textContent = total;
+      pageInfo.textContent = `หน้า ${currentPage} จาก ${totalPages}`;
+
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+    }
+
+    // ========== MODAL MANAGEMENT ==========
+
+    // Open Create Modal
+    function openCreatePurchaseTaxInvoiceModal() {
+      const modal = document.getElementById('createPurchaseTaxInvoiceModal');
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+
+      // Reset form
+      document.getElementById('createPurchaseTaxInvoiceForm').reset();
+      document.getElementById('createSupplierId').value = '';
+      document.getElementById('createIssueDate').valueAsDate = new Date();
+
+      // Reset items table
+      const tbody = document.getElementById('createItemsBody');
+      tbody.innerHTML = `
+        <tr>
+          <td><input type="text" class="form-control item-description" placeholder="รายละเอียด..." /></td>
+          <td><input type="number" class="form-control text-center item-quantity" value="1" min="0" step="0.01" /></td>
+          <td><input type="number" class="form-control text-right item-price" value="0" min="0" step="0.01" /></td>
+          <td class="text-right font-medium item-amount">0.00</td>
+          <td class="text-center">
+            <button type="button" class="text-red-500 hover:text-red-700 remove-item-btn">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+
+      calculateCreateTotals();
+    }
+
+    // Close Create Modal
+    function closeCreatePurchaseTaxInvoiceModal() {
+      const modal = document.getElementById('createPurchaseTaxInvoiceModal');
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+
+    // Open Edit Modal
+    async function openEditPurchaseTaxInvoiceModal(id) {
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+        const response = await fetch(`${API_ENDPOINT}/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Failed to load invoice');
+
+        const result = await response.json();
+        const invoice = result.data;
+
+        document.getElementById('editInvoiceId').value = invoice._id;
+        document.getElementById('editInvoiceNumber').value = invoice.invoiceNumber;
+        document.getElementById('editIssueDate').value = invoice.issueDate?.split('T')[0];
+        document.getElementById('editSupplierName').value = invoice.supplier?.name || '';
+        document.getElementById('editSupplierTaxId').value = invoice.supplier?.taxId || '';
+        document.getElementById('editNotes').value = invoice.notes || '';
+
+        const modal = document.getElementById('editPurchaseTaxInvoiceModal');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      } catch (error) {
+        console.error('Error loading invoice:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Close Edit Modal
+    function closeEditPurchaseTaxInvoiceModal() {
+      const modal = document.getElementById('editPurchaseTaxInvoiceModal');
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+
+    // View Invoice
+    async function viewPurchaseTaxInvoice(id) {
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+        const response = await fetch(`${API_ENDPOINT}/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Failed to load invoice');
+
+        const result = await response.json();
+        const invoice = result.data;
+
+        const content = document.getElementById('viewModalContent');
+        content.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-blue-50 p-4 rounded-lg">
+              <h3 class="font-semibold text-gray-800 mb-3">ข้อมูลใบกำกับภาษี</h3>
+              <div class="space-y-2 text-sm">
+                <div><span class="text-gray-600">เลขที่:</span> <span class="font-medium">${invoice.invoiceNumber}</span></div>
+                <div><span class="text-gray-600">วันที่:</span> ${formatDateThai(invoice.issueDate)}</div>
+                <div><span class="text-gray-600">สถานะ:</span> ${getStatusBadge(invoice.status)}</div>
+              </div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+              <h3 class="font-semibold text-gray-800 mb-3">ข้อมูลผู้ขาย</h3>
+              <div class="space-y-2 text-sm">
+                <div><span class="text-gray-600">ชื่อ:</span> <span class="font-medium">${invoice.supplier?.name || '-'}</span></div>
+                <div><span class="text-gray-600">เลขผู้เสียภาษี:</span> ${invoice.supplier?.taxId || '-'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <h3 class="font-semibold text-gray-800 mb-3">รายการสินค้า/บริการ</h3>
+            <table class="table w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th>รายการ</th>
+                  <th class="text-center">จำนวน</th>
+                  <th class="text-right">ราคา/หน่วย</th>
+                  <th class="text-right">รวม</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(invoice.items || []).map(item => `
+                  <tr>
+                    <td>${item.description}</td>
+                    <td class="text-center">${item.quantity}</td>
+                    <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+                    <td class="text-right">${formatCurrency(item.amount)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-6 bg-gray-50 p-4 rounded-lg">
+            <div class="space-y-2">
+              <div class="flex justify-between"><span>ยอดรวม:</span><span class="font-medium">${formatCurrency(invoice.summary?.subtotal || 0)}</span></div>
+              <div class="flex justify-between"><span>VAT (${invoice.summary?.vatRate || 7}%):</span><span class="font-medium">${formatCurrency(invoice.summary?.vatAmount || 0)}</span></div>
+              <div class="flex justify-between pt-2 border-t border-gray-300"><span class="text-lg font-semibold">ยอดรวมทั้งสิ้น:</span><span class="text-xl font-bold text-primary-600">${formatCurrency(invoice.summary?.totalAmount || 0)}</span></div>
+            </div>
+          </div>
+
+          ${invoice.notes ? `<div class="mt-4"><strong>หมายเหตุ:</strong> ${invoice.notes}</div>` : ''}
+        `;
+
+        const modal = document.getElementById('viewPurchaseTaxInvoiceModal');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      } catch (error) {
+        console.error('Error viewing invoice:', error);
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Close View Modal
+    function closeViewPurchaseTaxInvoiceModal() {
+      const modal = document.getElementById('viewPurchaseTaxInvoiceModal');
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+
+    // ========== SUPPLIER SEARCH ==========
+
+    async function searchSuppliers(query) {
+      if (!query || query.length < 2) {
+        document.getElementById('createSupplierResults').classList.add('hidden');
+        return;
+      }
+
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`/api/contacts?search=${encodeURIComponent(query)}&type=supplier&limit=10`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const result = await response.json();
+        allSuppliers = result.data || result || [];
+        displaySupplierResults(allSuppliers);
+      } catch (error) {
+        console.error('Error searching suppliers:', error);
+        showToast('เกิดข้อผิดพลาดในการค้นหาผู้ขาย', 'error');
+      }
+    }
+
+    function displaySupplierResults(suppliers) {
+      const resultsDiv = document.getElementById('createSupplierResults');
+
+      if (suppliers.length === 0) {
+        resultsDiv.innerHTML = '<div class="p-3 text-gray-500 text-sm">ไม่พบผู้ขาย</div>';
+        resultsDiv.classList.remove('hidden');
+        return;
+      }
+
+      resultsDiv.innerHTML = suppliers.map(supplier => `
+        <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200" onclick="selectSupplier('${supplier._id}')">
+          <div class="font-medium">${supplier.displayName || supplier.corporate?.companyName || '-'}</div>
+          <div class="text-sm text-gray-600">${supplier.taxId || 'ไม่มีเลขผู้เสียภาษี'}</div>
+        </div>
+      `).join('');
+
+      resultsDiv.classList.remove('hidden');
+    }
+
+    function selectSupplier(supplierId) {
+      const supplier = allSuppliers.find(s => s._id === supplierId);
+      if (!supplier) return;
+
+      document.getElementById('createSupplierId').value = supplier._id;
+      document.getElementById('createSupplierName').value = supplier.displayName || supplier.corporate?.companyName || '';
+      document.getElementById('createSupplierTaxId').value = supplier.taxId || '';
+      document.getElementById('createSupplierSearch').value = '';
+      document.getElementById('createSupplierResults').classList.add('hidden');
+
+      showToast('เลือกผู้ขายเรียบร้อยแล้ว', 'success');
+    }
+
+    // ========== LINE ITEMS MANAGEMENT ==========
+
+    function calculateCreateTotals() {
+      const tbody = document.getElementById('createItemsBody');
+      const rows = tbody.querySelectorAll('tr');
+      let subtotal = 0;
+
+      rows.forEach(row => {
+        const quantity = parseFloat(row.querySelector('.item-quantity')?.value || 0);
+        const price = parseFloat(row.querySelector('.item-price')?.value || 0);
+        const amount = quantity * price;
+
+        const amountCell = row.querySelector('.item-amount');
+        if (amountCell) amountCell.textContent = amount.toFixed(2);
+
+        subtotal += amount;
       });
-    
-      // Print report button in modal
-      document.getElementById('printReportModal')?.addEventListener('submit', function (e) {
-        e.preventDefault();
-        // Perform print action here
-        alert('กำลังพิมพ์รายงาน...');
-        document.getElementById('printReportModal').classList.add('hidden');
+
+      const vatRate = parseFloat(document.getElementById('createVatRate')?.value || 0);
+      const vatAmount = (subtotal * vatRate) / 100;
+      const totalAmount = subtotal + vatAmount;
+
+      document.getElementById('createSubtotal').textContent = subtotal.toFixed(2);
+      document.getElementById('createVatAmount').textContent = vatAmount.toFixed(2);
+      document.getElementById('createTotalAmount').textContent = totalAmount.toFixed(2);
+    }
+
+    function addCreateItem() {
+      const tbody = document.getElementById('createItemsBody');
+      const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td><input type="text" class="form-control item-description" placeholder="รายละเอียด..." /></td>
+        <td><input type="number" class="form-control text-center item-quantity" value="1" min="0" step="0.01" /></td>
+        <td><input type="number" class="form-control text-right item-price" value="0" min="0" step="0.01" /></td>
+        <td class="text-right font-medium item-amount">0.00</td>
+        <td class="text-center">
+          <button type="button" class="text-red-500 hover:text-red-700 remove-item-btn">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(newRow);
+
+      // Add event listeners for new inputs
+      newRow.querySelector('.item-quantity')?.addEventListener('input', calculateCreateTotals);
+      newRow.querySelector('.item-price')?.addEventListener('input', calculateCreateTotals);
+      newRow.querySelector('.remove-item-btn')?.addEventListener('click', function() {
+        if (tbody.querySelectorAll('tr').length > 1) {
+          newRow.remove();
+          calculateCreateTotals();
+        } else {
+          showToast('ต้องมีรายการอย่างน้อย 1 รายการ', 'warning');
+        }
       });
-    
-      // Display settings form submission
-      document.getElementById('displaySettingsModal')?.addEventListener('submit', function (e) {
-        e.preventDefault();
-        // Perform settings save action here
-        alert('บันทึกการตั้งค่าเรียบร้อยแล้ว');
-        document.getElementById('displaySettingsModal').classList.add('hidden');
+    }
+
+    // ========== CRUD OPERATIONS ==========
+
+    // Create Purchase Tax Invoice
+    async function handleCreatePurchaseTaxInvoice(event) {
+      event.preventDefault();
+
+      const supplierId = document.getElementById('createSupplierId').value;
+      if (!supplierId) {
+        showToast('กรุณาเลือกผู้ขาย', 'warning');
+        return;
+      }
+
+      const tbody = document.getElementById('createItemsBody');
+      const items = [];
+      const vatRate = parseFloat(document.getElementById('createVatRate')?.value || 7);
+
+      tbody.querySelectorAll('tr').forEach(row => {
+        const description = row.querySelector('.item-description')?.value;
+        const quantity = parseFloat(row.querySelector('.item-quantity')?.value || 0);
+        const unitPrice = parseFloat(row.querySelector('.item-price')?.value || 0);
+
+        if (description && quantity > 0) {
+          items.push({
+            name: description,
+            description: description,
+            quantity,
+            unitPrice,
+            unit: 'ชิ้น',
+            discount: 0,
+            taxType: vatRate > 0 ? 'vat' : 'no_vat',
+            vatRate: vatRate
+          });
+        }
       });
-    
+
+      if (items.length === 0) {
+        showToast('กรุณาเพิ่มรายการสินค้า/บริการอย่างน้อย 1 รายการ', 'warning');
+        return;
+      }
+
+      const formData = {
+        invoiceNumber: document.getElementById('createInvoiceNumber')?.value,
+        supplier: supplierId,
+        issueDate: document.getElementById('createIssueDate')?.value,
+        items,
+        notes: document.getElementById('createNotes')?.value,
+        status: 'pending'
+      };
+
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) throw new Error('Failed to create invoice');
+
+        const result = await response.json();
+        showToast('สร้างใบกำกับภาษีซื้อสำเร็จ', 'success');
+        closeCreatePurchaseTaxInvoiceModal();
+        await loadPurchaseTaxInvoices();
+      } catch (error) {
+        console.error('Error creating invoice:', error);
+        showToast('เกิดข้อผิดพลาดในการสร้างใบกำกับภาษีซื้อ', 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Update Purchase Tax Invoice
+    async function handleUpdatePurchaseTaxInvoice(event) {
+      event.preventDefault();
+
+      const id = document.getElementById('editInvoiceId').value;
+      const formData = {
+        issueDate: document.getElementById('editIssueDate')?.value,
+        notes: document.getElementById('editNotes')?.value
+      };
+
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+        const response = await fetch(`${API_ENDPOINT}/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) throw new Error('Failed to update invoice');
+
+        showToast('แก้ไขใบกำกับภาษีซื้อสำเร็จ', 'success');
+        closeEditPurchaseTaxInvoiceModal();
+        await loadPurchaseTaxInvoices();
+      } catch (error) {
+        console.error('Error updating invoice:', error);
+        showToast('เกิดข้อผิดพลาดในการแก้ไขใบกำกับภาษีซื้อ', 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Approve Invoice
+    async function approvePurchaseTaxInvoice(id) {
+      if (!confirm('คุณต้องการอนุมัติใบกำกับภาษีซื้อนี้ใช่หรือไม่?')) return;
+
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+        const response = await fetch(`${API_ENDPOINT}/${id}/approve`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to approve invoice');
+
+        showToast('อนุมัติใบกำกับภาษีซื้อสำเร็จ', 'success');
+        await loadPurchaseTaxInvoices();
+      } catch (error) {
+        console.error('Error approving invoice:', error);
+        showToast('เกิดข้อผิดพลาดในการอนุมัติใบกำกับภาษีซื้อ', 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // Cancel Invoice
+    async function cancelPurchaseTaxInvoice(id) {
+      if (!confirm('คุณต้องการยกเลิกใบกำกับภาษีซื้อนี้ใช่หรือไม่?')) return;
+
+      try {
+        showPageLoading();
+        const token = getAuthToken();
+        const response = await fetch(`${API_ENDPOINT}/${id}/cancel`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to cancel invoice');
+
+        showToast('ยกเลิกใบกำกับภาษีซื้อสำเร็จ', 'success');
+        await loadPurchaseTaxInvoices();
+      } catch (error) {
+        console.error('Error cancelling invoice:', error);
+        showToast('เกิดข้อผิดพลาดในการยกเลิกใบกำกับภาษีซื้อ', 'error');
+      } finally {
+        hidePageLoading();
+      }
+    }
+
+    // ========== EVENT LISTENERS ==========
+
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        // Load data on page load
+        setTimeout(() => loadPurchaseTaxInvoices(), 500);
+
+        // Create button
+        document.getElementById('btnCreatePurchaseTaxInvoice')?.addEventListener('click', openCreatePurchaseTaxInvoiceModal);
+
+        // Modal close buttons
+        document.getElementById('closeCreateModal')?.addEventListener('click', closeCreatePurchaseTaxInvoiceModal);
+        document.getElementById('cancelCreateBtn')?.addEventListener('click', closeCreatePurchaseTaxInvoiceModal);
+        document.getElementById('closeEditModal')?.addEventListener('click', closeEditPurchaseTaxInvoiceModal);
+        document.getElementById('cancelEditBtn')?.addEventListener('click', closeEditPurchaseTaxInvoiceModal);
+        document.getElementById('closeViewModal')?.addEventListener('click', closeViewPurchaseTaxInvoiceModal);
+        document.getElementById('closeViewBtn')?.addEventListener('click', closeViewPurchaseTaxInvoiceModal);
+
+        // Form submissions
+        document.getElementById('createPurchaseTaxInvoiceForm')?.addEventListener('submit', handleCreatePurchaseTaxInvoice);
+        document.getElementById('editPurchaseTaxInvoiceForm')?.addEventListener('submit', handleUpdatePurchaseTaxInvoice);
+
+        // Search input with debounce
+        const searchInput = document.querySelector('input[placeholder*="ค้นหาใบกำกับภาษีซื้อ"]');
+        searchInput?.addEventListener('input', function(e) {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            searchQuery = e.target.value.trim();
+            currentPage = 1;
+            loadPurchaseTaxInvoices();
+          }, 500);
+        });
+
+        // Status filter
+        document.getElementById('statusFilter')?.addEventListener('change', function(e) {
+          statusFilter = e.target.value;
+          currentPage = 1;
+          loadPurchaseTaxInvoices();
+        });
+
+        // Date picker
+        document.getElementById('applyDatePicker')?.addEventListener('click', function() {
+          startDate = document.getElementById('startDate')?.value || '';
+          endDate = document.getElementById('endDate')?.value || '';
+          currentPage = 1;
+          loadPurchaseTaxInvoices();
+        });
+
+        // Pagination
+        document.getElementById('prevPageBtn')?.addEventListener('click', () => {
+          if (currentPage > 1) {
+            currentPage--;
+            loadPurchaseTaxInvoices();
+          }
+        });
+
+        document.getElementById('nextPageBtn')?.addEventListener('click', () => {
+          if (currentPage < totalPages) {
+            currentPage++;
+            loadPurchaseTaxInvoices();
+          }
+        });
+
+        document.getElementById('limitSelect')?.addEventListener('change', function(e) {
+          currentLimit = parseInt(e.target.value);
+          currentPage = 1;
+          loadPurchaseTaxInvoices();
+        });
+
+        // Supplier search with debounce
+        document.getElementById('createSupplierSearch')?.addEventListener('input', function(e) {
+          clearTimeout(supplierSearchTimeout);
+          supplierSearchTimeout = setTimeout(() => {
+            searchSuppliers(e.target.value.trim());
+          }, 300);
+        });
+
+        // Add item button
+        document.getElementById('createAddItemBtn')?.addEventListener('click', addCreateItem);
+
+        // VAT rate change
+        document.getElementById('createVatRate')?.addEventListener('change', calculateCreateTotals);
+
+        // Item input changes - event delegation
+        document.getElementById('createItemsBody')?.addEventListener('input', function(e) {
+          if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-price')) {
+            calculateCreateTotals();
+          }
+        });
+
+        // Remove item buttons - event delegation
+        document.getElementById('createItemsBody')?.addEventListener('click', function(e) {
+          if (e.target.closest('.remove-item-btn')) {
+            const row = e.target.closest('tr');
+            const tbody = document.getElementById('createItemsBody');
+            if (tbody.querySelectorAll('tr').length > 1) {
+              row.remove();
+              calculateCreateTotals();
+            } else {
+              showToast('ต้องมีรายการอย่างน้อย 1 รายการ', 'warning');
+            }
+          }
+        });
+
+        // Logout
+        document.getElementById('btnLogout')?.addEventListener('click', function() {
+          localStorage.removeItem('token');
+          localStorage.removeItem('authToken');
+          sessionStorage.clear();
+          window.location.href = '/login.html';
+        });
+
       } catch (error) {
         console.error('Script initialization error:', error);
       }
@@ -1598,7 +2309,7 @@
   <!-- Additional script for VAT calculation -->
 
   <script>
-    // JavaScript code for handling modals and other interactive elements
+    // Menu initialization
     document.addEventListener('DOMContentLoaded', function () {
       // Clone the main menu from the template
       const menuTemplate = document.getElementById('mainMenuTemplate');
@@ -1607,20 +2318,8 @@
         const menuClone = menuTemplate.content.cloneNode(true);
         menuContainer.appendChild(menuClone);
       }
-    
-      // Show/Hide Bank Check fields based on payment type selection
-      const paymentTypeRadios = document.querySelectorAll('input[name="paymentType"]');
-      const bankCheckFields = document.getElementById('bankCheckFields');
-      paymentTypeRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-          if (this.value === 'check') {
-            bankCheckFields.classList.remove('hidden');
-          } else {
-            bankCheckFields.classList.add('hidden');
-          }
-        });
-      });
-    });</script>
+    });
+  </script>
 
   <script>
     // Define the toggleSubmenu function
@@ -1632,51 +2331,73 @@
     }
   </script>
 
-  <!-- Animation Control Script -->
+  <!-- Page Loading Control Script -->
   <script>
     let lottieAnimation = null;
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const lottieContainer = document.getElementById('lottieContainer');
 
-    // Enhanced Loading Animation Control with Error Handling
-    function showLoading(show) {
-      const loader = document.getElementById('loadingOverlay');
-      if (show) {
-        loader.style.display = 'flex';
-        loader.classList.remove('animate__fadeOut');
-        loader.classList.add('animate__fadeIn');
+    // Show Page Loading
+    window.showPageLoading = function() {
+      loadingOverlay.style.display = 'flex';
+      loadingOverlay.style.opacity = '1';
+      loadingOverlay.style.visibility = 'visible';
 
-        if (!lottieAnimation) {
-          fetch('/Loading/Loading.json')
-            .then(response => response.json())
-            .then(animationData => {
-              lottieAnimation = lottie.loadAnimation({
-                container: document.getElementById('lottieContainer'),
-                renderer: 'svg',
-                loop: true,
-                autoplay: true,
-                animationData: animationData
-              });
-            })
-            .catch(error => {
-              console.error('Error loading Lottie animation:', error);
-              // Fallback to CSS spinner if Lottie fails
-              document.getElementById('lottieContainer').innerHTML = `
-                <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-              `;
-            });
-        } else {
-          lottieAnimation.play();
-        }
-      } else {
-        if (lottieAnimation) {
-          lottieAnimation.pause();
-        }
-        loader.classList.remove('animate__fadeIn');
-        loader.classList.add('animate__fadeOut');
-        setTimeout(() => {
-          loader.style.display = 'none';
-        }, 600);
+      if (lottieAnimation) {
+        lottieAnimation.play();
       }
-    }
+    };
+
+    // Hide Page Loading
+    window.hidePageLoading = function() {
+      loadingOverlay.style.opacity = '0';
+
+      if (lottieAnimation) {
+        lottieAnimation.pause();
+      }
+
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        loadingOverlay.style.visibility = 'hidden';
+      }, 500);
+    };
+
+    // Initialize Lottie Animation
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show loading initially
+      showPageLoading();
+
+      // Load Lottie animation
+      try {
+        lottieAnimation = lottie.loadAnimation({
+          container: lottieContainer,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/Loading/Loading.json'
+        });
+
+        lottieAnimation.addEventListener('DOMLoaded', function() {
+          console.log('✅ Lottie animation loaded successfully');
+        });
+
+        lottieAnimation.addEventListener('error', function(error) {
+          console.error('❌ Lottie animation error:', error);
+          // Fallback to CSS spinner
+          lottieContainer.innerHTML = '<div class="loader"></div>';
+        });
+      } catch (error) {
+        console.error('Error initializing Lottie:', error);
+        lottieContainer.innerHTML = '<div class="loader"></div>';
+      }
+
+      // Hide loading after page is fully loaded
+      window.addEventListener('load', function() {
+        setTimeout(() => {
+          hidePageLoading();
+        }, 500);
+      });
+    });
 
     // Memory Management - Cleanup on page unload
     window.addEventListener('beforeunload', () => {
@@ -1688,19 +2409,6 @@
       } catch (error) {
         console.error('Error cleaning up Lottie animation:', error);
       }
-    });
-
-    // Initialize Lottie animation on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      // Show loading initially
-      showLoading(true);
-
-      // Hide loading after page is fully loaded
-      window.addEventListener('load', function() {
-        setTimeout(() => {
-          showLoading(false);
-        }, 500);
-      });
     });
   </script>
 

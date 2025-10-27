@@ -183,12 +183,54 @@ class ReceiptController {
   // ดึง Receipt ทั้งหมด
   static async getAll(req, res) {
     try {
-      const { page = 1, limit = 10, branchCode, customerTaxId, receiptType } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        branchCode,
+        customerTaxId,
+        receiptType,
+        search,
+        status,
+        startDate,
+        endDate
+      } = req.query;
 
       const filter = {};
+
+      // Filter by branch
       if (branchCode) filter.branchCode = branchCode;
+
+      // Filter by customer tax ID
       if (customerTaxId) filter['customer.taxId'] = customerTaxId;
+
+      // Filter by receipt type
       if (receiptType) filter.receiptType = receiptType;
+
+      // Filter by status
+      if (status) filter.status = status;
+
+      // Search by receipt number or customer name
+      if (search && search.trim()) {
+        filter.$or = [
+          { receiptNumber: { $regex: search.trim(), $options: 'i' } },
+          { 'customer.name': { $regex: search.trim(), $options: 'i' } },
+          { 'customer.fullName': { $regex: search.trim(), $options: 'i' } }
+        ];
+      }
+
+      // Filter by date range
+      if (startDate || endDate) {
+        filter.createdAt = {};
+        if (startDate) {
+          filter.createdAt.$gte = new Date(startDate);
+        }
+        if (endDate) {
+          // Set to end of day
+          const endDateObj = new Date(endDate);
+          endDateObj.setHours(23, 59, 59, 999);
+          filter.createdAt.$lte = endDateObj;
+        }
+      }
 
       const receipts = await Receipt
         .find(filter)
@@ -203,7 +245,7 @@ class ReceiptController {
         success: true,
         data: receipts,
         pagination: {
-          current: page,
+          current: parseInt(page),
           total: Math.ceil(total / limit),
           count: receipts.length,
           totalRecords: total
@@ -410,7 +452,11 @@ class ReceiptController {
       if (startDate || endDate) {
         filter.createdAt = {};
         if (startDate) filter.createdAt.$gte = new Date(startDate);
-        if (endDate) filter.createdAt.$lte = new Date(endDate);
+        if (endDate) {
+          const endDateObj = new Date(endDate);
+          endDateObj.setHours(23, 59, 59, 999);
+          filter.createdAt.$lte = endDateObj;
+        }
       }
 
       const stats = await Receipt.aggregate([
@@ -425,6 +471,24 @@ class ReceiptController {
           }
         }
       ]);
+
+      // Group by status to get paid and pending amounts
+      const byStatus = await Receipt.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+            totalAmount: { $sum: '$totalAmount' }
+          }
+        }
+      ]);
+
+      // Calculate amounts by status
+      const statusMap = byStatus.reduce((acc, item) => {
+        acc[item._id] = item.totalAmount || 0;
+        return acc;
+      }, {});
 
       const byBranch = await Receipt.aggregate([
         { $match: filter },
@@ -462,15 +526,22 @@ class ReceiptController {
         { $sort: { count: -1 } }
       ]);
 
+      const overallStats = stats[0] || {
+        totalCount: 0,
+        totalAmount: 0,
+        totalDownPayment: 0,
+        avgAmount: 0
+      };
+
       res.json({
         success: true,
         data: {
-          overall: stats[0] || {
-            totalCount: 0,
-            totalAmount: 0,
-            totalDownPayment: 0,
-            avgAmount: 0
-          },
+          totalReceipts: overallStats.totalCount,
+          totalAmount: overallStats.totalAmount,
+          paidAmount: statusMap.paid || 0,
+          pendingAmount: statusMap.pending || 0,
+          overall: overallStats,
+          byStatus,
           byBranch,
           byReceiptType,
           byPaymentMethod

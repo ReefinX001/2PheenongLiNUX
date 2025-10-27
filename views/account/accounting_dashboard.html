@@ -12,6 +12,12 @@
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
 
+  <!-- Lottie Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
   <!-- Required Libraries for Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1029,10 +1035,20 @@
     localStorage.removeItem('darkMode');
     localStorage.setItem('theme', 'light');
   </script>
-  <!-- Loading Spinner -->
-<div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-  <div class="loader"></div>
-</div>
+
+  <!-- Page Loading Overlay with Lottie Animation -->
+  <div id="loadingOverlay" class="loading-overlay"
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+              width: 100vw; height: 100vh;
+              display: flex; justify-content: center; align-items: center;
+              z-index: 999999; background: rgba(255, 255, 255, 0.98);
+              backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+              transition: opacity 0.5s ease-out, visibility 0.5s ease-out;">
+    <div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+      <div id="lottieContainer" style="width: 300px; height: 300px; margin: 0 auto;"></div>
+    </div>
+  </div>
+
   <div id="mainContent" class="container mx-auto px-4 py-6">
     <!-- Navbar -->
     <!-- Account System Navbar Template -->
@@ -1686,6 +1702,79 @@
       socket.on('disconnect', () => {
         console.warn('Socket.IO disconnected from server');
       });
+    });
+
+    // ====================== Page Loading with Lottie Animation ======================
+    const lottieContainer = document.getElementById('lottieContainer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    let lottieAnimation;
+
+    // Function to show page loading overlay
+    window.showPageLoading = function() {
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+        loadingOverlay.style.opacity = '1';
+        loadingOverlay.style.visibility = 'visible';
+      }
+    };
+
+    // Function to hide page loading overlay
+    window.hidePageLoading = function() {
+      if (loadingOverlay) {
+        loadingOverlay.style.opacity = '0';
+        setTimeout(function() {
+          loadingOverlay.style.display = 'none';
+          loadingOverlay.style.visibility = 'hidden';
+        }, 500);
+      }
+    };
+
+    // Initialize Lottie Animation
+    if (lottieContainer && typeof lottie !== 'undefined') {
+      try {
+        // Load Lottie animation
+        lottieAnimation = lottie.loadAnimation({
+          container: lottieContainer,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/Loading/Loading.json'
+        });
+
+        // Show loading overlay initially
+        showPageLoading();
+
+        // Hide loading after page loads
+        window.addEventListener('load', function() {
+          setTimeout(function() {
+            hidePageLoading();
+          }, 800);
+        });
+      } catch (error) {
+        console.error('Error loading Lottie animation:', error);
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+      }
+    } else {
+      console.warn('Lottie library not loaded or container not found');
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+    }
+
+    // Show loading before page navigation
+    window.addEventListener('beforeunload', function() {
+      showPageLoading();
+    });
+
+    // Intercept internal links to show loading
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('a[href]');
+      if (link && !link.hasAttribute('target') && !link.getAttribute('href').startsWith('#')) {
+        const href = link.getAttribute('href');
+        // Only show loading for internal navigation (not external links)
+        if (href && !href.startsWith('http://') && !href.startsWith('https://') &&
+            !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+          showPageLoading();
+        }
+      }
     });
   </script>
   <!-- Account Menu Script -->
